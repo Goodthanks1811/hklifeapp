@@ -7,7 +7,6 @@ import {
   Animated,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -83,7 +82,10 @@ export default function IRQuickAdd() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
-  const [keyboardUp, setKeyboardUp] = useState(false);
+  const [footerH, setFooterH] = useState(90);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
@@ -92,14 +94,30 @@ export default function IRQuickAdd() {
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
-  // Track keyboard to remove bottom padding when keyboard is open
+  // Track keyboard height and animate footer up/down
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardWillShow", () => setKeyboardUp(true));
-    const hide = Keyboard.addListener("keyboardWillHide", () => setKeyboardUp(false));
-    const showDid = Keyboard.addListener("keyboardDidShow", () => setKeyboardUp(true));
-    const hideDid = Keyboard.addListener("keyboardDidHide", () => setKeyboardUp(false));
-    return () => { show.remove(); hide.remove(); showDid.remove(); hideDid.remove(); };
-  }, []);
+    const onShow = (e: any) => {
+      setKeyboardVisible(true);
+      Animated.timing(keyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration || 250,
+        useNativeDriver: false,
+      }).start();
+    };
+    const onHide = (e: any) => {
+      setKeyboardVisible(false);
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: e.duration || 200,
+        useNativeDriver: false,
+      }).start();
+    };
+    const s1 = Keyboard.addListener("keyboardWillShow", onShow);
+    const s2 = Keyboard.addListener("keyboardWillHide", onHide);
+    const s3 = Keyboard.addListener("keyboardDidShow", onShow);
+    const s4 = Keyboard.addListener("keyboardDidHide", onHide);
+    return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
+  }, [keyboardOffset]);
 
   useEffect(() => {
     if (!apiKey) return;
@@ -192,8 +210,6 @@ export default function IRQuickAdd() {
     outputRange: [-8, 0, 8],
   });
 
-  const footerBottomPad = keyboardUp ? 10 : Math.max(bottomPad, 20);
-
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* Header */}
@@ -207,155 +223,147 @@ export default function IRQuickAdd() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
+      {/* Scrollable body — bottom padding reserves space for the absolute footer */}
+      <ScrollView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={topPad + 56}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: footerH + Math.max(bottomPad, 16) }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Logo */}
-          <View style={styles.logoWrap}>
-            <Image source={{ uri: IR_HEADER_LOGO }} style={styles.logo} resizeMode="contain" />
-          </View>
-
-          {/* No API key warning */}
-          {!apiKey && (
-            <View style={styles.warningBox}>
-              <Feather name="alert-circle" size={16} color={IR.gold} />
-              <Text style={styles.warningText}>Add your Notion API key in the Task Board settings first.</Text>
-            </View>
-          )}
-          {schemaError && (
-            <View style={styles.warningBox}>
-              <Feather name="alert-circle" size={16} color={IR.error} />
-              <Text style={[styles.warningText, { color: IR.error }]}>{schemaError}</Text>
-            </View>
-          )}
-
-          {/* Form card */}
-          <View style={styles.formCard}>
-            {/* Summary */}
-            <Text style={styles.fieldLabel}>Summary</Text>
-            <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
-              <TextInput
-                ref={inputRef}
-                style={styles.textInput}
-                placeholder="Enter title"
-                placeholderTextColor={IR.textMuted}
-                value={title}
-                onChangeText={setTitle}
-                autoCorrect
-                returnKeyType="done"
-                onSubmitEditing={handleSave}
-                editable={!isSaving}
-              />
-            </Animated.View>
-
-            {/* Epic */}
-            <Text style={styles.fieldLabel}>Epic</Text>
-            <View style={styles.epicGrid}>
-              {EPICS_ORDER.map((epic) => {
-                const isActive = selectedEpic === epic;
-                const isDimmed = selectedEpic !== null && !isActive;
-                const pal = EPIC_PALETTE[epic];
-                return (
-                  <TouchableOpacity
-                    key={epic}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedEpic(selectedEpic === epic ? null : epic);
-                    }}
-                    style={[
-                      styles.epicBtn,
-                      { backgroundColor: isActive ? pal.bgA : pal.bg, opacity: isDimmed ? 0.2 : 1 },
-                    ]}
-                  >
-                    <Text style={styles.epicBtnText}>{epic}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Priority */}
-            <Text style={styles.fieldLabel}>Priority</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.emojiRow}
-              keyboardShouldPersistTaps="handled"
-            >
-              {PICKER_EMOJIS.map((em) => {
-                const isSelected = selectedEmoji === em;
-                const isDimmed = selectedEmoji !== null && !isSelected;
-                return (
-                  <TouchableOpacity
-                    key={em}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedEmoji(em);
-                    }}
-                    style={[
-                      styles.emojiBtn,
-                      isSelected && styles.emojiBtnSelected,
-                      isDimmed && { opacity: 0.3 },
-                    ]}
-                  >
-                    <Text style={styles.emojiText}>{em}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </ScrollView>
-
-        {/* Footer — always outside ScrollView so it stays above keyboard */}
-        <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
-          {saveStatus === "error" && (
-            <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
-          )}
-          <View style={styles.footerBtns}>
-            <TouchableOpacity
-              activeOpacity={0.75}
-              style={styles.cancelBtn}
-              onPress={handleCancel}
-              disabled={isSaving}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.saveBtn, (!schema || isSaving) && styles.saveBtnDisabled]}
-              onPress={handleSave}
-              disabled={!schema || isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator color={IR.bg} size="small" />
-              ) : saveStatus === "success" ? (
-                <View style={styles.successRow}>
-                  <Feather name="check" size={16} color={IR.bg} />
-                  <Text style={styles.saveBtnText}>Saved!</Text>
-                </View>
-              ) : (
-                <Text style={styles.saveBtnText}>Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+        {/* Logo — 3× larger */}
+        <View style={styles.logoWrap}>
+          <Image source={{ uri: IR_HEADER_LOGO }} style={styles.logo} resizeMode="contain" />
         </View>
-      </KeyboardAvoidingView>
+
+        {/* Warnings */}
+        {!apiKey && (
+          <View style={styles.warningBox}>
+            <Feather name="alert-circle" size={16} color={IR.gold} />
+            <Text style={styles.warningText}>Add your Notion API key in the Task Board settings first.</Text>
+          </View>
+        )}
+        {schemaError && (
+          <View style={styles.warningBox}>
+            <Feather name="alert-circle" size={16} color={IR.error} />
+            <Text style={[styles.warningText, { color: IR.error }]}>{schemaError}</Text>
+          </View>
+        )}
+
+        {/* Form card */}
+        <View style={styles.formCard}>
+          <Text style={styles.fieldLabel}>Summary</Text>
+          <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
+            <TextInput
+              ref={inputRef}
+              style={styles.textInput}
+              placeholder="Enter title"
+              placeholderTextColor={IR.textMuted}
+              value={title}
+              onChangeText={setTitle}
+              autoCorrect
+              returnKeyType="done"
+              onSubmitEditing={handleSave}
+              editable={!isSaving}
+            />
+          </Animated.View>
+
+          <Text style={styles.fieldLabel}>Epic</Text>
+          <View style={styles.epicGrid}>
+            {EPICS_ORDER.map((epic) => {
+              const isActive = selectedEpic === epic;
+              const isDimmed = selectedEpic !== null && !isActive;
+              const pal = EPIC_PALETTE[epic];
+              return (
+                <TouchableOpacity
+                  key={epic}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedEpic(selectedEpic === epic ? null : epic);
+                  }}
+                  style={[
+                    styles.epicBtn,
+                    { backgroundColor: isActive ? pal.bgA : pal.bg, opacity: isDimmed ? 0.2 : 1 },
+                  ]}
+                >
+                  <Text style={styles.epicBtnText}>{epic}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.fieldLabel}>Priority</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.emojiRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {PICKER_EMOJIS.map((em) => {
+              const isSelected = selectedEmoji === em;
+              const isDimmed = selectedEmoji !== null && !isSelected;
+              return (
+                <TouchableOpacity
+                  key={em}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedEmoji(em);
+                  }}
+                  style={[
+                    styles.emojiBtn,
+                    isSelected && styles.emojiBtnSelected,
+                    isDimmed && { opacity: 0.3 },
+                  ]}
+                >
+                  <Text style={styles.emojiText}>{em}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </ScrollView>
+
+      {/* Footer — absolutely positioned, animates up with keyboard */}
+      <Animated.View
+        style={[styles.footer, { bottom: keyboardOffset }]}
+        onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
+      >
+        {saveStatus === "error" && (
+          <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
+        )}
+        <View style={[styles.footerBtns, { paddingBottom: keyboardVisible ? 10 : Math.max(bottomPad, 20) }]}>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            style={styles.cancelBtn}
+            onPress={handleCancel}
+            disabled={isSaving}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.saveBtn, (!schema || isSaving) && styles.saveBtnDisabled]}
+            onPress={handleSave}
+            disabled={!schema || isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator color={IR.bg} size="small" />
+            ) : saveStatus === "success" ? (
+              <View style={styles.successRow}>
+                <Feather name="check" size={16} color={IR.bg} />
+                <Text style={styles.saveBtnText}>Saved!</Text>
+              </View>
+            ) : (
+              <Text style={styles.saveBtnText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
 
       {/* Success toast */}
       <Animated.View
-        style={[
-          styles.successToast,
-          { top: topPad + 64, opacity: successAnim },
-        ]}
+        style={[styles.successToast, { top: topPad + 64, opacity: successAnim }]}
         pointerEvents="none"
       >
         <Feather name="check-circle" size={15} color={IR.success} />
@@ -401,11 +409,11 @@ const styles = StyleSheet.create({
   logoWrap: {
     alignItems: "center",
     marginBottom: 20,
-    marginTop: 6,
+    marginTop: 10,
   },
   logo: {
-    width: 200,
-    height: 58,
+    width: 300,
+    height: 160,
   },
 
   warningBox: {
@@ -508,6 +516,9 @@ const styles = StyleSheet.create({
   },
 
   footer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
     paddingHorizontal: 18,
     paddingTop: 12,
     borderTopWidth: 1,
