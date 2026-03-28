@@ -1,14 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as MediaLibrary from "expo-media-library";
-import { router } from "expo-router";
 import React, { useRef } from "react";
 import {
   Alert,
   Platform,
+  Pressable,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -571,27 +569,8 @@ export default function PhotoSlider() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: topPad }]}>
-      {/* Native header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Feather name="chevron-left" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Photo Slider</Text>
-        <TouchableOpacity
-          style={styles.menuBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Feather name="menu" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* WebView tool */}
+    <View style={styles.root}>
+      {/* WebView tool — fills full screen */}
       <WebView
         ref={webRef}
         source={{ html: buildHtml() }}
@@ -605,6 +584,15 @@ export default function PhotoSlider() {
         originWhitelist={["*"]}
         allowsFullscreenVideo={false}
       />
+
+      {/* Floating hamburger — left side, matches IR/HK Quick Add */}
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+        style={[styles.hamburgerBtn, { top: topPad + 10 }]}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Feather name="menu" size={20} color="#fff" />
+      </Pressable>
     </View>
   );
 }
@@ -615,36 +603,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0a0a0e",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#111111",
-    borderBottomWidth: 1,
-    borderBottomColor: "#2a2a35",
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    color: "#fff",
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 0.2,
-  },
-  menuBtn: {
-    width: 36,
-    height: 36,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 10,
+  hamburgerBtn: {
+    position: "absolute",
+    left: 16,
+    width: 38,
+    height: 38,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
