@@ -319,6 +319,7 @@ export default function MiNenaScreen() {
           </View>
         ) : (
           <FlatList
+            key="folder-grid"
             data={folders}
             numColumns={FOLD_COLS}
             keyExtractor={(f) => f.id}
@@ -402,6 +403,7 @@ export default function MiNenaScreen() {
         </View>
       ) : (
         <FlatList
+          key="file-grid"
           data={openFolder.items}
           numColumns={GRID_COLS}
           keyExtractor={(item) => item.uri}
