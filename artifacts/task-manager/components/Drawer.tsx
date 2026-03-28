@@ -19,22 +19,29 @@ import { Colors } from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
 
 // ── Menu data ─────────────────────────────────────────────────────────────────
-const SCRIPT_ITEMS = [
-  { label: "IR Quick Add",  icon: "zap"       as const, route: "/ir-quick-add",  description: "Add to Notion DB"      },
-  { label: "Mood Report",   icon: "activity"  as const, route: "/mood-report",   description: "Monthly mood charts"   },
-  { label: "My Workload",   icon: "bar-chart" as const, route: "/my-workload",   description: "Created vs done"       },
-  { label: "Review Digest", icon: "file-text" as const, route: null,             description: "Coming soon"           },
+const REPORTS_ITEMS = [
+  { label: "IR Quick Add",  icon: "zap"       as const, route: "/ir-quick-add",  description: "Add to Notion DB"    },
+  { label: "Mood Report",   icon: "activity"  as const, route: "/mood-report",   description: "Monthly mood charts" },
+  { label: "My Workload",   icon: "bar-chart" as const, route: "/my-workload",   description: "Created vs done"     },
+  { label: "Review Digest", icon: "file-text" as const, route: null,             description: "Coming soon"         },
 ];
+
+const PLACEHOLDER_ITEM = { label: "Coming soon", icon: "clock" as const, route: null, description: "In development" };
+
+const APPS_ITEMS    = [PLACEHOLDER_ITEM];
+const FOOTY_ITEMS   = [PLACEHOLDER_ITEM];
+const TOOLS_ITEMS   = [PLACEHOLDER_ITEM];
+const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
 
 const UI_KIT_ITEMS = [
-  { label: "Buttons",       icon: "square"    as const, route: "/ui-kit/buttons",  description: "Styles & states"   },
-  { label: "Sliders",       icon: "sliders"   as const, route: "/ui-kit/sliders",  description: "Custom controls"   },
-  { label: "Drag & Reorder",icon: "list"      as const, route: "/ui-kit/reorder",  description: "Hold to drag"      },
-  { label: "Loaders",       icon: "loader"    as const, route: "/ui-kit/loaders",  description: "Save states"       },
-  { label: "Modals",        icon: "layers"    as const, route: "/ui-kit/modals",   description: "Overlays & alerts" },
+  { label: "Buttons",        icon: "square"  as const, route: "/ui-kit/buttons", description: "Styles & states"   },
+  { label: "Sliders",        icon: "sliders" as const, route: "/ui-kit/sliders", description: "Custom controls"   },
+  { label: "Drag & Reorder", icon: "list"    as const, route: "/ui-kit/reorder", description: "Hold to drag"      },
+  { label: "Loaders",        icon: "loader"  as const, route: "/ui-kit/loaders", description: "Save states"       },
+  { label: "Modals",         icon: "layers"  as const, route: "/ui-kit/modals",  description: "Overlays & alerts" },
 ];
 
-const ITEM_HEIGHT = 56;
+const ITEM_HEIGHT = 50;
 
 // ── Accordion hook ────────────────────────────────────────────────────────────
 function useAccordion(initialOpen: boolean, itemCount: number) {
@@ -71,13 +78,51 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
   return { toggle, listHeight, chevronRotate };
 }
 
+// ── Accordion section ─────────────────────────────────────────────────────────
+function AccordionSection({
+  label,
+  items,
+  accordion,
+  navigate,
+}: {
+  label: string;
+  items: typeof REPORTS_ITEMS;
+  accordion: ReturnType<typeof useAccordion>;
+  navigate: (route: string) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <TouchableOpacity style={styles.accordionHeader} onPress={accordion.toggle} activeOpacity={0.7}>
+        <Text style={styles.sectionLabel}>{label}</Text>
+        <Animated.View style={{ transform: [{ rotate: accordion.chevronRotate }] }}>
+          <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+        </Animated.View>
+      </TouchableOpacity>
+      <Animated.View style={{ height: accordion.listHeight, overflow: "hidden" }}>
+        {items.map((item, i) => (
+          <MenuItem
+            key={`${item.label}-${i}`}
+            item={item}
+            onPress={item.route ? () => navigate(item.route!) : undefined}
+            dimmed={!item.route}
+          />
+        ))}
+      </Animated.View>
+    </View>
+  );
+}
+
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
   const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH } = useDrawer();
   const insets = useSafeAreaInsets();
 
-  const scripts = useAccordion(true,  SCRIPT_ITEMS.length);
-  const uiKit   = useAccordion(false, UI_KIT_ITEMS.length);
+  const reports   = useAccordion(true,  REPORTS_ITEMS.length);
+  const apps      = useAccordion(false, APPS_ITEMS.length);
+  const footy     = useAccordion(false, FOOTY_ITEMS.length);
+  const tools     = useAccordion(false, TOOLS_ITEMS.length);
+  const knowledge = useAccordion(false, KNOWLEDGE_ITEMS.length);
+  const uiKit     = useAccordion(false, UI_KIT_ITEMS.length);
 
   if (!isOpen) return null;
 
@@ -103,7 +148,7 @@ export function Drawer() {
         ]}
       >
         {/* Header image */}
-        <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 20 }}>
+        <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
           <Image
             source={{ uri: "https://i.postimg.cc/zXP1FYQG/IMG_9454.png" }}
             style={styles.headerImage}
@@ -116,47 +161,23 @@ export function Drawer() {
           contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* UI Kit accordion — above Scripts */}
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.accordionHeader} onPress={uiKit.toggle} activeOpacity={0.7}>
-              <Text style={styles.sectionLabel}>UI Kit</Text>
-              <Animated.View style={{ transform: [{ rotate: uiKit.chevronRotate }] }}>
-                <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
-              </Animated.View>
-            </TouchableOpacity>
-            <Animated.View style={{ height: uiKit.listHeight, overflow: "hidden" }}>
-              {UI_KIT_ITEMS.map((item) => (
-                <MenuItem
-                  key={item.route}
-                  item={item}
-                  onPress={() => navigate(item.route!)}
-                />
-              ))}
-            </Animated.View>
-          </View>
-
+          {/* Reports */}
+          <AccordionSection label="Reports"   items={REPORTS_ITEMS}   accordion={reports}   navigate={navigate} />
           <View style={styles.divider} />
-
-          {/* Scripts accordion */}
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.accordionHeader} onPress={scripts.toggle} activeOpacity={0.7}>
-              <Text style={styles.sectionLabel}>Scripts</Text>
-              <Animated.View style={{ transform: [{ rotate: scripts.chevronRotate }] }}>
-                <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
-              </Animated.View>
-            </TouchableOpacity>
-            <Animated.View style={{ height: scripts.listHeight, overflow: "hidden" }}>
-              {SCRIPT_ITEMS.map((item) => (
-                <MenuItem
-                  key={item.label}
-                  item={item}
-                  onPress={item.route ? () => navigate(item.route!) : undefined}
-                  dimmed={!item.route}
-                />
-              ))}
-            </Animated.View>
-          </View>
-
+          {/* Apps */}
+          <AccordionSection label="Apps"      items={APPS_ITEMS}      accordion={apps}      navigate={navigate} />
+          <View style={styles.divider} />
+          {/* Footy */}
+          <AccordionSection label="Footy"     items={FOOTY_ITEMS}     accordion={footy}     navigate={navigate} />
+          <View style={styles.divider} />
+          {/* Tools */}
+          <AccordionSection label="Tools"     items={TOOLS_ITEMS}     accordion={tools}     navigate={navigate} />
+          <View style={styles.divider} />
+          {/* Knowledge */}
+          <AccordionSection label="Knowledge" items={KNOWLEDGE_ITEMS} accordion={knowledge} navigate={navigate} />
+          <View style={styles.divider} />
+          {/* UI Kit — bottom */}
+          <AccordionSection label="UI Kit"    items={UI_KIT_ITEMS}    accordion={uiKit}     navigate={navigate} />
           <View style={styles.divider} />
 
           {/* Settings */}
@@ -202,13 +223,13 @@ function MenuItem({
       disabled={!onPress}
     >
       <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed]}>
-        <Feather name={item.icon} size={18} color={dimmed ? Colors.textMuted : Colors.primary} />
+        <Feather name={item.icon} size={16} color={dimmed ? Colors.textMuted : Colors.primary} />
       </View>
       <View style={styles.menuText}>
         <Text style={[styles.menuLabel, dimmed && styles.menuLabelDimmed]}>{item.label}</Text>
         <Text style={styles.menuDesc}>{item.description}</Text>
       </View>
-      {!dimmed && <Feather name="chevron-right" size={14} color={Colors.textMuted} />}
+      {!dimmed && <Feather name="chevron-right" size={13} color={Colors.textMuted} />}
     </Pressable>
   );
 }
@@ -241,7 +262,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   scrollArea: { flex: 1 },
-  section: { paddingHorizontal: 12, marginBottom: 4 },
+  section: { paddingHorizontal: 12, marginBottom: 2 },
   accordionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -258,20 +279,21 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.border,
     marginHorizontal: 20,
-    marginVertical: 6,
+    marginVertical: 4,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 10,
     borderRadius: 10,
+    height: ITEM_HEIGHT,
   },
   menuItemPressed:  { backgroundColor: Colors.cardBg },
   menuItemDimmed:   { opacity: 0.45 },
   menuIcon: {
-    width: 32, height: 32,
+    width: 30, height: 30,
     backgroundColor: "rgba(224,49,49,0.1)",
     borderRadius: 8,
     alignItems: "center", justifyContent: "center",
@@ -281,7 +303,7 @@ const styles = StyleSheet.create({
   menuLabel:       { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
   menuLabelDimmed: { color: Colors.textMuted },
   menuDesc:        { color: Colors.textMuted,   fontSize: 11, fontFamily: "Inter_400Regular" },
-  settingsSection: { paddingHorizontal: 20, paddingTop: 4 },
+  settingsSection: { paddingHorizontal: 20, paddingTop: 8 },
   settingsRow: {
     flexDirection: "row",
     alignItems: "center",
