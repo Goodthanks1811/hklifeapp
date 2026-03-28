@@ -36,10 +36,15 @@ const ITEM_HEIGHT = 56;
 // ── Accordion hook ────────────────────────────────────────────────────────────
 function useAccordion(initialOpen: boolean, itemCount: number) {
   const [open, setOpen] = useState(initialOpen);
-  const anim    = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
-  const chevron = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
+  const anim      = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
+  const chevron   = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
+  const lastPress = useRef(0);
 
   const toggle = () => {
+    const now = Date.now();
+    if (now - lastPress.current < 500) return;
+    lastPress.current = now;
+
     const next = !open;
     setOpen(next);
     Animated.parallel([
