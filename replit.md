@@ -48,6 +48,12 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 
+## Notion Integration
+
+The app uses a direct Notion API key (Internal Integration Token) entered by the user in the app's setup screen. The Replit Notion connector was dismissed — if reconnecting in the future, use `connector:ccfg_notion_01K49R392Z3CSNMXCPWSV67AF4`. The current approach (user-entered API key stored in AsyncStorage) works well for a personal task manager.
+
+The backend proxies all Notion API calls through `/api/notion/*` routes, forwarding the user's key via `x-notion-key` header.
+
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)
