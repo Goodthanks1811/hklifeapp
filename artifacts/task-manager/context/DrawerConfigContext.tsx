@@ -67,29 +67,37 @@ type SectionConfig = {
   hidden: string[];
 };
 
-type DrawerConfig = Partial<Record<SectionKey, SectionConfig>>;
+type DrawerConfig = Partial<Record<SectionKey, SectionConfig>> & {
+  sectionOrder?: SectionKey[];
+};
 
 const STORAGE_KEY = "drawer_config_v1";
 
 // ── Context ───────────────────────────────────────────────────────────────────
 interface DrawerConfigCtx {
-  ready:        boolean;
-  getAllItems:   (key: SectionKey) => MenuItem[];
-  getVisible:   (key: SectionKey) => MenuItem[];
-  isHidden:     (key: SectionKey, label: string) => boolean;
-  toggleHidden: (key: SectionKey, label: string) => void;
-  moveUp:       (key: SectionKey, label: string) => void;
-  moveDown:     (key: SectionKey, label: string) => void;
+  ready:           boolean;
+  getSectionOrder: () => SectionKey[];
+  getAllItems:      (key: SectionKey) => MenuItem[];
+  getVisible:      (key: SectionKey) => MenuItem[];
+  isHidden:        (key: SectionKey, label: string) => boolean;
+  toggleHidden:    (key: SectionKey, label: string) => void;
+  moveUp:          (key: SectionKey, label: string) => void;
+  moveDown:        (key: SectionKey, label: string) => void;
+  moveSectionUp:   (key: SectionKey) => void;
+  moveSectionDown: (key: SectionKey) => void;
 }
 
 const DrawerConfigContext = createContext<DrawerConfigCtx>({
-  ready:        false,
-  getAllItems:   (k) => ALL_ITEMS[k],
-  getVisible:   (k) => ALL_ITEMS[k],
-  isHidden:     () => false,
-  toggleHidden: () => {},
-  moveUp:       () => {},
-  moveDown:     () => {},
+  ready:           false,
+  getSectionOrder: () => SECTION_ORDER,
+  getAllItems:      (k) => ALL_ITEMS[k],
+  getVisible:      (k) => ALL_ITEMS[k],
+  isHidden:        () => false,
+  toggleHidden:    () => {},
+  moveUp:          () => {},
+  moveDown:        () => {},
+  moveSectionUp:   () => {},
+  moveSectionDown: () => {},
 });
 
 // ── Helper: get items in saved order, appending any new canonical items ────────
@@ -175,9 +183,38 @@ export function DrawerConfigProvider({ children }: { children: React.ReactNode }
     persist({ ...config, [key]: { ...cfg, order: next.map((i) => i.label) } });
   }, [config, getAllItems, getSectionConfig, persist]);
 
+  const getSectionOrder = useCallback((): SectionKey[] => {
+    const saved = config.sectionOrder;
+    if (!saved) return SECTION_ORDER;
+    // Append any new sections not in saved order
+    const seen = new Set(saved);
+    const extra = SECTION_ORDER.filter((k) => !seen.has(k));
+    return [...saved, ...extra];
+  }, [config]);
+
+  const moveSectionUp = useCallback((key: SectionKey) => {
+    const order = getSectionOrder();
+    const idx = order.indexOf(key);
+    if (idx <= 0) return;
+    const next = [...order];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    persist({ ...config, sectionOrder: next });
+  }, [config, getSectionOrder, persist]);
+
+  const moveSectionDown = useCallback((key: SectionKey) => {
+    const order = getSectionOrder();
+    const idx = order.indexOf(key);
+    if (idx < 0 || idx >= order.length - 1) return;
+    const next = [...order];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    persist({ ...config, sectionOrder: next });
+  }, [config, getSectionOrder, persist]);
+
   return (
     <DrawerConfigContext.Provider value={{
-      ready, getAllItems, getVisible, isHidden, toggleHidden, moveUp, moveDown,
+      ready, getSectionOrder, getAllItems, getVisible,
+      isHidden, toggleHidden, moveUp, moveDown,
+      moveSectionUp, moveSectionDown,
     }}>
       {children}
     </DrawerConfigContext.Provider>

@@ -18,26 +18,54 @@ import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 import {
-  ALL_ITEMS,
   SECTION_LABELS,
-  SECTION_ORDER,
   useDrawerConfig,
-  type MenuItem,
   type SectionKey,
 } from "@/context/DrawerConfigContext";
 
 // ── Menu section editor ───────────────────────────────────────────────────────
-function MenuSectionCard({ sectionKey }: { sectionKey: SectionKey }) {
+function MenuSectionCard({
+  sectionKey,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
+}: {
+  sectionKey: SectionKey;
+  isFirst:    boolean;
+  isLast:     boolean;
+  onMoveUp:   () => void;
+  onMoveDown: () => void;
+}) {
   const { getAllItems, isHidden, toggleHidden, moveUp, moveDown } = useDrawerConfig();
   const items = getAllItems(sectionKey);
 
   return (
     <View style={mStyles.card}>
-      <Text style={mStyles.sectionTitle}>{SECTION_LABELS[sectionKey]}</Text>
+      {/* Section header with reorder arrows */}
+      <View style={mStyles.sectionHeader}>
+        <Text style={mStyles.sectionTitle}>{SECTION_LABELS[sectionKey]}</Text>
+        <View style={mStyles.sectionArrows}>
+          <Pressable
+            onPress={() => { if (!isFirst) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveUp(); } }}
+            style={({ pressed }) => [mStyles.arrowBtn, (isFirst || pressed) && mStyles.arrowBtnDisabled]}
+            hitSlop={8}
+          >
+            <Feather name="chevron-up" size={16} color={isFirst ? Colors.textMuted : Colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={() => { if (!isLast) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveDown(); } }}
+            style={({ pressed }) => [mStyles.arrowBtn, (isLast || pressed) && mStyles.arrowBtnDisabled]}
+            hitSlop={8}
+          >
+            <Feather name="chevron-down" size={16} color={isLast ? Colors.textMuted : Colors.textSecondary} />
+          </Pressable>
+        </View>
+      </View>
       {items.map((item, idx) => {
         const hidden    = isHidden(sectionKey, item.label);
-        const isFirst   = idx === 0;
-        const isLast    = idx === items.length - 1;
+        const itemFirst = idx === 0;
+        const itemLast  = idx === items.length - 1;
 
         return (
           <View key={item.label} style={[mStyles.itemRow, hidden && mStyles.itemRowHidden]}>
@@ -54,25 +82,25 @@ function MenuSectionCard({ sectionKey }: { sectionKey: SectionKey }) {
             <View style={mStyles.arrows}>
               <Pressable
                 onPress={() => {
-                  if (isFirst) return;
+                  if (itemFirst) return;
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   moveUp(sectionKey, item.label);
                 }}
-                style={({ pressed }) => [mStyles.arrowBtn, (isFirst || pressed) && mStyles.arrowBtnDisabled]}
+                style={({ pressed }) => [mStyles.arrowBtn, (itemFirst || pressed) && mStyles.arrowBtnDisabled]}
                 hitSlop={6}
               >
-                <Feather name="chevron-up" size={16} color={isFirst ? Colors.textMuted : Colors.textSecondary} />
+                <Feather name="chevron-up" size={16} color={itemFirst ? Colors.textMuted : Colors.textSecondary} />
               </Pressable>
               <Pressable
                 onPress={() => {
-                  if (isLast) return;
+                  if (itemLast) return;
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   moveDown(sectionKey, item.label);
                 }}
-                style={({ pressed }) => [mStyles.arrowBtn, (isLast || pressed) && mStyles.arrowBtnDisabled]}
+                style={({ pressed }) => [mStyles.arrowBtn, (itemLast || pressed) && mStyles.arrowBtnDisabled]}
                 hitSlop={6}
               >
-                <Feather name="chevron-down" size={16} color={isLast ? Colors.textMuted : Colors.textSecondary} />
+                <Feather name="chevron-down" size={16} color={itemLast ? Colors.textMuted : Colors.textSecondary} />
               </Pressable>
             </View>
 
@@ -102,6 +130,7 @@ function MenuSectionCard({ sectionKey }: { sectionKey: SectionKey }) {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey, setApiKey, clearConfig } = useNotion();
+  const { getSectionOrder, moveSectionUp, moveSectionDown } = useDrawerConfig();
 
   const [draft, setDraft]       = useState(apiKey ?? "");
   const [saved, setSaved]       = useState(false);
@@ -152,9 +181,16 @@ export default function SettingsScreen() {
       >
         {/* ── Menu Customisation ─────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>MENU</Text>
-        <Text style={styles.sectionHint}>Reorder items with the arrows. Tap the eye to show or hide.</Text>
-        {SECTION_ORDER.map((key) => (
-          <MenuSectionCard key={key} sectionKey={key} />
+        <Text style={styles.sectionHint}>Reorder sections and items with the arrows. Tap the eye to show or hide.</Text>
+        {getSectionOrder().map((key, idx, arr) => (
+          <MenuSectionCard
+            key={key}
+            sectionKey={key}
+            isFirst={idx === 0}
+            isLast={idx === arr.length - 1}
+            onMoveUp={() => moveSectionUp(key)}
+            onMoveDown={() => moveSectionDown(key)}
+          />
         ))}
 
         {/* ── Notion Integration ─────────────────────────────────────────────── */}
@@ -258,17 +294,26 @@ const mStyles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 10,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
   sectionTitle: {
     color: Colors.textSecondary,
     fontSize: 11,
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  },
+  sectionArrows: {
+    flexDirection: "row",
+    gap: 2,
   },
   itemRow: {
     flexDirection: "row",
