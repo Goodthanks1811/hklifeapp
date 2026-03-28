@@ -17,38 +17,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
-
-// ── Menu data ─────────────────────────────────────────────────────────────────
-const REPORTS_ITEMS = [
-  { label: "Mood Report",   icon: "activity"  as const, route: "/mood-report",   description: "Monthly mood charts" },
-  { label: "My Workload",   icon: "bar-chart" as const, route: "/my-workload",   description: "Created vs done"     },
-  { label: "March Sleep",   icon: "moon"      as const, route: "/march-sleep",   description: "Feb 28 – Mar 27"    },
-  { label: "Review Digest", icon: "file-text" as const, route: null,             description: "Coming soon"         },
-];
-
-const PLACEHOLDER_ITEM = { label: "Coming soon", icon: "clock" as const, route: null, description: "In development" };
-
-const APPS_ITEMS = [
-  { label: "Mi Nena", icon: "heart" as const, route: "/mi-nena", description: "Photo & video gallery" },
-];
-const FOOTY_ITEMS = [
-  { label: "Schedule", icon: "calendar" as const, route: "/nrl-schedule", description: "NRL fixtures & ladder" },
-];
-const TOOLS_ITEMS = [
-  { label: "IR Quick Add",   icon: "zap"         as const, route: "/ir-quick-add",    description: "Add to Notion DB"        },
-  { label: "HK Quick Add",   icon: "plus-circle" as const, route: "/hk-quick-add",    description: "HK Automation task add"  },
-  { label: "Life Quick Add", icon: "sun"          as const, route: "/life-quick-add",  description: "Life tasks to Notion"    },
-  { label: "Photo Slider",   icon: "image"       as const, route: "/photo-slider",    description: "Compare & export photos" },
-];
-const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
-
-const UI_KIT_ITEMS = [
-  { label: "Buttons",        icon: "square"  as const, route: "/ui-kit/buttons", description: "Styles & states"   },
-  { label: "Sliders",        icon: "sliders" as const, route: "/ui-kit/sliders", description: "Custom controls"   },
-  { label: "Drag & Reorder", icon: "list"    as const, route: "/ui-kit/reorder", description: "Hold to drag"      },
-  { label: "Loaders",        icon: "loader"  as const, route: "/ui-kit/loaders", description: "Save states"       },
-  { label: "Modals",         icon: "layers"  as const, route: "/ui-kit/modals",  description: "Overlays & alerts" },
-];
+import {
+  SECTION_ORDER,
+  SECTION_LABELS,
+  useDrawerConfig,
+  type SectionKey,
+  type MenuItem,
+} from "@/context/DrawerConfigContext";
 
 const ITEM_HEIGHT = 50;
 
@@ -62,25 +37,22 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
   const toggle = () => {
     if (locked.current) return;
     locked.current = true;
-
     openRef.current = !openRef.current;
     const toValue = openRef.current ? 1 : 0;
-
     Animated.parallel([
       Animated.timing(anim,    { toValue, duration: 250, easing: Easing.out(Easing.quad), useNativeDriver: false }),
       Animated.timing(chevron, { toValue, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start(() => { locked.current = false; });
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const listHeight = anim.interpolate({
-    inputRange: [0, 1],
+    inputRange:  [0, 1],
     outputRange: [0, itemCount * ITEM_HEIGHT],
   });
 
   const chevronRotate = chevron.interpolate({
-    inputRange: [0, 1],
+    inputRange:  [0, 1],
     outputRange: ["0deg", "90deg"],
   });
 
@@ -94,8 +66,8 @@ function AccordionSection({
   accordion,
   navigate,
 }: {
-  label: string;
-  items: typeof REPORTS_ITEMS;
+  label:    string;
+  items:    MenuItem[];
   accordion: ReturnType<typeof useAccordion>;
   navigate: (route: string) => void;
 }) {
@@ -109,7 +81,7 @@ function AccordionSection({
       </TouchableOpacity>
       <Animated.View style={{ height: accordion.listHeight, overflow: "hidden" }}>
         {items.map((item, i) => (
-          <MenuItem
+          <DrawerMenuItem
             key={`${item.label}-${i}`}
             item={item}
             onPress={item.route ? () => navigate(item.route!) : undefined}
@@ -124,14 +96,25 @@ function AccordionSection({
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
   const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH } = useDrawer();
+  const { getVisible } = useDrawerConfig();
   const insets = useSafeAreaInsets();
 
-  const reports   = useAccordion(true,  REPORTS_ITEMS.length);
-  const apps      = useAccordion(false, APPS_ITEMS.length);
-  const footy     = useAccordion(false, FOOTY_ITEMS.length);
-  const tools     = useAccordion(false, TOOLS_ITEMS.length); 
-  const knowledge = useAccordion(false, KNOWLEDGE_ITEMS.length);
-  const uiKit     = useAccordion(false, UI_KIT_ITEMS.length);
+  // Compute visible items per section
+  const visibleItems: Record<SectionKey, MenuItem[]> = {} as any;
+  for (const key of SECTION_ORDER) {
+    visibleItems[key] = getVisible(key);
+  }
+
+  const reports   = useAccordion(true,  visibleItems.reports.length);
+  const apps      = useAccordion(false, visibleItems.apps.length);
+  const footy     = useAccordion(false, visibleItems.footy.length);
+  const tools     = useAccordion(false, visibleItems.tools.length);
+  const knowledge = useAccordion(false, visibleItems.knowledge.length);
+  const uiKit     = useAccordion(false, visibleItems.uikit.length);
+
+  const accordions: Record<SectionKey, ReturnType<typeof useAccordion>> = {
+    reports, apps, footy, tools, knowledge, uikit: uiKit,
+  };
 
   if (!isOpen) return null;
 
@@ -156,7 +139,6 @@ export function Drawer() {
           { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] },
         ]}
       >
-        {/* Header image */}
         <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
           <Image
             source={{ uri: "https://i.postimg.cc/zXP1FYQG/IMG_9454.png" }}
@@ -170,24 +152,17 @@ export function Drawer() {
           contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Reports */}
-          <AccordionSection label="Reports"   items={REPORTS_ITEMS}   accordion={reports}   navigate={navigate} />
-          <View style={styles.divider} />
-          {/* Apps */}
-          <AccordionSection label="Apps"      items={APPS_ITEMS}      accordion={apps}      navigate={navigate} />
-          <View style={styles.divider} />
-          {/* Footy */}
-          <AccordionSection label="Footy"     items={FOOTY_ITEMS}     accordion={footy}     navigate={navigate} />
-          <View style={styles.divider} />
-          {/* Tools */}
-          <AccordionSection label="Tools"     items={TOOLS_ITEMS}     accordion={tools}     navigate={navigate} />
-          <View style={styles.divider} />
-          {/* Knowledge */}
-          <AccordionSection label="Knowledge" items={KNOWLEDGE_ITEMS} accordion={knowledge} navigate={navigate} />
-          <View style={styles.divider} />
-          {/* UI Kit — bottom */}
-          <AccordionSection label="UI Kit"    items={UI_KIT_ITEMS}    accordion={uiKit}     navigate={navigate} />
-          <View style={styles.divider} />
+          {SECTION_ORDER.map((key, i) => (
+            <React.Fragment key={key}>
+              <AccordionSection
+                label={SECTION_LABELS[key]}
+                items={visibleItems[key]}
+                accordion={accordions[key]}
+                navigate={navigate}
+              />
+              <View style={styles.divider} />
+            </React.Fragment>
+          ))}
 
           {/* Settings */}
           <View style={styles.settingsSection}>
@@ -211,15 +186,15 @@ export function Drawer() {
   );
 }
 
-// ── MenuItem ──────────────────────────────────────────────────────────────────
-function MenuItem({
+// ── DrawerMenuItem ─────────────────────────────────────────────────────────────
+function DrawerMenuItem({
   item,
   onPress,
   dimmed,
 }: {
-  item: { label: string; icon: any; description: string };
+  item:     MenuItem;
   onPress?: () => void;
-  dimmed?: boolean;
+  dimmed?:  boolean;
 }) {
   return (
     <Pressable
@@ -232,7 +207,7 @@ function MenuItem({
       disabled={!onPress}
     >
       <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed]}>
-        <Feather name={item.icon} size={16} color={dimmed ? Colors.textMuted : Colors.primary} />
+        <Feather name={item.icon as any} size={16} color={dimmed ? Colors.textMuted : Colors.primary} />
       </View>
       <View style={styles.menuText}>
         <Text style={[styles.menuLabel, dimmed && styles.menuLabelDimmed]}>{item.label}</Text>

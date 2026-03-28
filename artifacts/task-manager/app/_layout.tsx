@@ -17,6 +17,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Drawer } from "@/components/Drawer";
 import { DrawerProvider } from "@/context/DrawerContext";
+import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
 
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -62,6 +63,7 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <NotionProvider>
+            <DrawerConfigProvider>
             <DrawerProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
@@ -69,6 +71,7 @@ export default function RootLayout() {
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </DrawerProvider>
+            </DrawerConfigProvider>
           </NotionProvider>
         </QueryClientProvider>
       </ErrorBoundary>

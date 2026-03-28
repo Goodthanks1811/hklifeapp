@@ -17,7 +17,88 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
+import {
+  ALL_ITEMS,
+  SECTION_LABELS,
+  SECTION_ORDER,
+  useDrawerConfig,
+  type MenuItem,
+  type SectionKey,
+} from "@/context/DrawerConfigContext";
 
+// ── Menu section editor ───────────────────────────────────────────────────────
+function MenuSectionCard({ sectionKey }: { sectionKey: SectionKey }) {
+  const { getAllItems, isHidden, toggleHidden, moveUp, moveDown } = useDrawerConfig();
+  const items = getAllItems(sectionKey);
+
+  return (
+    <View style={mStyles.card}>
+      <Text style={mStyles.sectionTitle}>{SECTION_LABELS[sectionKey]}</Text>
+      {items.map((item, idx) => {
+        const hidden    = isHidden(sectionKey, item.label);
+        const isFirst   = idx === 0;
+        const isLast    = idx === items.length - 1;
+
+        return (
+          <View key={item.label} style={[mStyles.itemRow, hidden && mStyles.itemRowHidden]}>
+            {/* Icon + label */}
+            <View style={[mStyles.iconBox, hidden && mStyles.iconBoxHidden]}>
+              <Feather name={item.icon as any} size={14} color={hidden ? Colors.textMuted : Colors.primary} />
+            </View>
+            <View style={mStyles.itemText}>
+              <Text style={[mStyles.itemLabel, hidden && mStyles.itemLabelHidden]}>{item.label}</Text>
+              <Text style={mStyles.itemDesc}>{item.description}</Text>
+            </View>
+
+            {/* Reorder arrows */}
+            <View style={mStyles.arrows}>
+              <Pressable
+                onPress={() => {
+                  if (isFirst) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  moveUp(sectionKey, item.label);
+                }}
+                style={({ pressed }) => [mStyles.arrowBtn, (isFirst || pressed) && mStyles.arrowBtnDisabled]}
+                hitSlop={6}
+              >
+                <Feather name="chevron-up" size={16} color={isFirst ? Colors.textMuted : Colors.textSecondary} />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (isLast) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  moveDown(sectionKey, item.label);
+                }}
+                style={({ pressed }) => [mStyles.arrowBtn, (isLast || pressed) && mStyles.arrowBtnDisabled]}
+                hitSlop={6}
+              >
+                <Feather name="chevron-down" size={16} color={isLast ? Colors.textMuted : Colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Eye toggle */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                toggleHidden(sectionKey, item.label);
+              }}
+              style={({ pressed }) => [mStyles.eyeBtn, pressed && { opacity: 0.6 }]}
+              hitSlop={8}
+            >
+              <Feather
+                name={hidden ? "eye-off" : "eye"}
+                size={17}
+                color={hidden ? Colors.textMuted : Colors.primary}
+              />
+            </Pressable>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey, setApiKey, clearConfig } = useNotion();
@@ -29,7 +110,7 @@ export default function SettingsScreen() {
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
-  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
   useEffect(() => { setDraft(apiKey ?? ""); }, [apiKey]);
@@ -62,7 +143,6 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      {/* Header */}
       <ScreenHeader title="Settings" />
 
       <ScrollView
@@ -70,11 +150,16 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Section: Notion */}
-        <Text style={styles.sectionLabel}>NOTION INTEGRATION</Text>
-        <View style={styles.card}>
+        {/* ── Menu Customisation ─────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>MENU</Text>
+        <Text style={styles.sectionHint}>Reorder items with the arrows. Tap the eye to show or hide.</Text>
+        {SECTION_ORDER.map((key) => (
+          <MenuSectionCard key={key} sectionKey={key} />
+        ))}
 
-          {/* Status row */}
+        {/* ── Notion Integration ─────────────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { marginTop: 24 }]}>NOTION INTEGRATION</Text>
+        <View style={styles.card}>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: hasKey ? Colors.success : Colors.textMuted }]} />
             <Text style={[styles.statusText, { color: hasKey ? Colors.success : Colors.textMuted }]}>
@@ -84,7 +169,6 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          {/* API Key input */}
           <Text style={styles.fieldLabel}>Notion API Key</Text>
           <View style={styles.inputRow}>
             <TextInput
@@ -101,11 +185,7 @@ export default function SettingsScreen() {
               onSubmitEditing={handleSave}
             />
             <Pressable onPress={() => setMasked((m) => !m)} style={styles.eyeBtn}>
-              <Feather
-                name={masked ? "eye" : "eye-off"}
-                size={18}
-                color={Colors.textSecondary}
-              />
+              <Feather name={masked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
             </Pressable>
           </View>
 
@@ -115,7 +195,6 @@ export default function SettingsScreen() {
             {"\n"}Create an integration → copy the Internal Integration Secret.
           </Text>
 
-          {/* Save button */}
           <TouchableOpacity
             activeOpacity={0.8}
             style={[styles.saveBtn, !isChanged && styles.saveBtnDisabled]}
@@ -132,7 +211,6 @@ export default function SettingsScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Clear button — only shown when a key is saved */}
           {hasKey && (
             <TouchableOpacity
               activeOpacity={0.75}
@@ -148,7 +226,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* How it works */}
+        {/* ── How it works ───────────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
         <View style={styles.card}>
           {[
@@ -170,31 +248,78 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.darkBg },
-
-  header: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
+// ── Menu card styles ──────────────────────────────────────────────────────────
+const mStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    backgroundColor: Colors.darkBg,
   },
-  headerBtn: {
-    width: 36, height: 36,
-    backgroundColor: Colors.cardBg,
-    borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  itemRowHidden: { opacity: 0.45 },
+  iconBox: {
+    width: 28, height: 28,
+    backgroundColor: "rgba(224,49,49,0.1)",
+    borderRadius: 7,
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: {
+  iconBoxHidden: { backgroundColor: "rgba(255,255,255,0.05)" },
+  itemText: { flex: 1 },
+  itemLabel: {
     color: Colors.textPrimary,
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
   },
+  itemLabelHidden: { color: Colors.textMuted },
+  itemDesc: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 1,
+  },
+  arrows: {
+    flexDirection: "row",
+    gap: 2,
+  },
+  arrowBtn: {
+    width: 28, height: 28,
+    alignItems: "center", justifyContent: "center",
+    borderRadius: 6,
+  },
+  arrowBtnDisabled: { opacity: 0.3 },
+  eyeBtn: {
+    width: 32, height: 32,
+    alignItems: "center", justifyContent: "center",
+    borderRadius: 8,
+  },
+});
 
+// ── Existing styles ───────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.darkBg },
   content: { padding: 20, gap: 8 },
 
   sectionLabel: {
@@ -203,8 +328,15 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: 1,
     textTransform: "uppercase",
-    marginBottom: 8,
-    marginTop: 12,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  sectionHint: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 10,
+    lineHeight: 17,
   },
 
   card: {
