@@ -314,23 +314,20 @@ export default function IRQuickAdd() {
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={[styles.root, { paddingTop: topPad }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => openDrawer()} style={styles.headerBtn}>
-          <Feather name="menu" size={20} color={IR.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Quick Add</Text>
-        <Pressable onPress={handleCancel} style={styles.headerBtn}>
-          <Feather name="x" size={20} color={IR.textMuted} />
-        </Pressable>
-      </View>
+    <View style={styles.root}>
+      {/* Floating hamburger — sits just below status bar */}
+      <Pressable
+        onPress={() => openDrawer()}
+        style={[styles.hamburgerBtn, { top: topPad + 10 }]}
+      >
+        <Feather name="menu" size={20} color={IR.text} />
+      </Pressable>
 
       {/* Scrollable body — shrinks as keyboard rises */}
       <Animated.View style={[styles.flex, { marginBottom: keyboardOffset }]}>
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: footerH + 8 }]}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 56, paddingBottom: footerH + 8 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -482,32 +479,20 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: IR.bg },
   flex: { flex: 1 },
 
-  header: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: IR.divider,
-    backgroundColor: IR.bg,
-  },
-  headerBtn: {
-    width: 36, height: 36,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 10,
+  hamburgerBtn: {
+    position: "absolute",
+    left: 16,
+    zIndex: 10,
+    width: 38, height: 38,
+    backgroundColor: "rgba(255,255,255,0.09)",
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: IR.cardBorder,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    color: IR.text,
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-  },
 
-  scrollContent: { padding: 18, paddingBottom: 16 },
+  scrollContent: { paddingHorizontal: 18, paddingBottom: 16 },
   logoWrap: { alignItems: "center", marginBottom: 20, marginTop: 10 },
   logo: { width: 300, height: 160 },
 
