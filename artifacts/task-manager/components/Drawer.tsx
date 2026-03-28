@@ -143,7 +143,7 @@ export function Drawer() {
       >
         <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
           <Image
-            source={{ uri: "https://i.postimg.cc/zXP1FYQG/IMG_9454.png" }}
+            source={{ uri: "https://i.postimg.cc/JzFsWTbz/IMG-5952.png" }}
             style={styles.headerImage}
             resizeMode="cover"
           />
