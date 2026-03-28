@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { ResizeMode, Video } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -226,18 +227,38 @@ export default function MiNenaScreen() {
   const [viewerIndex,    setViewerIndex]    = useState<number | null>(null);
   const [showNewFolder,  setShowNewFolder]  = useState(false);
 
-  // Load
+  // Load + migrate (prune any URIs that are no longer accessible)
   useEffect(() => {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) setFolders(JSON.parse(raw));
+        if (raw) {
+          const parsed: Folder[] = JSON.parse(raw);
+          // Check each URI — remove ones that are gone
+          const migrated = await Promise.all(
+            parsed.map(async (folder) => {
+              const alive: MediaItem[] = [];
+              for (const item of folder.items) {
+                try {
+                  const info = await FileSystem.getInfoAsync(item.uri);
+                  if (info.exists) alive.push(item);
+                } catch {
+                  // skip broken
+                }
+              }
+              return { ...folder, items: alive };
+            })
+          );
+          const changed = migrated.some((f, i) => f.items.length !== parsed[i].items.length);
+          setFolders(migrated);
+          if (changed) await saveFolders(migrated);
+        }
       } catch (_) {}
       setLoading(false);
     })();
   }, []);
 
-  // Pick files and add to a folder
+  // Pick files, copy them to permanent storage, then add to a folder
   const pickIntoFolder = useCallback(async (folderId: string) => {
     setPicking(true);
     // Small delay so any dismissing modal fully closes before iOS presents the picker
@@ -246,15 +267,28 @@ export default function MiNenaScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["image/*", "video/*"],
         multiple: true,
-        copyToCacheDirectory: false,
+        copyToCacheDirectory: true, // get a readable temp URI first
       });
       if (result.canceled) return;
 
-      const picked: MediaItem[] = result.assets.map((a) => ({
-        uri:     a.uri,
-        name:    a.name ?? a.uri.split("/").pop() ?? "file",
-        isVideo: isVideo(a.name ?? a.uri),
-      }));
+      // Ensure our permanent media dir exists
+      const mediaDir = `${FileSystem.documentDirectory}mi_nena_media/`;
+      const dirInfo  = await FileSystem.getInfoAsync(mediaDir);
+      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(mediaDir, { intermediates: true });
+
+      // Copy every picked file into permanent storage
+      const picked: MediaItem[] = [];
+      for (const a of result.assets) {
+        const name    = a.name ?? a.uri.split("/").pop() ?? `file_${Date.now()}`;
+        const dest    = `${mediaDir}${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        try {
+          await FileSystem.copyAsync({ from: a.uri, to: dest });
+          picked.push({ uri: dest, name, isVideo: isVideo(name) });
+        } catch {
+          // If copy fails fall back to source URI
+          picked.push({ uri: a.uri, name, isVideo: isVideo(name) });
+        }
+      }
 
       setFolders((prev) => {
         const next = prev.map((f) => {
