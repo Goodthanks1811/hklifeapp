@@ -154,28 +154,42 @@ export default function MiNenaScreen() {
   useEffect(() => {
     const load = async () => {
       try {
-        const base   = FileSystem.documentDirectory ?? "";
-        const folder = base + FOLDER_ENC + "/";       // encoded for getInfo/readDir
-        const rawFolder = base + FOLDER + "/";        // raw for Image/Video URIs
+        const base = FileSystem.documentDirectory ?? "";
 
-        const info = await FileSystem.getInfoAsync(folder);
-        if (!info.exists) {
-          // also try raw path (some versions accept unencoded)
-          const infoRaw = await FileSystem.getInfoAsync(rawFolder);
-          if (!infoRaw.exists) {
-            setError(`Folder not found.\n\nIn the Files app go to:\nOn My iPhone → Expo → create a folder called "${FOLDER}"`);
-            setLoading(false);
-            return;
-          }
+        // Try several path variants for the folder
+        const candidates = [
+          base + "Mi Nena/",
+          base + "Mi%20Nena/",
+          base + "mi nena/",
+          base + "mi%20nena/",
+        ];
+
+        let workingFolder: string | null = null;
+        for (const c of candidates) {
+          try {
+            const contents = await FileSystem.readDirectoryAsync(c);
+            workingFolder = c;
+            break;
+          } catch {}
         }
-        // use whichever path worked
-        const workingFolder = (await FileSystem.getInfoAsync(folder)).exists ? folder : rawFolder;
+
+        if (!workingFolder) {
+          // Show what IS in documentDirectory to help diagnose
+          let rootContents: string[] = [];
+          try { rootContents = await FileSystem.readDirectoryAsync(base); } catch {}
+          setError(
+            `Folder "${FOLDER}" not found.\n\ndocumentDirectory root contains:\n${rootContents.length ? rootContents.join(", ") : "(empty)"}\n\nBase: ${base}`
+          );
+          setLoading(false);
+          return;
+        }
+
         const files = await FileSystem.readDirectoryAsync(workingFolder);
         const media: MediaAsset[] = files
           .filter((f) => IMAGE_EXT.test(f) || VIDEO_EXT.test(f))
           .sort()
           .map((f) => ({
-            uri:     workingFolder + encodeURIComponent(f),
+            uri:     workingFolder! + encodeURIComponent(f),
             name:    f,
             isVideo: VIDEO_EXT.test(f),
           }));
