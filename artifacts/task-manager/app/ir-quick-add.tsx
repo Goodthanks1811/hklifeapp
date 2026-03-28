@@ -366,6 +366,7 @@ export default function IRQuickAdd() {
                 onChangeText={setTitle}
                 autoCorrect
                 returnKeyType="done"
+                keyboardAppearance="dark"
                 onSubmitEditing={handleSave}
                 editable={!saveDisabled}
               />
