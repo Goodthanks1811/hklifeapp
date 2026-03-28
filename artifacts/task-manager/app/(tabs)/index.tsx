@@ -310,7 +310,7 @@ export default function HKCalendarScreen() {
 
             {/* Sheet card */}
             <Animated.View
-              style={[styles.sheetWrap, { bottom: bottomPad + 12, transform: [{ translateY: sheetY }] }]}
+              style={[styles.sheetWrap, { bottom: 0, paddingBottom: Math.max(bottomPad, 16), transform: [{ translateY: sheetY }] }]}
               pointerEvents="auto"
             >
               {/* Drag handle */}
@@ -486,11 +486,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.60)",
   },
   sheetWrap: {
-    position: "absolute", left: 12, right: 12,
+    position: "absolute", left: 0, right: 0,
+    paddingHorizontal: 12,
+    backgroundColor: T.bg,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+    borderColor: T.strokeHi,
+    paddingTop: 12,
   },
 
   // Drag handle
-  dragHandleWrap: { alignItems: "center", paddingBottom: 8 },
+  dragHandleWrap: { alignItems: "center", paddingBottom: 10 },
   dragHandle: {
     width: 36, height: 4, borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.20)",
@@ -531,12 +537,12 @@ const styles = StyleSheet.create({
     flexDirection: "row", gap: 10, padding: 16,
   },
 
-  // Reschedule button — blue ghost
+  // Reschedule button — solid dark blue
   btnReschedule: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
     height: 52, borderRadius: 16,
-    backgroundColor: "rgba(59,139,255,0.12)",
-    borderWidth: 1, borderColor: "rgba(59,139,255,0.30)",
+    backgroundColor: "#1e3a5f",
+    borderWidth: 1, borderColor: "rgba(93,165,255,0.35)",
   },
   btnRescheduleText: {
     fontSize: 15, fontWeight: "800", color: "#93c5fd",
@@ -549,22 +555,20 @@ const styles = StyleSheet.create({
     height: 52, borderRadius: 16,
     backgroundColor: T.red,
     shadowColor: T.red, shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 20, shadowOpacity: 0.45, elevation: 8,
+    shadowRadius: 20, shadowOpacity: 0.50, elevation: 8,
   },
   btnDeleteText: {
     fontSize: 15, fontWeight: "800", color: "#fff",
     fontFamily: "Inter_700Bold",
   },
 
-  // Cancel — ghost pill, separate from main card
+  // Cancel — solid dark pill, separate from main card
   btnCancel: {
     marginTop: 10,
     height: 54, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "#1c1c24",
     borderWidth: 1, borderColor: T.strokeHi,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12, shadowOpacity: 0.30,
   },
   btnCancelText: {
     fontSize: 17, fontWeight: "900", color: T.text,
