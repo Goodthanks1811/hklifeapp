@@ -93,6 +93,16 @@ canvas { position:absolute; top:0; left:0; display:block; }
 #loader-word { display:none; }
 @keyframes spin { to { transform:rotate(360deg); } }
 input[type=file] { display:none; }
+
+#brush-bar { display:none; align-items:center; gap:6px; padding:7px 12px; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
+#brush-bar.visible { display:flex; }
+.mode-btn { flex:1; padding:8px 0; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
+.mode-btn.on { background:#30a830; box-shadow:0 0 8px rgba(48,168,48,.45); }
+.mode-erase.on { background:#E03131; box-shadow:0 0 8px rgba(224,49,49,.45); }
+.brush-range { flex:3; -webkit-appearance:none; height:4px; border-radius:2px; background:${C.border}; outline:none; }
+.brush-range::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+.brush-lbl { font-size:11px; color:${C.muted}; width:22px; text-align:right; }
+.brush-active { background:#30a830 !important; box-shadow:0 0 0 2px rgba(48,168,48,.45) !important; }
 </style>
 </head>
 <body>
@@ -106,7 +116,15 @@ input[type=file] { display:none; }
   <button class="btn-icon" id="btnFit"   onclick="fitActive()">&#10697;</button>
   <button class="btn-icon" id="btnUndo"  onclick="undo()">&#8617;</button>
   <button class="btn-icon" id="btnReset" onclick="resetActive()">&#8634;</button>
+  <button class="btn-icon" id="btnBrush" onclick="toggleBrush()">&#9998;</button>
   <button class="btn-icon" id="btnShare" onclick="shareCanvas()">&#8679;</button>
+</div>
+<div id="brush-bar">
+  <button class="mode-btn mode-erase on" id="btnErase"   onclick="setBrushMode('erase')">Erase</button>
+  <button class="mode-btn mode-restore"  id="btnRestore" onclick="setBrushMode('restore')">Restore</button>
+  <input  class="brush-range" type="range" id="bsl" min="4" max="80" value="20" oninput="brushSize=+this.value;document.getElementById('bval').textContent=this.value;">
+  <span class="brush-lbl" id="bval">20</span>
+  <button class="mode-btn" style="flex:0.8;font-size:11px;" onclick="clearMask()">Clear</button>
 </div>
 <div class="obar" id="obar" style="display:none;">
   <label>Image 2 opacity</label>
@@ -175,6 +193,11 @@ var loaderRunning=false;
 var undoStack=[];
 var MAX_UNDO=30;
 
+// ── Brush state ────────────────────────────────────────
+var brushMode=false,brushErase=true,brushSize=20;
+var maskCanvas=null,offCanvas=null,offCtx=null;
+var bCursor=null; // {x,y} for brush preview circle
+
 var stage=document.getElementById('stage');
 var cv=document.getElementById('cv');
 var ctx=cv.getContext('2d');
@@ -230,7 +253,7 @@ function filesChosen(e){
   loadFile(f1,function(imgA){
     img1=imgA;tx1=defaultTx(img1,W(),H());
     if(f2){
-      loadFile(f2,function(imgB){img2=imgB;tx2=defaultTx(img2,W(),H());active=2;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
+      loadFile(f2,function(imgB){img2=imgB;tx2=defaultTx(img2,W(),H());initMask();active=2;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
     } else {
       active=1;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
     }
@@ -301,27 +324,74 @@ window.nativeSaveResult=function(ok){_saveOk=ok;_tryResolve();};
 
 // ── Canvas ────────────────────────────────────────────
 function cloneTx(t){return t?{scale:t.scale,cx:t.cx,cy:t.cy}:null;}
-function snapshot(){undoStack.push({tx1:cloneTx(tx1),tx2:cloneTx(tx2),gTx:cloneTx(gTx),sliderPos:sliderPos});if(undoStack.length>MAX_UNDO)undoStack.shift();btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');}
-function undo(){if(undoStack.length===0)return;var s=undoStack.pop();tx1=cloneTx(s.tx1);tx2=cloneTx(s.tx2);gTx=cloneTx(s.gTx);sliderPos=s.sliderPos;btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');draw();}
+function cloneMask(){
+  if(!maskCanvas)return null;
+  var c=document.createElement('canvas');c.width=maskCanvas.width;c.height=maskCanvas.height;
+  c.getContext('2d').drawImage(maskCanvas,0,0);return c;
+}
+function snapshot(){
+  undoStack.push({tx1:cloneTx(tx1),tx2:cloneTx(tx2),gTx:cloneTx(gTx),sliderPos:sliderPos,mask:cloneMask()});
+  if(undoStack.length>MAX_UNDO)undoStack.shift();
+  btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');
+}
+function undo(){
+  if(undoStack.length===0)return;
+  var s=undoStack.pop();tx1=cloneTx(s.tx1);tx2=cloneTx(s.tx2);gTx=cloneTx(s.gTx);sliderPos=s.sliderPos;
+  if(s.mask){maskCanvas=s.mask;offCanvas=null;}
+  btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');draw();
+}
 function defaultTx(img,w,h){var s=Math.min(w/img.naturalWidth,h/img.naturalHeight);return{scale:s,cx:w/2,cy:h/2};}
 function activeTx(){return active===1?tx1:tx2;}
 function setActiveTx(t){if(active===1)tx1=t;else tx2=t;}
 function applyGTx(tx){if(!gTx||!tx)return tx;return{scale:tx.scale*gTx.scale,cx:gTx.cx+(tx.cx-gTx.cx)*gTx.scale,cy:gTx.cy+(tx.cy-gTx.cy)*gTx.scale};}
 function bakeZoom(){if(!gTx)return;if(tx1)tx1=applyGTx(tx1);if(tx2)tx2=applyGTx(tx2);gTx=null;}
+
+// Cached offscreen canvas for img2+mask compositing
+function getOff(w,h){
+  if(!offCanvas||offCanvas.width!==w||offCanvas.height!==h){
+    offCanvas=document.createElement('canvas');offCanvas.width=w;offCanvas.height=h;offCtx=offCanvas.getContext('2d');
+  }return{c:offCanvas,x:offCtx};
+}
+function drawImg(img,tx,alpha,useMask){
+  if(!tx)return;
+  var hw=img.naturalWidth*tx.scale/2,hh=img.naturalHeight*tx.scale/2;
+  ctx.save();ctx.globalAlpha=alpha;
+  if(useMask&&maskCanvas){
+    var off=getOff(img.naturalWidth,img.naturalHeight);
+    off.x.clearRect(0,0,img.naturalWidth,img.naturalHeight);
+    off.x.globalCompositeOperation='source-over';off.x.drawImage(img,0,0);
+    off.x.globalCompositeOperation='destination-in';off.x.drawImage(maskCanvas,0,0);
+    off.x.globalCompositeOperation='source-over';
+    ctx.drawImage(off.c,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+  } else {
+    ctx.drawImage(img,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+  }
+  ctx.restore();
+}
 function draw(){
   var w=W(),h=H();if(!w||!h)return;
   cv.width=w;cv.height=h;cv.style.width=w+'px';cv.style.height=h+'px';
   ctx.clearRect(0,0,w,h);
   var etx1=gTx?applyGTx(tx1):tx1,etx2=gTx?applyGTx(tx2):tx2;
   if(sliderMode){drawWithSlider(w,h,etx1,etx2);}
-  else{if(img1&&etx1)drawImg(img1,etx1,1);if(img2&&etx2)drawImg(img2,etx2,opacity2);}
+  else{
+    if(img1&&etx1)drawImg(img1,etx1,1,false);
+    if(img2&&etx2)drawImg(img2,etx2,opacity2,!!maskCanvas);
+  }
   updateSliderOverlay(w,h);
+  // Brush cursor ring
+  if(brushMode&&bCursor){
+    ctx.save();
+    ctx.strokeStyle=brushErase?'rgba(255,80,80,0.85)':'rgba(80,220,80,0.85)';
+    ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.arc(bCursor.x,bCursor.y,brushSize,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
 }
-function drawImg(img,tx,alpha){if(!tx)return;var hw=img.naturalWidth*tx.scale/2,hh=img.naturalHeight*tx.scale/2;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(img,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);ctx.restore();}
 function drawWithSlider(w,h,etx1,etx2){
   var sp=sliderVert?sliderPos*w:sliderPos*h;
-  if(img1&&etx1){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(0,0,sp,h);else ctx.rect(0,0,w,sp);ctx.clip();drawImg(img1,etx1,1);ctx.restore();}
-  if(img2&&etx2){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(sp,0,w-sp,h);else ctx.rect(0,sp,w,h-sp);ctx.clip();drawImg(img2,etx2,1);ctx.restore();}
+  if(img1&&etx1){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(0,0,sp,h);else ctx.rect(0,0,w,sp);ctx.clip();drawImg(img1,etx1,1,false);ctx.restore();}
+  if(img2&&etx2){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(sp,0,w-sp,h);else ctx.rect(0,sp,w,h-sp);ctx.clip();drawImg(img2,etx2,1,!!maskCanvas);ctx.restore();}
 }
 function updateSliderOverlay(w,h){
   if(!sliderMode||(!img1&&!img2)){dividerEl.style.display='none';return;}
@@ -339,14 +409,27 @@ function nearSlider(p){if(!sliderMode)return false;return sliderVert?Math.abs(p.
 stage.addEventListener('touchstart',function(e){
   e.preventDefault();
   var t=e.touches,p=stXY(t[0]);
+  if(brushMode&&img2&&maskCanvas){
+    if(t.length===1){tMode='brush';panLast=p;bCursor=p;paintMask(p.x,p.y);draw();}
+    else if(t.length>=2){
+      // two-finger pinch still zooms in brush mode
+      tMode='pinch';var ax=activeTx()||tx2;psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;
+    }
+    return;
+  }
   if(t.length===1){if(nearSlider(p)){tMode='slider';}else if(zoomMode||active!==0){tMode='pan';panLast=p;}}
   else if(t.length>=2){tMode='pinch';var ax=zoomMode?gTx:activeTx();psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;}
 },{passive:false});
 stage.addEventListener('touchmove',function(e){
   e.preventDefault();
   var t=e.touches;
+  if(tMode==='brush'&&t.length===1){
+    var p=stXY(t[0]);bCursor=p;
+    paintMaskLine(panLast.x,panLast.y,p.x,p.y);
+    panLast=p;draw();return;
+  }
   if(tMode==='slider'&&t.length>=1){var p=stXY(t[0]);sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));draw();return;}
-  var ax=zoomMode?gTx:activeTx();if(!ax)return;
+  var ax=zoomMode?gTx:(brushMode?tx2:activeTx());if(!ax)return;
   if(tMode==='pan'&&t.length===1){var p=stXY(t[0]);ax.cx+=p.x-panLast.x;ax.cy+=p.y-panLast.y;panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);draw();}
   else if(tMode==='pinch'&&t.length>=2){var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));var cm=tMid(t[0],t[1]);var imgX=(psMidX-psCx)/psScale,imgY=(psMidY-psCy)/psScale;ax.cx=cm.x-imgX*ns;ax.cy=cm.y-imgY*ns;ax.scale=ns;if(zoomMode)gTx=ax;else setActiveTx(ax);draw();}
 },{passive:false});
@@ -354,10 +437,11 @@ stage.addEventListener('touchend',function(e){
   e.preventDefault();
   var rem=e.touches.length;
   if(rem===0){
+    if(tMode==='brush'){snapshot();tMode='none';bCursor=null;draw();return;}
     if(tMode==='pan'||tMode==='pinch'||tMode==='slider'){snapshot();}
     if(tMode==='pan'){var now=Date.now();if(now-lastTap<280){if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};}else if(active!==0){var img=active===1?img1:img2;if(img)setActiveTx(defaultTx(img,W(),H()));}draw();snapshot();}lastTap=now;}
     tMode='none';
-  }else if(rem===1){tMode='pan';panLast=stXY(e.touches[0]);}
+  }else if(rem===1){tMode=(tMode==='brush')?'brush':'pan';panLast=stXY(e.touches[0]);}
 },{passive:false});
 
 // ── Controls ──────────────────────────────────────────
@@ -376,6 +460,48 @@ function toggleSlider(){
 function resetActive(){snapshot();if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};draw();return;}if(active===0)return;var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}}
 function setOpacity(v){opacity2=v/100;document.getElementById('oval').textContent=v+'%';draw();}
 window.addEventListener('resize',function(){var w=W(),h=H();if(img1)tx1=defaultTx(img1,w,h);if(img2)tx2=defaultTx(img2,w,h);gTx=null;draw();});
+
+// ── Brush controls ─────────────────────────────────────
+function initMask(){
+  if(!img2)return;
+  maskCanvas=document.createElement('canvas');
+  maskCanvas.width=img2.naturalWidth;maskCanvas.height=img2.naturalHeight;
+  var m=maskCanvas.getContext('2d');m.fillStyle='#fff';m.fillRect(0,0,maskCanvas.width,maskCanvas.height);
+  offCanvas=null;
+}
+function toggleBrush(){
+  if(!img2||!maskCanvas){return;}
+  brushMode=!brushMode;bCursor=null;
+  document.getElementById('btnBrush').className='btn-icon'+(brushMode?' brush-active':'');
+  document.getElementById('brush-bar').className=brushMode?'visible':'';
+  draw();
+}
+function setBrushMode(m){
+  brushErase=(m==='erase');
+  document.getElementById('btnErase').className='mode-btn mode-erase'+(brushErase?' on':'');
+  document.getElementById('btnRestore').className='mode-btn mode-restore'+(brushErase?'':' on');
+}
+function paintMask(sx,sy){
+  if(!maskCanvas||!img2||!tx2)return;
+  var etx=gTx?applyGTx(tx2):tx2;
+  var ix=(sx-etx.cx)/etx.scale+img2.naturalWidth/2;
+  var iy=(sy-etx.cy)/etx.scale+img2.naturalHeight/2;
+  var ir=Math.max(2,brushSize/etx.scale);
+  var m=maskCanvas.getContext('2d');
+  m.globalCompositeOperation=brushErase?'destination-out':'source-over';
+  m.fillStyle=brushErase?'rgba(0,0,0,1)':'#fff';
+  m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
+  m.globalCompositeOperation='source-over';
+}
+function paintMaskLine(sx1,sy1,sx2,sy2){
+  var dist=Math.hypot(sx2-sx1,sy2-sy1);
+  var steps=Math.max(1,Math.floor(dist/(brushSize*0.35)));
+  for(var i=1;i<=steps;i++){
+    var t=i/steps;
+    paintMask(sx1+(sx2-sx1)*t,sy1+(sy2-sy1)*t);
+  }
+}
+function clearMask(){snapshot();initMask();draw();}
 
 openLoadSheet();
 </script>
