@@ -1,0 +1,473 @@
+// =======================================
+// HK CALENDAR — Standalone Script
+// =======================================
+
+const DEVICE_BASE = {
+  maxContentWidth: 640,
+  subpageTopPad: 78,
+  globalTopPad: 40,
+  backHotWidth: 80,
+  backHotHeight: 80,
+  logoHeight: 120,
+  logoMaxWidth: 380,
+  loaderSizePx: 54,
+  loaderStrokePx: 7,
+  loaderLiftPx: 50,
+  headingToCardGap: 18,
+};
+
+const DEVICE_IPAD = {
+  maxContentWidth: 900,
+  subpageTopPad: 96,
+  globalTopPad: 52,
+  backHotWidth: 100,
+  backHotHeight: 100,
+  logoHeight: 200,
+  logoMaxWidth: 500,
+  loaderSizePx: 66,
+  loaderStrokePx: 8,
+  loaderLiftPx: 60,
+  headingToCardGap: 40,
+};
+
+const IS_IPAD = Device.isPad();
+const DEVICE = IS_IPAD ? { ...DEVICE_BASE, ...DEVICE_IPAD } : DEVICE_BASE;
+function D(k) { return DEVICE[k]; }
+
+// =====================================================
+// CONFIG
+// =====================================================
+const HK_CAL_DAYS_AHEAD = 60;
+const HK_CAL_MAX_EVENTS = 250;
+const HK_CAL_HEADER_IMG = "https://i.postimg.cc/zXn6mWdH/IMG-9454.png";
+const HK_CAL_EXCLUDE_CALENDARS_EXACT = ["Australian Holidays", "Holidays in Australia", "Birthdays"];
+const HK_CAL_HIDE_TITLE_CONTAINS = [];
+const HK_RED = "255,30,30";
+
+// =====================================================
+// HELPERS
+// =====================================================
+function sleep(ms) { return new Promise(r => Timer.schedule(ms, false, () => r())); }
+function esc(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function pad(n) { return String(n).padStart(2, "0"); }
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0); }
+function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+function normHkCal(s) { return String(s ?? "").trim().toLowerCase(); }
+function ordinalHkCal(n) {
+  if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
+  switch (n % 10) { case 1: return n + "st"; case 2: return n + "nd"; case 3: return n + "rd"; default: return n + "th"; }
+}
+function fmtDayHeaderHkCal(dt) { return `${dt.toLocaleDateString("en-GB", { weekday: "long" })} ${ordinalHkCal(dt.getDate())} ${dt.toLocaleDateString("en-GB", { month: "short" })}`; }
+function fmtTimeHkCal(dt) { return `${pad(dt.getHours())}:${pad(dt.getMinutes())}`; }
+function isoDayKeyHkCal(dt) { return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`; }
+function isExcludedHkCal(title) { const t = normHkCal(title); return HK_CAL_EXCLUDE_CALENDARS_EXACT.some(x => t === normHkCal(x)); }
+function keepHkCal(calTitle) { const t = normHkCal(calTitle); return t.includes("hk") || t.includes("sticky"); }
+function shouldHideHkCal(title) { const t = normHkCal(title); return (HK_CAL_HIDE_TITLE_CONTAINS || []).some(x => t.includes(normHkCal(x))); }
+
+// =====================================================
+// GLOBAL SUPPRESS CSS
+// =====================================================
+function globalSuppressCSS() {
+  return `
+  *:not(textarea):not(input){-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;}
+  textarea,input{-webkit-user-select:text!important;user-select:text!important;-webkit-touch-callout:default!important;}
+  html,body{scrollbar-width:none!important;-ms-overflow-style:none!important;}
+  html::-webkit-scrollbar,body::-webkit-scrollbar{width:0!important;height:0!important;display:none!important;}
+  *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important;}
+  `;
+}
+
+// =====================================================
+// SPINNER HTML
+// =====================================================
+function spinnerHTML() {
+  const s = D('loaderSizePx'), st = D('loaderStrokePx'), lift = D('loaderLiftPx');
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>
+:root{color-scheme:dark;}html,body{margin:0;height:100%;width:100%;background:#0b0b0c;}
+body{font-family:-apple-system;user-select:none;overflow:hidden;}
+.spinner{position:absolute;left:50%;top:50%;width:${s}px;height:${s}px;border-radius:50%;border:${st}px solid rgba(${HK_RED},0.16);border-top-color:rgba(${HK_RED},0.95);box-sizing:border-box;transform:translate(-50%,-50%) translateY(${lift}px);animation:spin 0.85s linear infinite;filter:drop-shadow(0 10px 22px rgba(${HK_RED},0.35));}
+@keyframes spin{to{transform:translate(-50%,-50%) translateY(${lift}px) rotate(360deg);}}
+</style></head><body><div class="spinner"></div></body></html>`;
+}
+
+// =====================================================
+// PULL-TO-REFRESH
+// =====================================================
+function universalPullToRefreshJS() {
+  return `
+  (function(){
+    let pullStartY=0,pullDistance=0,isPulling=false,refreshTriggered=false,pullElement=null;
+    function getPullElement(){
+      const selectors=['.card:not(.hidden)','#listCard','#container','body'];
+      for(let s of selectors){const el=document.querySelector(s);if(el&&el.offsetParent!==null)return el;}
+      return document.body;
+    }
+    document.body.addEventListener('touchstart',(e)=>{
+      if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT'||e.target.tagName==='BUTTON')return;
+      if(window.scrollY<=0){pullStartY=e.touches[0].clientY;isPulling=true;pullElement=getPullElement();}
+    },{passive:true});
+    document.body.addEventListener('touchmove',(e)=>{
+      if(!isPulling)return;
+      if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT'||e.target.tagName==='BUTTON')return;
+      const currentY=e.touches[0].clientY;pullDistance=currentY-pullStartY;
+      if(pullDistance>0&&window.scrollY<=0){
+        e.preventDefault();
+        const translate=Math.min(pullDistance*0.4,70);
+        if(pullElement){pullElement.style.transform='translateY('+translate+'px)';pullElement.style.transition='none';pullElement.style.willChange='transform';}
+        if(pullDistance>120&&!refreshTriggered)refreshTriggered=true;
+      }
+    },{passive:false});
+    document.body.addEventListener('touchend',(e)=>{
+      if(!isPulling)return;
+      const shouldRefresh=pullDistance>120&&refreshTriggered;
+      if(pullElement){
+        if(shouldRefresh){
+          pullElement.style.transform='translateY(70px)';pullElement.style.transition='transform 0.2s cubic-bezier(0.2,0.9,0.1,1)';
+          setTimeout(()=>{window.location.href='nav://refresh';},150);
+        }else{
+          pullElement.style.transition='transform 0.4s cubic-bezier(0.2,0.9,0.3,1)';pullElement.style.transform='translateY(0)';
+          setTimeout(()=>{if(pullElement){pullElement.style.transition='';pullElement.style.willChange='';}},400);
+        }
+      }
+      isPulling=false;pullDistance=0;refreshTriggered=false;pullElement=null;
+    },{passive:true});
+    document.body.addEventListener('touchcancel',()=>{
+      if(isPulling&&pullElement){pullElement.style.transition='transform 0.3s ease';pullElement.style.transform='translateY(0)';setTimeout(()=>{if(pullElement)pullElement.style.transition='';},300);}
+      isPulling=false;pullDistance=0;refreshTriggered=false;pullElement=null;
+    },{passive:true});
+  })();
+  `;
+}
+
+// =====================================================
+// CALENDAR PAGE HTML
+// =====================================================
+function hkCalendarPageHTML(groups, flatItems) {
+  const bhw = D('backHotWidth'), bhh = D('backHotHeight'), cardGap = D('headingToCardGap');
+  const blocks = [];
+
+  if (!groups.length) {
+    blocks.push(`<div class="empty">No upcoming HK/Sticky events.</div>`);
+  } else {
+    for (const g of groups) {
+      const cls = ["dayGroup", g.isToday ? "isToday" : "", g.isFuture ? "isFuture" : ""].filter(Boolean).join(" ");
+      blocks.push(`<div class="${cls}"><div class="day">${esc(g.dayHeader)}</div>`);
+      for (const item of g.items) {
+        blocks.push(`<div class="item" data-i="${item.idx}"><div class="time">${esc(item.timeStr)}</div><div class="title">${esc(item.title)}</div></div>`);
+      }
+      blocks.push(`</div>`);
+    }
+  }
+
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><style>
+${globalSuppressCSS()}
+:root{color-scheme:dark;--bg:#000000;--card:#0b0b0d;--stroke:rgba(255,255,255,0.10);--red:#ff2d2d;--text:#ffffff;}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system;-webkit-text-size-adjust:100%;user-select:none;width:100%;overscroll-behavior:none;}
+body{padding:calc(24px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom));}
+.backHot{position:fixed;left:0;top:calc(env(safe-area-inset-top));width:${bhw}px;height:${bhh}px;z-index:9999;background:transparent;-webkit-tap-highlight-color:transparent;}
+.header{display:flex;justify-content:center;margin-bottom:${cardGap}px;}
+.header img{width:260px;max-width:75vw;height:auto;display:block;}
+.dayGroup+.dayGroup{margin-top:28px;}
+.day{margin:0 0 16px;text-align:center;font-size:20px;font-weight:950;color:var(--red);letter-spacing:-0.2px;}
+.dayGroup.isFuture{opacity:0.86;}
+.dayGroup.isToday{position:relative;padding-top:14px;}
+.dayGroup.isToday::after{content:'';position:absolute;left:-6px;right:-6px;top:0;bottom:-8px;border-radius:18px;pointer-events:none;box-shadow:0 0 0 1px rgba(255,45,45,0.12),0 0 28px rgba(255,45,45,0.32);}
+.item{display:flex;gap:12px;padding:12px 14px;margin-bottom:12px;border-radius:18px;background:var(--card);border:1px solid var(--stroke);-webkit-tap-highlight-color:transparent;}
+.item:active{transform:scale(0.99);border-color:rgba(255,45,45,0.75);}
+.time{min-width:94px;font-size:13px;font-weight:900;opacity:0.85;white-space:nowrap;}
+.title{font-size:15px;font-weight:900;}
+.empty{margin-top:20px;text-align:center;opacity:0.6;font-weight:800;}
+.sheetScrim{position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity 160ms ease;z-index:9998;}
+.sheet{position:fixed;left:0;right:0;bottom:-420px;padding:12px 12px calc(14px + env(safe-area-inset-bottom));transition:bottom 220ms cubic-bezier(.2,.9,.2,1);z-index:9999;}
+.sheetCard{max-width:520px;margin:0 auto;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);background:#1c1c1e;box-shadow:0 18px 60px rgba(0,0,0,0.65);}
+.sheetHead{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.sheetEvent{font-size:15px;font-weight:600;color:#fff;line-height:1.4;word-break:break-word;text-align:center;}
+.sheetBtns{display:flex;flex-direction:row;gap:10px;padding:16px;}
+.sheetBtn{flex:1;height:44px;border-radius:12px;border:none;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity 120ms ease,transform 100ms ease;-webkit-tap-highlight-color:transparent;}
+.sheetBtn:active{opacity:0.75;transform:scale(0.97);}
+.sheetBtn.primary{background:rgba(154,208,255,0.15);border:1px solid rgba(154,208,255,0.35);color:#9ad0ff;}
+.sheetBtn.danger{background:rgba(255,60,60,0.18);border:1px solid rgba(255,60,60,0.35);color:#ff453a;}
+.sheetCancelWrap{max-width:520px;margin:10px auto 0;}
+.sheetCancel{width:100%;border-radius:18px;border:1px solid rgba(255,255,255,0.14);background:#1c1c1e;color:#fff;font-weight:950;font-size:17px;padding:16px;}
+.sheetCancel:active{background:rgba(255,255,255,0.06);}
+.show .sheetScrim{opacity:1;pointer-events:auto;}
+.show .sheet{bottom:0;}
+</style></head><body>
+<div class="backHot" onclick="window.location.href='nav://exit'"></div>
+<div class="header"><img src="${esc(HK_CAL_HEADER_IMG)}" alt="HK"></div>
+${blocks.join("")}
+<div class="sheetScrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="sheetCard">
+    <div class="sheetHead"><div class="sheetEvent" id="sheetEvent">—</div></div>
+    <div class="sheetBtns">
+      <button class="sheetBtn primary" id="btnReschedule" type="button">Reschedule</button>
+      <button class="sheetBtn danger" id="btnDelete" type="button">Delete</button>
+    </div>
+  </div>
+  <div class="sheetCancelWrap"><button class="sheetCancel" id="btnCancel" type="button">Cancel</button></div>
+</div>
+<script>
+window.__ready = false; setTimeout(() => { window.__ready = true; }, 0);
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('gestureend', e => e.preventDefault());
+
+let activeIndex = null;
+const flat = ${JSON.stringify(flatItems.map(x => ({ title: x.title })))};
+const scrim = document.getElementById('scrim');
+const sheetEvent = document.getElementById('sheetEvent');
+const btnReschedule = document.getElementById('btnReschedule');
+const btnDelete = document.getElementById('btnDelete');
+const btnCancel = document.getElementById('btnCancel');
+
+function openSheet(i) { activeIndex = i; sheetEvent.textContent = (flat[i] && flat[i].title) || '(No title)'; document.documentElement.classList.add('show'); }
+function closeSheet() { activeIndex = null; document.documentElement.classList.remove('show'); }
+
+scrim.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); closeSheet(); });
+btnCancel.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); closeSheet(); });
+btnReschedule.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  if (activeIndex == null) return closeSheet();
+  window.location.href = 'action://reschedule?i=' + encodeURIComponent(activeIndex) + '&t=' + Date.now();
+  closeSheet();
+});
+btnDelete.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  if (activeIndex == null) return closeSheet();
+  window.location.href = 'action://delete?i=' + encodeURIComponent(activeIndex) + '&t=' + Date.now();
+  closeSheet();
+});
+document.querySelectorAll('.item').forEach(el => {
+  el.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    const i = parseInt(el.dataset.i || '-1', 10);
+    if (isNaN(i) || i < 0) return;
+    openSheet(i);
+  });
+});
+${universalPullToRefreshJS()}
+</script></body></html>`;
+}
+
+// =====================================================
+// FETCH CALENDAR EVENTS
+// =====================================================
+async function fetchHKCalendarEvents() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(today);
+  end.setDate(end.getDate() + HK_CAL_DAYS_AHEAD);
+
+  const events = await CalendarEvent.between(today, end);
+  events.sort((a, b) => a.startDate - b.startDate);
+
+  const out = [];
+  for (const ev of events) {
+    if (out.length >= HK_CAL_MAX_EVENTS) break;
+    const calTitle = ev.calendar?.title || "";
+    if (isExcludedHkCal(calTitle)) continue;
+    if (!keepHkCal(calTitle)) continue;
+    if (shouldHideHkCal(String(ev.title || ""))) continue;
+    out.push(ev);
+  }
+  return { today, out };
+}
+
+// =====================================================
+// BUILD CALENDAR VIEW
+// =====================================================
+function buildCalendarHTML(today, events) {
+  const dayMap = new Map();
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const d = ev.startDate;
+    const key = isoDayKeyHkCal(d);
+    if (!dayMap.has(key)) dayMap.set(key, {
+      dateKey: key,
+      dateObj: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+      dayHeader: fmtDayHeaderHkCal(d),
+      items: []
+    });
+    const timeStr = ev.isAllDay ? "All day" : `${fmtTimeHkCal(ev.startDate)} – ${fmtTimeHkCal(ev.endDate)}`;
+    dayMap.get(key).items.push({ idx: i, title: String(ev.title || "(No title)"), timeStr });
+  }
+  const keys = Array.from(dayMap.keys()).sort();
+  const groups = keys.map(k => {
+    const g = dayMap.get(k);
+    return { ...g, isToday: sameDay(g.dateObj, today), isFuture: g.dateObj.getTime() > today.getTime() };
+  });
+  return hkCalendarPageHTML(groups, events.map(ev => ({ title: String(ev.title || "") })));
+}
+
+// =====================================================
+// DATE / TIME PICKERS
+// =====================================================
+async function pickDateNative(initialDate) {
+  const dp = new DatePicker();
+  dp.date = initialDate || new Date();
+  return await dp.pickDate();
+}
+
+async function pickTimeNative(initialDate) {
+  const dp = new DatePicker();
+  dp.date = initialDate || new Date();
+  if (typeof dp.pickTime === "function") return await dp.pickTime();
+  const a = new Alert();
+  a.title = "Pick time";
+  a.message = "Enter time in 24h format (HH:MM)";
+  a.addTextField("HH:MM", `${pad(dp.date.getHours())}:${pad(dp.date.getMinutes())}`);
+  a.addAction("OK");
+  a.addCancelAction("Cancel");
+  const r = await a.present();
+  if (r === -1) return null;
+  const val = String(a.textFieldValue(0) || "").trim();
+  const m = val.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) throw new Error("Invalid time format.");
+  const hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+  const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+  const out = new Date(dp.date);
+  out.setHours(hh, mm, 0, 0);
+  return out;
+}
+
+// =====================================================
+// PARSE HELPERS
+// =====================================================
+function parseQuery(u) {
+  const out = {}, qi = u.indexOf("?");
+  if (qi === -1) return out;
+  for (const p of u.slice(qi + 1).split("&")) {
+    if (!p) continue;
+    const eq = p.indexOf("="), k = eq === -1 ? p : p.slice(0, eq), v = eq === -1 ? "" : p.slice(eq + 1);
+    try { out[decodeURIComponent(k)] = decodeURIComponent(v); } catch { out[k] = v; }
+  }
+  return out;
+}
+
+function parseActionUrl(url) {
+  const prefix = "action://";
+  const rest = url.slice(prefix.length);
+  let action = rest, query = "";
+  const qIdx = rest.indexOf("?");
+  if (qIdx >= 0) { action = rest.slice(0, qIdx); query = rest.slice(qIdx + 1); }
+  action = String(action || "").trim().toLowerCase();
+  const params = {};
+  if (query) {
+    for (const p of query.split("&").filter(Boolean)) {
+      const eq = p.indexOf("="), k = eq >= 0 ? p.slice(0, eq) : p, v = eq >= 0 ? p.slice(eq + 1) : "";
+      const key = decodeURIComponent(k || "").trim(), val = decodeURIComponent(v || "");
+      if (key) params[key] = val;
+    }
+  }
+  return { action, params };
+}
+
+// =====================================================
+// MAIN
+// =====================================================
+const wv = new WebView();
+let lastEvents = [];
+let navChain = Promise.resolve();
+let isShuttingDown = false;
+
+function enqueueNav(fn) {
+  navChain = navChain.then(async () => {
+    if (isShuttingDown) return;
+    try { await fn(); } catch (e) { console.error("Nav error:", e); }
+  });
+}
+
+async function toast(msg) {
+  try { await wv.evaluateJavaScript(`window.__toast&&window.__toast(${JSON.stringify(String(msg || ""))})`, false); } catch {}
+}
+
+async function reload() {
+  await wv.loadHTML(spinnerHTML());
+  const { today, out } = await fetchHKCalendarEvents();
+  lastEvents = out;
+  await wv.loadHTML(buildCalendarHTML(today, lastEvents));
+}
+
+wv.shouldAllowRequest = (req) => {
+  const url = String(req.url || "");
+
+  if (url.startsWith("nav://")) {
+    const raw = url.replace("nav://", "");
+    if (raw === "exit") { enqueueNav(async () => { isShuttingDown = true; try { wv.dismiss(); } catch {} }); }
+    if (raw === "refresh") { enqueueNav(async () => await reload()); }
+    return false;
+  }
+
+  if (url.startsWith("action://")) {
+    enqueueNav(async () => {
+      try {
+        const { action, params } = parseActionUrl(url);
+        const i = parseInt(params.i || "-1", 10);
+        if (isNaN(i) || i < 0 || i >= lastEvents.length) return;
+        const ev = lastEvents[i];
+
+        const looksRecurring = (typeof ev.isRecurring === "boolean" && ev.isRecurring)
+          || (Array.isArray(ev.recurrenceRules) && ev.recurrenceRules.length > 0);
+
+        if (action === "delete") {
+          await ev.remove();
+          await reload();
+          await toast("Deleted.");
+          return;
+        }
+
+        if (action === "reschedule") {
+          if (looksRecurring) { await toast("Recurring events: reschedule is disabled."); return; }
+          const start0 = new Date(ev.startDate), end0 = new Date(ev.endDate);
+          const durMs = Math.max(0, end0.getTime() - start0.getTime());
+          const isAllDay = !!ev.isAllDay;
+          const pickedDate = await pickDateNative(start0);
+          if (!pickedDate) return;
+          let newStart;
+          if (isAllDay) {
+            newStart = startOfDay(pickedDate);
+          } else {
+            const pt = await pickTimeNative(start0);
+            if (!pt) return;
+            newStart = new Date(pickedDate.getFullYear(), pickedDate.getMonth(), pickedDate.getDate(), pt.getHours(), pt.getMinutes(), 0, 0);
+          }
+          const newEnd = new Date(newStart.getTime() + durMs);
+          ev.startDate = newStart; ev.endDate = newEnd; ev.isAllDay = isAllDay;
+          if (typeof ev.save === "function") await ev.save();
+          await reload();
+          await toast("Rescheduled.");
+        }
+      } catch (e) {
+        await toast(String(e?.message || e || "Couldn't complete action"));
+      }
+    });
+    return false;
+  }
+
+  if (url.startsWith("https://")) { Safari.open(url); return false; }
+  return true;
+};
+
+// Show spinner while loading
+await wv.loadHTML(spinnerHTML());
+wv.present(true);
+
+// Inject toast helper
+await wv.evaluateJavaScript(`
+  (function(){
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(92vw,520px);padding:12px 14px;border-radius:14px;background:rgba(20,20,22,0.92);border:1px solid rgba(255,255,255,0.14);color:#fff;font:15px -apple-system;font-weight:800;line-height:1.25;box-shadow:0 16px 46px rgba(0,0,0,0.55);opacity:0;pointer-events:none;transition:opacity 160ms ease;z-index:20000;';
+    document.body.appendChild(t);
+    window.__toast = function(msg){ t.textContent = String(msg||''); t.style.opacity='1'; clearTimeout(window.__toastTO); window.__toastTO = setTimeout(()=>{ t.style.opacity='0'; }, 1650); };
+  })();
+`, false);
+
+// Fetch and render
+const { today, out } = await fetchHKCalendarEvents();
+lastEvents = out;
+await wv.loadHTML(buildCalendarHTML(today, lastEvents));
+
+Script.complete();
