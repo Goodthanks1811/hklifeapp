@@ -569,7 +569,7 @@ export default function PhotoSlider() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: topPad }]}>
       {/* WebView tool — fills full screen */}
       <WebView
         ref={webRef}
