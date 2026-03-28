@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Platform,
@@ -60,11 +60,58 @@ const SCRIPT_ITEMS = [
     route: "/ir-quick-add",
     description: "Add to Notion DB",
   },
+  {
+    label: "Daily Standup",
+    icon: "coffee" as const,
+    route: null,
+    description: "Coming soon",
+  },
+  {
+    label: "Review Digest",
+    icon: "file-text" as const,
+    route: null,
+    description: "Coming soon",
+  },
 ];
+
+// Height of a single script menu item (paddingVertical 10 * 2 + icon 36 + gaps ≈ 56)
+const ITEM_HEIGHT = 56;
 
 export function Drawer() {
   const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH } = useDrawer();
   const insets = useSafeAreaInsets();
+  const [scriptsOpen, setScriptsOpen] = useState(true);
+
+  const accordionAnim = useRef(new Animated.Value(1)).current;
+  const chevronAnim   = useRef(new Animated.Value(1)).current;
+
+  const collapsedHeight = 0;
+  const expandedHeight  = SCRIPT_ITEMS.length * ITEM_HEIGHT;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(accordionAnim, {
+        toValue: scriptsOpen ? 1 : 0,
+        useNativeDriver: false,
+        bounciness: 4,
+      }),
+      Animated.timing(chevronAnim, {
+        toValue: scriptsOpen ? 1 : 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [scriptsOpen]);
+
+  const listHeight = accordionAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [collapsedHeight, expandedHeight],
+  });
+
+  const chevronRotate = chevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "90deg"],
+  });
 
   if (!isOpen) return null;
 
@@ -74,7 +121,7 @@ export function Drawer() {
     setTimeout(() => router.push(route as any), 200);
   };
 
-  const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
   return (
@@ -97,6 +144,7 @@ export function Drawer() {
           },
         ]}
       >
+        {/* Header */}
         <View style={styles.drawerHeader}>
           <View style={styles.logoRow}>
             <View style={styles.logoBox}>
@@ -112,6 +160,7 @@ export function Drawer() {
           </Pressable>
         </View>
 
+        {/* Navigation */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>NAVIGATION</Text>
           {MENU_ITEMS.slice(0, 1).map((item) => (
@@ -121,15 +170,36 @@ export function Drawer() {
 
         <View style={styles.divider} />
 
+        {/* Scripts — accordion */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Scripts</Text>
-          {SCRIPT_ITEMS.map((item) => (
-            <MenuItem key={item.route} item={item} onPress={() => navigate(item.route)} />
-          ))}
+          <Pressable
+            style={styles.accordionHeader}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setScriptsOpen((v) => !v);
+            }}
+          >
+            <Text style={styles.sectionLabel}>SCRIPTS</Text>
+            <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+              <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+            </Animated.View>
+          </Pressable>
+
+          <Animated.View style={{ height: listHeight, overflow: "hidden" }}>
+            {SCRIPT_ITEMS.map((item) => (
+              <MenuItem
+                key={item.label}
+                item={item}
+                onPress={item.route ? () => navigate(item.route!) : undefined}
+                dimmed={!item.route}
+              />
+            ))}
+          </Animated.View>
         </View>
 
         <View style={styles.divider} />
 
+        {/* UI Kit */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>UI KIT</Text>
           {MENU_ITEMS.slice(1).map((item) => (
@@ -139,6 +209,7 @@ export function Drawer() {
 
         <View style={styles.divider} />
 
+        {/* Bottom — Settings */}
         <View style={styles.bottom}>
           <Pressable
             style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed]}
@@ -162,20 +233,34 @@ export function Drawer() {
 function MenuItem({
   item,
   onPress,
+  dimmed,
 }: {
-  item: (typeof MENU_ITEMS)[0];
-  onPress: () => void;
+  item: { label: string; icon: any; description: string };
+  onPress?: () => void;
+  dimmed?: boolean;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]} onPress={onPress}>
-      <View style={styles.menuIcon}>
-        <Feather name={item.icon} size={18} color={Colors.primary} />
+    <Pressable
+      style={({ pressed }) => [
+        styles.menuItem,
+        pressed && onPress && styles.menuItemPressed,
+        dimmed && styles.menuItemDimmed,
+      ]}
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed]}>
+        <Feather
+          name={item.icon}
+          size={18}
+          color={dimmed ? Colors.textMuted : Colors.primary}
+        />
       </View>
       <View style={styles.menuText}>
-        <Text style={styles.menuLabel}>{item.label}</Text>
+        <Text style={[styles.menuLabel, dimmed && styles.menuLabelDimmed]}>{item.label}</Text>
         <Text style={styles.menuDesc}>{item.description}</Text>
       </View>
-      <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+      {!dimmed && <Feather name="chevron-right" size={14} color={Colors.textMuted} />}
     </Pressable>
   );
 }
@@ -255,6 +340,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 6,
   },
+  accordionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingRight: 8,
+    paddingBottom: 2,
+  },
   divider: {
     height: 1,
     backgroundColor: Colors.border,
@@ -272,6 +364,9 @@ const styles = StyleSheet.create({
   menuItemPressed: {
     backgroundColor: Colors.cardBg,
   },
+  menuItemDimmed: {
+    opacity: 0.45,
+  },
   menuIcon: {
     width: 36,
     height: 36,
@@ -280,6 +375,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  menuIconDimmed: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
   menuText: {
     flex: 1,
   },
@@ -287,6 +385,9 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
+  },
+  menuLabelDimmed: {
+    color: Colors.textMuted,
   },
   menuDesc: {
     color: Colors.textMuted,
