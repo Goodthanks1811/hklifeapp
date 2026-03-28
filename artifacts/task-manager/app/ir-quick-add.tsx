@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,26 +18,42 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors } from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
+
+// ── IR Theme ─────────────────────────────────────────────────────────────────
+const IR = {
+  bg:        "#0C1846",
+  card:      "#0E1C4E",
+  cardBorder:"rgba(255,255,255,0.10)",
+  gold:      "#FE9A01",
+  goldDark:  "#d97f00",
+  goldGlow:  "rgba(254,154,1,0.28)",
+  text:      "#f2f2f7",
+  textMuted: "#7a8aaa",
+  inputBg:   "rgba(255,255,255,0.08)",
+  inputBdr:  "rgba(255,255,255,0.25)",
+  inputFocus:"rgba(255,255,255,0.75)",
+  cancelBg:  "rgba(255,255,255,0.08)",
+  cancelBdr: "rgba(255,255,255,0.12)",
+  success:   "#40C057",
+  error:     "#FF6B6B",
+  divider:   "rgba(255,255,255,0.08)",
+};
 
 const IR_DB_ID = "2c9b7eba35238084a6decf83993961e4";
 const IR_HEADER_LOGO =
   "https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png";
 
-const EPIC_PALETTE: Record<
-  string,
-  { bg: string; bgA: string; glow: string; glowA: string; shadow: string }
-> = {
-  Admin:     { bg: "rgba(40,160,40,0.22)",   bgA: "rgba(40,160,40,0.44)",   glow: "rgba(40,160,40,0.22)",   glowA: "rgba(40,160,40,0.54)",   shadow: "rgba(40,160,40,0.65)" },
-  Testing:   { bg: "rgba(255,50,50,0.22)",   bgA: "rgba(220,20,20,0.48)",   glow: "rgba(255,50,50,0.45)",   glowA: "rgba(220,20,20,0.75)",   shadow: "rgba(255,60,60,0.8)" },
-  Release:   { bg: "rgba(255,255,255,0.10)", bgA: "rgba(255,255,255,0.22)", glow: "rgba(255,255,255,0.14)", glowA: "rgba(255,255,255,0.38)", shadow: "rgba(255,255,255,0.55)" },
-  Review:    { bg: "rgba(255,200,0,0.20)",   bgA: "rgba(255,200,0,0.38)",   glow: "rgba(255,200,0,0.22)",   glowA: "rgba(255,200,0,0.52)",   shadow: "rgba(255,200,0,0.6)" },
-  Project:   { bg: "rgba(255,200,0,0.20)",   bgA: "rgba(255,200,0,0.38)",   glow: "rgba(255,200,0,0.22)",   glowA: "rgba(255,200,0,0.52)",   shadow: "rgba(255,200,0,0.6)" },
-  Tool:      { bg: "rgba(255,255,255,0.10)", bgA: "rgba(255,255,255,0.22)", glow: "rgba(255,255,255,0.14)", glowA: "rgba(255,255,255,0.38)", shadow: "rgba(255,255,255,0.55)" },
-  Reporting: { bg: "rgba(255,50,50,0.22)",   bgA: "rgba(220,20,20,0.48)",   glow: "rgba(255,50,50,0.45)",   glowA: "rgba(220,20,20,0.75)",   shadow: "rgba(255,60,60,0.8)" },
-  Knowledge: { bg: "rgba(40,160,40,0.22)",   bgA: "rgba(40,160,40,0.44)",   glow: "rgba(40,160,40,0.22)",   glowA: "rgba(40,160,40,0.54)",   shadow: "rgba(40,160,40,0.65)" },
+const EPIC_PALETTE: Record<string, { bg: string; bgA: string }> = {
+  Admin:     { bg: "rgba(40,160,40,0.22)",   bgA: "rgba(40,160,40,0.50)"   },
+  Testing:   { bg: "rgba(255,50,50,0.22)",   bgA: "rgba(220,20,20,0.55)"   },
+  Release:   { bg: "rgba(255,255,255,0.09)", bgA: "rgba(255,255,255,0.22)" },
+  Review:    { bg: "rgba(255,200,0,0.20)",   bgA: "rgba(255,200,0,0.42)"   },
+  Project:   { bg: "rgba(255,200,0,0.20)",   bgA: "rgba(255,200,0,0.42)"   },
+  Tool:      { bg: "rgba(255,255,255,0.09)", bgA: "rgba(255,255,255,0.22)" },
+  Reporting: { bg: "rgba(255,50,50,0.22)",   bgA: "rgba(220,20,20,0.55)"   },
+  Knowledge: { bg: "rgba(40,160,40,0.22)",   bgA: "rgba(40,160,40,0.50)"   },
 };
 
 const EPICS_ORDER = ["Admin", "Testing", "Release", "Review", "Project", "Tool", "Reporting", "Knowledge"];
@@ -66,6 +83,7 @@ export default function IRQuickAdd() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [keyboardUp, setKeyboardUp] = useState(false);
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
@@ -73,6 +91,15 @@ export default function IRQuickAdd() {
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
+
+  // Track keyboard to remove bottom padding when keyboard is open
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", () => setKeyboardUp(true));
+    const hide = Keyboard.addListener("keyboardWillHide", () => setKeyboardUp(false));
+    const showDid = Keyboard.addListener("keyboardDidShow", () => setKeyboardUp(true));
+    const hideDid = Keyboard.addListener("keyboardDidHide", () => setKeyboardUp(false));
+    return () => { show.remove(); hide.remove(); showDid.remove(); hideDid.remove(); };
+  }, []);
 
   useEffect(() => {
     if (!apiKey) return;
@@ -91,19 +118,19 @@ export default function IRQuickAdd() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     shakeAnim.setValue(0);
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 55, useNativeDriver: true }),
     ]).start();
   }, [shakeAnim]);
 
   const showSuccess = useCallback(() => {
     successAnim.setValue(0);
     Animated.sequence([
-      Animated.timing(successAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(1000),
+      Animated.timing(successAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(900),
       Animated.timing(successAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
   }, [successAnim]);
@@ -120,10 +147,7 @@ export default function IRQuickAdd() {
     try {
       const res = await fetch(`${BASE_URL}/api/notion/pages`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-notion-key": apiKey,
-        },
+        headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
         body: JSON.stringify({
           dbId: IR_DB_ID,
           title: t,
@@ -168,28 +192,24 @@ export default function IRQuickAdd() {
     outputRange: [-8, 0, 8],
   });
 
-  const successOpacity = successAnim;
-  const successTranslateY = successAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-20, 0],
-  });
+  const footerBottomPad = keyboardUp ? 10 : Math.max(bottomPad, 20);
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => openDrawer()} style={styles.headerBtn}>
-          <Feather name="menu" size={20} color={Colors.textPrimary} />
+          <Feather name="menu" size={20} color={IR.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Quick Add</Text>
         <Pressable onPress={handleCancel} style={styles.headerBtn}>
-          <Feather name="x" size={20} color={Colors.textSecondary} />
+          <Feather name="x" size={20} color={IR.textMuted} />
         </Pressable>
       </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={topPad + 56}
       >
         <ScrollView
@@ -206,28 +226,27 @@ export default function IRQuickAdd() {
           {/* No API key warning */}
           {!apiKey && (
             <View style={styles.warningBox}>
-              <Feather name="alert-circle" size={16} color={Colors.warning} />
+              <Feather name="alert-circle" size={16} color={IR.gold} />
               <Text style={styles.warningText}>Add your Notion API key in the Task Board settings first.</Text>
             </View>
           )}
-
-          {/* Schema error */}
           {schemaError && (
             <View style={styles.warningBox}>
-              <Feather name="alert-circle" size={16} color={Colors.primary} />
-              <Text style={styles.warningText}>{schemaError}</Text>
+              <Feather name="alert-circle" size={16} color={IR.error} />
+              <Text style={[styles.warningText, { color: IR.error }]}>{schemaError}</Text>
             </View>
           )}
 
-          {/* Form */}
+          {/* Form card */}
           <View style={styles.formCard}>
+            {/* Summary */}
             <Text style={styles.fieldLabel}>Summary</Text>
             <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
               <TextInput
                 ref={inputRef}
                 style={styles.textInput}
                 placeholder="Enter title"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={IR.textMuted}
                 value={title}
                 onChangeText={setTitle}
                 autoCorrect
@@ -237,6 +256,7 @@ export default function IRQuickAdd() {
               />
             </Animated.View>
 
+            {/* Epic */}
             <Text style={styles.fieldLabel}>Epic</Text>
             <View style={styles.epicGrid}>
               {EPICS_ORDER.map((epic) => {
@@ -253,10 +273,7 @@ export default function IRQuickAdd() {
                     }}
                     style={[
                       styles.epicBtn,
-                      {
-                        backgroundColor: isActive ? pal.bgA : pal.bg,
-                        opacity: isDimmed ? 0.22 : 1,
-                      },
+                      { backgroundColor: isActive ? pal.bgA : pal.bg, opacity: isDimmed ? 0.2 : 1 },
                     ]}
                   >
                     <Text style={styles.epicBtnText}>{epic}</Text>
@@ -265,6 +282,7 @@ export default function IRQuickAdd() {
               })}
             </View>
 
+            {/* Priority */}
             <Text style={styles.fieldLabel}>Priority</Text>
             <ScrollView
               horizontal
@@ -286,7 +304,7 @@ export default function IRQuickAdd() {
                     style={[
                       styles.emojiBtn,
                       isSelected && styles.emojiBtnSelected,
-                      isDimmed && styles.emojiBtnDimmed,
+                      isDimmed && { opacity: 0.3 },
                     ]}
                   >
                     <Text style={styles.emojiText}>{em}</Text>
@@ -297,8 +315,8 @@ export default function IRQuickAdd() {
           </View>
         </ScrollView>
 
-        {/* Footer */}
-        <View style={[styles.footer, { paddingBottom: Math.max(bottomPad, 20) }]}>
+        {/* Footer — always outside ScrollView so it stays above keyboard */}
+        <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
           {saveStatus === "error" && (
             <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
           )}
@@ -318,10 +336,10 @@ export default function IRQuickAdd() {
               disabled={!schema || isSaving}
             >
               {isSaving ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color={IR.bg} size="small" />
               ) : saveStatus === "success" ? (
                 <View style={styles.successRow}>
-                  <Feather name="check" size={16} color="#fff" />
+                  <Feather name="check" size={16} color={IR.bg} />
                   <Text style={styles.saveBtnText}>Saved!</Text>
                 </View>
               ) : (
@@ -336,11 +354,11 @@ export default function IRQuickAdd() {
       <Animated.View
         style={[
           styles.successToast,
-          { top: topPad + 60, opacity: successOpacity, transform: [{ translateY: successTranslateY }] },
+          { top: topPad + 64, opacity: successAnim },
         ]}
         pointerEvents="none"
       >
-        <Feather name="check-circle" size={16} color={Colors.success} />
+        <Feather name="check-circle" size={15} color={IR.success} />
         <Text style={styles.successToastText}>Added to Notion</Text>
       </Animated.View>
     </View>
@@ -348,8 +366,9 @@ export default function IRQuickAdd() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.darkBg },
+  root: { flex: 1, backgroundColor: IR.bg },
   flex: { flex: 1 },
+
   header: {
     height: 56,
     flexDirection: "row",
@@ -357,83 +376,97 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: IR.divider,
+    backgroundColor: IR.bg,
   },
   headerBtn: {
     width: 36, height: 36,
-    backgroundColor: Colors.cardBg,
-    borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
-    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: IR.cardBorder,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    color: Colors.textPrimary,
+    color: IR.text,
     fontSize: 17,
     fontFamily: "Inter_700Bold",
   },
+
   scrollContent: {
-    padding: 20,
-    paddingBottom: 12,
+    padding: 18,
+    paddingBottom: 16,
   },
   logoWrap: {
     alignItems: "center",
-    marginBottom: 24,
-    marginTop: 4,
+    marginBottom: 20,
+    marginTop: 6,
   },
   logo: {
     width: 200,
-    height: 60,
+    height: 58,
   },
+
   warningBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(253,126,20,0.1)",
+    backgroundColor: "rgba(254,154,1,0.10)",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(253,126,20,0.3)",
+    borderColor: "rgba(254,154,1,0.30)",
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   warningText: {
-    color: Colors.warning,
+    color: IR.gold,
     fontSize: 13,
     fontFamily: "Inter_400Regular",
     flex: 1,
   },
+
   formCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 18,
+    backgroundColor: IR.card,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: IR.cardBorder,
     padding: 18,
-    gap: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 8,
   },
+
   fieldLabel: {
-    color: Colors.textPrimary,
+    color: IR.text,
     fontSize: 10,
     fontFamily: "Inter_700Bold",
-    letterSpacing: 0.9,
+    letterSpacing: 0.85,
     textTransform: "uppercase",
     marginBottom: 8,
-    marginTop: 4,
+    marginTop: 6,
   },
+
   textInput: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: IR.inputBg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    borderRadius: 12,
-    color: Colors.textPrimary,
+    borderColor: IR.inputBdr,
+    borderRadius: 14,
+    color: IR.text,
     fontSize: 16,
     fontFamily: "Inter_400Regular",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 16,
+    marginBottom: 14,
   },
+
   epicGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   epicBtn: {
     width: "23.5%",
@@ -442,7 +475,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.07)",
   },
   epicBtnText: {
     color: "#FFFFFF",
@@ -450,11 +483,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     textAlign: "center",
   },
+
   emojiRow: {
     flexDirection: "row",
     gap: 8,
-    paddingVertical: 4,
-    marginBottom: 4,
+    paddingVertical: 2,
+    paddingBottom: 6,
   },
   emojiBtn: {
     width: 48, height: 48,
@@ -466,21 +500,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emojiBtnSelected: {
-    backgroundColor: "rgba(224,49,49,0.28)",
-    borderColor: "rgba(224,49,49,0.6)",
-  },
-  emojiBtnDimmed: {
-    opacity: 0.3,
+    backgroundColor: "rgba(254,154,1,0.28)",
+    borderColor: "rgba(254,154,1,0.65)",
   },
   emojiText: {
     fontSize: 22,
   },
+
   footer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.darkBg,
+    borderTopColor: IR.divider,
+    backgroundColor: IR.bg,
     gap: 8,
   },
   footerBtns: {
@@ -488,46 +520,47 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   errorText: {
-    color: Colors.primary,
+    color: IR.error,
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
   },
+
   cancelBtn: {
     flex: 1,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: IR.cancelBg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: IR.cancelBdr,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 15,
   },
   cancelBtnText: {
-    color: Colors.textPrimary,
+    color: IR.text,
     fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
   saveBtn: {
     flex: 2,
-    backgroundColor: Colors.primary,
+    backgroundColor: IR.gold,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
+    paddingVertical: 15,
+    shadowColor: IR.gold,
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowRadius: 14,
     elevation: 6,
   },
   saveBtnDisabled: {
-    opacity: 0.4,
+    opacity: 0.35,
     shadowOpacity: 0,
     elevation: 0,
   },
   saveBtnText: {
-    color: "#fff",
+    color: IR.bg,
     fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
@@ -536,6 +569,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+
   successToast: {
     position: "absolute",
     alignSelf: "center",
@@ -544,13 +578,13 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "rgba(64,192,87,0.15)",
     borderWidth: 1,
-    borderColor: "rgba(64,192,87,0.4)",
+    borderColor: "rgba(64,192,87,0.35)",
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
   successToastText: {
-    color: Colors.success,
+    color: IR.success,
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
