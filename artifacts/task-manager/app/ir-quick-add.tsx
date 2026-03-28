@@ -147,18 +147,40 @@ export default function IRQuickAdd() {
     return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
   }, [keyboardOffset]);
 
-  // Schema fetch
+  // Schema fetch — with safe JSON parse + auto-retry (handles Replit cold-start)
   useEffect(() => {
     if (!apiKey) return;
-    fetch(`${BASE_URL}/api/notion/schema/${IR_DB_ID}`, {
-      headers: { "x-notion-key": apiKey },
-    })
-      .then((r) => r.json())
-      .then((data) => {
+    let cancelled = false;
+
+    const tryFetch = async (attemptsLeft: number) => {
+      try {
+        const r = await fetch(`${BASE_URL}/api/notion/schema/${IR_DB_ID}`, {
+          headers: { "x-notion-key": apiKey },
+        });
+        const text = await r.text();
+        let data: any;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Server returned HTML (likely still waking up) — retry
+          if (attemptsLeft > 1 && !cancelled) {
+            await new Promise((res) => setTimeout(res, 2000));
+            if (!cancelled) tryFetch(attemptsLeft - 1);
+          } else if (!cancelled) {
+            setSchemaError("Server is starting up — pull down to retry");
+          }
+          return;
+        }
+        if (cancelled) return;
         if (data.message) throw new Error(data.message);
         setSchema(data);
-      })
-      .catch((e) => setSchemaError(e.message));
+      } catch (e: any) {
+        if (!cancelled) setSchemaError(e.message);
+      }
+    };
+
+    tryFetch(3);
+    return () => { cancelled = true; };
   }, [apiKey]);
 
   // Shake animation
