@@ -364,6 +364,148 @@ router.post("/pages", async (req, res) => {
   }
 });
 
+// ── Life Tasks ────────────────────────────────────────────────────────────────
+const LIFE_DB_ID = "2c8b7eba3523802abbe2e934df42a4e2";
+
+router.get("/life-tasks", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { category } = req.query;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+
+  try {
+    const filterClauses: any[] = [
+      { property: "Done", checkbox: { equals: false } },
+    ];
+    if (category) {
+      filterClauses.push({ property: "Category", select: { equals: category as string } });
+    }
+
+    const body: any = {
+      page_size: 100,
+      filter: { and: filterClauses },
+      sorts: [{ property: "Sort Order", direction: "ascending" }],
+    };
+
+    const response = await fetch(
+      `https://api.notion.com/v1/databases/${LIFE_DB_ID}/query`,
+      { method: "POST", headers: notionHeaders(apiKey), body: JSON.stringify(body) }
+    );
+    if (!response.ok) {
+      const err = await response.json();
+      res.status(response.status).json({ message: err.message || "Notion error" });
+      return;
+    }
+
+    const data = await response.json();
+    const tasks = (data.results || []).map((page: any) => {
+      const props = page.properties || {};
+      const titleArr: any[] = props.Task?.title || [];
+      const title = titleArr.map((t: any) => t.plain_text).join("") || "Untitled";
+
+      const emojiProp = props["-"];
+      let emoji = "-";
+      if (emojiProp?.type === "select" && emojiProp.select?.name)       emoji = emojiProp.select.name;
+      else if (emojiProp?.type === "status" && emojiProp.status?.name)  emoji = emojiProp.status.name;
+      else if (emojiProp?.type === "rich_text")
+        emoji = (emojiProp.rich_text || []).map((t: any) => t.plain_text).join("") || "-";
+
+      const sortOrder: number | null = props["Sort Order"]?.number ?? null;
+      return { id: page.id, title, emoji, sortOrder };
+    });
+
+    res.json({ tasks });
+  } catch (e: any) {
+    req.log?.error({ err: e }, "Failed to fetch life tasks");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/life-tasks/:pageId", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { pageId } = req.params;
+  const { emoji, sortOrder, done, title } = req.body;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+
+  try {
+    const updateProps: any = {};
+
+    if (title !== undefined) {
+      updateProps.Task = { title: [{ type: "text", text: { content: title } }] };
+    }
+    if (done !== undefined) {
+      updateProps.Done = { checkbox: done };
+    }
+    if (sortOrder !== undefined) {
+      updateProps["Sort Order"] = { number: sortOrder };
+    }
+    if (emoji !== undefined) {
+      // Fetch the page to discover the "-" property type
+      const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+        headers: notionHeaders(apiKey),
+      });
+      if (pageRes.ok) {
+        const page = await pageRes.json();
+        const propType = page.properties?.["-"]?.type || "select";
+        const clean = String(emoji).replace(/\uFE0F/g, "");
+        if (propType === "select")      updateProps["-"] = { select: { name: clean } };
+        else if (propType === "status") updateProps["-"] = { status: { name: clean } };
+        else                            updateProps["-"] = { rich_text: [{ type: "text", text: { content: clean } }] };
+      }
+    }
+
+    if (Object.keys(updateProps).length === 0) { res.json({ success: true }); return; }
+
+    const updateRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      method: "PATCH",
+      headers: notionHeaders(apiKey),
+      body: JSON.stringify({ properties: updateProps }),
+    });
+    if (!updateRes.ok) {
+      const err = await updateRes.json();
+      res.status(updateRes.status).json({ message: err.message || "Update failed" });
+      return;
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    req.log?.error({ err: e }, "Failed to patch life task");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.get("/page-blocks/:pageId", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { pageId } = req.params;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+
+  try {
+    const response = await fetch(
+      `https://api.notion.com/v1/blocks/${pageId}/children?page_size=50`,
+      { headers: notionHeaders(apiKey) }
+    );
+    if (!response.ok) {
+      const err = await response.json();
+      res.status(response.status).json({ message: err.message || "Notion error" });
+      return;
+    }
+    const data = await response.json();
+
+    const extractText = (block: any): string => {
+      const type = block.type;
+      const arr: any[] = block[type]?.rich_text || block[type]?.text || [];
+      return arr.map((t: any) => t.plain_text || "").join("");
+    };
+
+    const lines = (data.results || [])
+      .map((b: any) => extractText(b))
+      .filter((t: string) => t.length > 0);
+
+    res.json({ body: lines.join("\n") });
+  } catch (e: any) {
+    req.log?.error({ err: e }, "Failed to fetch page blocks");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 function toMonthKey(d: string | null): string | null {
   return d ? d.slice(0, 7) : null;
 }

@@ -15,10 +15,11 @@ export type MenuItem = {
   description: string;
 };
 
-export type SectionKey = "reports" | "apps" | "footy" | "tools" | "knowledge" | "uikit";
+export type SectionKey = "reports" | "life" | "apps" | "footy" | "tools" | "knowledge" | "uikit";
 
 export const SECTION_LABELS: Record<SectionKey, string> = {
   reports:   "Reports",
+  life:      "Life",
   apps:      "Apps",
   footy:     "Footy",
   tools:     "Tools",
@@ -27,10 +28,18 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
 };
 
 export const SECTION_ORDER: SectionKey[] = [
-  "reports", "apps", "footy", "tools", "knowledge", "uikit",
+  "reports", "life", "apps", "footy", "tools", "knowledge", "uikit",
 ];
 
 export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
+  life: [
+    { label: "Life Admin",  icon: "clipboard",   route: "/life/life-admin",  description: "Tasks & life admin"   },
+    { label: "Investigate", icon: "search",       route: "/life/investigate", description: "Things to look into" },
+    { label: "To Buy",      icon: "shopping-bag", route: "/life/to-buy",      description: "Shopping list"        },
+    { label: "Music",       icon: "music",        route: "/life/music",       description: "Songs & playlists"    },
+    { label: "Reference",   icon: "bookmark",     route: "/life/reference",   description: "Reference items"      },
+    { label: "To Read",     icon: "book-open",    route: "/life/to-read",     description: "Reading list"         },
+  ],
   reports: [
     { label: "Mood Report",   icon: "activity",  route: "/mood-report",  description: "Monthly mood charts" },
     { label: "My Workload",   icon: "bar-chart", route: "/my-workload",  description: "Created vs done"     },

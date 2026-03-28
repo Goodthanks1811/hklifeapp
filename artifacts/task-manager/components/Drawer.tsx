@@ -108,6 +108,7 @@ export function Drawer() {
   }
 
   const reports   = useAccordion(true,  visibleItems.reports.length);
+  const life      = useAccordion(false, visibleItems.life.length);
   const apps      = useAccordion(false, visibleItems.apps.length);
   const footy     = useAccordion(false, visibleItems.footy.length);
   const tools     = useAccordion(false, visibleItems.tools.length);
@@ -115,7 +116,7 @@ export function Drawer() {
   const uiKit     = useAccordion(false, visibleItems.uikit.length);
 
   const accordions: Record<SectionKey, ReturnType<typeof useAccordion>> = {
-    reports, apps, footy, tools, knowledge, uikit: uiKit,
+    reports, life, apps, footy, tools, knowledge, uikit: uiKit,
   };
 
   if (!isOpen) return null;
