@@ -94,8 +94,10 @@ canvas { position:absolute; top:0; left:0; display:block; }
 @keyframes spin { to { transform:rotate(360deg); } }
 input[type=file] { display:none; }
 
-#brush-bar { display:none; align-items:center; gap:6px; padding:7px 12px; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
+#brush-bar { display:none; flex-wrap:wrap; align-items:center; gap:6px; padding:7px 12px; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
 #brush-bar.visible { display:flex; }
+.brush-row { display:flex; align-items:center; gap:6px; width:100%; }
+.brush-row-lbl { font-size:11px; color:${C.muted}; white-space:nowrap; width:24px; }
 .mode-btn { flex:1; padding:8px 0; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
 .mode-btn.on { background:#30a830; box-shadow:0 0 8px rgba(48,168,48,.45); }
 .mode-erase.on { background:#E03131; box-shadow:0 0 8px rgba(224,49,49,.45); }
@@ -120,11 +122,19 @@ input[type=file] { display:none; }
   <button class="btn-icon" id="btnShare" onclick="shareCanvas()">&#8679;</button>
 </div>
 <div id="brush-bar">
-  <button class="mode-btn mode-erase on" id="btnErase"   onclick="setBrushMode('erase')">Erase</button>
-  <button class="mode-btn mode-restore"  id="btnRestore" onclick="setBrushMode('restore')">Restore</button>
-  <input  class="brush-range" type="range" id="bsl" min="4" max="80" value="20" oninput="brushSize=+this.value;document.getElementById('bval').textContent=this.value;">
-  <span class="brush-lbl" id="bval">20</span>
-  <button class="mode-btn" style="flex:0.8;font-size:11px;" onclick="clearMask()">Clear</button>
+  <div class="brush-row">
+    <button class="mode-btn mode-erase on" id="btnErase"   onclick="setBrushMode('erase')">Erase</button>
+    <button class="mode-btn mode-restore"  id="btnRestore" onclick="setBrushMode('restore')">Restore</button>
+    <button class="mode-btn" style="flex:0.7;font-size:11px;" onclick="clearMask()">Clear</button>
+  </div>
+  <div class="brush-row">
+    <span class="brush-row-lbl">Sz</span>
+    <input class="brush-range" type="range" id="bsl" min="4" max="80" value="20" oninput="brushSize=+this.value;document.getElementById('bval').textContent=this.value;">
+    <span class="brush-lbl" id="bval">20</span>
+    <span class="brush-row-lbl" style="margin-left:8px;">Soft</span>
+    <input class="brush-range" type="range" id="bsoftsl" min="0" max="100" value="0" oninput="brushSoft=this.value/100;document.getElementById('bsval').textContent=Math.round(this.value)+'%';">
+    <span class="brush-lbl" id="bsval">0%</span>
+  </div>
 </div>
 <div class="obar" id="obar" style="display:none;">
   <label>Image 2 opacity</label>
@@ -194,7 +204,7 @@ var undoStack=[];
 var MAX_UNDO=30;
 
 // ── Brush state ────────────────────────────────────────
-var brushMode=false,brushErase=true,brushSize=20;
+var brushMode=false,brushErase=true,brushSize=20,brushSoft=0;
 var maskCanvas=null,offCanvas=null,offCtx=null;
 var bCursor=null; // {x,y} for brush preview circle
 
@@ -379,11 +389,13 @@ function draw(){
     if(img2&&etx2)drawImg(img2,etx2,opacity2,!!maskCanvas);
   }
   updateSliderOverlay(w,h);
-  // Brush cursor ring
+  // Brush cursor — solid fill tinted by mode
   if(brushMode&&bCursor){
     ctx.save();
-    ctx.strokeStyle=brushErase?'rgba(255,80,80,0.85)':'rgba(80,220,80,0.85)';
-    ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+    ctx.fillStyle=brushErase?'rgba(224,49,49,0.30)':'rgba(48,168,48,0.30)';
+    ctx.beginPath();ctx.arc(bCursor.x,bCursor.y,brushSize,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=brushErase?'rgba(224,49,49,0.80)':'rgba(48,168,48,0.80)';
+    ctx.lineWidth=1.5;ctx.setLineDash([]);
     ctx.beginPath();ctx.arc(bCursor.x,bCursor.y,brushSize,0,Math.PI*2);ctx.stroke();
     ctx.restore();
   }
@@ -488,9 +500,24 @@ function paintMask(sx,sy){
   var iy=(sy-etx.cy)/etx.scale+img2.naturalHeight/2;
   var ir=Math.max(2,brushSize/etx.scale);
   var m=maskCanvas.getContext('2d');
-  m.globalCompositeOperation=brushErase?'destination-out':'source-over';
-  m.fillStyle=brushErase?'rgba(0,0,0,1)':'#fff';
-  m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
+  if(brushSoft>0){
+    // Radial gradient — hard core fades to transparent at edge
+    var hardR=ir*(1-brushSoft);
+    var grad=m.createRadialGradient(ix,iy,hardR,ix,iy,ir);
+    if(brushErase){
+      m.globalCompositeOperation='destination-out';
+      grad.addColorStop(0,'rgba(0,0,0,1)');grad.addColorStop(1,'rgba(0,0,0,0)');
+    }else{
+      m.globalCompositeOperation='source-over';
+      grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(1,'rgba(255,255,255,0)');
+    }
+    m.fillStyle=grad;
+    m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
+  }else{
+    m.globalCompositeOperation=brushErase?'destination-out':'source-over';
+    m.fillStyle=brushErase?'rgba(0,0,0,1)':'#fff';
+    m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
+  }
   m.globalCompositeOperation='source-over';
 }
 function paintMaskLine(sx1,sy1,sx2,sy2){
