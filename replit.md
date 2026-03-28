@@ -48,11 +48,43 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 
-## Notion Integration
+## Task Manager App (`artifacts/task-manager`)
 
-The app uses a direct Notion API key (Internal Integration Token) entered by the user in the app's setup screen. The Replit Notion connector was dismissed — if reconnecting in the future, use `connector:ccfg_notion_01K49R392Z3CSNMXCPWSV67AF4`. The current approach (user-entered API key stored in AsyncStorage) works well for a personal task manager.
+Expo / React Native mobile app targeting iPhone + iPad Pro 12.9". Bold red (`#E03131`) + black main theme.
+
+### Screens
+- `app/(tabs)/index.tsx` — Task Board (Notion tasks grouped by status)
+- `app/settings.tsx` — API key entry screen (accessible from drawer bottom)
+- `app/ir-quick-add.tsx` — IR Quick Add script port (navy `#0C1846` / gold `#FE9A01` theme)
+- `app/ui-kit/` — UI Kit showcase: Buttons, Sliders, Drag & Reorder, Loaders, Modals
+
+### Key Components & Patterns
+- `components/Drawer.tsx` — hamburger slide-in drawer with NAVIGATION / Scripts / UI KIT / Settings sections
+- `context/NotionContext.tsx` — API key + tasks stored in AsyncStorage; `setApiKey`, `clearConfig`
+- `context/DrawerContext.tsx` — drawer open/close state with animated slide
+
+### IR Quick Add screen details
+- DB ID: `2c9b7eba35238084a6decf83993961e4`; logo: `https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png`
+- Loader animation: overlay fade-in → spinning ring → circle pop (easeOutBack) → check tick → hold → fade out
+  - Timing constants: T_FADE_IN=200, T_SPINNER_IN=250, T_MIN_SPIN=900, T_POP=380, T_TICK=350, T_HOLD=700, T_FADE_OUT=400
+  - Loader starts immediately on save tap; API call runs in parallel; min spin enforced
+- Keyboard: `Keyboard.addListener("keyboardWillShow/Hide")` + `Animated.Value` for footer `bottom` and content `marginBottom`; no KeyboardAvoidingView
+- Footer: `position: absolute`, height measured via `onLayout`
+- Responsive: `useWindowDimensions` → `isTablet = width >= 768` → content centred in `maxWidth: 720` column
+- Status bar visible (no custom header); floating hamburger at `top: topPad + 10, left: 16`
+
+### API Server Notion routes (`artifacts/api-server/src/routes/notion.ts`)
+- `GET /api/notion/schema/:dbId` — detects field types (priType, epicType, priorityType, priOptions)
+- `POST /api/notion/pages` — creates page with Task, Done, Priority, Epic, emoji icon fields
+- All routes forward user key via `x-notion-key` header
+
+### Notion Integration
+The app uses a direct Notion API key (Internal Integration Token) entered by the user in the Settings screen. The Replit Notion connector was dismissed — if reconnecting in the future, use `connector:ccfg_notion_01K49R392Z3CSNMXCPWSV67AF4`. The current approach (user-entered API key stored in AsyncStorage) works well for a personal task manager.
 
 The backend proxies all Notion API calls through `/api/notion/*` routes, forwarding the user's key via `x-notion-key` header.
+
+### EAS Build
+`app.json` has EAS configured. User needs `eas login` + `eas init` then `eas build --platform ios --profile preview` for standalone deployment. `keyboardAppearance="dark"` requires a native build to take effect (not Expo Go).
 
 ## Packages
 
