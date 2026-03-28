@@ -28,7 +28,9 @@ const REPORTS_ITEMS = [
 
 const PLACEHOLDER_ITEM = { label: "Coming soon", icon: "clock" as const, route: null, description: "In development" };
 
-const APPS_ITEMS    = [PLACEHOLDER_ITEM];
+const APPS_ITEMS = [
+  { label: "Mi Nena", icon: "heart" as const, route: "/mi-nena", description: "Photo & video gallery" },
+];
 const FOOTY_ITEMS   = [PLACEHOLDER_ITEM];
 const TOOLS_ITEMS   = [PLACEHOLDER_ITEM];
 const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
