@@ -1,0 +1,434 @@
+// ─── HK Life — Add Item ───────────────────────────────────────────────────────
+const HK_TOKEN   = Keychain.get("notion_token");
+const HK_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
+const HK_TIMEOUT = 15;
+
+const CATEGORIES = [
+  { label:"Life Admin",     value:"\uD83D\uDCDD Life Admin",                          bg:"rgba(100,110,130,0.2)",  glow:"rgba(100,110,130,0.2)",  bgA:"rgba(100,110,130,0.38)", glowA:"rgba(100,110,130,0.45)", text:"#FFFFFF", shadow:"rgba(100,110,130,0.6)"  },
+  { label:"To Investigate", value:"                     \uD83D\uDD0E To Investigate", bg:"rgba(255,30,30,0.18)",   glow:"rgba(255,30,30,0.2)",    bgA:"rgba(255,30,30,0.35)",   glowA:"rgba(255,30,30,0.45)",   text:"#FFFFFF", shadow:"rgba(255,30,30,0.6)"    },
+  { label:"To Buy",         value:"\uD83D\uDCB0 To Buy",                              bg:"rgba(6,214,160,0.15)",   glow:"rgba(6,214,160,0.18)",   bgA:"rgba(6,214,160,0.32)",   glowA:"rgba(6,214,160,0.45)",   text:"#FFFFFF", shadow:"rgba(6,214,160,0.6)"    },
+  { label:"Read",           value:"\uD83D\uDCD5 Read",                                bg:"rgba(234,179,8,0.15)",   glow:"rgba(234,179,8,0.18)",   bgA:"rgba(234,179,8,0.3)",    glowA:"rgba(234,179,8,0.42)",   text:"#FDE68A", shadow:"none"                   },
+  { label:"Music",          value:"\uD83C\uDFA7 Music",                               bg:"rgba(59,130,246,0.18)",  glow:"rgba(59,130,246,0.2)",   bgA:"rgba(59,130,246,0.35)",  glowA:"rgba(59,130,246,0.45)",  text:"#FFFFFF", shadow:"rgba(59,130,246,0.6)"   },
+  { label:"Reference",      value:"\uD83D\uDCCC Reference",                           bg:"rgba(255,60,200,0.16)",  glow:"rgba(255,60,200,0.18)",  bgA:"rgba(255,60,200,0.32)",  glowA:"rgba(255,60,200,0.44)",  text:"#FFFFFF", shadow:"rgba(255,60,200,0.6)"   },
+];
+
+const PICKER_EMOJIS = [
+  "\uD83D\uDD25",
+  "\uD83C\uDFE1",
+  "\uD83D\uDDA5\uFE0F",
+  "\uD83D\uDCB0",
+  "\uD83D\uDCB3",
+  "\uD83D\uDC40",
+  "\uD83D\uDCD5",
+  "\uD83E\uDDE0",
+  "\uD83D\uDCCC",
+];
+
+// ═══════════════════════════════════════════════════════
+// ─── LOADER CONFIG ──────────────────────────────────────
+// ═══════════════════════════════════════════════════════
+
+const BLACK = '#0b0b0c';
+const RED   = '#ff1e1e';
+const WHITE = '#ffffff';
+
+var SP  = 64;    // spinner SVG width/height (px)
+var SPK = 7;   // spinner stroke width (px)!?
+var CIR = 68;    //  success circle SVG size (px)
+
+// ─── Spinner arc colours ─────────────────────────────
+// Current: white arc on dark track (default)
+// For red spinner like the saving screen image:
+//   SP_TRACK = 'rgba(255,30,30,0.18)'   ← dark red track
+//   SP_ARC   = '#ff1e1e'                ← bright red arc
+var SP_TRACK = 'rgba(255,255,255,0.12)'; // dim background ring
+var SP_ARC   = 'rgba(255,255,255,0.85)'; // bright moving arc
+
+// ─── Success circle & tick ───────────────────────────
+var V_BG    = RED;
+var V_RING  = RED;
+var V_RINGW = 1.3;
+var V_TICK  = WHITE;
+var V_SW    = 7.0;
+var V_GLOW  = false;
+
+// ─── Overlay ─────────────────────────────────────────
+// Opacity of the background dim while loader is showing.
+// 0.0 = fully transparent, 1.0 = fully opaque black.
+var OV_OPACITY = 0.7;
+
+// ─── Timing (ms) ────────────────────────────────────────
+var T_FADE_IN    = 200;
+var T_SPINNER_IN = 250;
+var T_SPIN       = 1300;
+var T_POP        = 420;
+var T_TICK       = 400;
+var T_HOLD       = 700;
+var T_FADE_OUT   = 450;
+
+//  ═══════════════════════════════════════════════════════
+
+function parseQuery(u){
+  const out={};
+  const qi=u.indexOf("?");
+  if(qi===-1) return out;
+  for(const p of u.slice(qi+1).split("&")){
+    if(!p) continue;
+    const eq=p.indexOf("=");
+    const k=eq===-1?p:p.slice(0,eq);
+    const v=eq===-1?"":p.slice(eq+1);
+    try{ out[decodeURIComponent(k)]=decodeURIComponent(v); }catch{ out[k]=v; }
+  }
+  return out;
+}
+
+function sleep(ms){ return new Promise(r=>Timer.schedule(ms,false,r)); }
+
+async function fetchSchema(){
+  const req=new Request("https://api.notion.com/v1/databases/"+HK_DB_ID);
+  req.method="GET";
+  req.headers={"Authorization":"Bearer "+HK_TOKEN,"Notion-Version":"2022-06-28"};
+  req.timeoutInterval=HK_TIMEOUT;
+  const db=await req.loadJSON();
+  if(db&&db.object==="error") throw new Error(db.message);
+  const props=(db&&db.properties)||{};
+  const priProp=props["-"];
+  const priType=(priProp&&priProp.type)||"rich_text";
+  const priOptions=priType==="select"
+    ?(priProp.select&&priProp.select.options?priProp.select.options:[]).map(function(o){ return o.name.replace(/\uFE0F/g,""); })
+    :priType==="status"
+    ?(priProp.status&&priProp.status.options?priProp.status.options:[]).map(function(o){ return o.name.replace(/\uFE0F/g,""); })
+    :null;
+  return {props:props,priType:priType,priOptions:priOptions};
+}
+
+function findBest(wanted,options){
+  const w=wanted.toLowerCase().trim();
+  for(let i=0;i<(options||[]).length;i++){
+    if(options[i].toLowerCase().trim()===w) return options[i];
+  }
+  return wanted;
+}
+
+async function createItem(title,categoryValue,emoji,schema){
+  const props=schema.props;
+  const priType=schema.priType;
+  const priOptions=schema.priOptions;
+  const body={parent:{database_id:HK_DB_ID},properties:{}};
+  body.properties["Task"]={title:[{type:"text",text:{content:title}}]};
+  body.properties["Done"]={checkbox:false};
+  const catProp=props["Category"];
+  if(catProp&&catProp.type==="select")
+    body.properties["Category"]={select:{name:categoryValue}};
+  else if(catProp&&catProp.type==="status")
+    body.properties["Category"]={status:{name:categoryValue}};
+  if(emoji){
+    const emojiVal=String(emoji).replace(/\uFE0F/g,"");
+    if(priType==="select")      body.properties["-"]={select:   {name:findBest(emojiVal,priOptions)}};
+    else if(priType==="status") body.properties["-"]={status:   {name:findBest(emojiVal,priOptions)}};
+    else                        body.properties["-"]={rich_text:[{type:"text",text:{content:emojiVal}}]};
+  }
+  const req=new Request("https://api.notion.com/v1/pages");
+  req.method="POST";
+  req.headers={"Authorization":"Bearer "+HK_TOKEN,"Notion-Version":"2022-06-28","Content-Type":"application/json"};
+  req.timeoutInterval=HK_TIMEOUT;
+  req.body=JSON.stringify(body);
+  const res=await req.loadJSON();
+  if(res&&res.object==="error") throw new Error(res.message);
+  return res;
+}
+
+function buildSuccessSVG(){
+  var h  = CIR / 2;
+  var out = '';
+  if(V_GLOW && V_RING){
+    out += '<circle cx="'+h+'" cy="'+h+'" r="'+h+'" fill="none" stroke="'+V_RING+'" stroke-width="1" opacity="0.3"/>';
+    out += '<circle cx="'+h+'" cy="'+h+'" r="'+(h-3)+'" fill="none" stroke="'+V_RING+'" stroke-width="0.5" opacity="0.15"/>';
+  }
+  if(V_BG && V_RING){
+    out += '<circle cx="'+h+'" cy="'+h+'" r="'+(h-1)+'" fill="'+BLACK+'"/>';
+  }
+  if(V_BG){
+    var fr = (V_RING && V_BG !== BLACK) ? (h-5) : (h-1);
+    out += '<circle cx="'+h+'" cy="'+h+'" r="'+fr+'" fill="'+V_BG+'"/>';
+  }
+  if(V_RING){
+    var rr = V_BG ? (h-2-V_RINGW/2) : (h-1-V_RINGW/2);
+    out += '<circle cx="'+h+'" cy="'+h+'" r="'+rr+'" fill="none" stroke="'+V_RING+'" stroke-width="'+V_RINGW+'"/>';
+  }
+  var defs  = '';
+  var fAttr = '';
+  if(V_GLOW && !V_RING){
+    defs  = '<defs><filter id="gl0" x="-80%" y="-80%" width="260%" height="260%">';
+    defs += '<feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>';
+    defs += '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/><\/feMerge>';
+    defs += '<\/filter><\/defs>';
+    fAttr = ' filter="url(#gl0)"';
+  }
+  var sc = CIR / 72;
+  function s(n){ return Math.round(n * sc * 10) / 10; }
+  var d = 'M'+s(18)+' '+s(38)+' L'+s(28)+' '+s(50)+' L'+s(51)+' '+s(23);
+  out += '<path id="tkp0" fill="none"'
+    +' stroke="'+V_TICK+'"'
+    +' stroke-width="'+V_SW+'"'
+    +' stroke-linecap="round"'
+    +' stroke-linejoin="round"'
+    +' d="'+d+'"'
+    +fAttr+'/>';
+  return defs + out;
+}
+
+function buildHTML(){
+  var spinR   = (SP - SPK * 2) / 2;
+  var arcFull = Math.round(Math.PI * spinR * 2);
+  var arcDash = Math.round(arcFull * 0.25);
+  var arcGap  = arcFull - arcDash;
+  var spinCx  = SP / 2;
+
+  var spinSVG = '<svg class="spsvg" viewBox="0 0 '+SP+' '+SP+'">';
+  spinSVG += '<circle cx="'+spinCx+'" cy="'+spinCx+'" r="'+spinR+'" fill="none" stroke="'+SP_TRACK+'" stroke-width="'+SPK+'"\/>';
+  spinSVG += '<circle cx="'+spinCx+'" cy="'+spinCx+'" r="'+spinR+'" fill="none" stroke="'+SP_ARC+'" stroke-width="'+SPK+'" stroke-linecap="round" stroke-dasharray="'+arcDash+' '+arcGap+'"\/>';
+  spinSVG += '<\/svg>';
+
+  var successSVG = '<svg width="'+CIR+'" height="'+CIR+'" viewBox="0 0 '+CIR+' '+CIR+'">' + buildSuccessSVG() + '<\/svg>';
+
+  var loaderJS = ''
+    +'function eob(t){var c=1.70158,c3=c+1;return 1+c3*Math.pow(t-1,3)+c*Math.pow(t-1,2);}'
+    +'function eio(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}'
+    +'function eo(t){return 1-Math.pow(1-t,3);}'
+    +'function an(dur,fn,done,ease){'
+    +'  ease=ease||eo;var s=performance.now();'
+    +'  (function f(now){var raw=Math.min((now-s)/dur,1);fn(ease(raw));'
+    +'  if(raw<1)requestAnimationFrame(f);else if(done)done();})(performance.now());}'
+    +'var _running=false;'
+    +'function _loaderShow(){'
+    +'  if(_running)return;_running=true;'
+    +'  var am=document.getElementById("am");'
+    +'  var spw=document.getElementById("spw");'
+    +'  var scw=document.getElementById("scw");'
+    +'  var tkp=document.getElementById("tkp0");'
+    +'  var len=tkp.getTotalLength();'
+    +'  tkp.style.strokeDasharray=len;tkp.style.strokeDashoffset=len;'
+    +'  scw.style.transform="scale(0)";scw.style.opacity="0";'
+    +'  spw.style.opacity="0";am.style.opacity="0";am.style.display="flex";'
+    +'  an('+T_FADE_IN+',function(t){am.style.opacity=t;},function(){'
+    +'    an('+T_SPINNER_IN+',function(t){spw.style.opacity=t;});'
+    +'  });'
+    +'}'
+    +'function _loaderSuccess(){'
+    +'  var spw=document.getElementById("spw");'
+    +'  var scw=document.getElementById("scw");'
+    +'  var am=document.getElementById("am");'
+    +'  setTimeout(function(){'
+    +'    an('+T_POP+',function(t){'
+    +'      spw.style.opacity=1-t;scw.style.opacity=t;'
+    +'      scw.style.transform="scale("+eob(t)+")";'
+    +'    },function(){'
+    +'      spw.style.opacity=0;'
+    +'      an('+T_TICK+',function(t){'
+    +'        var p=document.getElementById("tkp0");'
+    +'        if(p){var l=p.getTotalLength();p.style.strokeDashoffset=l*(1-t);}'
+    +'      },function(){'
+    +'        setTimeout(function(){'
+    +'          an('+T_FADE_OUT+',function(t){am.style.opacity=1-t;},function(){'
+    +'            am.style.opacity="0";am.style.display="none";'
+    +'            document.getElementById("footer").style.pointerEvents="all";'
+    +'            scw.style.transform="scale(0)";_running=false;'
+    +'            resetForm();'
+    +'          });'
+    +'        },'+T_HOLD+');'
+    +'      },eio);'
+    +'    },eo);'
+    +'  },'+T_SPIN+');'
+    +'}'
+    +'function _loaderError(){'
+    +'  var am=document.getElementById("am");'
+    +'  var spw=document.getElementById("spw");'
+    +'  an('+T_FADE_OUT+',function(t){am.style.opacity=1-t;},function(){'
+    +'    am.style.opacity="0";am.style.display="none";'
+    +'    document.getElementById("footer").style.pointerEvents="all";'
+    +'    spw.style.opacity=0;_running=false;'
+    +'  });'
+    +'}';
+
+  const catsJSON=JSON.stringify(CATEGORIES).replace(/</g,"\\u003c");
+  const pickJSON=JSON.stringify(PICKER_EMOJIS);
+  const ovBg = 'rgba(0,0,0,'+OV_OPACITY+')';
+
+  const html='<!DOCTYPE html>'+
+'<html>'+
+'<head>'+
+'<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'+
+'<style>'+
+'*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}'+
+'html,body{background:#0b0b0c;font-family:-apple-system,sans-serif;color:#f2f2f7;overflow:hidden;height:100%;}'+
+'body{position:fixed;left:0;right:0;top:0;height:100vh;display:flex;flex-direction:column;}'+
+'.page-header{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:10px 20px 0;}'+
+'.page-title{font-size:26px;font-weight:900;letter-spacing:-.5px;color:#f2f2f7;}'+
+'.page-title span{color:rgb(255,30,30);}'+
+'.form-wrap{flex:1 1 auto;display:flex;flex-direction:column;overflow:hidden;}'+
+'.scroll-area{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px;}'+
+'.scroll-area::-webkit-scrollbar{display:none;}'+
+'.label{font-size:11px;font-weight:700;letter-spacing:.08em;color:rgba(255,255,255,.80);text-transform:uppercase;margin:8px 0 8px;}'+
+'.text-input{width:100%;background:#15151c;border:1px solid rgba(255,255,255,.10);border-radius:18px;color:#f2f2f7;font-size:18px;padding:16px;outline:none;font-family:-apple-system,sans-serif;-webkit-appearance:none;}'+
+'.text-input::placeholder{color:#8d8e9c;}'+
+'.text-input:focus{border-color:rgba(255,70,70,.34);box-shadow:0 0 0 1px rgba(255,50,50,.16);}'+
+'.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}'+
+'.cat-btn{border-radius:13px;border:none;padding:13px 10px;font-size:11px;font-weight:700;text-align:center;cursor:pointer;line-height:1.2;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,opacity .15s ease;}'+
+'.cat-btn:active{transform:scale(0.97);}'+
+'.cat-btn.dimmed{opacity:0.18;transform:scale(0.96);}'+
+'.emoji-section{flex:0 0 auto;display:flex;flex-direction:column;padding-top:4px;}'+
+'.emoji-row{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 8px;}'+
+'.emoji-row::-webkit-scrollbar{display:none;}'+
+'.emoji-btn{width:52px;height:52px;flex:0 0 52px;border-radius:16px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;transition:opacity .2s;}'+
+'.emoji-btn.selected{background:rgba(255,40,40,.22);border-color:rgba(255,70,70,.45);}'+
+'.emoji-row.has-active .emoji-btn:not(.selected){opacity:.38;}'+
+'.footer{flex:0 0 auto;display:flex;gap:12px;padding:12px 20px;padding-bottom:max(env(safe-area-inset-bottom),18px);border-top:1px solid rgba(255,255,255,.07);background:#0b0b0c;}'+
+'.btn-cancel{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);border-radius:16px;color:#f2f2f7;font-size:16px;font-weight:800;padding:16px 0;cursor:pointer;font-family:-apple-system,sans-serif;}'+
+'.btn-save{flex:2;background:linear-gradient(180deg,rgba(255,44,44,.95),rgba(200,18,18,.95));border:1px solid rgba(255,255,255,.12);border-radius:16px;color:#fff;font-size:16px;font-weight:800;padding:16px 0;cursor:pointer;font-family:-apple-system,sans-serif;box-shadow:0 12px 24px rgba(255,30,30,.18);}'+
+'.btn-save:disabled{opacity:.42;box-shadow:none;}'+
+'.am{position:fixed;inset:0;z-index:999;background:'+ovBg+';display:none;align-items:center;justify-content:center;pointer-events:none;opacity:0;}'+
+'.spw{position:absolute;width:'+SP+'px;height:'+SP+'px;opacity:0;}'+
+'.spsvg{width:'+SP+'px;height:'+SP+'px;animation:spin 600ms linear infinite;transform-origin:center;display:block;}'+
+'@keyframes spin{to{transform:rotate(360deg);}}'+
+'.scw{position:absolute;display:flex;align-items:center;justify-content:center;opacity:0;}'+
+'</style>'+
+'</head>'+
+'<body id="body">'+
+'<div class="am" id="am">'+
+'  <div class="spw" id="spw">'+spinSVG+'<\/div>'+
+'  <div class="scw" id="scw">'+successSVG+'<\/div>'+
+'<\/div>'+
+'<div class="page-header">'+
+'  <div class="page-title">HK <span>Life<\/span><\/div>'+
+'<\/div>'+
+'<div class="form-wrap">'+
+'  <div class="scroll-area">'+
+'    <div class="label">Summary<\/div>'+
+'    <input id="inp" class="text-input" type="text" placeholder="Enter title"'+
+'      enterkeyhint="done" autocomplete="off" autocorrect="on" spellcheck="false"'+
+'      oninput="chk()" onkeydown="if(event.key===\'Enter\'&&!document.getElementById(\'sBtn\').disabled)save()"/>'+
+'    <div class="label">Category<\/div>'+
+'    <div class="cat-grid" id="cGrid"><\/div>'+
+'    <div class="emoji-section">'+
+'      <div class="label">Emoji<\/div>'+
+'      <div class="emoji-row" id="emRow"><\/div>'+
+'    <\/div>'+
+'  <\/div>'+
+'  <div class="footer" id="footer">'+
+'    <button class="btn-cancel" onmousedown="event.preventDefault()" onclick="cancel()">Cancel<\/button>'+
+'    <button class="btn-save" id="sBtn" onmousedown="event.preventDefault()" onclick="save()" disabled>Save<\/button>'+
+'  <\/div>'+
+'<\/div>'+
+'<script>'+
+'var CATS='+catsJSON+';'+
+'var EMOJIS='+pickJSON+';'+
+'var selC=null,selM=null;'+
+'var phase="idle";'+
+loaderJS+
+'if(window.visualViewport){'+
+'  function onVP(){'+
+'    if(window.innerWidth>=768) return;'+
+'    var vp=window.visualViewport;'+
+'    var b=document.getElementById("body");'+
+'    b.style.top=vp.offsetTop+"px";'+
+'    b.style.height=vp.height+"px";'+
+'  }'+
+'  window.visualViewport.addEventListener("resize",onVP);'+
+'  window.visualViewport.addEventListener("scroll",onVP);'+
+'  onVP();'+
+'}'+
+'function rCats(){'+
+'  var g=document.getElementById("cGrid");'+
+'  g.innerHTML=CATS.map(function(c){'+
+'    var isA=c.label===selC;'+
+'    var isDimmed=selC!==null&&!isA;'+
+'    var bg=isA?c.bgA:c.bg;'+
+'    var bs=c.shadow!=="none"'+
+'      ?(isA?"0 0 14px "+c.glowA+",0 0 5px "+c.glowA+",inset 0 0 0 1px "+c.glowA'+
+'           :"0 0 6px "+c.glow+",inset 0 0 0 1px "+c.glow)'+
+'      :(isA?"inset 0 0 0 1px "+c.glowA:"inset 0 0 0 1px "+c.glow);'+
+'    var ts=c.shadow!=="none"'+
+'      ?(isA?"0 0 10px "+c.shadow+",0 0 4px "+c.shadow:"0 0 6px "+c.shadow)'+
+'      :"none";'+
+'    var cls="cat-btn"+(isDimmed?" dimmed":"");'+
+'    return "<button class=\\""+cls+"\\" data-label=\\""+c.label.replace(/"/g,"&quot;")+"\\""+'+
+'      " style=\\"background:"+bg+";color:"+c.text+";box-shadow:"+bs+";text-shadow:"+ts+"\\""+'+
+'      " onmousedown=\\"event.preventDefault()\\" onclick=\\"pickC(this.dataset.label)\\">"+c.label+"<\\/button>";'+
+'  }).join("");'+
+'}'+
+'function rEmojis(){'+
+'  var r=document.getElementById("emRow");'+
+'  r.className="emoji-row"+(selM!==null?" has-active":"");'+
+'  r.innerHTML=EMOJIS.map(function(em){'+
+'    return "<div class=\\"emoji-btn"+(em===selM?" selected":"")+"\\""+ '+
+'      " onmousedown=\\"event.preventDefault()\\" onclick=\\"pickM(\'"+em+"\')\\">"'+
+'      +em+"<\\/div>";'+
+'  }).join("");'+
+'}'+
+'function pickC(v){ selC=(selC===v?null:v); rCats(); }'+
+'function pickM(v){ selM=v; rEmojis(); }'+
+'function chk(){ document.getElementById("sBtn").disabled=document.getElementById("inp").value.trim().length===0; }'+
+'function cancel(){ window.__msgs=window.__msgs||[]; window.__msgs.push("native://cancel"); }'+
+'function save(){'+
+'  var t=document.getElementById("inp").value.trim();'+
+'  if(!t||phase!=="idle") return;'+
+'  phase="saving";'+
+'  document.getElementById("inp").blur();'+
+'  document.getElementById("footer").style.pointerEvents="none";'+
+'  _loaderShow();'+
+'  var catObj=null;'+
+'  for(var i=0;i<CATS.length;i++){ if(CATS[i].label===selC){ catObj=CATS[i]; break; } }'+
+'  var catVal=catObj?catObj.value:CATS[0].value;'+
+'  window.__msgs=window.__msgs||[];'+
+'  window.__msgs.push("native://create?title="+encodeURIComponent(t)+'+
+'    "&category="+encodeURIComponent(catVal)+'+
+'    "&emoji="+(selM||""));'+
+'}'+
+'function showSuccess(){ if(phase!=="saving") return; phase="saved"; _loaderSuccess(); }'+
+'function showError(msg){ if(phase!=="saving") return; phase="error"; _loaderError(); }'+
+'function resetForm(){'+
+'  phase="idle";'+
+'  document.getElementById("inp").value="";'+
+'  document.getElementById("sBtn").disabled=true;'+
+'  selC=null; selM=null;'+
+'  rCats(); rEmojis();'+
+'  setTimeout(function(){ document.getElementById("inp").focus(); },100);'+
+'}'+
+'rCats(); rEmojis();'+
+'setTimeout(function(){ document.getElementById("inp").focus(); },300);'+
+'<\/script>'+
+'</body>'+
+'</html>';
+
+  return html;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+const schema = await fetchSchema();
+const wv = new WebView();
+await wv.loadHTML(buildHTML());
+wv.present(true);
+
+while(true){
+  await sleep(300);
+  const raw=await wv.evaluateJavaScript(
+    "(function(){ var m=window.__msgs||[]; window.__msgs=[]; return JSON.stringify(m); })()"
+  );
+  const queue=JSON.parse(raw||"[]");
+  for(const url of queue){
+    if(url.startsWith("native://cancel")){
+      Script.complete(); return;
+    }
+    if(url.startsWith("native://create")){
+      const q=parseQuery(url);
+      try{
+        await createItem(q.title,q.category,q.emoji,schema);
+        await wv.evaluateJavaScript("showSuccess(); null");
+      }catch(e){
+        const msg=String(e.message||"Unknown error").replace(/'/g,"\\'");
+        await wv.evaluateJavaScript("showError('"+msg+"'); null");
+      }
+    }
+  }
+}

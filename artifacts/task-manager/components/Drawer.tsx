@@ -33,9 +33,10 @@ const APPS_ITEMS = [
 ];
 const FOOTY_ITEMS = [PLACEHOLDER_ITEM];
 const TOOLS_ITEMS = [
-  { label: "IR Quick Add",  icon: "zap"         as const, route: "/ir-quick-add",   description: "Add to Notion DB"       },
-  { label: "HK Quick Add",  icon: "plus-circle" as const, route: "/hk-quick-add",   description: "HK Automation task add" },
-  { label: "Photo Slider",  icon: "image"       as const, route: "/photo-slider",   description: "Compare & export photos"},
+  { label: "IR Quick Add",   icon: "zap"         as const, route: "/ir-quick-add",    description: "Add to Notion DB"        },
+  { label: "HK Quick Add",   icon: "plus-circle" as const, route: "/hk-quick-add",    description: "HK Automation task add"  },
+  { label: "Life Quick Add", icon: "sun"          as const, route: "/life-quick-add",  description: "Life tasks to Notion"    },
+  { label: "Photo Slider",   icon: "image"       as const, route: "/photo-slider",    description: "Compare & export photos" },
 ];
 const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
 
