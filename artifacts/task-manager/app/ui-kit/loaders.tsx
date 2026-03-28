@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -119,65 +118,31 @@ function SkeletonBox({ width, height = 16, radius = 6 }: { width: number | strin
   );
 }
 
-function HeartbeatLoader({ uri, size = 100 }: { uri: string; size?: number }) {
+const LOGO_URI = "https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png";
+
+function HeartbeatLoader({ size = 220 }: { size?: number }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const beat = Animated.sequence([
-      Animated.timing(scale, { toValue: 1.28, duration: 120, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
-      Animated.timing(scale, { toValue: 0.92, duration: 100, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.timing(scale, { toValue: 1.16, duration: 110, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
-      Animated.timing(scale, { toValue: 1.0, duration: 150, useNativeDriver: false, easing: Easing.inOut(Easing.quad) }),
-      Animated.delay(700),
-    ]);
-
-    const glowBeat = Animated.sequence([
-      Animated.timing(glow, { toValue: 1, duration: 120, useNativeDriver: false }),
-      Animated.timing(glow, { toValue: 0, duration: 600, useNativeDriver: false }),
-      Animated.delay(360),
-    ]);
-
     Animated.loop(
-      Animated.parallel([beat, glowBeat])
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.18, duration: 220, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
+        Animated.timing(scale, { toValue: 0.96, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(scale, { toValue: 1.10, duration: 200, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
+        Animated.timing(scale, { toValue: 1.0, duration: 250, useNativeDriver: false, easing: Easing.inOut(Easing.quad) }),
+        Animated.delay(1400),
+      ])
     ).start();
   }, []);
 
-  const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] });
-  const glowScale = scale.interpolate({ inputRange: [0.9, 1.3], outputRange: [1.0, 1.6] });
-
   return (
-    <View style={heartStyles.wrapper}>
-      <Animated.View
-        style={[
-          heartStyles.glowRing,
-          { width: size * 1.6, height: size * 1.6, borderRadius: size * 0.8, opacity: glowOpacity, transform: [{ scale: glowScale }] },
-        ]}
-      />
-      <Animated.Image
-        source={{ uri }}
-        style={[heartStyles.image, { width: size, height: size, transform: [{ scale }] }]}
-        resizeMode="contain"
-      />
-    </View>
+    <Animated.Image
+      source={{ uri: LOGO_URI }}
+      style={{ width: size, height: size, transform: [{ scale }] }}
+      resizeMode="contain"
+    />
   );
 }
-
-const heartStyles = StyleSheet.create({
-  wrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 180,
-    height: 180,
-  },
-  glowRing: {
-    position: "absolute",
-    backgroundColor: "#4A6FFF",
-  },
-  image: {
-    borderRadius: 12,
-  },
-});
 
 function Section({ title }: { title: string }) {
   return (
@@ -198,6 +163,20 @@ export default function LoadersScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [splashDone, setSplashDone] = useState(false);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: false,
+        easing: Easing.out(Easing.quad),
+      }).start(() => setSplashDone(true));
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const startUpload = () => {
     if (isUploading) return;
@@ -227,6 +206,13 @@ export default function LoadersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
+      {!splashDone && (
+        <Animated.View style={[styles.splashOverlay, { opacity: splashOpacity }]}>
+          <HeartbeatLoader size={220} />
+          <Text style={styles.splashLabel}>Loading...</Text>
+        </Animated.View>
+      )}
+
       <View style={styles.header}>
         <Pressable onPress={toggleDrawer} style={styles.iconBtn}>
           <Feather name="menu" size={20} color={Colors.textSecondary} />
@@ -352,16 +338,6 @@ export default function LoadersScreen() {
           ))}
         </View>
 
-        <Section title="Heartbeat Loader" />
-        <View style={[styles.card, { padding: 0, overflow: "hidden" }]}>
-          <View style={styles.heartbeatBg}>
-            <HeartbeatLoader
-              uri="https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png"
-              size={110}
-            />
-            <Text style={styles.heartbeatLabel}>Loading...</Text>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
@@ -547,19 +523,23 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 4,
   },
-  heartbeatBg: {
+  splashOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "#0C1846",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 36,
-    gap: 16,
-    borderRadius: 14,
+    zIndex: 999,
+    gap: 24,
   },
-  heartbeatLabel: {
-    color: "rgba(255,255,255,0.5)",
+  splashLabel: {
+    color: "rgba(255,255,255,0.45)",
     fontSize: 13,
     fontFamily: "Inter_500Medium",
-    letterSpacing: 1.5,
+    letterSpacing: 2,
     textTransform: "uppercase",
   },
 });
