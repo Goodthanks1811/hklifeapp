@@ -90,7 +90,7 @@ canvas { position:absolute; top:0; left:0; display:block; }
 #loader { position:absolute; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(10,10,14,.85); opacity:0; pointer-events:none; }
 #loader-spw { position:absolute; opacity:0; }
 #loader-scw { position:absolute; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(0); }
-#loader-word { font-size:20px; font-weight:800; letter-spacing:5px; color:#fff; opacity:0; margin-top:110px; text-transform:uppercase; }
+#loader-word { display:none; }
 @keyframes spin { to { transform:rotate(360deg); } }
 input[type=file] { display:none; }
 </style>
@@ -230,7 +230,7 @@ function filesChosen(e){
   loadFile(f1,function(imgA){
     img1=imgA;tx1=defaultTx(img1,W(),H());
     if(f2){
-      loadFile(f2,function(imgB){img2=imgB;tx2=defaultTx(img2,W(),H());active=1;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
+      loadFile(f2,function(imgB){img2=imgB;tx2=defaultTx(img2,W(),H());active=2;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
     } else {
       active=1;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
     }
