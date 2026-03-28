@@ -205,6 +205,8 @@ var MAX_UNDO=30;
 var brushMode=false,brushErase=true,brushSize=20,brushSoft=0;
 var maskCanvas=null,offCanvas=null,offCtx=null;
 var bCursor=null; // {x,y} for brush preview circle
+var rafPending=false;
+function drawRaf(){if(rafPending)return;rafPending=true;requestAnimationFrame(function(){rafPending=false;draw();});}
 
 var stage=document.getElementById('stage');
 var cv=document.getElementById('cv');
@@ -365,12 +367,17 @@ function drawImg(img,tx,alpha,useMask){
   var hw=img.naturalWidth*tx.scale/2,hh=img.naturalHeight*tx.scale/2;
   ctx.save();ctx.globalAlpha=alpha;
   if(useMask&&maskCanvas){
-    var off=getOff(img.naturalWidth,img.naturalHeight);
-    off.x.clearRect(0,0,img.naturalWidth,img.naturalHeight);
-    off.x.globalCompositeOperation='source-over';off.x.drawImage(img,0,0);
-    off.x.globalCompositeOperation='destination-in';off.x.drawImage(maskCanvas,0,0);
+    // Composite at screen resolution — avoids allocating a full-res offscreen canvas
+    // for every frame (was 4032×3024 per frame on a 12MP photo).
+    var sw=W(),sh=H();
+    var off=getOff(sw,sh);
+    off.x.clearRect(0,0,sw,sh);
     off.x.globalCompositeOperation='source-over';
-    ctx.drawImage(off.c,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+    off.x.drawImage(img,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+    off.x.globalCompositeOperation='destination-in';
+    off.x.drawImage(maskCanvas,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+    off.x.globalCompositeOperation='source-over';
+    ctx.drawImage(off.c,0,0);
   } else {
     ctx.drawImage(img,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
   }
@@ -378,7 +385,7 @@ function drawImg(img,tx,alpha,useMask){
 }
 function draw(){
   var w=W(),h=H();if(!w||!h)return;
-  cv.width=w;cv.height=h;cv.style.width=w+'px';cv.style.height=h+'px';
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;cv.style.width=w+'px';cv.style.height=h+'px';}
   ctx.clearRect(0,0,w,h);
   var etx1=gTx?applyGTx(tx1):tx1,etx2=gTx?applyGTx(tx2):tx2;
   if(sliderMode){drawWithSlider(w,h,etx1,etx2);}
@@ -436,7 +443,7 @@ stage.addEventListener('touchmove',function(e){
   if(tMode==='brush'&&t.length===1){
     var p=stXY(t[0]);bCursor=p;
     paintMaskLine(panLast.x,panLast.y,p.x,p.y);
-    panLast=p;draw();return;
+    panLast=p;drawRaf();return;
   }
   if(tMode==='slider'&&t.length>=1){var p=stXY(t[0]);sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));draw();return;}
   var ax=zoomMode?gTx:(brushMode?tx2:activeTx());if(!ax)return;
