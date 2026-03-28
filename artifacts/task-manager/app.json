@@ -47,6 +47,12 @@
         {
           "calendarPermission": "Allow this app to access your calendar events."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Mi Nena to access your photos and videos."
+        }
       ]
     ],
     "experiments": {

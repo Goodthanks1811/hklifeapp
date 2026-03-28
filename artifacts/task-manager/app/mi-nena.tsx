@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { ResizeMode, Video } from "expo-av";
-import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -258,35 +258,47 @@ export default function MiNenaScreen() {
     })();
   }, []);
 
-  // Pick files, copy them to permanent storage, then add to a folder
+  // Pick photos/videos, copy them to permanent storage, then add to a folder
   const pickIntoFolder = useCallback(async (folderId: string) => {
     setPicking(true);
-    // Small delay so any dismissing modal fully closes before iOS presents the picker
     await new Promise((r) => setTimeout(r, 300));
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["image/*", "video/*"],
-        multiple: true,
-        copyToCacheDirectory: true, // get a readable temp URI first
+      // Request permission first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Please allow photo library access in Settings.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsMultipleSelection: true,
+        quality: 1,
+        // ImagePicker always returns accessible file:// URIs
       });
-      if (result.canceled) return;
+      if (result.canceled || !result.assets.length) return;
 
       // Ensure our permanent media dir exists
       const mediaDir = `${FileSystem.documentDirectory}mi_nena_media/`;
       const dirInfo  = await FileSystem.getInfoAsync(mediaDir);
-      if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(mediaDir, { intermediates: true });
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(mediaDir, { intermediates: true });
+      }
 
-      // Copy every picked file into permanent storage
+      // Copy every asset into permanent storage
       const picked: MediaItem[] = [];
       for (const a of result.assets) {
-        const name    = a.name ?? a.uri.split("/").pop() ?? `file_${Date.now()}`;
-        const dest    = `${mediaDir}${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const ext  = a.type === "video" ? ".mp4" : ".jpg";
+        const base = (a.fileName ?? `media_${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, "_");
+        const dest = `${mediaDir}${Date.now()}_${base}${base.includes(".") ? "" : ext}`;
         try {
           await FileSystem.copyAsync({ from: a.uri, to: dest });
-          picked.push({ uri: dest, name, isVideo: isVideo(name) });
+          const name = a.fileName ?? dest.split("/").pop() ?? "file";
+          picked.push({ uri: dest, name, isVideo: a.type === "video" });
         } catch {
-          // If copy fails fall back to source URI
-          picked.push({ uri: a.uri, name, isVideo: isVideo(name) });
+          // fallback: use the source URI directly (still accessible this session)
+          const name = a.fileName ?? a.uri.split("/").pop() ?? "file";
+          picked.push({ uri: a.uri, name, isVideo: a.type === "video" });
         }
       }
 
