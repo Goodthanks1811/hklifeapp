@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   Keyboard,
@@ -221,11 +222,24 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
   const slideAnim = useRef(new Animated.Value(500)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
   const [title,    setTitle]   = useState("");
   const [selEmoji, setSelEmoji] = useState<string | null>(null);
   const [saving,   setSaving]  = useState(false);
   const inputRef  = useRef<TextInput>(null);
+
+  const triggerShake = () => {
+    shakeAnim.setValue(0);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
 
   // Keyboard avoidance — sheet slides up with the keyboard
   useEffect(() => {
@@ -248,7 +262,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
       Animated.parallel([
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 90, friction: 13 }),
         Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
-      ]).start(() => setTimeout(() => inputRef.current?.focus(), 60));
+      ]).start();
     } else {
       Animated.parallel([
         Animated.timing(slideAnim, { toValue: 500, duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
@@ -261,7 +275,8 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 
   const handleSave = async () => {
     const t = title.trim();
-    if (!t || !apiKey) return;
+    if (!t) { triggerShake(); return; }
+    if (!apiKey || saving) return;
     setSaving(true);
     try {
       const emoji = selEmoji ?? DEFAULT_EMOJI;
@@ -324,17 +339,18 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
             ))}
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[s.qaAddBtn, (!title.trim() || saving) && { opacity: 0.4 }]}
-            onPress={handleSave}
-            disabled={!title.trim() || saving}
-          >
-            {saving
-              ? <Text style={s.qaAddBtnTx}>Saving…</Text>
-              : <><Feather name="plus" size={16} color="#fff" /><Text style={s.qaAddBtnTx}>Add Task</Text></>
-            }
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[s.qaAddBtn, saving && { opacity: 0.6 }]}
+              onPress={handleSave}
+            >
+              {saving
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <><Feather name="plus" size={16} color="#fff" /><Text style={s.qaAddBtnTx}>Add Task</Text></>
+              }
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -365,10 +381,10 @@ function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onCheck
     Animated.spring(checkScale, { toValue: 1, useNativeDriver: false, tension: 240, friction: 8 }).start();
     setTimeout(() => {
       Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 0,   duration: 700, useNativeDriver: false }),
-        Animated.timing(rowScale,    { toValue: 0.82, duration: 600, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(opacityAnim, { toValue: 0,    duration: 420, useNativeDriver: false }),
+        Animated.timing(rowScale,    { toValue: 0.88, duration: 360, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
       ]).start(() => onChecked());
-    }, 500);
+    }, 320);
   };
 
   const triggerDelete = useCallback(() => {
@@ -387,16 +403,20 @@ function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onCheck
 
   const updateX = useCallback((x: number) => { translateX.setValue(x); }, [translateX]);
 
+  const snapReveal = useCallback(() => {
+    Animated.spring(translateX, { toValue: -120, useNativeDriver: false, tension: 160, friction: 14 }).start();
+  }, [translateX]);
+
   const swipe = useMemo(() =>
     Gesture.Pan()
       .activeOffsetX([-8, 8])
       .failOffsetY([-14, 14])
       .onChange(e => { runOnJS(updateX)(Math.max(-120, Math.min(0, e.translationX))); })
       .onEnd(e => {
-        if (e.translationX < -70) runOnJS(triggerDelete)();
+        if (e.translationX < -60) runOnJS(snapReveal)();
         else runOnJS(snapBack)();
       }),
-    [triggerDelete, snapBack, updateX]
+    [snapReveal, snapBack, updateX]
   );
 
   const pillOpacity  = translateX.interpolate({ inputRange: [-120, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
@@ -479,15 +499,20 @@ export default function LifeTaskScreen() {
           // Hide items with emojis not in this category's defined set (rogue)
           return config.emojis.some(e => norm(e) === norm(t.emoji));
         });
-        // Sort: items with sortOrder first (ascending), then by emoji position in category list
+        // Sort: items with distinct positive sortOrder first (ascending), then by emoji position
         const catEmojis = config.emojis;
+        const emojiIdx  = (e: string) => {
+          const i = catEmojis.findIndex(ce => norm(ce) === norm(e));
+          return i === -1 ? 999 : i;
+        };
         filtered.sort((a, b) => {
-          if (a.sortOrder !== null && b.sortOrder !== null) return a.sortOrder - b.sortOrder;
-          if (a.sortOrder !== null) return -1;
-          if (b.sortOrder !== null) return 1;
-          const ai = catEmojis.findIndex(e => norm(e) === norm(a.emoji));
-          const bi = catEmojis.findIndex(e => norm(e) === norm(b.emoji));
-          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+          const aOrd = (a.sortOrder !== null && a.sortOrder > 0) ? a.sortOrder : null;
+          const bOrd = (b.sortOrder !== null && b.sortOrder > 0) ? b.sortOrder : null;
+          if (aOrd !== null && bOrd !== null && aOrd !== bOrd) return aOrd - bOrd;
+          if (aOrd !== null && bOrd === null) return -1;
+          if (aOrd === null && bOrd !== null) return 1;
+          // Both lack a meaningful sort order → fall back to emoji position in config
+          return emojiIdx(a.emoji) - emojiIdx(b.emoji);
         });
         setTasks(filtered);
         // Reset position anims
@@ -679,7 +704,14 @@ export default function LifeTaskScreen() {
     if (!apiKey) return;
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
-      next.forEach((t, i) => posAnims.current[t.id]?.setValue(i * SLOT_H));
+      next.forEach((t, i) => {
+        Animated.spring(posAnims.current[t.id], {
+          toValue: i * SLOT_H,
+          useNativeDriver: false,
+          tension: 140,
+          friction: 14,
+        }).start();
+      });
       return next;
     });
     fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
@@ -762,7 +794,7 @@ export default function LifeTaskScreen() {
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       {loading ? (
         <View style={sc.center}>
-          <Text style={sc.mutedText}>Loading…</Text>
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : error ? (
         <View style={sc.center}>
