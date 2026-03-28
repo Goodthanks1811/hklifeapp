@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -16,12 +15,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { openDrawer } = useDrawer();
   const { apiKey, setApiKey, clearConfig } = useNotion();
 
   const [draft, setDraft]       = useState(apiKey ?? "");
@@ -65,15 +63,7 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => openDrawer()} style={styles.headerBtn}>
-          <Feather name="menu" size={20} color={Colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <Pressable onPress={() => router.back()} style={styles.headerBtn}>
-          <Feather name="arrow-left" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Settings" />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 24 }]}

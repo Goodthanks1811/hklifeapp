@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   Gesture,
   GestureDetector,
@@ -21,7 +21,6 @@ import {
 import { runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { useDrawer } from "@/context/DrawerContext";
 
 interface Item {
   id: string;
@@ -454,7 +453,6 @@ function SwipeRow({ item, onDelete, onPress }: {
 
 export default function ReorderScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleDrawer } = useDrawer();
   const [items, setItems] = useState<Item[]>(INITIAL_ITEMS);
   const [checkItems, setCheckItems] = useState(INITIAL_CHECKLIST);
   const [swipeItems, setSwipeItems] = useState(INITIAL_SWIPE);
@@ -482,15 +480,7 @@ export default function ReorderScreen() {
         }}
       />
 
-      <View style={styles.header}>
-        <Pressable onPress={toggleDrawer} style={styles.iconBtn}>
-          <Feather name="menu" size={20} color={Colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Drag & Reorder</Text>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="x" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Drag & Reorder" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

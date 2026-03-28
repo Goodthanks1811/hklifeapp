@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import React, { useRef, useState } from "react";
 import {
   Animated,
@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { useDrawer } from "@/context/DrawerContext";
 
 function useSlider(initial: number, min: number, max: number, trackWidth: number) {
   const [value, setValue] = useState(initial);
@@ -112,7 +111,6 @@ const ICON_OPTIONS = ["volume-2", "sun", "zap", "thermometer"] as const;
 
 export default function SlidersScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleDrawer } = useDrawer();
 
   const volume = useSlider(60, 0, 100, TRACK_W!);
   const brightness = useSlider(75, 0, 100, TRACK_W!);
@@ -129,15 +127,7 @@ export default function SlidersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
-      <View style={styles.header}>
-        <Pressable onPress={toggleDrawer} style={styles.iconBtn}>
-          <Feather name="menu" size={20} color={Colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Sliders</Text>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="x" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Sliders" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

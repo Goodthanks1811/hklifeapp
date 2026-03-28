@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 // ── HK Theme ──────────────────────────────────────────────────────────────────
@@ -76,7 +76,6 @@ interface Schema {
 
 export default function HKQuickAdd() {
   const insets    = useSafeAreaInsets();
-  const { openDrawer } = useDrawer();
   const { apiKey }     = useNotion();
   const { width: screenW } = useWindowDimensions();
   const isTablet  = screenW >= 768;
@@ -264,26 +263,18 @@ export default function HKQuickAdd() {
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={styles.root}>
-      {/* Hamburger */}
-      <Pressable onPress={() => openDrawer()} style={[styles.hamburgerBtn, { top: topPad + 10 }]}>
-        <Feather name="menu" size={20} color={HK.text} />
-      </Pressable>
+    <View style={[styles.root, { paddingTop: topPad }]}>
+      <ScreenHeader title="HK Quick Add" />
 
       {/* Body */}
       <Animated.View style={[styles.flex, { marginBottom: keyboardOffset }]}>
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 56, paddingBottom: footerH + 8 }]}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 8, paddingBottom: footerH + 8 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={{ alignSelf: "center", width: "100%", maxWidth: contentW }}>
-
-            {/* Title */}
-            <View style={styles.pageHeader}>
-              <Text style={styles.pageTitle}>HK <Text style={{ color: HK.red }}>Automation</Text></Text>
-            </View>
 
             {/* Warnings */}
             {!apiKey && (

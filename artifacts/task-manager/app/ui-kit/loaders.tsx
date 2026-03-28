@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { useDrawer } from "@/context/DrawerContext";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -156,7 +155,6 @@ function Section({ title }: { title: string }) {
 
 export default function LoadersScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleDrawer } = useDrawer();
   const [saveState1, triggerSave1] = useSaveButton(1800, true);
   const [saveState2, triggerSave2] = useSaveButton(2000, false);
   const [saveState3, triggerSave3] = useSaveButton(1200, true);
@@ -213,15 +211,7 @@ export default function LoadersScreen() {
         </Animated.View>
       )}
 
-      <View style={styles.header}>
-        <Pressable onPress={toggleDrawer} style={styles.iconBtn}>
-          <Feather name="menu" size={20} color={Colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Loaders</Text>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="x" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Loaders" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

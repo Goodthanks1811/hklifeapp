@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { useDrawer } from "@/context/DrawerContext";
 
 function Section({ title }: { title: string }) {
   return (
@@ -111,7 +110,6 @@ function Btn({
 
 export default function ButtonsScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleDrawer } = useDrawer();
   const [toggled, setToggled] = useState(false);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
@@ -121,15 +119,7 @@ export default function ButtonsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
-      <View style={styles.header}>
-        <Pressable onPress={toggleDrawer} style={styles.iconBtn}>
-          <Feather name="menu" size={20} color={Colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Buttons</Text>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="x" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Buttons" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

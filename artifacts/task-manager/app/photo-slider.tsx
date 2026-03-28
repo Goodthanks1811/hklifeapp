@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewMessageEvent } from "react-native-webview";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── App theme colours injected into the HTML ──────────────────────────────────
 const C = {
@@ -537,7 +537,6 @@ openLoadSheet();
 export default function PhotoSlider() {
   const insets   = useSafeAreaInsets();
   const webRef   = useRef<WebView>(null);
-  const { openDrawer } = useDrawer();
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
@@ -570,7 +569,9 @@ export default function PhotoSlider() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      {/* WebView tool — fills full screen */}
+      <ScreenHeader title="Photo Slider" />
+
+      {/* WebView tool */}
       <WebView
         ref={webRef}
         source={{ html: buildHtml() }}
@@ -584,15 +585,6 @@ export default function PhotoSlider() {
         originWhitelist={["*"]}
         allowsFullscreenVideo={false}
       />
-
-      {/* Floating hamburger — left side, matches IR/HK Quick Add */}
-      <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
-        style={[styles.hamburgerBtn, { top: topPad + 10 }]}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Feather name="menu" size={20} color="#fff" />
-      </Pressable>
     </View>
   );
 }

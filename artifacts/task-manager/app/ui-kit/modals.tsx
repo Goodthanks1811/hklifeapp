@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { useDrawer } from "@/context/DrawerContext";
 
 function Section({ title }: { title: string }) {
   return (
@@ -147,7 +146,6 @@ function Toast({ message, icon, color, visible }: { message: string; icon: keyof
 
 export default function ModalsScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleDrawer } = useDrawer();
   const [alertType, setAlertType] = useState<"success" | "warning" | "error" | "info" | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [inputSheetVisible, setInputSheetVisible] = useState(false);
@@ -168,15 +166,7 @@ export default function ModalsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
-      <View style={styles.header}>
-        <Pressable onPress={toggleDrawer} style={styles.iconBtn}>
-          <Feather name="menu" size={20} color={Colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Modals</Text>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="x" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Modals" />
 
       {toastVisible && (
         <View style={styles.toastContainer} pointerEvents="none">

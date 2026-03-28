@@ -23,7 +23,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
 const STORAGE_KEY = "mi_nena_folders_v2";
@@ -242,7 +242,6 @@ function Thumbnail({ item, size, onPress }: { item: MediaItem; size: number; onP
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function MiNenaScreen() {
-  const { openDrawer } = useDrawer();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -375,10 +374,8 @@ export default function MiNenaScreen() {
   // ── Folder grid ──
   if (!openFolder) {
     return (
-      <View style={s.screen}>
-        <Pressable onPress={openDrawer} style={[s.hamburger, { top: topPad + 10 }]}>
-          <Feather name="menu" size={24} color="#fff" />
-        </Pressable>
+      <View style={[s.screen, { paddingTop: topPad }]}>
+        <ScreenHeader title="Mi Nena" />
 
         {loading ? (
           <View style={s.centred}>
@@ -391,7 +388,7 @@ export default function MiNenaScreen() {
             numColumns={FOLD_COLS}
             keyExtractor={(f) => f.id}
             contentContainerStyle={{
-              paddingTop: topPad + 56,
+              paddingTop: 8,
               paddingBottom: insets.bottom + 16,
               paddingHorizontal: GAP,
               gap: GAP,
@@ -400,10 +397,7 @@ export default function MiNenaScreen() {
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
               <View style={s.listHeader}>
-                <View>
-                  <Text style={s.pageTitle}>Mi Nena</Text>
-                  <Text style={s.pageSubtitle}>{folders.length} folder{folders.length !== 1 ? "s" : ""}</Text>
-                </View>
+                <Text style={s.pageSubtitle}>{folders.length} folder{folders.length !== 1 ? "s" : ""}</Text>
                 <TouchableOpacity style={s.addFolderBtn} onPress={() => setShowNewFolder(true)} activeOpacity={0.8}>
                   <Feather name="folder-plus" size={18} color="#fff" />
                 </TouchableOpacity>
@@ -440,9 +434,9 @@ export default function MiNenaScreen() {
 
   // ── Inside a folder ──
   return (
-    <View style={s.screen}>
+    <View style={[s.screen, { paddingTop: topPad }]}>
       {/* Back + title */}
-      <View style={[s.folderNav, { top: topPad + 6 }]}>
+      <View style={s.folderNav}>
         <TouchableOpacity onPress={() => setOpenFolderId(null)} style={s.backBtn} activeOpacity={0.8}>
           <Feather name="chevron-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -475,7 +469,7 @@ export default function MiNenaScreen() {
           numColumns={GRID_COLS}
           keyExtractor={(item) => item.uri}
           contentContainerStyle={{
-            paddingTop: topPad + 60,
+            paddingTop: 8,
             paddingBottom: insets.bottom + 16,
             paddingHorizontal: GAP,
             gap: GAP,
@@ -549,14 +543,13 @@ const s = StyleSheet.create({
 
   // Inside folder nav
   folderNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
-    zIndex: 10,
-    height: 44,
+    height: 58,
+    borderBottomWidth: 1,
+    borderBottomColor: "#2A2A2A",
+    backgroundColor: "#111111",
   },
   backBtn:        { padding: 8 },
   folderNavTitle: {

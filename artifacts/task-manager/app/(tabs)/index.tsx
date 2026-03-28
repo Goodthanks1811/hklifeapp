@@ -19,7 +19,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const DAYS_AHEAD = 60;
@@ -85,7 +85,6 @@ function isExcluded(title: string) {
 // ── Component ────────────────────────────────────────────────────────────────
 export default function HKCalendarScreen() {
   const insets  = useSafeAreaInsets();
-  const { openDrawer } = useDrawer();
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
 
@@ -245,10 +244,7 @@ export default function HKCalendarScreen() {
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      {/* Hamburger */}
-      <Pressable onPress={() => openDrawer()} style={[styles.hamburgerBtn, { top: topPad + 10 }]}>
-        <Feather name="menu" size={20} color={T.text} />
-      </Pressable>
+      <ScreenHeader title="Tasks" />
 
       {status === "loading" && !refreshing && (
         <View style={styles.centerWrap}>
@@ -399,7 +395,7 @@ const styles = StyleSheet.create({
 
   // List
   listContent: { paddingHorizontal: 14 },
-  listHeader:  { alignSelf: "center", width: "100%", alignItems: "center", paddingTop: 56, paddingBottom: 12 },
+  listHeader:  { alignSelf: "center", width: "100%", alignItems: "center", paddingTop: 12, paddingBottom: 12 },
 
   // Day groups
   dayGroup: { marginTop: 28, width: "100%", maxWidth: 720, alignSelf: "center" },

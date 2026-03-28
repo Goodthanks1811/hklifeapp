@@ -19,7 +19,7 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -246,7 +246,6 @@ function MonthCard({ month, tab }: { month: MonthData; tab: TabType }) {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function MoodReportScreen() {
-  const { openDrawer } = useDrawer();
   const { apiKey } = useNotion();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -299,14 +298,8 @@ export default function MoodReportScreen() {
   }, [apiKey]);
 
   return (
-    <View style={styles.screen}>
-      {/* Floating hamburger */}
-      <Pressable
-        onPress={openDrawer}
-        style={[styles.hamburger, { top: topPad + 10 }]}
-      >
-        <Feather name="menu" size={24} color="#fff" />
-      </Pressable>
+    <View style={[styles.screen, { paddingTop: topPad }]}>
+      <ScreenHeader title="Mood Log" />
 
       {/* Content */}
       {loading ? (
@@ -335,16 +328,10 @@ export default function MoodReportScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: topPad + 56, paddingBottom: tabBarH + 16 },
+            { paddingTop: 8, paddingBottom: tabBarH + 16 },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerEmoji}>🧘</Text>
-            <Text style={styles.headerTitle}>Mood Log</Text>
-          </View>
-
           {/* Month cards */}
           <View style={[styles.grid, isTablet && styles.gridTablet]}>
             {[...months].reverse().map((m) => (

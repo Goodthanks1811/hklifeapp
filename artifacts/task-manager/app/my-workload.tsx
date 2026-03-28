@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -326,7 +326,6 @@ function MonthView({ month }: { month: MonthData }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function MyWorkloadScreen() {
-  const { openDrawer } = useDrawer();
   const { apiKey } = useNotion();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -381,11 +380,8 @@ export default function MyWorkloadScreen() {
   const selectedMonth = months.find((m) => m.key === selectedKey) || null;
 
   return (
-    <View style={styles.screen}>
-      {/* Floating hamburger */}
-      <Pressable onPress={openDrawer} style={[styles.hamburger, { top: topPad + 10 }]}>
-        <Feather name="menu" size={24} color="#fff" />
-      </Pressable>
+    <View style={[styles.screen, { paddingTop: topPad }]}>
+      <ScreenHeader title="My Workload" />
 
       {loading ? (
         <View style={styles.centred}>
@@ -413,13 +409,10 @@ export default function MyWorkloadScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: topPad + 56, paddingBottom: bottomPad + 16 },
+            { paddingTop: 8, paddingBottom: bottomPad + 16 },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <Text style={styles.pageTitle}>🔥 My Workload</Text>
-
           {/* Month pills */}
           <ScrollView
             horizontal

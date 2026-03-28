@@ -18,7 +18,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDrawer } from "@/context/DrawerContext";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 // ── IR Theme ─────────────────────────────────────────────────────────────────
@@ -86,7 +86,6 @@ function easeOutBack(t: number) {
 
 export default function IRQuickAdd() {
   const insets = useSafeAreaInsets();
-  const { openDrawer } = useDrawer();
   const { apiKey } = useNotion();
   const { width: screenW } = useWindowDimensions();
   const isTablet  = screenW >= 768;
@@ -343,20 +342,14 @@ export default function IRQuickAdd() {
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={styles.root}>
-      {/* Floating hamburger — sits just below status bar */}
-      <Pressable
-        onPress={() => openDrawer()}
-        style={[styles.hamburgerBtn, { top: topPad + 10 }]}
-      >
-        <Feather name="menu" size={20} color={IR.text} />
-      </Pressable>
+    <View style={[styles.root, { paddingTop: topPad }]}>
+      <ScreenHeader title="IR Quick Add" />
 
       {/* Scrollable body — shrinks as keyboard rises */}
       <Animated.View style={[styles.flex, { marginBottom: keyboardOffset }]}>
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 56, paddingBottom: footerH + 8 }]}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 8, paddingBottom: footerH + 8 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
