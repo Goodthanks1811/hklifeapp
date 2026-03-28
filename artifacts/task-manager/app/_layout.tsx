@@ -33,6 +33,8 @@ function RootLayoutNav() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="ui-kit" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="ir-quick-add" />
       </Stack>
       <Drawer />
     </>

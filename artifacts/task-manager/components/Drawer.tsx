@@ -137,7 +137,18 @@ export function Drawer() {
           ))}
         </View>
 
+        <View style={styles.divider} />
+
         <View style={styles.bottom}>
+          <Pressable
+            style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed]}
+            onPress={() => navigate("/settings")}
+          >
+            <View style={styles.menuIcon}>
+              <Feather name="settings" size={18} color={Colors.textSecondary} />
+            </View>
+            <Text style={styles.settingsLabel}>Settings</Text>
+          </Pressable>
           <View style={styles.badge}>
             <View style={styles.badgeDot} />
             <Text style={styles.badgeText}>Built on Replit</Text>
@@ -307,6 +318,20 @@ const styles = StyleSheet.create({
   badgeText: {
     color: Colors.textMuted,
     fontSize: 11,
+    fontFamily: "Inter_500Medium",
+  },
+  settingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  settingsLabel: {
+    color: Colors.textSecondary,
+    fontSize: 14,
     fontFamily: "Inter_500Medium",
   },
 });
