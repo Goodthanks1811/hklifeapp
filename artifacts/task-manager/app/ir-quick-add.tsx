@@ -180,77 +180,87 @@ export default function IRQuickAdd() {
     tickScale.setValue(0);
   }, [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale]);
 
-  /** Run the spinner → tick → done sequence. Resolves when animation finishes. */
-  const runSuccessLoader = useCallback((): Promise<void> => {
-    return new Promise((resolve) => {
-      resetLoaderValues();
-      setLoaderVisible(true);
+  /**
+   * Starts the overlay + spinner immediately, then waits for `apiPromise` and
+   * T_MIN_SPIN (whichever is longer) before transitioning to the tick or error.
+   * Resolves with { success, error? } so the caller can react.
+   */
+  const runLoader = useCallback(
+    (apiPromise: Promise<void>): Promise<{ success: boolean; error?: string }> => {
+      return new Promise((resolve) => {
+        resetLoaderValues();
+        setLoaderVisible(true);
 
-      // Continuous rotation loop
-      spinLoopRef.current = Animated.loop(
-        Animated.timing(spinnerRotation, {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      );
-      spinLoopRef.current.start();
+        // Capture API result while loader is animating
+        let apiResult: { success: boolean; error?: string } | null = null;
+        const trackedApi = apiPromise
+          .then(() => { apiResult = { success: true }; })
+          .catch((e: Error) => { apiResult = { success: false, error: e.message || "Something went wrong" }; });
 
-      // Phase 1: fade in overlay
-      Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
-        // Phase 2: fade in spinner
-        Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPINNER_IN, useNativeDriver: true }).start(() => {
-          // Phase 3: minimum spin time then transition
-          setTimeout(() => {
-            spinLoopRef.current?.stop();
+        // Start continuous rotation immediately
+        spinLoopRef.current = Animated.loop(
+          Animated.timing(spinnerRotation, {
+            toValue: 1,
+            duration: 600,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          })
+        );
+        spinLoopRef.current.start();
 
-            // Phase 4: spinner out + circle pops in
-            Animated.parallel([
-              Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP, useNativeDriver: true }),
-              Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
-              Animated.timing(circleScale, {
-                toValue: 1,
-                duration: T_POP,
-                easing: Easing.out(Easing.back(1.7)),
-                useNativeDriver: true,
-              }),
-            ]).start(() => {
-              // Phase 5: tick appears
-              Animated.timing(tickScale, {
-                toValue: 1,
-                duration: T_TICK,
-                easing: Easing.out(Easing.back(1.5)),
-                useNativeDriver: true,
-              }).start(() => {
-                // Phase 6: hold
-                setTimeout(() => {
-                  // Phase 7: fade out entire overlay
-                  Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
-                    setLoaderVisible(false);
-                    resetLoaderValues();
-                    resolve();
+        // Phase 1 → 2: overlay + spinner fade in immediately
+        Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
+          Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPINNER_IN, useNativeDriver: true }).start(() => {
+
+            // Phase 3: wait for BOTH API and minimum spin time
+            const minSpin = new Promise<void>((r) => setTimeout(r, T_MIN_SPIN));
+            Promise.all([trackedApi, minSpin]).then(() => {
+              spinLoopRef.current?.stop();
+
+              if (apiResult?.success) {
+                // Phase 4: spinner out + circle pops in
+                Animated.parallel([
+                  Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP, useNativeDriver: true }),
+                  Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
+                  Animated.timing(circleScale, {
+                    toValue: 1,
+                    duration: T_POP,
+                    easing: Easing.out(Easing.back(1.7)),
+                    useNativeDriver: true,
+                  }),
+                ]).start(() => {
+                  // Phase 5: tick scales in
+                  Animated.timing(tickScale, {
+                    toValue: 1,
+                    duration: T_TICK,
+                    easing: Easing.out(Easing.back(1.5)),
+                    useNativeDriver: true,
+                  }).start(() => {
+                    // Phase 6: hold then fade out
+                    setTimeout(() => {
+                      Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+                        setLoaderVisible(false);
+                        resetLoaderValues();
+                        resolve({ success: true });
+                      });
+                    }, T_HOLD);
                   });
-                }, T_HOLD);
-              });
+                });
+              } else {
+                // Error path: quick fade out
+                Animated.timing(overlayOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
+                  setLoaderVisible(false);
+                  resetLoaderValues();
+                  resolve({ success: false, error: apiResult?.error });
+                });
+              }
             });
-          }, T_MIN_SPIN);
+          });
         });
       });
-    });
-  }, [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoaderValues]);
-
-  /** Abort loader with a quick fade-out (error path) */
-  const abortLoader = useCallback((): Promise<void> => {
-    spinLoopRef.current?.stop();
-    return new Promise((resolve) => {
-      Animated.timing(overlayOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
-        setLoaderVisible(false);
-        resetLoaderValues();
-        resolve();
-      });
-    });
-  }, [overlayOpacity, resetLoaderValues]);
+    },
+    [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoaderValues]
+  );
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -263,8 +273,7 @@ export default function IRQuickAdd() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Keyboard.dismiss();
 
-    // Race: API call vs minimum spin time
-    let apiError: string | null = null;
+    // Build API promise — errors are re-thrown so runLoader can catch them
     const apiPromise = fetch(`${BASE_URL}/api/notion/pages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
@@ -280,30 +289,24 @@ export default function IRQuickAdd() {
       }),
     })
       .then((r) => r.json())
-      .then((data) => { if (!data.success) throw new Error(data.message || "Failed"); })
-      .catch((e) => { apiError = e.message || "Something went wrong"; });
+      .then((data) => { if (!data.success) throw new Error(data.message || "Failed"); });
 
-    // Start loader — waits for API and minimum spin
-    await Promise.all([apiPromise, new Promise<void>((r) => setTimeout(r, T_FADE_IN + T_SPINNER_IN + 200))]);
+    // Start loader immediately — it handles both success and error internally
+    const result = await runLoader(apiPromise);
 
-    if (apiError) {
-      await abortLoader();
-      setErrorMsg(apiError);
+    if (!result.success) {
+      setErrorMsg(result.error || "Something went wrong");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setTimeout(() => setErrorMsg(null), 3500);
-      setSaveDisabled(false);
-      return;
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTitle("");
+      setSelectedEpic(null);
+      setSelectedEmoji(null);
+      // No re-focus — keyboard stays dismissed
     }
-
-    // Success path — show spinner → tick animation
-    await runSuccessLoader();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTitle("");
-    setSelectedEpic(null);
-    setSelectedEmoji(null);
     setSaveDisabled(false);
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, [title, schema, apiKey, selectedEpic, selectedEmoji, shake, runSuccessLoader, abortLoader]);
+  }, [title, schema, apiKey, selectedEpic, selectedEmoji, shake, runLoader]);
 
   const handleCancel = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
