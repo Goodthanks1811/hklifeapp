@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { Audio, ResizeMode, Video } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,7 +34,7 @@ const GAP         = 2;
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
 
 type MediaItem = { uri: string; name: string; isVideo: boolean };
-type Folder    = { id: string; name: string; items: MediaItem[] };
+type Folder    = { id: string; name: string; items: MediaItem[]; coverUri?: string };
 
 function isVideo(name: string) {
   return VIDEO_EXTS.includes(name.slice(name.lastIndexOf(".")).toLowerCase());
@@ -195,7 +196,9 @@ function FolderCard({
   onPress: () => void;
   onLongPress: () => void;
 }) {
-  const cover = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
+  const autoCover = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
+  const coverUri  = folder.coverUri ?? autoCover?.uri;
+  const hasCustom = !!folder.coverUri;
 
   return (
     <TouchableOpacity
@@ -205,8 +208,8 @@ function FolderCard({
       activeOpacity={0.85}
     >
       <View style={[s.folderCover, { height: cardSize * 0.75 }]}>
-        {cover ? (
-          <Image source={{ uri: cover.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        {coverUri ? (
+          <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
           <View style={s.folderEmpty}>
             <Feather name="image" size={28} color="#333" />
@@ -214,6 +217,12 @@ function FolderCard({
         )}
         {folder.items.length > 1 && (
           <View style={s.folderStack1} />
+        )}
+        {/* custom cover badge */}
+        {hasCustom && (
+          <View style={s.customCoverBadge}>
+            <Feather name="camera" size={10} color="#fff" />
+          </View>
         )}
       </View>
       <View style={s.folderMeta}>
@@ -367,6 +376,61 @@ export default function MiNenaScreen() {
     ]);
   }, []);
 
+  // Set custom cover image for a folder
+  const setCoverImage = useCallback(async (folderId: string) => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow photo library access in Settings.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    const asset = result.assets[0];
+    const ext   = asset.uri.split(".").pop() ?? "jpg";
+    const dest  = `${FileSystem.documentDirectory}mi_nena_media/${folderId}_cover.${ext}`;
+    try {
+      await FileSystem.makeDirectoryAsync(
+        `${FileSystem.documentDirectory}mi_nena_media/`,
+        { intermediates: true }
+      );
+      await FileSystem.copyAsync({ from: asset.uri, to: dest });
+      setFolders((prev) => {
+        const next = prev.map((f) => f.id === folderId ? { ...f, coverUri: dest } : f);
+        saveFolders(next).catch(() => {});
+        return next;
+      });
+    } catch (e) {
+      Alert.alert("Error", "Could not set cover image.");
+    }
+  }, []);
+
+  // Long-press action sheet: set cover or delete
+  const handleFolderLongPress = useCallback((folderId: string) => {
+    const folder = folders.find((f) => f.id === folderId);
+    Alert.alert(
+      folder?.name ?? "Folder",
+      undefined,
+      [
+        { text: "Set Cover Image", onPress: () => setCoverImage(folderId) },
+        ...(folder?.coverUri ? [{ text: "Remove Cover", onPress: () => {
+          setFolders((prev) => {
+            const next = prev.map((f) => f.id === folderId ? { ...f, coverUri: undefined } : f);
+            saveFolders(next).catch(() => {});
+            return next;
+          });
+        }}] : []),
+        { text: "Delete Folder", style: "destructive" as const, onPress: () => deleteFolder(folderId) },
+        { text: "Cancel", style: "cancel" as const },
+      ]
+    );
+  }, [folders, setCoverImage, deleteFolder]);
+
   const openFolder = folders.find((f) => f.id === openFolderId);
   const folderCardSize = (width - GAP * (FOLD_COLS + 1)) / FOLD_COLS;
   const thumbSize = (width - GAP * (GRID_COLS + 1)) / GRID_COLS;
@@ -417,7 +481,7 @@ export default function MiNenaScreen() {
                 folder={item}
                 cardSize={folderCardSize}
                 onPress={() => setOpenFolderId(item.id)}
-                onLongPress={() => deleteFolder(item.id)}
+                onLongPress={() => handleFolderLongPress(item.id)}
               />
             )}
           />
@@ -536,6 +600,17 @@ const s = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#222",
     zIndex: -1,
+  },
+  customCoverBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   folderMeta:  { paddingTop: 7, paddingHorizontal: 2, paddingBottom: 4 },
   folderName:  { fontSize: 13, fontWeight: "700", color: "#fff", fontFamily: "Inter_600SemiBold" },
