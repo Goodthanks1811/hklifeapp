@@ -1,20 +1,25 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import {
+  Gesture,
+  GestureDetector,
+  ScrollView,
+} from "react-native-gesture-handler";
+import Swipeable from "react-native-gesture-handler/Swipeable";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
@@ -32,9 +37,9 @@ interface Item {
 const INITIAL_ITEMS: Item[] = [
   { id: "1", label: "Design System", subtitle: "Tokens, components, docs", icon: "layout", color: Colors.primary, priority: "high", notes: "Update spacing tokens and button variants before handoff." },
   { id: "2", label: "API Integration", subtitle: "REST + GraphQL endpoints", icon: "code", color: Colors.info, priority: "high", notes: "Auth headers need rotating. Check rate limits on prod." },
-  { id: "3", label: "Unit Tests", subtitle: "Jest + React Testing Library", icon: "check-circle", color: Colors.success, priority: "medium", notes: "Coverage below 70% on the auth module — fix before release." },
+  { id: "3", label: "Unit Tests", subtitle: "Jest + React Testing Library", icon: "check-circle", color: Colors.success, priority: "medium", notes: "Coverage below 70% on auth module — fix before release." },
   { id: "4", label: "Deploy Pipeline", subtitle: "GitHub Actions, staging → prod", icon: "server", color: "#FAB005", priority: "high", notes: "Add smoke tests to the post-deploy step." },
-  { id: "5", label: "Documentation", subtitle: "README, API reference, guides", icon: "file-text", color: "#BE4BDB", priority: "low", notes: "Changelog is three versions behind. Draft for v2.3." },
+  { id: "5", label: "Documentation", subtitle: "README, API reference, guides", icon: "file-text", color: "#BE4BDB", priority: "low", notes: "Changelog is three versions behind." },
   { id: "6", label: "Performance Audit", subtitle: "Lighthouse, bundle analysis", icon: "zap", color: "#FD7E14", priority: "medium", notes: "Homepage LCP is 4.2s on mobile. Target under 2.5s." },
   { id: "7", label: "Accessibility", subtitle: "WCAG 2.1 AA compliance", icon: "eye", color: "#20C997", priority: "medium", notes: "Modal focus trapping broken in Safari." },
   { id: "8", label: "Analytics Setup", subtitle: "Events, funnels, dashboards", icon: "bar-chart-2", color: "#74C0FC", priority: "low", notes: "Add conversion events for onboarding steps 2–4." },
@@ -62,7 +67,7 @@ const INITIAL_SWIPE = [
   { id: "s4", label: "Feature: CSV export for reports", tag: "Feature", color: Colors.primary },
   { id: "s5", label: "Bug: Notifications not clearing", tag: "Bug", color: "#FF6B6B" },
   { id: "s6", label: "Improvement: Faster search indexing", tag: "Improve", color: "#FAB005" },
-  { id: "s7", label: "Bug: Timezone offset wrong in EU", tag: "Bug", color: "#FF6B6B" },
+  { id: "s7", label: "Bug: Timezone offset in EU", tag: "Bug", color: "#FF6B6B" },
   { id: "s8", label: "Chore: Remove legacy endpoints", tag: "Chore", color: Colors.info },
 ];
 
@@ -136,17 +141,14 @@ function DetailModal({ item, onClose, onUpdate }: {
               <Feather name="x" size={18} color={Colors.textSecondary} />
             </Pressable>
           </View>
-
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>TITLE</Text>
             <TextInput style={styles.fieldInput} value={label} onChangeText={setLabel} placeholderTextColor={Colors.textMuted} selectionColor={Colors.primary} />
           </View>
-
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>NOTES</Text>
             <TextInput style={[styles.fieldInput, styles.fieldTextArea]} value={notes} onChangeText={setNotes} multiline numberOfLines={4} placeholderTextColor={Colors.textMuted} selectionColor={Colors.primary} textAlignVertical="top" />
           </View>
-
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>PRIORITY</Text>
             <View style={styles.priorityRow}>
@@ -159,7 +161,6 @@ function DetailModal({ item, onClose, onUpdate }: {
               ))}
             </View>
           </View>
-
           <View style={styles.modalActions}>
             <Pressable style={styles.cancelBtn} onPress={() => dismiss()}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -172,6 +173,79 @@ function DetailModal({ item, onClose, onUpdate }: {
         </Animated.View>
       </Animated.View>
     </Modal>
+  );
+}
+
+function DraggableItem({ item, index, posAnim, panY, isDragging, onItemPress, onDragStart, onDragMove, onDragEnd }: {
+  item: Item;
+  index: number;
+  posAnim: Animated.Value;
+  panY: Animated.Value;
+  isDragging: boolean;
+  onItemPress: (item: Item) => void;
+  onDragStart: (index: number) => void;
+  onDragMove: (dy: number) => void;
+  onDragEnd: () => void;
+}) {
+  const startDrag = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    onDragStart(index);
+  }, [index, onDragStart]);
+
+  const moveDrag = useCallback((dy: number) => {
+    onDragMove(dy);
+  }, [onDragMove]);
+
+  const endDrag = useCallback(() => {
+    onDragEnd();
+  }, [onDragEnd]);
+
+  const openItem = useCallback(() => {
+    onItemPress(item);
+  }, [item, onItemPress]);
+
+  const pan = useMemo(() =>
+    Gesture.Pan()
+      .activateAfterLongPress(400)
+      .onStart(() => { runOnJS(startDrag)(); })
+      .onChange((e) => { runOnJS(moveDrag)(e.translationY); })
+      .onEnd(() => { runOnJS(endDrag)(); })
+      .onFinalize(() => { runOnJS(endDrag)(); }),
+    [startDrag, moveDrag, endDrag]
+  );
+
+  const tap = useMemo(() =>
+    Gesture.Tap().maxDuration(300).onEnd((_e, success) => {
+      if (success) runOnJS(openItem)();
+    }),
+    [openItem]
+  );
+
+  const gesture = useMemo(() => Gesture.Exclusive(pan, tap), [pan, tap]);
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[
+          styles.absoluteItem,
+          { top: posAnim, zIndex: isDragging ? 100 : 1 },
+          isDragging && styles.itemFloating,
+          isDragging ? { transform: [{ translateY: panY }] } : {},
+        ]}
+      >
+        <View style={[styles.item, isDragging && styles.itemDragging]}>
+          <View style={[styles.itemIcon, { backgroundColor: `${item.color}20` }]}>
+            <Feather name={item.icon} size={16} color={item.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.itemLabel}>{item.label}</Text>
+            <Text style={styles.itemSub}>{item.subtitle}</Text>
+          </View>
+          <View style={[styles.priorityPip, { backgroundColor: PRIORITY_COLORS[item.priority] }]} />
+          <Feather name="menu" size={16} color={isDragging ? Colors.primary : Colors.textMuted} />
+        </View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -194,7 +268,7 @@ function LiveDraggableList({ items, setItems, onItemPress }: {
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
-  const animatePositions = (dragIdx: number, hoverIdx: number) => {
+  const animatePositions = useCallback((dragIdx: number, hoverIdx: number) => {
     itemsRef.current.forEach((item, i) => {
       if (i === dragIdx) return;
       let target = i;
@@ -207,103 +281,64 @@ function LiveDraggableList({ items, setItems, onItemPress }: {
         friction: 20,
       }).start();
     });
-  };
+  }, []);
 
-  const commitPositions = (orderedItems: Item[]) => {
-    orderedItems.forEach((item, i) => {
-      posAnims.current[item.id]?.setValue(i * ITEM_H);
-    });
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => draggingIdxRef.current >= 0,
-      onMoveShouldSetPanResponder: () => draggingIdxRef.current >= 0,
-      onPanResponderMove: (_, g) => {
-        panY.setValue(g.dy);
-        const di = draggingIdxRef.current;
-        if (di < 0) return;
-        const len = itemsRef.current.length;
-        const newHover = clamp(0, len - 1, Math.round(di + g.dy / ITEM_H));
-        if (newHover !== hoverIdxRef.current) {
-          hoverIdxRef.current = newHover;
-          animatePositions(di, newHover);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      },
-      onPanResponderRelease: () => {
-        const di = draggingIdxRef.current;
-        const hi = hoverIdxRef.current;
-        panY.setValue(0);
-        draggingIdxRef.current = -1;
-        hoverIdxRef.current = -1;
-
-        if (di >= 0 && hi >= 0 && di !== hi) {
-          setItems(prev => {
-            const next = [...prev];
-            const [moved] = next.splice(di, 1);
-            next.splice(hi, 0, moved);
-            commitPositions(next);
-            return next;
-          });
-        } else {
-          itemsRef.current.forEach((item, i) => {
-            posAnims.current[item.id]?.setValue(i * ITEM_H);
-          });
-        }
-        setDragActiveIdx(-1);
-      },
-      onPanResponderTerminate: () => {
-        panY.setValue(0);
-        itemsRef.current.forEach((item, i) => posAnims.current[item.id]?.setValue(i * ITEM_H));
-        draggingIdxRef.current = -1;
-        hoverIdxRef.current = -1;
-        setDragActiveIdx(-1);
-      },
-    })
-  ).current;
-
-  const startDrag = (index: number) => {
+  const startDrag = useCallback((index: number) => {
     draggingIdxRef.current = index;
     hoverIdxRef.current = index;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setDragActiveIdx(index);
-  };
+  }, []);
+
+  const moveDrag = useCallback((dy: number) => {
+    panY.setValue(dy);
+    const di = draggingIdxRef.current;
+    if (di < 0) return;
+    const len = itemsRef.current.length;
+    const newHover = clamp(0, len - 1, Math.round(di + dy / ITEM_H));
+    if (newHover !== hoverIdxRef.current) {
+      hoverIdxRef.current = newHover;
+      animatePositions(di, newHover);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [animatePositions]);
+
+  const endDrag = useCallback(() => {
+    const di = draggingIdxRef.current;
+    const hi = hoverIdxRef.current;
+    panY.setValue(0);
+    draggingIdxRef.current = -1;
+    hoverIdxRef.current = -1;
+
+    if (di >= 0 && hi >= 0 && di !== hi) {
+      setItems(prev => {
+        const next = [...prev];
+        const [moved] = next.splice(di, 1);
+        next.splice(hi, 0, moved);
+        next.forEach((item, i) => { posAnims.current[item.id]?.setValue(i * ITEM_H); });
+        return next;
+      });
+    } else {
+      itemsRef.current.forEach((item, i) => { posAnims.current[item.id]?.setValue(i * ITEM_H); });
+    }
+    setDragActiveIdx(-1);
+  }, [setItems]);
 
   return (
-    <View style={[styles.listCard, { height: items.length * ITEM_H }]} {...panResponder.panHandlers}>
-      {items.map((item, index) => {
-        const isDragging = dragActiveIdx === index;
-        const posAnim = posAnims.current[item.id];
-        return (
-          <Animated.View
-            key={item.id}
-            style={[
-              styles.absoluteItem,
-              { top: posAnim, zIndex: isDragging ? 100 : 1 },
-              isDragging && styles.itemFloating,
-              isDragging ? { transform: [{ translateY: panY }] } : {},
-            ]}
-          >
-            <Pressable
-              style={[styles.item, isDragging && styles.itemDragging]}
-              onPress={() => { if (dragActiveIdx < 0) onItemPress(item); }}
-              onLongPress={() => startDrag(index)}
-              delayLongPress={350}
-            >
-              <View style={[styles.itemIcon, { backgroundColor: `${item.color}20` }]}>
-                <Feather name={item.icon} size={16} color={item.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemLabel}>{item.label}</Text>
-                <Text style={styles.itemSub}>{item.subtitle}</Text>
-              </View>
-              <View style={[styles.priorityPip, { backgroundColor: PRIORITY_COLORS[item.priority] }]} />
-              <Feather name="menu" size={16} color={isDragging ? Colors.primary : Colors.textMuted} />
-            </Pressable>
-          </Animated.View>
-        );
-      })}
+    <View style={{ height: items.length * ITEM_H, ...styles.listCard }}>
+      {items.map((item, index) => (
+        <DraggableItem
+          key={item.id}
+          item={item}
+          index={index}
+          posAnim={posAnims.current[item.id]}
+          panY={panY}
+          isDragging={dragActiveIdx === index}
+          onItemPress={onItemPress}
+          onDragStart={startDrag}
+          onDragMove={moveDrag}
+          onDragEnd={endDrag}
+        />
+      ))}
     </View>
   );
 }
@@ -322,7 +357,7 @@ function AnimatedCheckItem({ item, onRemove }: { item: { id: string; label: stri
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(opacityAnim, { toValue: 0, duration: 280, useNativeDriver: false }),
-        Animated.timing(heightAnim, { toValue: 0, duration: 300, delay: 100, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(heightAnim, { toValue: 0, duration: 300, delay: 80, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
       ]).start(() => onRemove(item.id));
     }, 500);
   };
@@ -341,67 +376,54 @@ function AnimatedCheckItem({ item, onRemove }: { item: { id: string; label: stri
   );
 }
 
-function SwipeableRow({ item, onDelete, onPress }: {
+function SwipeRow({ item, onDelete, onPress }: {
   item: { id: string; label: string; tag: string; color: string };
   onDelete: (id: string) => void;
   onPress: () => void;
 }) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const rowHeight = useRef(new Animated.Value(56)).current;
-  const rowOpacity = useRef(new Animated.Value(1)).current;
-  const SWIPE_MAX = -120;
-  const DELETE_THRESHOLD = -90;
+  const swipeRef = useRef<Swipeable>(null);
+  const heightAnim = useRef(new Animated.Value(56)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
 
   const triggerDelete = () => {
+    swipeRef.current?.close();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Animated.sequence([
-      Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.parallel([
-        Animated.timing(rowHeight, { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(rowOpacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-      ]),
+    Animated.parallel([
+      Animated.timing(heightAnim, { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
     ]).start(() => onDelete(item.id));
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-      onPanResponderMove: (_, g) => translateX.setValue(clamp(SWIPE_MAX, g.dx, 0)),
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < DELETE_THRESHOLD) {
-          triggerDelete();
-        } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: false, tension: 140, friction: 12 }).start();
-        }
-      },
-    })
-  ).current;
-
-  const pillOpacity = translateX.interpolate({ inputRange: [SWIPE_MAX, -30, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
-  const pillTranslate = translateX.interpolate({ inputRange: [SWIPE_MAX, 0], outputRange: [0, 20], extrapolate: "clamp" });
+  const renderRightActions = (_prog: Animated.AnimatedInterpolation<number>, drag: Animated.AnimatedInterpolation<number>) => {
+    const scale = drag.interpolate({ inputRange: [-80, 0], outputRange: [1, 0.7], extrapolate: "clamp" });
+    return (
+      <Animated.View style={[styles.swipeActionContainer, { transform: [{ scale }] }]}>
+        <Pressable style={styles.deletePill} onPress={triggerDelete}>
+          <Feather name="trash-2" size={13} color="#fff" />
+          <Text style={styles.deletePillText}>Delete</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  };
 
   return (
-    <Animated.View style={{ height: rowHeight, opacity: rowOpacity, marginBottom: 6, borderRadius: 12, overflow: "hidden" }}>
-      {/* Fixed background with delete pill */}
-      <View style={styles.swipeBg}>
-        <Animated.View style={{ opacity: pillOpacity, transform: [{ translateX: pillTranslate }] }}>
-          <Pressable style={styles.deletePill} onPress={triggerDelete}>
-            <Feather name="trash-2" size={12} color="#fff" />
-            <Text style={styles.deletePillText}>Delete</Text>
-          </Pressable>
-        </Animated.View>
-      </View>
-
-      {/* Sliding foreground row */}
-      <Animated.View style={[styles.swipeRow, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
-        <Pressable style={styles.swipeContent} onPress={onPress}>
+    <Animated.View style={{ height: heightAnim, opacity: opacityAnim, marginBottom: 6 }}>
+      <Swipeable
+        ref={swipeRef}
+        renderRightActions={renderRightActions}
+        rightThreshold={60}
+        overshootRight={false}
+        friction={2}
+        containerStyle={{ borderRadius: 12 }}
+      >
+        <Pressable style={styles.swipeRow} onPress={onPress}>
           <View style={[styles.tagPill, { backgroundColor: `${item.color}18`, borderColor: `${item.color}40` }]}>
             <Text style={[styles.tagText, { color: item.color }]}>{item.tag}</Text>
           </View>
           <Text style={styles.swipeLabel} numberOfLines={1}>{item.label}</Text>
           <Feather name="chevron-right" size={14} color={Colors.textMuted} />
         </Pressable>
-      </Animated.View>
+      </Swipeable>
     </Animated.View>
   );
 }
@@ -415,11 +437,11 @@ export default function ReorderScreen() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [modalKey, setModalKey] = useState(0);
 
-  const openModal = (item: Item) => {
+  const openModal = useCallback((item: Item) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setModalKey(k => k + 1);
     setSelectedItem(item);
-  };
+  }, []);
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const botPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
@@ -450,14 +472,13 @@ export default function ReorderScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingBottom: botPad + 32 }]}
         keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
       >
         <Section title="Reorderable List" />
         <Text style={styles.hint}>Tap to edit · Long press to drag and reorder</Text>
         <LiveDraggableList items={items} setItems={setItems} onItemPress={openModal} />
 
         <Section title="Checklist — tap to complete" />
-        <Text style={styles.hint}>{checkItems.length} remaining · rows animate out when checked</Text>
+        <Text style={styles.hint}>{checkItems.length} remaining · rows collapse when checked</Text>
         <View style={styles.listCard}>
           {checkItems.length === 0 ? (
             <View style={styles.emptyState}>
@@ -469,19 +490,15 @@ export default function ReorderScreen() {
             </View>
           ) : (
             checkItems.map((item) => (
-              <AnimatedCheckItem
-                key={item.id}
-                item={item}
-                onRemove={(id) => setCheckItems(prev => prev.filter(i => i.id !== id))}
-              />
+              <AnimatedCheckItem key={item.id} item={item} onRemove={(id) => setCheckItems(prev => prev.filter(i => i.id !== id))} />
             ))
           )}
         </View>
 
         <Section title="Swipe to Delete" />
-        <Text style={styles.hint}>Swipe left · or tap the pill to delete</Text>
+        <Text style={styles.hint}>Swipe left to reveal delete · tap the pill to confirm</Text>
         {swipeItems.map((item) => (
-          <SwipeableRow
+          <SwipeRow
             key={item.id}
             item={item}
             onDelete={(id) => setSwipeItems(prev => prev.filter(i => i.id !== id))}
@@ -489,7 +506,7 @@ export default function ReorderScreen() {
           />
         ))}
         {swipeItems.length === 0 && (
-          <View style={[styles.emptyState, { backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.border }]}>
+          <View style={[styles.emptyState, styles.listCard]}>
             <Feather name="trash-2" size={24} color={Colors.textMuted} />
             <Text style={styles.emptyText}>All cleared</Text>
             <Pressable style={styles.resetBtn} onPress={() => setSwipeItems(INITIAL_SWIPE)}>
@@ -505,329 +522,118 @@ export default function ReorderScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.darkBg },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: 12,
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 12,
   },
-  headerTitle: {
-    color: Colors.textPrimary,
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-    flex: 1,
-    textAlign: "center",
-  },
+  headerTitle: { color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_700Bold", flex: 1, textAlign: "center" },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.cardBg,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border,
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: Colors.border,
   },
   scroll: { padding: 16 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 28,
-    marginBottom: 8,
-  },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 28, marginBottom: 8 },
   sectionLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  sectionTitle: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  hint: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginBottom: 10,
-  },
+  sectionTitle: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" },
+  hint: { color: Colors.textMuted, fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 10 },
   listCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: "hidden",
+    backgroundColor: Colors.cardBg, borderRadius: 14,
+    borderWidth: 1, borderColor: Colors.border, overflow: "hidden",
   },
-  absoluteItem: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: ITEM_H,
-  },
+  absoluteItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
   itemFloating: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 12,
   },
   item: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: ITEM_H,
-    paddingHorizontal: 14,
-    gap: 10,
+    flexDirection: "row", alignItems: "center",
+    height: ITEM_H, paddingHorizontal: 14, gap: 10,
     backgroundColor: Colors.cardBg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  itemDragging: {
-    backgroundColor: "rgba(224,49,49,0.07)",
-    borderColor: `${Colors.primary}40`,
-  },
-  itemIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  itemLabel: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-  },
-  itemSub: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
-  priorityPip: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
+  itemDragging: { backgroundColor: "rgba(224,49,49,0.07)" },
+  itemIcon: { width: 34, height: 34, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  itemLabel: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  itemSub: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  priorityPip: { width: 7, height: 7, borderRadius: 4 },
   checkItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    height: 52,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    height: 52, paddingHorizontal: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   checkBox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
+    borderColor: Colors.border, alignItems: "center", justifyContent: "center",
   },
-  checkBoxDone: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  checkLabel: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
-  },
-  checkLabelDone: {
-    color: Colors.textMuted,
-    textDecorationLine: "line-through",
-  },
-  swipeBg: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.darkBg,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    flexDirection: "row",
-    paddingRight: 14,
+  checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  checkLabel: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  checkLabelDone: { color: Colors.textMuted, textDecorationLine: "line-through" },
+  swipeActionContainer: {
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 12, backgroundColor: Colors.darkBg,
   },
   deletePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: Colors.primary, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8,
   },
-  deletePillText: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-  },
+  deletePillText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
   swipeRow: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.cardBg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: Colors.cardBg, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: 14, height: 56, gap: 10,
   },
-  swipeContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    height: "100%",
-  },
-  tagPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  tagText: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.4,
-  },
-  swipeLabel: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 28,
-    gap: 8,
-  },
-  emptyText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-  },
+  tagPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  tagText: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  swipeLabel: { flex: 1, color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular" },
+  emptyState: { alignItems: "center", paddingVertical: 28, gap: 8 },
+  emptyText: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_500Medium" },
   resetBtn: {
-    marginTop: 4,
-    paddingVertical: 7,
-    paddingHorizontal: 20,
-    backgroundColor: Colors.cardBgElevated,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginTop: 4, paddingVertical: 7, paddingHorizontal: 20,
+    backgroundColor: Colors.cardBgElevated, borderRadius: 8,
+    borderWidth: 1, borderColor: Colors.border,
   },
-  resetBtnText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-  },
+  resetBtnText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_500Medium" },
   modalOverlay: { flex: 1, justifyContent: "flex-end" },
   modalSheet: {
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderColor: Colors.border,
-    gap: 16,
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderColor: Colors.border, gap: 16,
   },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: "center",
-    marginBottom: 4,
-  },
+  modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: "center", marginBottom: 4 },
   modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  modalIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalTitle: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-  },
+  modalIconBg: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  modalTitle: { flex: 1, color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_700Bold" },
   modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.cardBgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border,
+    width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.cardBgElevated,
+    alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border,
   },
   fieldWrap: { gap: 6 },
-  fieldLabel: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1,
-  },
+  fieldLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1 },
   fieldInput: {
-    backgroundColor: Colors.darkBg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.textPrimary,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    backgroundColor: Colors.darkBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
+    color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 14, paddingVertical: 11,
   },
   fieldTextArea: { minHeight: 88, paddingTop: 11 },
   priorityRow: { flexDirection: "row", gap: 8 },
   priorityBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.cardBgElevated,
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1,
+    borderColor: Colors.border, backgroundColor: Colors.cardBgElevated,
   },
   priorityDot: { width: 7, height: 7, borderRadius: 4 },
-  priorityText: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-  },
+  priorityText: { color: Colors.textSecondary, fontSize: 12, fontFamily: "Inter_500Medium" },
   modalActions: { flexDirection: "row", gap: 10, marginTop: 4 },
   cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: Colors.cardBgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center",
+    backgroundColor: Colors.cardBgElevated, borderWidth: 1, borderColor: Colors.border,
   },
   cancelBtnText: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   updateBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
+    flex: 2, paddingVertical: 14, borderRadius: 12, alignItems: "center",
+    backgroundColor: Colors.primary, flexDirection: "row", justifyContent: "center", gap: 8,
   },
   updateBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
