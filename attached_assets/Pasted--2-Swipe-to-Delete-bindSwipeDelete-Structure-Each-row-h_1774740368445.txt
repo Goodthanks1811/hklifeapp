@@ -1,0 +1,48 @@
+## 2. Swipe to Delete (`bindSwipeDelete`)
+
+### Structure
+Each row has a two-layer track structure:
+```
+.auto-item
+  .auto-item-track           ← translated horizontally
+    .item-inner              ← the visible card
+    .del-zone
+      .del-btn "Delete"      ← revealed on swipe
+```
+`SWIPE_REVEAL = 96px` — the amount the track translates left to expose the delete button.
+
+### Touch Gesture
+**touchstart:**
+- Blocked if `window.__isAddModalOpen` or `window.__reorderMode`.
+- Blocked on taps originating from `.emoji`, `.check`, `.epic-tag`, or `.del-btn`.
+- Calls `closeOther()` — any previously-open swipe row snaps closed (300ms ease).
+- Records `startX`, `startY`, `baseX` (0 if closed, `-SWIPE_REVEAL` if already open).
+
+**touchmove:**
+- Direction decision: if `|dx| > |dy| * 1.1` the gesture is treated as horizontal; otherwise it is ignored (scroll passes through).
+- Decision threshold: 5px of movement before axis is committed.
+- While horizontal, `e.preventDefault()` is called to block scroll.
+- If `|dx| > 8px`, long-press is cancelled.
+- Rubber-banding applied:
+  - Dragging right of origin: `target = raw * 0.1` (heavy resistance)
+  - Dragging beyond full reveal: `target = -SWIPE_REVEAL + (raw + SWIPE_REVEAL) * 0.15`
+  - Within normal range: `target = raw` (1:1)
+
+**touchend:**
+- Velocity (`vel`) is tracked each move frame; snap direction is determined by:
+  - If already open: swipe-right velocity > 0.25 **or** `dx > 25` → snap closed; else snap open.
+  - If closed: swipe-left velocity < -0.25 **or** `-totalX > 25` → snap open; else snap closed.
+- Snap animation duration scales with velocity: `clamp(160, 320, 260 - vel * 0.5)` ms.
+
+### Confirming Delete
+- Tapping the revealed **Delete** button does **not** delete immediately.
+- The row flies off to the left (translates by `-(cardWidth + SWIPE_REVEAL)px` over 200ms), then calls `performDelete(id)`.
+- `performDelete` also handles direct deletions from the confirmation dialog.
+
+### Delete Confirmation Dialog
+When `performDelete` is called from anywhere other than the swipe button fly-off (e.g. from the confirmation dialog), it:
+1. Locks the row height, then transitions `height → 0`, `margin-bottom → 0`, `opacity → 0` over ~420–620ms.
+2. After 480ms: sets `task.done = true`, calls `render()`, then sends `native://deleteItem?pageId=…` to the native message queue.
+3. The native side calls Notion's `PATCH /pages/{id}` with `{ archived: true }`.
+
+The confirmation overlay (`deleteConfirmOverlay`) is a separate fixed z-index: 11000 dialog that shows the task title truncated to 48 characters. Tapping **Cancel** also snaps the swipe row back to closed.

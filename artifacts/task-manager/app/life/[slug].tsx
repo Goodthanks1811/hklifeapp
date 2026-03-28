@@ -13,6 +13,7 @@ import {
   Animated,
   Easing,
   Keyboard,
+  Linking,
   Modal,
   PanResponder,
   Platform,
@@ -53,8 +54,17 @@ const SLUG_MAP: Record<string, SlugConfig> = {
   "to-read":     { title: "To Read",     catValue: "\uD83D\uDCD5 Read",                                     emojis: ["📕"] },
 };
 
+// ── Loader timing (ms) ────────────────────────────────────────────────────────
+const T_FADE_IN    = 200;
+const T_SPINNER_IN = 250;
+const T_MIN_SPIN   = 2000;
+const T_POP        = 420;
+const T_TICK       = 400;
+const T_HOLD       = 700;
+const T_FADE_OUT   = 450;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; }
+interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; }
 interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; }
 
 const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
@@ -109,97 +119,182 @@ function EmojiPicker({ visible, onSelect, onClose }: {
   );
 }
 
-// ── Detail sheet ───────────────────────────────────────────────────────────────
-function DetailSheet({ task, body, bodyLoading, isTablet, onClose, onSave, onEmojiChange }: {
+// ── Detail sheet (AlertModal-style: scale-in, centered) ────────────────────────
+const DS_SPINNER_SIZE   = 72;
+const DS_SPINNER_STROKE = 8;
+const DS_CIRCLE_SIZE    = 74;
+
+function DetailSheet({ task, body, bodyLoading, onClose, onSave, onEmojiChange }: {
   task: LifeTask | null; body: string | null; bodyLoading: boolean;
-  isTablet: boolean; onClose: () => void;
-  onSave:        (id: string, title: string) => void;
+  onClose: () => void;
+  onSave:        (id: string, title: string) => Promise<void>;
   onEmojiChange: (id: string, emoji: string) => void;
 }) {
-  const slideAnim = useRef(new Animated.Value(600)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const opacAnim  = useRef(new Animated.Value(0)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
-  const insets    = useSafeAreaInsets();
-  const [title,   setTitle]    = useState("");
-  const [showEP,  setShowEP]   = useState(false);
+  const [title,   setTitle]  = useState("");
+  const [showEP,  setShowEP] = useState(false);
 
+  // ── Loader anims ──────────────────────────────────────────────────────────
+  const [loaderVisible,   setLoaderVisible]   = useState(false);
+  const overlayOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerRotation = useRef(new Animated.Value(0)).current;
+  const circleScale     = useRef(new Animated.Value(0)).current;
+  const circleOpacity   = useRef(new Animated.Value(0)).current;
+  const tickScale       = useRef(new Animated.Value(0)).current;
+  const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
+  const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  // ── Open animation ────────────────────────────────────────────────────────
   useEffect(() => {
     if (task) {
-      // Reset to off-screen so re-opens always animate in cleanly (prevents freeze on re-open)
-      slideAnim.setValue(600);
+      scaleAnim.setValue(0.85);
+      opacAnim.setValue(0);
       bgAnim.setValue(0);
       setTitle(task.title);
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 80, friction: 12 }),
-        Animated.timing(bgAnim, { toValue: 1, duration: 250, useNativeDriver: false }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 260, friction: 20 }),
+        Animated.timing(opacAnim,  { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.timing(bgAnim,    { toValue: 1, duration: 250, useNativeDriver: false }),
       ]).start();
     }
   }, [task]);
 
-  const dismiss = (cb?: () => void) => {
+  const dismiss = useCallback((cb?: () => void) => {
     Keyboard.dismiss();
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: 600, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.timing(bgAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
+      Animated.timing(scaleAnim, { toValue: 0.88, duration: 200, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+      Animated.timing(opacAnim,  { toValue: 0,    duration: 180, useNativeDriver: true }),
+      Animated.timing(bgAnim,    { toValue: 0,    duration: 200, useNativeDriver: false }),
     ]).start(() => { cb?.(); onClose(); });
-  };
+  }, [scaleAnim, opacAnim, bgAnim, onClose]);
 
-  const bg = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.7)"] });
-  const botPad = insets.bottom + 16;
+  const resetLoader = useCallback(() => {
+    overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
+    spinnerRotation.setValue(0); circleScale.setValue(0);
+    circleOpacity.setValue(0);   tickScale.setValue(0);
+  }, [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale]);
 
-  const sheetStyle = isTablet
-    ? [s.sheet, s.sheetTablet, { paddingBottom: botPad }]
-    : [s.sheet, { paddingBottom: botPad }];
+  const runLoader = useCallback(
+    (apiPromise: Promise<void>) =>
+      new Promise<void>((resolve) => {
+        resetLoader();
+        setLoaderVisible(true);
+        const tracked = apiPromise.then(() => {}).catch(() => {});
+
+        spinLoopRef.current = Animated.loop(
+          Animated.timing(spinnerRotation, { toValue: 1, duration: 600, easing: Easing.linear, useNativeDriver: true })
+        );
+        spinLoopRef.current.start();
+
+        Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
+          Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPINNER_IN, useNativeDriver: true }).start(() => {
+            const minSpin = new Promise<void>((r) => setTimeout(r, T_MIN_SPIN));
+            Promise.all([tracked, minSpin]).then(() => {
+              spinLoopRef.current?.stop();
+              Animated.parallel([
+                Animated.timing(spinnerOpacity, { toValue: 0,    duration: T_POP,       useNativeDriver: true }),
+                Animated.timing(circleOpacity,  { toValue: 1,    duration: T_POP * 0.4, useNativeDriver: true }),
+                Animated.timing(circleScale,    { toValue: 1,    duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
+              ]).start(() => {
+                Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
+                  setTimeout(() => {
+                    Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+                      setLoaderVisible(false);
+                      resetLoader();
+                      dismiss(() => resolve());
+                    });
+                  }, T_HOLD);
+                });
+              });
+            });
+          });
+        });
+      }),
+    [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoader, dismiss]
+  );
+
+  const handleSave = useCallback(() => {
+    if (!task) return;
+    Keyboard.dismiss();
+    runLoader(onSave(task.id, title.trim()));
+  }, [task, title, onSave, runLoader]);
+
+  const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.75)"] });
 
   return (
     <>
       <Modal visible={!!task} transparent animationType="none" onRequestClose={() => dismiss()}>
-        <Animated.View style={[s.overlay, { backgroundColor: bg, justifyContent: isTablet ? "center" : "flex-end" }]}>
+        <Animated.View style={[s.overlay, { backgroundColor: bg, justifyContent: "center" }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => dismiss()} />
-          <Animated.View style={[...sheetStyle, { transform: isTablet ? [] : [{ translateY: slideAnim }] }]}>
-            <View style={s.handle} />
-            <View style={s.detailHeader}>
-              {/* Emoji button → opens picker */}
-              <Pressable
-                onPress={() => setShowEP(true)}
-                style={({ pressed }) => [s.detailEmoji, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={s.detailEmojiText}>{task?.emoji ?? DEFAULT_EMOJI}</Text>
-              </Pressable>
-              <TextInput
-                style={s.detailTitle}
-                value={title}
-                onChangeText={setTitle}
-                multiline
-                placeholder="Task name…"
-                placeholderTextColor={Colors.textMuted}
-                selectionColor={Colors.primary}
-              />
-            </View>
+          <Animated.View style={[s.alertCard, { opacity: opacAnim, transform: [{ scale: scaleAnim }] }]}>
+            {/* Emoji (tap to change) */}
+            <Pressable onPress={() => setShowEP(true)} style={({ pressed }) => [s.alertEmojiBox, pressed && { opacity: 0.7 }]}>
+              <Text style={s.alertEmojiText}>{task?.emoji ?? DEFAULT_EMOJI}</Text>
+              <Text style={s.alertEmojiHint}>tap to change</Text>
+            </Pressable>
 
-            <View style={s.bodySection}>
-              <Text style={s.bodySectionLabel}>NOTES</Text>
-              {bodyLoading
-                ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "flex-start", marginVertical: 4 }} />
-                : body
-                  ? <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                      <Text style={s.bodyText}>{body}</Text>
-                    </ScrollView>
-                  : <Text style={s.bodyPlaceholder}>No notes</Text>
-              }
-            </View>
+            {/* Title input */}
+            <TextInput
+              style={s.alertTitleInput}
+              value={title}
+              onChangeText={setTitle}
+              multiline
+              placeholder="Task name…"
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
+            />
 
-            <View style={s.detailActions}>
+            <View style={s.alertDivider} />
+
+            {/* Notes */}
+            <Text style={s.alertSectionLabel}>NOTES</Text>
+            {bodyLoading
+              ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "center", marginVertical: 8 }} />
+              : body
+                ? <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    <Text style={s.alertBodyText}>{body}</Text>
+                  </ScrollView>
+                : <Text style={s.alertBodyPlaceholder}>No notes</Text>
+            }
+
+            {/* Reference URL */}
+            {task?.url ? (
+              <>
+                <View style={[s.alertDivider, { marginTop: 14 }]} />
+                <Text style={[s.alertSectionLabel, { marginTop: 10 }]}>REFERENCE</Text>
+                <Pressable onPress={() => task.url && Linking.openURL(task.url)}>
+                  <Text style={s.alertUrlText} numberOfLines={2}>{task.url}</Text>
+                </Pressable>
+              </>
+            ) : null}
+
+            {/* Buttons */}
+            <View style={s.alertActions}>
               <Pressable style={s.cancelBtn} onPress={() => dismiss()}>
                 <Text style={s.cancelBtnTx}>Cancel</Text>
               </Pressable>
-              <Pressable
-                style={s.saveBtn}
-                onPress={() => { if (task) { onSave(task.id, title); dismiss(); } }}
-              >
+              <Pressable style={s.saveBtn} onPress={handleSave}>
                 <Feather name="check" size={15} color="#fff" />
                 <Text style={s.saveBtnTx}>Save</Text>
               </Pressable>
             </View>
+
+            {/* Loader overlay (inside card) */}
+            {loaderVisible && (
+              <Animated.View style={[s.cardLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
+                <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+                  <View style={s.dsSpinnerRing} />
+                </Animated.View>
+                <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+                  <Animated.View style={{ transform: [{ scale: tickScale }] }}>
+                    <Feather name="check" size={40} color="#fff" />
+                  </Animated.View>
+                </Animated.View>
+              </Animated.View>
+            )}
           </Animated.View>
         </Animated.View>
       </Modal>
@@ -294,7 +389,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
       const data = await r.json();
       if (data.id) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onAdded({ id: data.id, title: t, emoji, sortOrder: null });
+        onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null });
         dismiss();
       } else {
         setSaving(false);
@@ -386,7 +481,11 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) =>
         !deletingRef.current && Math.abs(gs.dx) > 7 && Math.abs(gs.dy) < 10,
-      onMoveShouldSetPanResponderCapture: () => false,   // outer drag container can always steal
+      // Capture phase: claim horizontal swipes before Pressable can block them.
+      // The outer drag PanResponder runs capture first (since it's an ancestor), so
+      // when isDragging=true the outer wins and this never fires.
+      onMoveShouldSetPanResponderCapture: (_, gs) =>
+        !deletingRef.current && Math.abs(gs.dx) > 7 && Math.abs(gs.dy) < 10,
       onPanResponderMove: (_, gs) => {
         translateX.setValue(Math.max(-120, Math.min(0, gs.dx)));
       },
@@ -569,6 +668,7 @@ export default function LifeTaskScreen() {
   const containerRef     = useRef<View>(null);
   const containerTopRef  = useRef(0);
   const scrollOffsetRef  = useRef(0);
+  const startScrollRef   = useRef(0);   // scroll at drag-start — needed for accurate relY
   const isDraggingRef    = useRef(false);
   const draggingIdxRef   = useRef(-1);
   const hoverIdxRef      = useRef(-1);
@@ -607,6 +707,7 @@ export default function LifeTaskScreen() {
     // Dim all other rows
     Animated.timing(dimAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    startScrollRef.current = scrollOffsetRef.current;
     containerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
       containerTopRef.current = py;
     });
@@ -648,7 +749,9 @@ export default function LifeTaskScreen() {
       const len = tasksRef.current.length;
       panY.setValue(gs.dy);
       // Use absolute finger Y for accurate zone — much more precise than dy-based calculation
-      const relY     = gs.moveY - containerTopRef.current + scrollOffsetRef.current;
+      // relY: finger position within the scroll-content coordinate space.
+      // containerTopRef was measured at startScrollRef, so we subtract that baseline.
+      const relY     = gs.moveY - containerTopRef.current + (scrollOffsetRef.current - startScrollRef.current);
       const newHover = clamp(0, len - 1, Math.floor(relY / SLOT_H));
       if (newHover !== hoverIdxRef.current) {
         hoverIdxRef.current = newHover;
@@ -696,14 +799,14 @@ export default function LifeTaskScreen() {
     }
   }, [apiKey]);
 
-  const handleSaveTitle = useCallback((id: string, title: string) => {
-    if (!apiKey) return;
+  const handleSaveTitle = useCallback((id: string, title: string): Promise<void> => {
+    if (!apiKey) return Promise.resolve();
     setTasks(prev => prev.map(t => t.id === id ? { ...t, title } : t));
-    fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
+    return fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
       body: JSON.stringify({ title }),
-    }).catch(() => {});
+    }).then(() => {}).catch(() => {});
   }, [apiKey]);
 
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
@@ -905,7 +1008,6 @@ export default function LifeTaskScreen() {
         task={detailTask}
         body={pageBody}
         bodyLoading={bodyLoading}
-        isTablet={isTablet}
         onClose={() => setDetailTask(null)}
         onSave={handleSaveTitle}
         onEmojiChange={handleEmojiChange}
@@ -932,44 +1034,69 @@ export default function LifeTaskScreen() {
 
 // ── Shared sheet styles ────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  overlay:        { flex: 1, justifyContent: "flex-end" },
+  overlay:        { flex: 1, justifyContent: "center" },
+
+  // ── EmojiPicker sheet (still a bottom sheet) ────────────────────────────
   sheet: {
     backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
-  },
-  sheetTablet: {
-    borderRadius: 20, marginHorizontal: 40, marginBottom: 40,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+    position: "absolute", left: 0, right: 0, bottom: 0,
   },
   handle: { width: 38, height: 5, borderRadius: 3, backgroundColor: Colors.border, alignSelf: "center", marginTop: 10, marginBottom: 18 },
   sheetTitle: { color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 20 },
-
   emojiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 8 },
   emojiCell: { width: 54, height: 54, borderRadius: 14, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border },
   emojiCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   emojiCellText: { fontSize: 26 },
 
-  detailHeader: { flexDirection: "row", alignItems: "flex-start", gap: 14, marginBottom: 20, marginTop: 6 },
-  detailEmoji: { position: "relative" },
-  detailEmojiText: { fontSize: 44 },
-  emojiEditBadge: {
-    position: "absolute", bottom: 0, right: -2, width: 18, height: 18, borderRadius: 9,
-    backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center",
+  // ── Detail card (AlertModal-style, scale-in, centered) ─────────────────
+  alertCard: {
+    backgroundColor: Colors.cardBg, borderRadius: 20, borderWidth: 1, borderColor: Colors.border,
+    marginHorizontal: 24, paddingHorizontal: 22, paddingTop: 24, paddingBottom: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.5, shadowRadius: 32, elevation: 12,
+    overflow: "hidden",
   },
-  detailTitle: {
-    flex: 1, color: Colors.textPrimary, fontSize: 19, fontFamily: "Inter_600SemiBold",
-    paddingTop: 6, lineHeight: 26,
+  alertEmojiBox: { alignItems: "center", marginBottom: 14 },
+  alertEmojiText: { fontSize: 52 },
+  alertEmojiHint: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 4 },
+  alertTitleInput: {
+    color: Colors.textPrimary, fontSize: 18, fontFamily: "Inter_600SemiBold",
+    textAlign: "center", lineHeight: 26, marginBottom: 16, paddingVertical: 0,
   },
-  bodySection: { marginBottom: 20 },
-  bodySectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 8 },
-  bodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  bodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  alertDivider: { height: 1, backgroundColor: Colors.border, marginBottom: 12 },
+  alertSectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 8 },
+  alertBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  alertBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  alertUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline" },
+  alertActions: { flexDirection: "row", gap: 10, marginTop: 20 },
 
-  detailActions: { flexDirection: "row", gap: 10 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   cancelBtnTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   saveBtn: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   saveBtnTx: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+
+  // ── Detail card loader (same pattern as life-quick-add) ─────────────────
+  cardLoader: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center", justifyContent: "center", borderRadius: 20, zIndex: 999,
+  },
+  dsSpinnerWrap: {
+    width: DS_SPINNER_SIZE, height: DS_SPINNER_SIZE,
+    alignItems: "center", justifyContent: "center", position: "absolute",
+  },
+  dsSpinnerRing: {
+    width: DS_SPINNER_SIZE, height: DS_SPINNER_SIZE, borderRadius: DS_SPINNER_SIZE / 2,
+    borderWidth: DS_SPINNER_STROKE,
+    borderColor: "rgba(255,255,255,0.85)",
+    borderTopColor: "rgba(255,255,255,0.12)",
+  },
+  dsCircleWrap: {
+    width: DS_CIRCLE_SIZE, height: DS_CIRCLE_SIZE, borderRadius: DS_CIRCLE_SIZE / 2,
+    backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center", position: "absolute",
+    borderWidth: 1.5, borderColor: Colors.primary,
+  },
 
   qaInput: {
     backgroundColor: Colors.cardBgElevated, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight,

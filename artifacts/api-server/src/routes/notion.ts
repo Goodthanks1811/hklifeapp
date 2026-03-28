@@ -410,7 +410,26 @@ router.get("/life-tasks", async (req, res) => {
         emoji = (emojiProp.rich_text || []).map((t: any) => t.plain_text).join("") || "-";
 
       const sortOrder: number | null = props["Sort Order"]?.number ?? null;
-      return { id: page.id, title, emoji, sortOrder };
+
+      // Reference URL (URL-type or rich_text with link)
+      let url: string | null = null;
+      const refProp = props["Reference"];
+      if (refProp?.type === "url") {
+        url = refProp.url ?? null;
+      } else if (refProp?.type === "rich_text") {
+        for (const block of (refProp.rich_text || [])) {
+          if (block.href)               { url = block.href;               break; }
+          if (block.text?.link?.url)    { url = block.text.link.url;      break; }
+        }
+      }
+      // Fallback: first URL-type property
+      if (!url) {
+        for (const key of Object.keys(props)) {
+          if (props[key].type === "url" && props[key].url) { url = props[key].url; break; }
+        }
+      }
+
+      return { id: page.id, title, emoji, sortOrder, url };
     });
 
     res.json({ tasks });
