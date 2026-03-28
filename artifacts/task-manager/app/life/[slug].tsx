@@ -24,6 +24,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -45,7 +47,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
 type SlugConfig = { title: string; catValue: string; emojis: string[] };
 const SLUG_MAP: Record<string, SlugConfig> = {
   "life-admin":  { title: "Life Admin",  catValue: "\uD83D\uDCDD Life Admin",                               emojis: ["🔥","🖥️","🏡"] },
-  "investigate": { title: "Investigate", catValue: "                     \uD83D\uDD0E To Investigate",      emojis: ["🔥","🚩","👀","🧠"] },
+  "investigate": { title: "Investigate", catValue: "\uD83D\uDD0E To Investigate",                         emojis: ["🔥","🚩","👀","🧠"] },
   "to-buy":      { title: "To Buy",      catValue: "\uD83D\uDCB0 To Buy",                                   emojis: ["🔥","💳","💰"] },
   "music":       { title: "Music",       catValue: "\uD83C\uDFA7 Music",                                    emojis: ["🎧"] },
   "reference":   { title: "Reference",   catValue: "\uD83D\uDCCC Reference",                                emojis: ["📌"] },
@@ -91,12 +93,6 @@ function EmojiPicker({ visible, onSelect, onClose }: {
           <View style={s.handle} />
           <Text style={s.sheetTitle}>Choose Emoji</Text>
           <View style={s.emojiGrid}>
-            <Pressable
-              style={({ pressed }) => [s.emojiCell, pressed && s.emojiCellPressed]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSelect(DEFAULT_EMOJI); }}
-            >
-              <Text style={s.emojiCellText}>—</Text>
-            </Pressable>
             {FULL_PICKER.map(e => (
               <Pressable
                 key={e} style={({ pressed }) => [s.emojiCell, pressed && s.emojiCellPressed]}
@@ -317,12 +313,6 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 
           {/* Emoji row */}
           <View style={s.qaEmojiRow}>
-            <Pressable
-              onPress={() => setSelEmoji(null)}
-              style={[s.qaEmoji, selEmoji === null && s.qaEmojiActive]}
-            >
-              <Text style={s.qaEmojiText}>—</Text>
-            </Pressable>
             {catEmojis.map(e => (
               <Pressable
                 key={e}
@@ -352,59 +342,101 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onChecked }: {
+function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onChecked, onDelete }: {
   task:         LifeTask;
   isDragging:   boolean;
   onEmojiPress: () => void;
   onPress:      () => void;
   onLongPress:  () => void;
   onChecked:    () => void;
+  onDelete:     () => void;
 }) {
   const checkScale  = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const rowScale    = useRef(new Animated.Value(1)).current;
+  const translateX  = useRef(new Animated.Value(0)).current;
+  const deletingRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
   const handleCheck = () => {
     if (checked) return;
     setChecked(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Tick appears with a spring
     Animated.spring(checkScale, { toValue: 1, useNativeDriver: false, tension: 240, friction: 8 }).start();
-    // After a beat, slowly shrink + fade so the user can see what's happening
     setTimeout(() => {
       Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 0,    duration: 700, useNativeDriver: false }),
-        Animated.timing(rowScale,    { toValue: 0.82,  duration: 600, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(opacityAnim, { toValue: 0,   duration: 700, useNativeDriver: false }),
+        Animated.timing(rowScale,    { toValue: 0.82, duration: 600, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
       ]).start(() => onChecked());
     }, 500);
   };
 
+  const triggerDelete = useCallback(() => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Animated.parallel([
+      Animated.timing(translateX,  { toValue: -500, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(opacityAnim, { toValue: 0,    duration: 220, useNativeDriver: false }),
+    ]).start(() => onDelete());
+  }, [onDelete]);
+
+  const snapBack = useCallback(() => {
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: false, tension: 160, friction: 14 }).start();
+  }, [translateX]);
+
+  const updateX = useCallback((x: number) => { translateX.setValue(x); }, [translateX]);
+
+  const swipe = useMemo(() =>
+    Gesture.Pan()
+      .activeOffsetX([-8, 8])
+      .failOffsetY([-14, 14])
+      .onChange(e => { runOnJS(updateX)(Math.max(-120, Math.min(0, e.translationX))); })
+      .onEnd(e => {
+        if (e.translationX < -70) runOnJS(triggerDelete)();
+        else runOnJS(snapBack)();
+      }),
+    [triggerDelete, snapBack, updateX]
+  );
+
+  const pillOpacity  = translateX.interpolate({ inputRange: [-120, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
+  const pillTranslateX = translateX.interpolate({ inputRange: [-120, 0], outputRange: [0, 14], extrapolate: "clamp" });
+
   return (
-    <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { opacity: opacityAnim, transform: [{ scale: rowScale }] }]}>
-      {/* Emoji */}
-      <Pressable onPress={onEmojiPress} hitSlop={6} style={sc.emojiBtn}>
-        <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
-      </Pressable>
-
-      {/* Name — long press to drag, tap to detail */}
-      <Pressable
-        style={{ flex: 1 }}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        delayLongPress={400}
-      >
-        <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
-      </Pressable>
-
-      {/* Checkbox */}
-      <Pressable onPress={handleCheck} hitSlop={8} style={sc.checkBtn}>
-        <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
-          <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-            <Feather name="check" size={12} color="#fff" />
-          </Animated.View>
+    <Animated.View style={[sc.rowOuter, { opacity: opacityAnim, transform: [{ scale: rowScale }] }]}>
+      {/* Delete background */}
+      <View style={sc.deleteBg}>
+        <Animated.View style={{ opacity: pillOpacity, transform: [{ translateX: pillTranslateX }] }}>
+          <Pressable style={sc.deletePill} onPress={triggerDelete}>
+            <Feather name="trash-2" size={12} color="#fff" />
+            <Text style={sc.deletePillTx}>Delete</Text>
+          </Pressable>
         </Animated.View>
-      </Pressable>
+      </View>
+
+      {/* Swipeable foreground */}
+      <GestureDetector gesture={swipe}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateX }] }]}>
+          {/* Emoji */}
+          <Pressable onPress={onEmojiPress} hitSlop={6} style={sc.emojiBtn}>
+            <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
+          </Pressable>
+
+          {/* Name */}
+          <Pressable style={{ flex: 1 }} onPress={onPress} onLongPress={onLongPress} delayLongPress={400}>
+            <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
+          </Pressable>
+
+          {/* Checkbox */}
+          <Pressable onPress={handleCheck} hitSlop={8} style={sc.checkBtn}>
+            <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
+              <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+                <Feather name="check" size={12} color="#fff" />
+              </Animated.View>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
     </Animated.View>
   );
 }
@@ -439,7 +471,14 @@ export default function LifeTaskScreen() {
       });
       const data = await r.json();
       if (data.tasks) {
-        const filtered = (data.tasks as LifeTask[]).filter(t => norm(t.emoji) !== norm(HIDDEN_EMOJI));
+        const filtered = (data.tasks as LifeTask[]).filter(t => {
+          // Always hide the explicit hidden-emoji marker
+          if (norm(t.emoji) === norm(HIDDEN_EMOJI)) return false;
+          // Keep items with no emoji assigned (default "-")
+          if (t.emoji === DEFAULT_EMOJI || t.emoji === "") return true;
+          // Hide items with emojis not in this category's defined set (rogue)
+          return config.emojis.some(e => norm(e) === norm(t.emoji));
+        });
         // Sort: items with sortOrder first (ascending), then by emoji position in category list
         const catEmojis = config.emojis;
         filtered.sort((a, b) => {
@@ -650,6 +689,28 @@ export default function LifeTaskScreen() {
     }).catch(() => {});
   }, [apiKey]);
 
+  const handleDelete = useCallback((id: string) => {
+    setTasks(prev => {
+      const next = prev.filter(t => t.id !== id);
+      // Re-position remaining items
+      next.forEach((t, i) => {
+        Animated.spring(posAnims.current[t.id], {
+          toValue: i * SLOT_H,
+          useNativeDriver: false,
+          tension: 120,
+          friction: 14,
+        }).start();
+      });
+      return next;
+    });
+    if (apiKey) {
+      fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
+        method: "DELETE",
+        headers: { "x-notion-key": apiKey },
+      }).catch(() => {});
+    }
+  }, [apiKey]);
+
   const handleQuickAdded = useCallback((task: LifeTask) => {
     setTasks(prev => {
       const next = [...prev, task];
@@ -736,6 +797,7 @@ export default function LifeTaskScreen() {
                       onPress={() => openDetail(task)}
                       onLongPress={() => {}}
                       onChecked={() => handleCheckOff(task.id)}
+                      onDelete={() => handleDelete(task.id)}
                     />
                   </View>
                 ))}
@@ -768,6 +830,7 @@ export default function LifeTaskScreen() {
                       onPress={() => openDetail(task)}
                       onLongPress={() => startDrag(idx)}
                       onChecked={() => handleCheckOff(task.id)}
+                      onDelete={() => handleDelete(task.id)}
                     />
                   </Animated.View>
                 );
@@ -897,9 +960,22 @@ const sc = StyleSheet.create({
 
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
 
+  rowOuter: { height: ITEM_H, borderRadius: 14, overflow: "hidden" },
+  deleteBg: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center", alignItems: "flex-end", paddingRight: 14,
+    backgroundColor: "rgba(224,49,49,0.12)",
+  },
+  deletePill: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: Colors.primary, borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  deletePillTx: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+
   rowWrap: {
-    flex: 1, flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.border,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border,
     paddingHorizontal: 14, paddingVertical: 12, height: ITEM_H,
   },
   rowDragging: {

@@ -420,6 +420,28 @@ router.get("/life-tasks", async (req, res) => {
   }
 });
 
+router.delete("/life-tasks/:pageId", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { pageId } = req.params;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  try {
+    const r = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      method: "PATCH",
+      headers: notionHeaders(apiKey),
+      body: JSON.stringify({ archived: true }),
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      res.status(r.status).json({ message: err.message || "Archive failed" });
+      return;
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    req.log?.error({ err: e }, "Failed to archive life task");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.patch("/life-tasks/:pageId", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
   const { pageId } = req.params;
