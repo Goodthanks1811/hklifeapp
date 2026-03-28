@@ -240,6 +240,8 @@ export default function MiNenaScreen() {
   // Pick files and add to a folder
   const pickIntoFolder = useCallback(async (folderId: string) => {
     setPicking(true);
+    // Small delay so any dismissing modal fully closes before iOS presents the picker
+    await new Promise((r) => setTimeout(r, 300));
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["image/*", "video/*"],
@@ -270,7 +272,7 @@ export default function MiNenaScreen() {
     }
   }, []);
 
-  // Create folder (optionally immediately pick)
+  // Create folder and navigate into it (user taps + to add files manually)
   const createFolder = useCallback(async (name: string) => {
     setShowNewFolder(false);
     const id = uid();
@@ -279,9 +281,7 @@ export default function MiNenaScreen() {
     setFolders(next);
     await saveFolders(next);
     setOpenFolderId(id);
-    // Auto-open picker for new folder
-    await pickIntoFolder(id);
-  }, [folders, pickIntoFolder]);
+  }, [folders]);
 
   // Delete folder
   const deleteFolder = useCallback((folderId: string) => {
