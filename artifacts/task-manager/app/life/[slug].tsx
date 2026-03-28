@@ -31,7 +31,7 @@ import { useNotion } from "@/context/NotionContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LIFE_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
-const ITEM_H       = 68;
+const ITEM_H       = 56;
 const ITEM_GAP     = 8;
 const SLOT_H       = ITEM_H + ITEM_GAP;
 const HIDDEN_EMOJI = "👎";
@@ -224,11 +224,27 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 }) {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
+  const kbAnim    = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
   const [title,    setTitle]   = useState("");
   const [selEmoji, setSelEmoji] = useState<string | null>(null);
   const [saving,   setSaving]  = useState(false);
   const inputRef  = useRef<TextInput>(null);
+
+  // Keyboard avoidance — sheet slides up with the keyboard
+  useEffect(() => {
+    const onShow = (e: any) => Animated.timing(kbAnim, {
+      toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false,
+    }).start();
+    const onHide = (e: any) => Animated.timing(kbAnim, {
+      toValue: 0, duration: e.duration || 200, useNativeDriver: false,
+    }).start();
+    const s1 = Keyboard.addListener("keyboardWillShow", onShow);
+    const s2 = Keyboard.addListener("keyboardWillHide", onHide);
+    const s3 = Keyboard.addListener("keyboardDidShow",  onShow);
+    const s4 = Keyboard.addListener("keyboardDidHide",  onHide);
+    return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
+  }, [kbAnim]);
 
   useEffect(() => {
     if (visible) {
@@ -283,7 +299,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
       <Animated.View style={[s.overlay, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }], paddingBottom: insets.bottom + 20 }]}>
+        <Animated.View style={[s.sheet, { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }], paddingBottom: insets.bottom + 20 }]}>
           <View style={s.handle} />
           <Text style={s.sheetTitle}>Quick Add</Text>
 
@@ -346,20 +362,26 @@ function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onCheck
 }) {
   const checkScale  = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const rowScale    = useRef(new Animated.Value(1)).current;
   const [checked, setChecked] = useState(false);
 
   const handleCheck = () => {
     if (checked) return;
     setChecked(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Tick appears with a spring
     Animated.spring(checkScale, { toValue: 1, useNativeDriver: false, tension: 240, friction: 8 }).start();
+    // After a beat, slowly shrink + fade so the user can see what's happening
     setTimeout(() => {
-      Animated.timing(opacityAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start(() => onChecked());
-    }, 420);
+      Animated.parallel([
+        Animated.timing(opacityAnim, { toValue: 0,    duration: 700, useNativeDriver: false }),
+        Animated.timing(rowScale,    { toValue: 0.82,  duration: 600, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      ]).start(() => onChecked());
+    }, 500);
   };
 
   return (
-    <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { opacity: opacityAnim }]}>
+    <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { opacity: opacityAnim, transform: [{ scale: rowScale }] }]}>
       {/* Emoji */}
       <Pressable onPress={onEmojiPress} hitSlop={6} style={sc.emojiBtn}>
         <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
@@ -418,6 +440,16 @@ export default function LifeTaskScreen() {
       const data = await r.json();
       if (data.tasks) {
         const filtered = (data.tasks as LifeTask[]).filter(t => norm(t.emoji) !== norm(HIDDEN_EMOJI));
+        // Sort: items with sortOrder first (ascending), then by emoji position in category list
+        const catEmojis = config.emojis;
+        filtered.sort((a, b) => {
+          if (a.sortOrder !== null && b.sortOrder !== null) return a.sortOrder - b.sortOrder;
+          if (a.sortOrder !== null) return -1;
+          if (b.sortOrder !== null) return 1;
+          const ai = catEmojis.findIndex(e => norm(e) === norm(a.emoji));
+          const bi = catEmojis.findIndex(e => norm(e) === norm(b.emoji));
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
         setTasks(filtered);
         // Reset position anims
         filtered.forEach((t, i) => {
@@ -484,16 +516,19 @@ export default function LifeTaskScreen() {
   }, []);
 
   const startDrag = useCallback((idx: number) => {
+    // Set drag state immediately (before async measure) so PanResponder
+    // captures the very first move event rather than missing it
+    isDraggingRef.current  = true;
+    draggingIdxRef.current = idx;
+    hoverIdxRef.current    = idx;
+    dragOccurredRef.current = true;
+    setDragActiveIdx(idx);
+    setScrollEnabled(false);
+    panY.setValue(0);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // Measure async for precise drop-zone calculation
     containerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
       containerTopRef.current = py;
-      isDraggingRef.current = true;
-      draggingIdxRef.current = idx;
-      hoverIdxRef.current    = idx;
-      dragOccurredRef.current = true;
-      setDragActiveIdx(idx);
-      setScrollEnabled(false);
-      panY.setValue(0);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     });
   }, []);
 
@@ -643,12 +678,6 @@ export default function LifeTaskScreen() {
       {config.emojis.length > 1 && (
         <View style={sc.filterBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.filterScroll}>
-            <Pressable
-              onPress={() => setActiveEmoji(null)}
-              style={[sc.filterChip, activeEmoji === null && sc.filterChipActive]}
-            >
-              <Text style={[sc.filterChipText, activeEmoji === null && sc.filterChipTextActive]}>All</Text>
-            </Pressable>
             {config.emojis.map(e => {
               const isActive = activeEmoji !== null && norm(activeEmoji) === norm(e);
               return (
@@ -656,11 +685,12 @@ export default function LifeTaskScreen() {
                   key={e}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    // Tap active emoji again to deselect (show all)
                     setActiveEmoji(prev => prev !== null && norm(prev) === norm(e) ? null : e);
                   }}
                   style={[sc.filterChip, isActive && sc.filterChipActive]}
                 >
-                  <Text style={[sc.filterEmojiText, !isActive && !!activeEmoji && { opacity: 0.35 }]}>{e}</Text>
+                  <Text style={sc.filterEmojiText}>{e}</Text>
                 </Pressable>
               );
             })}
@@ -692,36 +722,58 @@ export default function LifeTaskScreen() {
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
         >
-          <View
-            ref={containerRef}
-            {...panResponder.panHandlers}
-            style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
-          >
-            {tasks.map((task, idx) => {
-              const isFiltered = activeEmoji !== null && norm(task.emoji) !== norm(activeEmoji);
-              const isDragging = dragActiveIdx === idx;
-              const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
-              return (
-                <Animated.View
-                  key={task.id}
-                  style={[
-                    sc.absItem,
-                    { top: posAnim, zIndex: isDragging ? 100 : 1, opacity: isFiltered ? 0.22 : 1 },
-                    isDragging && { transform: [{ translateY: panY }] },
-                  ]}
-                >
-                  <TaskRow
-                    task={task}
-                    isDragging={isDragging}
-                    onEmojiPress={() => setPickerTaskId(task.id)}
-                    onPress={() => openDetail(task)}
-                    onLongPress={() => startDrag(idx)}
-                    onChecked={() => handleCheckOff(task.id)}
-                  />
-                </Animated.View>
-              );
-            })}
-          </View>
+          {/* Filtered view: simple flow layout, no drag */}
+          {activeEmoji !== null && (
+            <View style={{ marginHorizontal: 16, marginTop: 8 }}>
+              {tasks
+                .filter(t => norm(t.emoji) === norm(activeEmoji))
+                .map(task => (
+                  <View key={task.id} style={{ marginBottom: ITEM_GAP }}>
+                    <TaskRow
+                      task={task}
+                      isDragging={false}
+                      onEmojiPress={() => setPickerTaskId(task.id)}
+                      onPress={() => openDetail(task)}
+                      onLongPress={() => {}}
+                      onChecked={() => handleCheckOff(task.id)}
+                    />
+                  </View>
+                ))}
+            </View>
+          )}
+
+          {/* Unfiltered drag view */}
+          {activeEmoji === null && (
+            <View
+              ref={containerRef}
+              {...panResponder.panHandlers}
+              style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
+            >
+              {tasks.map((task, idx) => {
+                const isDragging = dragActiveIdx === idx;
+                const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
+                return (
+                  <Animated.View
+                    key={task.id}
+                    style={[
+                      sc.absItem,
+                      { top: posAnim, zIndex: isDragging ? 100 : 1 },
+                      isDragging && { transform: [{ translateY: panY }] },
+                    ]}
+                  >
+                    <TaskRow
+                      task={task}
+                      isDragging={isDragging}
+                      onEmojiPress={() => setPickerTaskId(task.id)}
+                      onPress={() => openDetail(task)}
+                      onLongPress={() => startDrag(idx)}
+                      onChecked={() => handleCheckOff(task.id)}
+                    />
+                  </Animated.View>
+                );
+              })}
+            </View>
+          )}
         </ScrollView>
       )}
 
