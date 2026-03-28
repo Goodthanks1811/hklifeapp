@@ -16,9 +16,11 @@ import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Drawer } from "@/components/Drawer";
+import { LockScreen } from "@/components/LockScreen";
 import { DrawerProvider } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
+import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
 
 if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
@@ -28,17 +30,30 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-function RootLayoutNav() {
+function AppGate({ children }: { children: React.ReactNode }) {
+  const { isReady, isLocked } = useBiometric();
+  if (!isReady) return null;
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="ui-kit" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="ir-quick-add" />
-      </Stack>
-      <Drawer />
+      {children}
+      {isLocked && <LockScreen />}
     </>
+  );
+}
+
+function RootLayoutNav() {
+  return (
+    <BiometricProvider>
+      <AppGate>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="ui-kit" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="ir-quick-add" />
+        </Stack>
+        <Drawer />
+      </AppGate>
+    </BiometricProvider>
   );
 }
 

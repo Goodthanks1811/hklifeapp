@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
+import { useBiometric } from "@/context/BiometricContext";
 import {
   SECTION_LABELS,
   useDrawerConfig,
@@ -25,6 +27,11 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ActiveMove = { section: SectionKey; label: string };
+
+// ── Reusable section header label ─────────────────────────────────────────────
+function SectionLabel({ text, style }: { text: string; style?: object }) {
+  return <Text style={[styles.sectionLabel, style]}>{text}</Text>;
+}
 
 // ── Menu section card ─────────────────────────────────────────────────────────
 function MenuSectionCard({
@@ -67,7 +74,6 @@ function MenuSectionCard({
           {SECTION_LABELS[sectionKey]}
         </Text>
         <View style={mStyles.sectionControls}>
-          {/* Section reorder arrows */}
           <Pressable
             onPress={() => { if (!sectionIsFirst) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveSectionUp(); } }}
             style={({ pressed }) => [mStyles.arrowBtn, (sectionIsFirst || pressed) && mStyles.arrowBtnDim]}
@@ -82,7 +88,6 @@ function MenuSectionCard({
           >
             <Feather name="chevron-down" size={15} color={sectionIsLast ? Colors.textMuted : Colors.textSecondary} />
           </Pressable>
-          {/* Section hide toggle */}
           <Pressable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleSectionHidden(sectionKey); }}
             style={({ pressed }) => [mStyles.eyeBtn, pressed && { opacity: 0.6 }]}
@@ -102,7 +107,6 @@ function MenuSectionCard({
 
         return (
           <View key={item.label}>
-            {/* Item row */}
             <View style={[mStyles.itemRow, hidden && mStyles.itemRowHidden]}>
               <View style={[mStyles.iconBox, hidden && mStyles.iconBoxHidden]}>
                 <Feather name={item.icon as any} size={14} color={hidden ? Colors.textMuted : Colors.primary} />
@@ -111,8 +115,6 @@ function MenuSectionCard({
                 <Text style={[mStyles.itemLabel, hidden && mStyles.itemLabelHidden]}>{item.label}</Text>
                 <Text style={mStyles.itemDesc}>{item.description}</Text>
               </View>
-
-              {/* Reorder arrows */}
               <View style={mStyles.arrows}>
                 <Pressable
                   onPress={() => { if (!itemFirst) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveUp(sectionKey, item.label); } }}
@@ -129,8 +131,6 @@ function MenuSectionCard({
                   <Feather name="chevron-down" size={15} color={itemLast ? Colors.textMuted : Colors.textSecondary} />
                 </Pressable>
               </View>
-
-              {/* Move-to-section button */}
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -141,8 +141,6 @@ function MenuSectionCard({
               >
                 <Feather name="log-in" size={15} color={isMoving ? Colors.primary : Colors.textSecondary} />
               </Pressable>
-
-              {/* Eye toggle */}
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleHidden(sectionKey, item.label); }}
                 style={({ pressed }) => [mStyles.eyeBtn, pressed && { opacity: 0.6 }]}
@@ -152,7 +150,6 @@ function MenuSectionCard({
               </Pressable>
             </View>
 
-            {/* Inline section picker */}
             {isMoving && (
               <View style={mStyles.picker}>
                 <Text style={mStyles.pickerLabel}>Move to:</Text>
@@ -185,6 +182,7 @@ function MenuSectionCard({
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey, setApiKey, clearConfig } = useNotion();
+  const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection } = useDrawerConfig();
 
   const [draft,       setDraft]       = useState(apiKey ?? "");
@@ -192,6 +190,7 @@ export default function SettingsScreen() {
   const [masked,      setMasked]      = useState(true);
   const [clearing,    setClearing]    = useState(false);
   const [activeMove,  setActiveMove]  = useState<ActiveMove | null>(null);
+  const [bioToggling, setBioToggling] = useState(false);
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
@@ -223,6 +222,17 @@ export default function SettingsScreen() {
     setClearing(false);
   };
 
+  const handleBiometricToggle = async (val: boolean) => {
+    if (bioToggling) return;
+    setBioToggling(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const success = await setBiometric(val);
+    if (!success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+    setBioToggling(false);
+  };
+
   const orderedSections = getSectionOrder();
   const isChanged = draft.trim() !== (apiKey ?? "");
   const hasKey    = !!apiKey;
@@ -236,34 +246,12 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Menu Customisation ─────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>MENU</Text>
-        <Text style={styles.sectionHint}>
-          Reorder sections and items with ↑↓. Tap{" "}
-          <Feather name="log-in" size={11} color={Colors.textMuted} /> to move an item to a different section.
-          Tap the eye to show or hide.
-        </Text>
 
-        {orderedSections.map((key, idx) => (
-          <MenuSectionCard
-            key={key}
-            sectionKey={key}
-            sectionIsFirst={idx === 0}
-            sectionIsLast={idx === orderedSections.length - 1}
-            onMoveSectionUp={() => moveSectionUp(key)}
-            onMoveSectionDown={() => moveSectionDown(key)}
-            activeMove={activeMove?.section === key ? activeMove : null}
-            onStartMove={(label) => setActiveMove({ section: key, label })}
-            onCompleteMove={(label, toSection) => {
-              moveItemToSection(key, label, toSection);
-              setActiveMove(null);
-            }}
-            onCancelMove={() => setActiveMove(null)}
-          />
-        ))}
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 1 — NOTION API
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <SectionLabel text="NOTION API" />
 
-        {/* ── Notion Integration ─────────────────────────────────────────────── */}
-        <Text style={[styles.sectionLabel, { marginTop: 24 }]}>NOTION INTEGRATION</Text>
         <View style={styles.card}>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: hasKey ? Colors.success : Colors.textMuted }]} />
@@ -324,9 +312,8 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* ── How it works ───────────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
-        <View style={styles.card}>
+        {/* How it works */}
+        <View style={[styles.card, { marginTop: 2 }]}>
           {[
             { n: "1", text: "Go to notion.so/my-integrations and create a new integration." },
             { n: "2", text: 'Copy the "Internal Integration Secret" (starts with secret_).' },
@@ -341,6 +328,79 @@ export default function SettingsScreen() {
             </View>
           ))}
         </View>
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 2 — MENU SETTINGS
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <SectionLabel text="MENU SETTINGS" style={{ marginTop: 28 }} />
+        <Text style={styles.sectionHint}>
+          Reorder sections and items with ↑↓. Tap{" "}
+          <Feather name="log-in" size={11} color={Colors.textMuted} /> to move an item to a different section.
+          Tap the eye to show or hide.
+        </Text>
+
+        {orderedSections.map((key, idx) => (
+          <MenuSectionCard
+            key={key}
+            sectionKey={key}
+            sectionIsFirst={idx === 0}
+            sectionIsLast={idx === orderedSections.length - 1}
+            onMoveSectionUp={() => moveSectionUp(key)}
+            onMoveSectionDown={() => moveSectionDown(key)}
+            activeMove={activeMove?.section === key ? activeMove : null}
+            onStartMove={(label) => setActiveMove({ section: key, label })}
+            onCompleteMove={(label, toSection) => {
+              moveItemToSection(key, label, toSection);
+              setActiveMove(null);
+            }}
+            onCancelMove={() => setActiveMove(null)}
+          />
+        ))}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 3 — SECURITY
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <SectionLabel text="SECURITY" style={{ marginTop: 28 }} />
+
+        <View style={styles.card}>
+          {/* Face ID row */}
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleIcon}>
+              <Feather name="cpu" size={16} color={biometricSupported ? Colors.primary : Colors.textMuted} />
+            </View>
+            <View style={styles.toggleText}>
+              <Text style={styles.toggleLabel}>Face ID / Biometrics</Text>
+              <Text style={styles.toggleDesc}>
+                {!biometricSupported
+                  ? "Not available on this device or simulator"
+                  : biometricEnabled
+                    ? "App is locked on launch"
+                    : "Lock app on launch with Face ID"}
+              </Text>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={handleBiometricToggle}
+              disabled={!biometricSupported || bioToggling}
+              trackColor={{ false: Colors.cardBgElevated, true: "rgba(224,49,49,0.4)" }}
+              thumbColor={biometricEnabled ? Colors.primary : Colors.textMuted}
+              ios_backgroundColor={Colors.cardBgElevated}
+            />
+          </View>
+
+          {biometricEnabled && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.bioActiveRow}>
+                <Feather name="shield" size={13} color={Colors.success} />
+                <Text style={styles.bioActiveText}>
+                  Face ID lock is active. You'll be prompted on next launch.
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -417,7 +477,6 @@ const mStyles = StyleSheet.create({
 
   eyeBtn: { width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 8 },
 
-  // Inline section picker
   picker: {
     flexDirection: "row",
     alignItems: "center",
@@ -429,26 +488,19 @@ const mStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  pickerLabel: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-  },
+  pickerLabel: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" },
   pickerPills: { flexDirection: "row", flexWrap: "wrap", gap: 6, flex: 1 },
   pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
     backgroundColor: Colors.cardBgElevated,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 20, borderWidth: 1, borderColor: Colors.border,
   },
   pillPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   pillText: { color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   pickerCancel: { padding: 4 },
 });
 
-// ── Existing styles ───────────────────────────────────────────────────────────
+// ── Screen styles ─────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.darkBg },
   content: { padding: 20, gap: 8 },
@@ -459,7 +511,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: 1,
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: 8,
     marginTop: 4,
   },
   sectionHint: {
@@ -487,21 +539,13 @@ const styles = StyleSheet.create({
 
   fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
   inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.cardBgElevated,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    paddingRight: 10,
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: Colors.cardBgElevated, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.borderLight, paddingRight: 10,
   },
   input: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    flex: 1, color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 14, paddingVertical: 13,
   },
   eyeBtn: { padding: 6 },
 
@@ -509,11 +553,8 @@ const styles = StyleSheet.create({
   hintLink: { color: Colors.info, fontFamily: "Inter_500Medium" },
 
   saveBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
+    backgroundColor: Colors.primary, borderRadius: 12,
+    alignItems: "center", justifyContent: "center", paddingVertical: 14,
   },
   saveBtnDisabled: { opacity: 0.35 },
   saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
@@ -525,11 +566,24 @@ const styles = StyleSheet.create({
   step: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   stepNum: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: Colors.cardBgElevated,
-    borderWidth: 1, borderColor: Colors.borderLight,
-    alignItems: "center", justifyContent: "center",
-    marginTop: 1,
+    backgroundColor: Colors.cardBgElevated, borderWidth: 1, borderColor: Colors.borderLight,
+    alignItems: "center", justifyContent: "center", marginTop: 1,
   },
   stepNumText: { color: Colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" },
   stepText: { flex: 1, color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+
+  // ── Security / Face ID row ─────────────────────────────────────────────────
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  toggleIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(224,49,49,0.08)",
+    borderWidth: 1, borderColor: "rgba(224,49,49,0.18)",
+    alignItems: "center", justifyContent: "center",
+  },
+  toggleText: { flex: 1 },
+  toggleLabel: { color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  toggleDesc: { color: Colors.textMuted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+
+  bioActiveRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  bioActiveText: { color: Colors.success, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
 });
