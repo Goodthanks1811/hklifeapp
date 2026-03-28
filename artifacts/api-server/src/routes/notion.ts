@@ -107,11 +107,12 @@ router.get("/databases", async (req, res) => {
     }
 
     const data = await response.json();
-    const databases = (data.results || []).map((db: any) => ({
-      id: db.id,
-      title: extractTitle(Object.values(db.properties || {}).find((p: any) => p.type === "title") as any) || db.title?.[0]?.plain_text || "Untitled",
-      statuses: [],
-    }));
+    const databases = (data.results || []).map((db: any) => {
+      // For database objects, title is a top-level array of rich text segments
+      const titleArr: any[] = Array.isArray(db.title) ? db.title : [];
+      const title = titleArr.map((t: any) => t.plain_text || "").join("").trim() || "Untitled";
+      return { id: db.id, title, statuses: [] };
+    });
 
     res.json({ databases });
   } catch (e: any) {
