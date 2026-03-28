@@ -27,11 +27,13 @@ const REPORTS_ITEMS = [
 
 const PLACEHOLDER_ITEM = { label: "Coming soon", icon: "clock" as const, route: null, description: "In development" };
 
-const APPS_ITEMS = [PLACEHOLDER_ITEM];
+const APPS_ITEMS = [
+  { label: "Mi Nena", icon: "heart" as const, route: "/mi-nena", description: "Photo & video gallery" },
+];
 const FOOTY_ITEMS = [PLACEHOLDER_ITEM];
 const TOOLS_ITEMS = [
-  { label: "Mi Nena",      icon: "heart" as const, route: "/mi-nena",     description: "Photo & video gallery" },
-  { label: "IR Quick Add", icon: "zap"   as const, route: "/ir-quick-add", description: "Add to Notion DB"     },
+  { label: "IR Quick Add",  icon: "zap"        as const, route: "/ir-quick-add",  description: "Add to Notion DB"        },
+  { label: "HK Quick Add",  icon: "plus-circle" as const, route: "/hk-quick-add", description: "HK Automation task add"  },
 ];
 const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
 
