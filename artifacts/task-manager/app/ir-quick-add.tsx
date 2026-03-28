@@ -223,10 +223,11 @@ export default function IRQuickAdd() {
         </Pressable>
       </View>
 
-      {/* Scrollable body — bottom padding reserves space for the absolute footer */}
+      {/* Scrollable body — shrinks as keyboard rises so all rows stay reachable */}
+      <Animated.View style={[styles.flex, { marginBottom: keyboardOffset }]}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: footerH + Math.max(bottomPad, 16) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: footerH + 8 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -323,6 +324,7 @@ export default function IRQuickAdd() {
           </ScrollView>
         </View>
       </ScrollView>
+      </Animated.View>
 
       {/* Footer — absolutely positioned, animates up with keyboard */}
       <Animated.View
