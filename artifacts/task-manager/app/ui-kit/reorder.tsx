@@ -6,7 +6,6 @@ import {
   GestureDetector,
   ScrollView,
 } from "react-native-gesture-handler";
-import Swipeable from "react-native-gesture-handler/Swipeable";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -381,50 +380,74 @@ function SwipeRow({ item, onDelete, onPress }: {
   onDelete: (id: string) => void;
   onPress: () => void;
 }) {
-  const swipeRef = useRef<Swipeable>(null);
+  const translateX = useRef(new Animated.Value(0)).current;
   const heightAnim = useRef(new Animated.Value(56)).current;
   const marginAnim = useRef(new Animated.Value(6)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const deletingRef = useRef(false);
 
-  const triggerDelete = () => {
+  const triggerDelete = useCallback(() => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Animated.parallel([
       Animated.timing(opacityAnim, { toValue: 0, duration: 110, useNativeDriver: false }),
       Animated.timing(heightAnim, { toValue: 0, duration: 260, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.cubic) }),
       Animated.timing(marginAnim, { toValue: 0, duration: 260, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.cubic) }),
     ]).start(() => onDelete(item.id));
-  };
+  }, [item.id, onDelete]);
 
-  const renderRightActions = (_prog: Animated.AnimatedInterpolation<number>, drag: Animated.AnimatedInterpolation<number>) => {
-    const scale = drag.interpolate({ inputRange: [-80, 0], outputRange: [1, 0.7], extrapolate: "clamp" });
-    return (
-      <Animated.View style={[styles.swipeActionContainer, { transform: [{ scale }] }]}>
-        <Pressable style={styles.deletePill} onPress={triggerDelete}>
-          <Feather name="trash-2" size={13} color="#fff" />
-          <Text style={styles.deletePillText}>Delete</Text>
-        </Pressable>
-      </Animated.View>
-    );
-  };
+  const snapBack = useCallback(() => {
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: false, tension: 150, friction: 14 }).start();
+  }, [translateX]);
+
+  const updateX = useCallback((x: number) => {
+    translateX.setValue(x);
+  }, [translateX]);
+
+  const gesture = useMemo(() =>
+    Gesture.Pan()
+      .activeOffsetX([-10, 10])
+      .failOffsetY([-12, 12])
+      .onChange((e) => {
+        runOnJS(updateX)(clamp(-120, e.translationX, 0));
+      })
+      .onEnd((e) => {
+        if (e.translationX < -75) {
+          runOnJS(triggerDelete)();
+        } else {
+          runOnJS(snapBack)();
+        }
+      }),
+    [triggerDelete, snapBack, updateX]
+  );
+
+  const pillOpacity = translateX.interpolate({ inputRange: [-120, -30, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
+  const pillTranslate = translateX.interpolate({ inputRange: [-120, 0], outputRange: [0, 16], extrapolate: "clamp" });
 
   return (
-    <Animated.View style={{ height: heightAnim, opacity: opacityAnim, marginBottom: marginAnim }}>
-      <Swipeable
-        ref={swipeRef}
-        renderRightActions={renderRightActions}
-        rightThreshold={60}
-        overshootRight={false}
-        friction={2}
-        containerStyle={{ borderRadius: 12 }}
-      >
-        <Pressable style={styles.swipeRow} onPress={onPress}>
-          <View style={[styles.tagPill, { backgroundColor: `${item.color}18`, borderColor: `${item.color}40` }]}>
-            <Text style={[styles.tagText, { color: item.color }]}>{item.tag}</Text>
-          </View>
-          <Text style={styles.swipeLabel} numberOfLines={1}>{item.label}</Text>
-          <Feather name="chevron-right" size={14} color={Colors.textMuted} />
-        </Pressable>
-      </Swipeable>
+    <Animated.View style={{ height: heightAnim, opacity: opacityAnim, marginBottom: marginAnim, borderRadius: 12, overflow: "hidden" }}>
+      {/* Fixed background — delete pill revealed as row slides left */}
+      <View style={styles.swipeBg}>
+        <Animated.View style={{ opacity: pillOpacity, transform: [{ translateX: pillTranslate }] }}>
+          <Pressable style={styles.deletePill} onPress={triggerDelete}>
+            <Feather name="trash-2" size={12} color="#fff" />
+            <Text style={styles.deletePillText}>Delete</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+      {/* Sliding foreground row */}
+      <GestureDetector gesture={gesture}>
+        <Animated.View style={[styles.swipeRowOuter, { transform: [{ translateX }] }]}>
+          <Pressable style={styles.swipeRow} onPress={onPress}>
+            <View style={[styles.tagPill, { backgroundColor: `${item.color}18`, borderColor: `${item.color}40` }]}>
+              <Text style={[styles.tagText, { color: item.color }]}>{item.tag}</Text>
+            </View>
+            <Text style={styles.swipeLabel} numberOfLines={1}>{item.label}</Text>
+            <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
     </Animated.View>
   );
 }
@@ -570,9 +593,11 @@ const styles = StyleSheet.create({
   checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   checkLabel: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   checkLabelDone: { color: Colors.textMuted, textDecorationLine: "line-through" },
-  swipeActionContainer: {
-    alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 12, backgroundColor: Colors.darkBg,
+  swipeBg: {
+    position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
+    backgroundColor: Colors.darkBg,
+    alignItems: "center", justifyContent: "flex-end", flexDirection: "row",
+    paddingRight: 14,
   },
   deletePill: {
     flexDirection: "row", alignItems: "center", gap: 5,
@@ -580,6 +605,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
   },
   deletePillText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  swipeRowOuter: {
+    position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
+  },
   swipeRow: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: Colors.cardBg, borderRadius: 12,
