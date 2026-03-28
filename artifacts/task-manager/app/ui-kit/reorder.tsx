@@ -274,11 +274,11 @@ function LiveDraggableList({ items, setItems, onItemPress }: {
       let target = i;
       if (dragIdx < hoverIdx && i > dragIdx && i <= hoverIdx) target = i - 1;
       else if (dragIdx > hoverIdx && i >= hoverIdx && i < dragIdx) target = i + 1;
-      Animated.spring(posAnims.current[item.id], {
+      Animated.timing(posAnims.current[item.id], {
         toValue: target * ITEM_H,
+        duration: 140,
         useNativeDriver: false,
-        tension: 240,
-        friction: 20,
+        easing: Easing.out(Easing.cubic),
       }).start();
     });
   }, []);
@@ -383,14 +383,15 @@ function SwipeRow({ item, onDelete, onPress }: {
 }) {
   const swipeRef = useRef<Swipeable>(null);
   const heightAnim = useRef(new Animated.Value(56)).current;
+  const marginAnim = useRef(new Animated.Value(6)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
 
   const triggerDelete = () => {
-    swipeRef.current?.close();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Animated.parallel([
-      Animated.timing(heightAnim, { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 110, useNativeDriver: false }),
+      Animated.timing(heightAnim, { toValue: 0, duration: 260, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.cubic) }),
+      Animated.timing(marginAnim, { toValue: 0, duration: 260, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.cubic) }),
     ]).start(() => onDelete(item.id));
   };
 
@@ -407,7 +408,7 @@ function SwipeRow({ item, onDelete, onPress }: {
   };
 
   return (
-    <Animated.View style={{ height: heightAnim, opacity: opacityAnim, marginBottom: 6 }}>
+    <Animated.View style={{ height: heightAnim, opacity: opacityAnim, marginBottom: marginAnim }}>
       <Swipeable
         ref={swipeRef}
         renderRightActions={renderRightActions}
