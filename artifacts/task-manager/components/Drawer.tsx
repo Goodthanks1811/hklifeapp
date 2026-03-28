@@ -20,7 +20,6 @@ import { useDrawer } from "@/context/DrawerContext";
 
 // ── Menu data ─────────────────────────────────────────────────────────────────
 const REPORTS_ITEMS = [
-  { label: "IR Quick Add",  icon: "zap"       as const, route: "/ir-quick-add",  description: "Add to Notion DB"    },
   { label: "Mood Report",   icon: "activity"  as const, route: "/mood-report",   description: "Monthly mood charts" },
   { label: "My Workload",   icon: "bar-chart" as const, route: "/my-workload",   description: "Created vs done"     },
   { label: "Review Digest", icon: "file-text" as const, route: null,             description: "Coming soon"         },
@@ -28,11 +27,12 @@ const REPORTS_ITEMS = [
 
 const PLACEHOLDER_ITEM = { label: "Coming soon", icon: "clock" as const, route: null, description: "In development" };
 
-const APPS_ITEMS = [
-  { label: "Mi Nena", icon: "heart" as const, route: "/mi-nena", description: "Photo & video gallery" },
+const APPS_ITEMS = [PLACEHOLDER_ITEM];
+const FOOTY_ITEMS = [PLACEHOLDER_ITEM];
+const TOOLS_ITEMS = [
+  { label: "Mi Nena",      icon: "heart" as const, route: "/mi-nena",     description: "Photo & video gallery" },
+  { label: "IR Quick Add", icon: "zap"   as const, route: "/ir-quick-add", description: "Add to Notion DB"     },
 ];
-const FOOTY_ITEMS   = [PLACEHOLDER_ITEM];
-const TOOLS_ITEMS   = [PLACEHOLDER_ITEM];
 const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
 
 const UI_KIT_ITEMS = [
