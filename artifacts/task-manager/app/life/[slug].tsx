@@ -25,8 +25,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -34,7 +32,7 @@ import { useNotion } from "@/context/NotionContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LIFE_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
-const ITEM_H       = 56;
+const ITEM_H       = 48;
 const ITEM_GAP     = 8;
 const SLOT_H       = ITEM_H + ITEM_GAP;
 const HIDDEN_EMOJI = "👎";
@@ -59,8 +57,10 @@ const SLUG_MAP: Record<string, SlugConfig> = {
 interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; }
 interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; }
 
-const norm = (e: string) => e.replace(/\uFE0F/g, "").trim();
+const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
+// A static zero-value used for the dragged row so it never dims itself
+const ZERO_ANIM = new Animated.Value(0);
 
 // ── Emoji picker sheet ─────────────────────────────────────────────────────────
 function EmojiPicker({ visible, onSelect, onClose }: {
@@ -124,6 +124,9 @@ function DetailSheet({ task, body, bodyLoading, isTablet, onClose, onSave, onEmo
 
   useEffect(() => {
     if (task) {
+      // Reset to off-screen so re-opens always animate in cleanly (prevents freeze on re-open)
+      slideAnim.setValue(600);
+      bgAnim.setValue(0);
       setTitle(task.title);
       Animated.parallel([
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 80, friction: 12 }),
@@ -161,9 +164,6 @@ function DetailSheet({ task, body, bodyLoading, isTablet, onClose, onSave, onEmo
                 style={({ pressed }) => [s.detailEmoji, pressed && { opacity: 0.7 }]}
               >
                 <Text style={s.detailEmojiText}>{task?.emoji ?? DEFAULT_EMOJI}</Text>
-                <View style={s.emojiEditBadge}>
-                  <Feather name="edit-2" size={9} color="#fff" />
-                </View>
               </Pressable>
               <TextInput
                 style={s.detailTitle}
@@ -179,7 +179,7 @@ function DetailSheet({ task, body, bodyLoading, isTablet, onClose, onSave, onEmo
             <View style={s.bodySection}>
               <Text style={s.bodySectionLabel}>NOTES</Text>
               {bodyLoading
-                ? <Text style={s.bodyPlaceholder}>Loading…</Text>
+                ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "flex-start", marginVertical: 4 }} />
                 : body
                   ? <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                       <Text style={s.bodyText}>{body}</Text>
@@ -358,9 +358,10 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onChecked, onDelete }: {
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPress, onChecked, onDelete }: {
   task:         LifeTask;
   isDragging:   boolean;
+  dimValue:     Animated.Value;   // 0=normal, 1=dimmed (drag mode, non-dragged rows)
   onEmojiPress: () => void;
   onPress:      () => void;
   onLongPress:  () => void;
@@ -373,6 +374,39 @@ function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onCheck
   const translateX  = useRef(new Animated.Value(0)).current;
   const deletingRef = useRef(false);
   const [checked, setChecked] = useState(false);
+
+  // ── Swipe callbacks (stored in ref so PanResponder closure stays fresh) ───
+  const swipeCbs = useRef({
+    snapBack:  () => Animated.spring(translateX, { toValue: 0,    useNativeDriver: false, tension: 160, friction: 14 }).start(),
+    snapReveal:() => Animated.spring(translateX, { toValue: -120, useNativeDriver: false, tension: 160, friction: 14 }).start(),
+  });
+
+  // ── PanResponder for swipe-to-delete (native PanResponder = no RNGH conflict) ──
+  const swipePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        !deletingRef.current && Math.abs(gs.dx) > 7 && Math.abs(gs.dy) < 10,
+      onMoveShouldSetPanResponderCapture: () => false,   // outer drag container can always steal
+      onPanResponderMove: (_, gs) => {
+        translateX.setValue(Math.max(-120, Math.min(0, gs.dx)));
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -60) swipeCbs.current.snapReveal();
+        else swipeCbs.current.snapBack();
+      },
+      onPanResponderTerminate: () => swipeCbs.current.snapBack(),
+    })
+  ).current;
+
+  const triggerDelete = useCallback(() => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Animated.parallel([
+      Animated.timing(translateX,  { toValue: -500, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(opacityAnim, { toValue: 0,    duration: 220, useNativeDriver: false }),
+    ]).start(() => onDelete());
+  }, [onDelete]);
 
   const handleCheck = () => {
     if (checked) return;
@@ -387,46 +421,20 @@ function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onCheck
     }, 320);
   };
 
-  const triggerDelete = useCallback(() => {
-    if (deletingRef.current) return;
-    deletingRef.current = true;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Animated.parallel([
-      Animated.timing(translateX,  { toValue: -500, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.timing(opacityAnim, { toValue: 0,    duration: 220, useNativeDriver: false }),
-    ]).start(() => onDelete());
-  }, [onDelete]);
-
-  const snapBack = useCallback(() => {
-    Animated.spring(translateX, { toValue: 0, useNativeDriver: false, tension: 160, friction: 14 }).start();
-  }, [translateX]);
-
-  const updateX = useCallback((x: number) => { translateX.setValue(x); }, [translateX]);
-
-  const snapReveal = useCallback(() => {
-    Animated.spring(translateX, { toValue: -120, useNativeDriver: false, tension: 160, friction: 14 }).start();
-  }, [translateX]);
-
-  const swipe = useMemo(() =>
-    Gesture.Pan()
-      .activeOffsetX([-8, 8])
-      .failOffsetY([-14, 14])
-      .onChange(e => { runOnJS(updateX)(Math.max(-120, Math.min(0, e.translationX))); })
-      .onEnd(e => {
-        if (e.translationX < -60) runOnJS(snapReveal)();
-        else runOnJS(snapBack)();
-      }),
-    [snapReveal, snapBack, updateX]
+  // Combine row opacity: check-off anim × drag dim (1 - dimValue * 0.75 → 0.25 when dimmed)
+  const combinedOpacity = Animated.multiply(
+    opacityAnim,
+    dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] })
   );
 
-  const pillOpacity  = translateX.interpolate({ inputRange: [-120, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
-  const pillTranslateX = translateX.interpolate({ inputRange: [-120, 0], outputRange: [0, 14], extrapolate: "clamp" });
+  const pillOpacity   = translateX.interpolate({ inputRange: [-120, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
+  const pillTranslate = translateX.interpolate({ inputRange: [-120, 0], outputRange: [0, 14], extrapolate: "clamp" });
 
   return (
-    <Animated.View style={[sc.rowOuter, { opacity: opacityAnim, transform: [{ scale: rowScale }] }]}>
-      {/* Delete background */}
+    <Animated.View style={[sc.rowOuter, { opacity: combinedOpacity, transform: [{ scale: rowScale }] }]}>
+      {/* Delete background — revealed when row slides left */}
       <View style={sc.deleteBg}>
-        <Animated.View style={{ opacity: pillOpacity, transform: [{ translateX: pillTranslateX }] }}>
+        <Animated.View style={{ opacity: pillOpacity, transform: [{ translateX: pillTranslate }] }}>
           <Pressable style={sc.deletePill} onPress={triggerDelete}>
             <Feather name="trash-2" size={12} color="#fff" />
             <Text style={sc.deletePillTx}>Delete</Text>
@@ -435,28 +443,26 @@ function TaskRow({ task, isDragging, onEmojiPress, onPress, onLongPress, onCheck
       </View>
 
       {/* Swipeable foreground */}
-      <GestureDetector gesture={swipe}>
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateX }] }]}>
-          {/* Emoji */}
-          <Pressable onPress={onEmojiPress} hitSlop={6} style={sc.emojiBtn}>
-            <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
-          </Pressable>
+      <Animated.View {...swipePan.panHandlers} style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateX }] }]}>
+        {/* Emoji */}
+        <Pressable onPress={onEmojiPress} hitSlop={6} style={sc.emojiBtn}>
+          <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
+        </Pressable>
 
-          {/* Name */}
-          <Pressable style={{ flex: 1 }} onPress={onPress} onLongPress={onLongPress} delayLongPress={400}>
-            <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
-          </Pressable>
+        {/* Name */}
+        <Pressable style={{ flex: 1 }} onPress={onPress} onLongPress={onLongPress} delayLongPress={400}>
+          <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
+        </Pressable>
 
-          {/* Checkbox */}
-          <Pressable onPress={handleCheck} hitSlop={8} style={sc.checkBtn}>
-            <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
-              <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-                <Feather name="check" size={12} color="#fff" />
-              </Animated.View>
+        {/* Checkbox */}
+        <Pressable onPress={handleCheck} hitSlop={8} style={sc.checkBtn}>
+          <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
+            <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+              <Feather name="check" size={12} color="#fff" />
             </Animated.View>
-          </Pressable>
-        </Animated.View>
-      </GestureDetector>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -502,7 +508,15 @@ export default function LifeTaskScreen() {
         // Sort: items with distinct positive sortOrder first (ascending), then by emoji position
         const catEmojis = config.emojis;
         const emojiIdx  = (e: string) => {
-          const i = catEmojis.findIndex(ce => norm(ce) === norm(e));
+          const ne = norm(e);
+          // Exact stripped match
+          let i = catEmojis.findIndex(ce => norm(ce) === ne);
+          if (i !== -1) return i;
+          // Prefix match (handles extra ZWJ sequences or modifiers)
+          i = catEmojis.findIndex(ce => {
+            const nc = norm(ce);
+            return ne.startsWith(nc) || nc.startsWith(ne);
+          });
           return i === -1 ? 999 : i;
         };
         filtered.sort((a, b) => {
@@ -511,8 +525,10 @@ export default function LifeTaskScreen() {
           if (aOrd !== null && bOrd !== null && aOrd !== bOrd) return aOrd - bOrd;
           if (aOrd !== null && bOrd === null) return -1;
           if (aOrd === null && bOrd !== null) return 1;
-          // Both lack a meaningful sort order → fall back to emoji position in config
-          return emojiIdx(a.emoji) - emojiIdx(b.emoji);
+          // Both lack a meaningful sort order → emoji position, then alphabetical
+          const ei = emojiIdx(a.emoji) - emojiIdx(b.emoji);
+          if (ei !== 0) return ei;
+          return a.title.localeCompare(b.title);
         });
         setTasks(filtered);
         // Reset position anims
@@ -558,6 +574,7 @@ export default function LifeTaskScreen() {
   const hoverIdxRef      = useRef(-1);
   const dragOccurredRef  = useRef(false);
   const panY             = useRef(new Animated.Value(0)).current;
+  const dimAnim          = useRef(new Animated.Value(0)).current;   // 0=normal, 1=all-rows-dimmed
   const [dragActiveIdx, setDragActiveIdx] = useState(-1);
   const [scrollEnabled, setScrollEnabled] = useState(true);
 
@@ -580,21 +597,20 @@ export default function LifeTaskScreen() {
   }, []);
 
   const startDrag = useCallback((idx: number) => {
-    // Set drag state immediately (before async measure) so PanResponder
-    // captures the very first move event rather than missing it
-    isDraggingRef.current  = true;
-    draggingIdxRef.current = idx;
-    hoverIdxRef.current    = idx;
+    isDraggingRef.current   = true;
+    draggingIdxRef.current  = idx;
+    hoverIdxRef.current     = idx;
     dragOccurredRef.current = true;
     setDragActiveIdx(idx);
     setScrollEnabled(false);
     panY.setValue(0);
+    // Dim all other rows
+    Animated.timing(dimAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    // Measure async for precise drop-zone calculation
     containerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
       containerTopRef.current = py;
     });
-  }, []);
+  }, [dimAnim]);
 
   const endDrag = useCallback(() => {
     const di = draggingIdxRef.current;
@@ -604,6 +620,8 @@ export default function LifeTaskScreen() {
     hoverIdxRef.current    = -1;
     panY.setValue(0);
     setScrollEnabled(true);
+    // Restore row brightness
+    Animated.timing(dimAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
 
     if (di >= 0 && hi >= 0 && di !== hi) {
       setTasks(prev => {
@@ -825,6 +843,7 @@ export default function LifeTaskScreen() {
                     <TaskRow
                       task={task}
                       isDragging={false}
+                      dimValue={ZERO_ANIM}
                       onEmojiPress={() => setPickerTaskId(task.id)}
                       onPress={() => openDetail(task)}
                       onLongPress={() => {}}
@@ -858,6 +877,7 @@ export default function LifeTaskScreen() {
                     <TaskRow
                       task={task}
                       isDragging={isDragging}
+                      dimValue={isDragging ? ZERO_ANIM : dimAnim}
                       onEmojiPress={() => setPickerTaskId(task.id)}
                       onPress={() => openDetail(task)}
                       onLongPress={() => startDrag(idx)}
@@ -1012,15 +1032,14 @@ const sc = StyleSheet.create({
   },
   rowDragging: {
     backgroundColor: Colors.cardBgElevated,
-    borderColor: Colors.primary,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 16,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
   },
   emojiBtn:  { minWidth: 32, alignItems: "center" },
   rowEmoji:  { fontSize: 24 },
   rowTitle:  { color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 20 },
   checkBtn:  { padding: 4 },
   checkBox: {
-    width: 26, height: 26, borderRadius: 7, borderWidth: 1.5, borderColor: Colors.border,
+    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",
     alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
   },
   checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
