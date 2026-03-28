@@ -22,6 +22,7 @@ import { useDrawer } from "@/context/DrawerContext";
 const REPORTS_ITEMS = [
   { label: "Mood Report",   icon: "activity"  as const, route: "/mood-report",   description: "Monthly mood charts" },
   { label: "My Workload",   icon: "bar-chart" as const, route: "/my-workload",   description: "Created vs done"     },
+  { label: "March Sleep",   icon: "moon"      as const, route: "/march-sleep",   description: "Feb 28 – Mar 27"    },
   { label: "Review Digest", icon: "file-text" as const, route: null,             description: "Coming soon"         },
 ];
 
