@@ -31,7 +31,9 @@ const PLACEHOLDER_ITEM = { label: "Coming soon", icon: "clock" as const, route: 
 const APPS_ITEMS = [
   { label: "Mi Nena", icon: "heart" as const, route: "/mi-nena", description: "Photo & video gallery" },
 ];
-const FOOTY_ITEMS = [PLACEHOLDER_ITEM];
+const FOOTY_ITEMS = [
+  { label: "Schedule", icon: "calendar" as const, route: "/nrl-schedule", description: "NRL fixtures & ladder" },
+];
 const TOOLS_ITEMS = [
   { label: "IR Quick Add",   icon: "zap"         as const, route: "/ir-quick-add",    description: "Add to Notion DB"        },
   { label: "HK Quick Add",   icon: "plus-circle" as const, route: "/hk-quick-add",    description: "HK Automation task add"  },
