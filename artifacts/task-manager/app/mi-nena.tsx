@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
-import { ResizeMode, Video } from "expo-av";
+import { Audio, ResizeMode, Video } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -13,6 +13,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -60,6 +61,17 @@ function Viewer({
   const [idx, setIdx] = useState(startIndex);
   const listRef = useRef<FlatList>(null);
 
+  // Enable audio even when the silent switch is on
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     setTimeout(() => listRef.current?.scrollToIndex({ index: startIndex, animated: false }), 50);
   }, [startIndex]);
@@ -88,12 +100,27 @@ function Viewer({
                   resizeMode={ResizeMode.CONTAIN}
                   shouldPlay={index === idx}
                   isLooping
+                  volume={1}
                 />
               </View>
             ) : (
-              <View style={{ width, height, alignItems: "center", justifyContent: "center" }}>
-                <Image source={{ uri: item.uri }} style={{ width, height }} resizeMode="contain" />
-              </View>
+              // ScrollView gives native iOS pinch-to-zoom for free
+              <ScrollView
+                style={{ width, height }}
+                contentContainerStyle={{ width, height, alignItems: "center", justifyContent: "center" }}
+                minimumZoomScale={1}
+                maximumZoomScale={6}
+                centerContent
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                bouncesZoom
+              >
+                <Image
+                  source={{ uri: item.uri }}
+                  style={{ width, height }}
+                  resizeMode="contain"
+                />
+              </ScrollView>
             )
           }
         />
