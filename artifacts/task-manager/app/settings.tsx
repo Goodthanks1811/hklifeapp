@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Keyboard,
+  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
@@ -12,8 +13,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === "android") {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -28,10 +35,101 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ActiveMove = { section: SectionKey; label: string };
 
-// ── Reusable section header label ─────────────────────────────────────────────
-function SectionLabel({ text, style }: { text: string; style?: object }) {
-  return <Text style={[styles.sectionLabel, style]}>{text}</Text>;
+// ── Accordion ─────────────────────────────────────────────────────────────────
+function Accordion({
+  title,
+  icon,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen]     = useState(defaultOpen);
+  const chevronAnim         = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
+
+  const toggle = () => {
+    const next = !open;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext({
+      duration: 280,
+      create:  { type: "easeInEaseOut", property: "opacity" },
+      update:  { type: "spring",        springDamping: 0.72 },
+      delete:  { type: "easeInEaseOut", property: "opacity" },
+    });
+    setOpen(next);
+    Animated.spring(chevronAnim, {
+      toValue: next ? 1 : 0,
+      tension: 180, friction: 22, useNativeDriver: true,
+    }).start();
+  };
+
+  const chevronRotate = chevronAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <View style={acc.wrapper}>
+      {/* Header row */}
+      <Pressable
+        style={({ pressed }) => [acc.header, pressed && { opacity: 0.8 }]}
+        onPress={toggle}
+        hitSlop={4}
+      >
+        <View style={acc.headerLeft}>
+          <View style={acc.iconBox}>
+            <Feather name={icon as any} size={14} color={Colors.primary} />
+          </View>
+          <Text style={acc.title}>{title}</Text>
+        </View>
+        <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+          <Feather name="chevron-down" size={18} color={Colors.textMuted} />
+        </Animated.View>
+      </Pressable>
+
+      {/* Body — conditionally mounted so LayoutAnimation handles the expand/collapse */}
+      {open && (
+        <View>
+          {children}
+        </View>
+      )}
+    </View>
+  );
 }
+
+const acc = StyleSheet.create({
+  wrapper: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  iconBox: {
+    width: 28, height: 28,
+    backgroundColor: "rgba(224,49,49,0.12)",
+    borderRadius: 8,
+    alignItems: "center", justifyContent: "center",
+  },
+  title: {
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: -0.1,
+  },
+});
 
 // ── Menu section card ─────────────────────────────────────────────────────────
 function MenuSectionCard({
@@ -247,159 +345,161 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ══════════════════════════════════════════════════════════════════════
-            SECTION 1 — NOTION API
-        ═══════════════════════════════════════════════════════════════════════ */}
-        <SectionLabel text="NOTION API" />
+        {/* ══ NOTION API ══════════════════════════════════════════════════════ */}
+        <Accordion title="Notion API" icon="key" defaultOpen={false}>
+          <View style={styles.accordionBody}>
 
-        <View style={styles.card}>
-          <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: hasKey ? Colors.success : Colors.textMuted }]} />
-            <Text style={[styles.statusText, { color: hasKey ? Colors.success : Colors.textMuted }]}>
-              {hasKey ? "API key configured" : "Not configured"}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.fieldLabel}>Notion API Key</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="secret_xxxxxxxxxxxx…"
-              placeholderTextColor={Colors.textMuted}
-              secureTextEntry={masked}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardAppearance="dark"
-              returnKeyType="done"
-              onSubmitEditing={handleSave}
-            />
-            <Pressable onPress={() => setMasked((m) => !m)} style={styles.eyeBtn}>
-              <Feather name={masked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          <Text style={styles.hint}>
-            Get your key at{" "}
-            <Text style={styles.hintLink}>notion.so/my-integrations</Text>
-            {"\n"}Create an integration → copy the Internal Integration Secret.
-          </Text>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.saveBtn, !isChanged && styles.saveBtnDisabled]}
-            onPress={handleSave}
-            disabled={!isChanged || !draft.trim()}
-          >
-            {saved ? (
-              <Animated.View style={[styles.savedRow, { opacity: tickOpacity }]}>
-                <Feather name="check" size={16} color="#fff" />
-                <Text style={styles.saveBtnText}>Saved</Text>
-              </Animated.View>
-            ) : (
-              <Text style={styles.saveBtnText}>Save API Key</Text>
-            )}
-          </TouchableOpacity>
-
-          {hasKey && (
-            <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={handleClear} disabled={clearing}>
-              <Feather name="trash-2" size={14} color={Colors.textSecondary} />
-              <Text style={styles.clearBtnText}>{clearing ? "Clearing…" : "Remove saved key"}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* How it works */}
-        <View style={[styles.card, { marginTop: 2 }]}>
-          {[
-            { n: "1", text: "Go to notion.so/my-integrations and create a new integration." },
-            { n: "2", text: 'Copy the "Internal Integration Secret" (starts with secret_).' },
-            { n: "3", text: "Paste it above and tap Save API Key." },
-            { n: "4", text: "Open your Notion database → Connections → add your integration." },
-          ].map((step) => (
-            <View key={step.n} style={styles.step}>
-              <View style={styles.stepNum}>
-                <Text style={styles.stepNumText}>{step.n}</Text>
-              </View>
-              <Text style={styles.stepText}>{step.text}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            SECTION 2 — MENU SETTINGS
-        ═══════════════════════════════════════════════════════════════════════ */}
-        <SectionLabel text="MENU SETTINGS" style={{ marginTop: 28 }} />
-        <Text style={styles.sectionHint}>
-          Reorder sections and items with ↑↓. Tap{" "}
-          <Feather name="log-in" size={11} color={Colors.textMuted} /> to move an item to a different section.
-          Tap the eye to show or hide.
-        </Text>
-
-        {orderedSections.map((key, idx) => (
-          <MenuSectionCard
-            key={key}
-            sectionKey={key}
-            sectionIsFirst={idx === 0}
-            sectionIsLast={idx === orderedSections.length - 1}
-            onMoveSectionUp={() => moveSectionUp(key)}
-            onMoveSectionDown={() => moveSectionDown(key)}
-            activeMove={activeMove?.section === key ? activeMove : null}
-            onStartMove={(label) => setActiveMove({ section: key, label })}
-            onCompleteMove={(label, toSection) => {
-              moveItemToSection(key, label, toSection);
-              setActiveMove(null);
-            }}
-            onCancelMove={() => setActiveMove(null)}
-          />
-        ))}
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            SECTION 3 — SECURITY
-        ═══════════════════════════════════════════════════════════════════════ */}
-        <SectionLabel text="SECURITY" style={{ marginTop: 28 }} />
-
-        <View style={styles.card}>
-          {/* Face ID row */}
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleIcon}>
-              <Feather name="cpu" size={16} color={biometricSupported ? Colors.primary : Colors.textMuted} />
-            </View>
-            <View style={styles.toggleText}>
-              <Text style={styles.toggleLabel}>Face ID / Biometrics</Text>
-              <Text style={styles.toggleDesc}>
-                {!biometricSupported
-                  ? "Not available on this device or simulator"
-                  : biometricEnabled
-                    ? "App is locked on launch"
-                    : "Lock app on launch with Face ID"}
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: hasKey ? Colors.success : Colors.textMuted }]} />
+              <Text style={[styles.statusText, { color: hasKey ? Colors.success : Colors.textMuted }]}>
+                {hasKey ? "API key configured" : "Not configured"}
               </Text>
             </View>
-            <Switch
-              value={biometricEnabled}
-              onValueChange={handleBiometricToggle}
-              disabled={!biometricSupported || bioToggling}
-              trackColor={{ false: Colors.cardBgElevated, true: "rgba(224,49,49,0.4)" }}
-              thumbColor={biometricEnabled ? Colors.primary : Colors.textMuted}
-              ios_backgroundColor={Colors.cardBgElevated}
-            />
-          </View>
 
-          {biometricEnabled && (
-            <>
-              <View style={styles.divider} />
-              <View style={styles.bioActiveRow}>
-                <Feather name="shield" size={13} color={Colors.success} />
-                <Text style={styles.bioActiveText}>
-                  Face ID lock is active. You'll be prompted on next launch.
+            <View style={styles.divider} />
+
+            <Text style={styles.fieldLabel}>Notion API Key</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="secret_xxxxxxxxxxxx…"
+                placeholderTextColor={Colors.textMuted}
+                secureTextEntry={masked}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardAppearance="dark"
+                returnKeyType="done"
+                onSubmitEditing={handleSave}
+              />
+              <Pressable onPress={() => setMasked((m) => !m)} style={styles.eyeBtn}>
+                <Feather name={masked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.hint}>
+              Get your key at{" "}
+              <Text style={styles.hintLink}>notion.so/my-integrations</Text>
+              {"\n"}Create an integration → copy the Internal Integration Secret.
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.saveBtn, !isChanged && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={!isChanged || !draft.trim()}
+            >
+              {saved ? (
+                <Animated.View style={[styles.savedRow, { opacity: tickOpacity }]}>
+                  <Feather name="check" size={16} color="#fff" />
+                  <Text style={styles.saveBtnText}>Saved</Text>
+                </Animated.View>
+              ) : (
+                <Text style={styles.saveBtnText}>Save API Key</Text>
+              )}
+            </TouchableOpacity>
+
+            {hasKey && (
+              <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={handleClear} disabled={clearing}>
+                <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                <Text style={styles.clearBtnText}>{clearing ? "Clearing…" : "Remove saved key"}</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={[styles.divider, { marginTop: 4 }]} />
+
+            {/* How it works steps */}
+            <Text style={styles.howTitle}>How it works</Text>
+            {[
+              { n: "1", text: "Go to notion.so/my-integrations and create a new integration." },
+              { n: "2", text: 'Copy the "Internal Integration Secret" (starts with secret_).' },
+              { n: "3", text: "Paste it above and tap Save API Key." },
+              { n: "4", text: "Open your Notion database → Connections → add your integration." },
+            ].map((step) => (
+              <View key={step.n} style={styles.step}>
+                <View style={styles.stepNum}>
+                  <Text style={styles.stepNumText}>{step.n}</Text>
+                </View>
+                <Text style={styles.stepText}>{step.text}</Text>
+              </View>
+            ))}
+
+          </View>
+        </Accordion>
+
+        {/* ══ MENU SETTINGS ═══════════════════════════════════════════════════ */}
+        <Accordion title="Menu Settings" icon="menu" defaultOpen={false}>
+          <View style={styles.accordionBody}>
+            <Text style={styles.sectionHint}>
+              Reorder sections and items with ↑↓. Tap{" "}
+              <Feather name="log-in" size={11} color={Colors.textMuted} /> to move an item to a different section.
+              Tap the eye to show or hide.
+            </Text>
+
+            {orderedSections.map((key, idx) => (
+              <MenuSectionCard
+                key={key}
+                sectionKey={key}
+                sectionIsFirst={idx === 0}
+                sectionIsLast={idx === orderedSections.length - 1}
+                onMoveSectionUp={() => moveSectionUp(key)}
+                onMoveSectionDown={() => moveSectionDown(key)}
+                activeMove={activeMove?.section === key ? activeMove : null}
+                onStartMove={(label) => setActiveMove({ section: key, label })}
+                onCompleteMove={(label, toSection) => {
+                  moveItemToSection(key, label, toSection);
+                  setActiveMove(null);
+                }}
+                onCancelMove={() => setActiveMove(null)}
+              />
+            ))}
+          </View>
+        </Accordion>
+
+        {/* ══ SECURITY ════════════════════════════════════════════════════════ */}
+        <Accordion title="Security" icon="shield" defaultOpen={false}>
+          <View style={styles.accordionBody}>
+
+            {/* Face ID row */}
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleIcon}>
+                <Feather name="cpu" size={16} color={biometricSupported ? Colors.primary : Colors.textMuted} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text style={styles.toggleLabel}>Face ID / Biometrics</Text>
+                <Text style={styles.toggleDesc}>
+                  {!biometricSupported
+                    ? "Not available on this device or simulator"
+                    : biometricEnabled
+                      ? "App is locked on launch"
+                      : "Lock app on launch with Face ID"}
                 </Text>
               </View>
-            </>
-          )}
-        </View>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={handleBiometricToggle}
+                disabled={!biometricSupported || bioToggling}
+                trackColor={{ false: Colors.cardBgElevated, true: "rgba(224,49,49,0.4)" }}
+                thumbColor={biometricEnabled ? Colors.primary : Colors.textMuted}
+                ios_backgroundColor={Colors.cardBgElevated}
+              />
+            </View>
+
+            {biometricEnabled && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.bioActiveRow}>
+                  <Feather name="shield" size={13} color={Colors.success} />
+                  <Text style={styles.bioActiveText}>
+                    Face ID lock is active. You'll be prompted on next launch.
+                  </Text>
+                </View>
+              </>
+            )}
+
+          </View>
+        </Accordion>
 
       </ScrollView>
     </View>
@@ -409,12 +509,12 @@ export default function SettingsScreen() {
 // ── Menu card styles ──────────────────────────────────────────────────────────
 const mStyles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
+    backgroundColor: Colors.cardBgElevated,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: "hidden",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardHidden: { opacity: 0.5 },
 
@@ -505,30 +605,19 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.darkBg },
   content: { padding: 20, gap: 8 },
 
-  sectionLabel: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginBottom: 8,
-    marginTop: 4,
+  accordionBody: {
+    padding: 18,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
+
   sectionHint: {
     color: Colors.textMuted,
     fontSize: 12,
     fontFamily: "Inter_400Regular",
-    marginBottom: 10,
+    marginBottom: 4,
     lineHeight: 18,
-  },
-
-  card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 18,
-    gap: 12,
   },
 
   statusRow: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -550,40 +639,64 @@ const styles = StyleSheet.create({
   eyeBtn: { padding: 6 },
 
   hint: { color: Colors.textMuted, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  hintLink: { color: Colors.info, fontFamily: "Inter_500Medium" },
+  hintLink: { color: Colors.primary, fontFamily: "Inter_500Medium" },
 
   saveBtn: {
-    backgroundColor: Colors.primary, borderRadius: 12,
-    alignItems: "center", justifyContent: "center", paddingVertical: 14,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  saveBtnDisabled: { opacity: 0.35 },
+  saveBtnDisabled: { opacity: 0.4, shadowOpacity: 0 },
   saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
-  savedRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  savedRow: { flexDirection: "row", alignItems: "center", gap: 8 },
 
-  clearBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 6 },
+  clearBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10,
+  },
   clearBtnText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular" },
 
-  step: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  howTitle: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+
+  step: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+  },
   stepNum: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: Colors.cardBgElevated, borderWidth: 1, borderColor: Colors.borderLight,
-    alignItems: "center", justifyContent: "center", marginTop: 1,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(224,49,49,0.15)",
+    borderWidth: 1, borderColor: "rgba(224,49,49,0.3)",
+    alignItems: "center", justifyContent: "center",
+    marginTop: 1,
   },
   stepNumText: { color: Colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" },
-  stepText: { flex: 1, color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  stepText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 19 },
 
-  // ── Security / Face ID row ─────────────────────────────────────────────────
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   toggleIcon: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: "rgba(224,49,49,0.08)",
-    borderWidth: 1, borderColor: "rgba(224,49,49,0.18)",
+    width: 36, height: 36,
+    backgroundColor: "rgba(224,49,49,0.1)",
+    borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
   toggleText: { flex: 1 },
   toggleLabel: { color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
   toggleDesc: { color: Colors.textMuted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 
-  bioActiveRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  bioActiveText: { color: Colors.success, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  bioActiveRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  bioActiveText: { color: Colors.success, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 },
 });

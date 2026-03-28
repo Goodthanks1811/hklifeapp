@@ -28,7 +28,6 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
   const [isReady,     setIsReady]     = useState(false);
   const [isLocked,    setIsLocked]    = useState(false);
 
-  // ── Boot: load pref + check hardware support ─────────────────────────────
   useEffect(() => {
     const init = async () => {
       try {
@@ -43,7 +42,7 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
         setIsEnabled(enabled);
         if (enabled) setIsLocked(true);
       } catch {
-        // If anything fails, stay unlocked
+        // stay unlocked on error
       } finally {
         setIsReady(true);
       }
@@ -55,10 +54,9 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
     if (!isSupported) { setIsLocked(false); return true; }
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage:   "Unlock the app",
-        fallbackLabel:   "Use Passcode",
-        cancelLabel:     "Cancel",
-        disableDeviceFallback: false,
+        promptMessage:         "Unlock the app",
+        cancelLabel:           "Cancel",
+        disableDeviceFallback: true,   // Face ID only — no PIN fallback
       });
       if (result.success) {
         setIsLocked(false);
@@ -72,13 +70,12 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
 
   const setEnabled = useCallback(async (val: boolean): Promise<boolean> => {
     if (val) {
-      // Require a successful auth before enabling
       if (!isSupported) return false;
       try {
         const result = await LocalAuthentication.authenticateAsync({
-          promptMessage:   "Authenticate to enable Face ID lock",
-          cancelLabel:     "Cancel",
-          disableDeviceFallback: false,
+          promptMessage:         "Authenticate to enable Face ID lock",
+          cancelLabel:           "Cancel",
+          disableDeviceFallback: true,   // Face ID only — no PIN fallback
         });
         if (!result.success) return false;
       } catch {
