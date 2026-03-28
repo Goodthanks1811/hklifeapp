@@ -61,10 +61,10 @@ const SCRIPT_ITEMS = [
     description: "Add to Notion DB",
   },
   {
-    label: "Daily Standup",
-    icon: "coffee" as const,
-    route: null,
-    description: "Coming soon",
+    label: "Mood Report",
+    icon: "activity" as const,
+    route: "/mood-report",
+    description: "Monthly mood charts",
   },
   {
     label: "Review Digest",

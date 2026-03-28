@@ -1,0 +1,273 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔥 Mood Report
+// Standalone + HK Dashboard compatible
+// To use from dashboard: module exports buildHTML() + run()
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD COMPATIBILITY TEMPLATE
+// Every script you want to launch from HK App Dashboard
+// must follow this pattern:
+//
+// 1. Put ALL your HTML building logic in buildHTML()
+//    buildHTML() must return a plain HTML string — no WebView, no present()
+//
+// 2. run() calls buildHTML() and presents the WebView
+//    run() is used when the script runs standalone
+//
+// 3. At the bottom:
+//    module.exports = { run: run, buildHTML: buildHTML }
+//    run().catch(function(e) { console.error("run() error: " + e) })
+//
+// That's it. The dashboard preloads buildHTML() at startup
+// and uses it to present your script inside its own WebView.
+// ═══════════════════════════════════════════════════════
+
+const NOTION_TOKEN = Keychain.get("notion_token");
+const DATABASE_ID = "2dfb7eba3523805bb4b1ffbe52682e4c";
+
+const MOOD_COLORS = {
+  "Awesome": "#4CAF50", "Good": "#8BC34A", "Meh": "#FFC107",
+  "Tired": "#FF9800", "Low": "#F44336", "Stressed": "#E91E63",
+};
+const DEFAULT_COLOR = "#607D8B";
+const MOOD_ORDER = ["Awesome", "Good", "Meh", "Tired", "Low", "Stressed"];
+
+async function fetchAllMoods() {
+  var results = [];
+  var cursor = null;
+  var hasMore = true;
+  while (hasMore) {
+    var body = { page_size: 100, sorts: [{ property: "Date", direction: "ascending" }] };
+    if (cursor) body.start_cursor = cursor;
+    var req = new Request("https://api.notion.com/v1/databases/" + DATABASE_ID + "/query");
+    req.method = "POST";
+    req.headers = {
+      "Authorization": "Bearer " + NOTION_TOKEN,
+      "Notion-Version": "2022-06-28",
+      "Content-Type": "application/json"
+    };
+    req.body = JSON.stringify(body);
+    var data = await req.loadJSON();
+    results = results.concat(data.results || []);
+    hasMore = data.has_more;
+    cursor = data.next_cursor;
+  }
+  return results;
+}
+
+function getMood(page) {
+  var titleArr = (page.properties && page.properties.Mood && page.properties.Mood.title) || [];
+  var raw = titleArr.map(function(t) { return t.plain_text; }).join("").trim();
+  if (!raw) return null;
+  for (var i = 0; i < MOOD_ORDER.length; i++) {
+    if (raw.toLowerCase().indexOf(MOOD_ORDER[i].toLowerCase()) !== -1) return MOOD_ORDER[i];
+  }
+  return raw.replace(/[^\w\s]/gu, "").trim() || null;
+}
+
+function getMonthKey(page) {
+  var dateStr = page.properties && page.properties.Date && page.properties.Date.date && page.properties.Date.date.start;
+  if (!dateStr) return null;
+  var d = new Date(dateStr);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function groupByMonth(pages) {
+  var months = {};
+  for (var i = 0; i < pages.length; i++) {
+    var key = getMonthKey(pages[i]);
+    var mood = getMood(pages[i]);
+    if (!key || !mood) continue;
+    if (!months[key]) months[key] = {};
+    months[key][mood] = (months[key][mood] || 0) + 1;
+  }
+  return months;
+}
+
+function monthLabel(key) {
+  var parts = key.split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+}
+
+function buildPieSVG(slices, total) {
+  if (total === 0) return "";
+  var cx = 90, cy = 90, r = 80, innerR = 38;
+  var svg = '<svg viewBox="0 0 180 180" width="180" height="180">';
+  var angle = -Math.PI / 2;
+  for (var i = 0; i < slices.length; i++) {
+    var mood = slices[i][0];
+    var count = slices[i][1];
+    var sweep = (count / total) * 2 * Math.PI;
+    var end = angle + sweep;
+    var x1 = (cx + r * Math.cos(angle)).toFixed(2);
+    var y1 = (cy + r * Math.sin(angle)).toFixed(2);
+    var x2 = (cx + r * Math.cos(end)).toFixed(2);
+    var y2 = (cy + r * Math.sin(end)).toFixed(2);
+    var large = sweep > Math.PI ? 1 : 0;
+    var color = MOOD_COLORS[mood] || DEFAULT_COLOR;
+    var midAngle = angle + sweep / 2;
+    var labelR = (r + innerR) / 2;
+    var lx = (cx + labelR * Math.cos(midAngle)).toFixed(2);
+    var ly = (cy + labelR * Math.sin(midAngle) + 5).toFixed(1);
+    svg += '<path d="M' + cx + ',' + cy + ' L' + x1 + ',' + y1 + ' A' + r + ',' + r + ' 0 ' + large + ',1 ' + x2 + ',' + y2 + ' Z" fill="' + color + '" stroke="#1a1a1a" stroke-width="2"/>';
+    if (sweep > 0.25) {
+      svg += '<text x="' + lx + '" y="' + ly + '" text-anchor="middle" fill="#fff" font-size="14" font-weight="900" font-family="-apple-system">' + count + '</text>';
+    }
+    angle = end;
+  }
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + innerR + '" fill="#1a1a1a"/>';
+  svg += '<text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold" font-family="-apple-system">' + total + '</text>';
+  svg += '</svg>';
+  return svg;
+}
+
+function buildLegendHTML(slices, total, rightAlign) {
+  return slices.map(function(s) {
+    var mood = s[0], count = s[1];
+    var pct = ((count / total) * 100).toFixed(1);
+    var color = MOOD_COLORS[mood] || DEFAULT_COLOR;
+    if (rightAlign) {
+      return '<div class="legend-row">' +
+        '<div class="dot" style="background:' + color + '"></div>' +
+        '<span class="legend-name">' + mood + '</span>' +
+        '<span class="legend-pct" style="color:' + color + '">' + pct + '%</span>' +
+        '</div>';
+    } else {
+      return '<div class="legend-row-bottom">' +
+        '<div class="dot" style="background:' + color + '"></div>' +
+        '<span class="legend-name-bottom">' + mood + '</span>' +
+        '<span class="legend-pct" style="color:' + color + '">' + pct + '%</span>' +
+        '</div>';
+    }
+  }).join("");
+}
+
+function buildPieSection(key, counts) {
+  var total = Object.values(counts).reduce(function(a, b) { return a + b; }, 0);
+  var slices = MOOD_ORDER.filter(function(m) { return counts[m]; }).map(function(m) { return [m, counts[m]]; });
+  return '<div class="month-block">' +
+    '<div class="month-title">' + monthLabel(key) + '</div>' +
+    '<div class="pie-row">' +
+      '<div class="pie-chart">' + buildPieSVG(slices, total) + '</div>' +
+      '<div class="side-legend">' + buildLegendHTML(slices, total, true) + '</div>' +
+    '</div>' +
+    '</div>';
+}
+
+function buildBarSVG(presentMoods, counts, maxVal) {
+  var chartH = 140, barW = 44, barGap = 14, paddingBottom = 48, paddingTop = 28, paddingLeft = 24, paddingRight = 24;
+  var totalW = paddingLeft + presentMoods.length * (barW + barGap) - barGap + paddingRight;
+  var svgH = chartH + paddingBottom + paddingTop;
+  var bars = "";
+  presentMoods.forEach(function(mood, i) {
+    var count = counts[mood];
+    var barH = Math.max(4, (count / maxVal) * chartH);
+    var x = paddingLeft + i * (barW + barGap);
+    var y = paddingTop + (chartH - barH);
+    var color = MOOD_COLORS[mood] || DEFAULT_COLOR;
+    bars += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH + '" fill="' + color + '" rx="6" ry="6"/>';
+    bars += '<text x="' + (x + barW / 2) + '" y="' + (y - 7) + '" text-anchor="middle" fill="#fff" font-size="13" font-weight="800" font-family="-apple-system">' + count + '</text>';
+    bars += '<text x="' + (x + barW / 2) + '" y="' + (paddingTop + chartH + 18) + '" text-anchor="middle" fill="' + color + '" font-size="11" font-weight="700" font-family="-apple-system">' + mood + '</text>';
+  });
+  return '<svg viewBox="0 0 ' + totalW + ' ' + svgH + '" width="' + totalW + '" height="' + svgH + '">' + bars + '</svg>';
+}
+
+function buildBarSection(key, counts) {
+  var presentMoods = MOOD_ORDER.filter(function(m) { return counts[m]; });
+  if (!presentMoods.length) return "";
+  var total = presentMoods.reduce(function(a, m) { return a + counts[m]; }, 0);
+  var maxVal = Math.max.apply(null, presentMoods.map(function(m) { return counts[m]; }));
+  var slices = presentMoods.map(function(m) { return [m, counts[m]]; });
+  return '<div class="month-block">' +
+    '<div class="month-title">' + monthLabel(key) + '</div>' +
+    '<div class="bar-chart-centered">' + buildBarSVG(presentMoods, counts, maxVal) + '</div>' +
+    '<div class="bottom-legend">' + buildLegendHTML(slices, total, false) + '</div>' +
+    '</div>';
+}
+
+async function buildHTML() {
+  var isPad = Device.isPad();
+  var pages = await fetchAllMoods();
+  var monthData = groupByMonth(pages);
+  var sortedKeys = Object.keys(monthData).sort();
+  var pieSections = sortedKeys.map(function(k) { return buildPieSection(k, monthData[k]); }).join("");
+  var barSections = sortedKeys.map(function(k) { return buildBarSection(k, monthData[k]); }).join("");
+  var gridClass = isPad ? "grid-2col" : "grid-1col";
+
+  return '<!DOCTYPE html>' +
+'<html>' +
+'<head>' +
+'<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">' +
+'<style>' +
+'* { box-sizing:border-box; margin:0; padding:0; }' +
+'body { background:#121212; font-family:-apple-system; color:#fff; }' +
+'.scroll-area { padding:24px 16px 100px; }' +
+'.header { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:24px; }' +
+'.header h1 { font-size:28px; font-weight:800; }' +
+'.grid-1col .month-block { margin-bottom:16px; }' +
+'.grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }' +
+'.month-block { background:#1e1e1e; border-radius:16px; padding:20px 16px; }' +
+'.month-title { font-size:18px; font-weight:700; text-align:center; margin-bottom:16px; }' +
+'.pie-row { display:flex; align-items:center; gap:12px; }' +
+'.pie-chart { flex-shrink:0; }' +
+'.bar-chart-centered { display:flex; justify-content:center; overflow:visible; }' +
+'.bottom-legend { margin-top:14px; border-top:1px solid #2a2a2a; padding-top:10px; }' +
+'.side-legend { flex:1; min-width:0; }' +
+'.legend-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid #2a2a2a; }' +
+'.legend-row:last-child { border-bottom:none; }' +
+'.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }' +
+'.legend-name { flex:1; color:#fff; font-size:13px; font-weight:600; white-space:nowrap; }' +
+'.legend-pct { font-size:13px; font-weight:700; white-space:nowrap; text-align:right; }' +
+'.legend-row-bottom { display:inline-flex; align-items:center; gap:5px; padding:4px 8px 4px 0; }' +
+'.legend-name-bottom { color:#fff; font-size:13px; font-weight:600; white-space:nowrap; }' +
+'.tab-bar { position:fixed; bottom:0; left:0; right:0; height:72px; background:#1a1a1a; border-top:1px solid #2a2a2a; display:flex; }' +
+'.tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer; color:#555; font-size:11px; font-weight:600; -webkit-tap-highlight-color:transparent; }' +
+'.tab.active { color:#fff; }' +
+'.tab svg { width:22px; height:22px; }' +
+'.tab-divider { width:1px; background:#2a2a2a; margin:14px 0; }' +
+'#view-pie { display:block; }' +
+'#view-bar { display:none; }' +
+'</style>' +
+'</head>' +
+'<body>' +
+'<div class="scroll-area">' +
+'  <div class="header"><span style="font-size:30px">\uD83E\uDDD8</span><h1>Mood Log</h1></div>' +
+'  <div id="view-pie"><div class="' + gridClass + '">' + pieSections + '</div></div>' +
+'  <div id="view-bar"><div class="' + gridClass + '">' + barSections + '</div></div>' +
+'</div>' +
+'<div class="tab-bar">' +
+'  <div class="tab active" id="tab-pie" onclick="switchTab(\'pie\')">' +
+'    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+'      <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>' +
+'    </svg>Pie Chart' +
+'  </div>' +
+'  <div class="tab-divider"></div>' +
+'  <div class="tab" id="tab-bar" onclick="switchTab(\'bar\')">' +
+'    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+'      <rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/>' +
+'    </svg>Bar Chart' +
+'  </div>' +
+'</div>' +
+'<script>' +
+'function switchTab(tab) {' +
+'  document.getElementById("view-pie").style.display = tab === "pie" ? "block" : "none";' +
+'  document.getElementById("view-bar").style.display = tab === "bar" ? "block" : "none";' +
+'  document.getElementById("tab-pie").className = "tab" + (tab === "pie" ? " active" : "");' +
+'  document.getElementById("tab-bar").className = "tab" + (tab === "bar" ? " active" : "");' +
+'}' +
+'<\/script>' +
+'</body>' +
+'</html>';
+}
+
+async function run() {
+  var wv = new WebView();
+  await wv.loadHTML(await buildHTML());
+  wv.present(true);
+}
+
+module.exports = { run: run, buildHTML: buildHTML }
+if (module.filename.indexOf(Script.name()) !== -1) {
+  run().catch(function(e) { console.error("run() error: " + e) })
+}

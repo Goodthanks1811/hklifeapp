@@ -355,4 +355,71 @@ router.post("/pages", async (req, res) => {
   }
 });
 
+const MOOD_ORDER = ["Awesome", "Good", "Meh", "Tired", "Low", "Stressed"];
+
+router.get("/moods", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { database_id } = req.query;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  if (!database_id) { res.status(400).json({ message: "Missing database_id" }); return; }
+
+  try {
+    const allPages: any[] = [];
+    let cursor: string | undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      const body: any = {
+        page_size: 100,
+        sorts: [{ property: "Date", direction: "ascending" }],
+      };
+      if (cursor) body.start_cursor = cursor;
+
+      const response = await fetch(
+        `https://api.notion.com/v1/databases/${database_id}/query`,
+        { method: "POST", headers: notionHeaders(apiKey), body: JSON.stringify(body) }
+      );
+
+      if (!response.ok) {
+        const err = await response.json();
+        res.status(response.status).json({ message: err.message || "Notion error" });
+        return;
+      }
+
+      const data = await response.json();
+      allPages.push(...(data.results || []));
+      hasMore = data.has_more;
+      cursor = data.next_cursor;
+    }
+
+    const months: Record<string, Record<string, number>> = {};
+
+    for (const page of allPages) {
+      const props = page.properties || {};
+      const titleArr = (props.Mood?.title || []) as any[];
+      const raw = titleArr.map((t: any) => t.plain_text).join("").trim();
+      if (!raw) continue;
+
+      let mood: string | null = null;
+      for (const m of MOOD_ORDER) {
+        if (raw.toLowerCase().includes(m.toLowerCase())) { mood = m; break; }
+      }
+      if (!mood) mood = raw.replace(/[^\w\s]/gu, "").trim() || null;
+      if (!mood) continue;
+
+      const dateStr = props.Date?.date?.start;
+      if (!dateStr) continue;
+      const d = new Date(dateStr);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!months[key]) months[key] = {};
+      months[key][mood] = (months[key][mood] || 0) + 1;
+    }
+
+    const sortedKeys = Object.keys(months).sort();
+    res.json({ months: sortedKeys.map((key) => ({ key, counts: months[key] })) });
+  } catch (e: any) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 export default router;
