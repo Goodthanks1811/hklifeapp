@@ -5,6 +5,7 @@ import React, { useRef } from "react";
 import {
   Animated,
   Easing,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -101,12 +102,13 @@ export function Drawer() {
           { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] },
         ]}
       >
-        {/* Header image area */}
+        {/* Header image */}
         <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 20 }}>
-          <View style={styles.imagePlaceholder}>
-            <Feather name="image" size={28} color="rgba(255,255,255,0.15)" />
-            <Text style={styles.imagePlaceholderText}>Your image here</Text>
-          </View>
+          <Image
+            source={{ uri: "https://i.postimg.cc/zXP1FYQG/IMG_9454.png" }}
+            style={styles.headerImage}
+            resizeMode="cover"
+          />
         </View>
 
         <ScrollView
@@ -231,22 +233,11 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 20,
   },
-  imagePlaceholder: {
+  headerImage: {
+    width: "100%",
     height: 110,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.1)",
-    borderStyle: "dashed",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  imagePlaceholderText: {
-    color: "rgba(255,255,255,0.2)",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    letterSpacing: 0.3,
+    overflow: "hidden",
   },
   scrollArea: { flex: 1 },
   section: { paddingHorizontal: 12, marginBottom: 4 },
