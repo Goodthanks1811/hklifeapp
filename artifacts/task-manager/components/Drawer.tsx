@@ -4,11 +4,13 @@ import { router } from "expo-router";
 import React, { useRef } from "react";
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,8 +50,8 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
     const toValue = openRef.current ? 1 : 0;
 
     Animated.parallel([
-      Animated.spring(anim,    { toValue, useNativeDriver: false, bounciness: 4 }),
-      Animated.timing(chevron, { toValue, duration: 220, useNativeDriver: true }),
+      Animated.timing(anim,    { toValue, duration: 250, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.timing(chevron, { toValue, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start(() => { locked.current = false; });
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -109,12 +111,12 @@ export function Drawer() {
         >
           {/* UI Kit accordion — above Scripts */}
           <View style={styles.section}>
-            <Pressable style={styles.accordionHeader} onPress={uiKit.toggle}>
+            <TouchableOpacity style={styles.accordionHeader} onPress={uiKit.toggle} activeOpacity={0.7}>
               <Text style={styles.sectionLabel}>UI Kit</Text>
               <Animated.View style={{ transform: [{ rotate: uiKit.chevronRotate }] }}>
                 <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
               </Animated.View>
-            </Pressable>
+            </TouchableOpacity>
             <Animated.View style={{ height: uiKit.listHeight, overflow: "hidden" }}>
               {UI_KIT_ITEMS.map((item) => (
                 <MenuItem
@@ -130,12 +132,12 @@ export function Drawer() {
 
           {/* Scripts accordion */}
           <View style={styles.section}>
-            <Pressable style={styles.accordionHeader} onPress={scripts.toggle}>
+            <TouchableOpacity style={styles.accordionHeader} onPress={scripts.toggle} activeOpacity={0.7}>
               <Text style={styles.sectionLabel}>Scripts</Text>
               <Animated.View style={{ transform: [{ rotate: scripts.chevronRotate }] }}>
                 <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
               </Animated.View>
-            </Pressable>
+            </TouchableOpacity>
             <Animated.View style={{ height: scripts.listHeight, overflow: "hidden" }}>
               {SCRIPT_ITEMS.map((item) => (
                 <MenuItem
