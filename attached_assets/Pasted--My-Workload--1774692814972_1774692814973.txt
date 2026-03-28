@@ -1,0 +1,407 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔥 My Workload
+// Standalone + HK Dashboard compatible
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NOTION_TOKEN = Keychain.get("notion_token");
+const DATABASE_ID  = "2c8b7eba3523802abbe2e934df42a4e2";
+const IS_IPAD      = Device.isPad();
+
+const HK_RED     = "255,30,30";
+const HK_RED_HEX = "#ff1e1e";
+const DONE_COLOR = "#4CAF50";
+const MUTED      = "rgba(255,255,255,0.58)";
+const BORDER     = "rgba(255,255,255,0.08)";
+
+function esc(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function loaderHTML() {
+  return '<!DOCTYPE html><html><head>' +
+  '<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=yes">' +
+  '<style>' +
+  '*{box-sizing:border-box;margin:0;padding:0;}' +
+  'html,body{background:#000;height:100%;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;}' +
+  '.loader-wrap{display:flex;flex-direction:column;align-items:center;gap:20px;}' +
+  '.spinner{width:44px;height:44px;border:3px solid rgba(255,30,30,0.15);border-top:3px solid rgb(255,30,30);border-radius:50%;animation:spin 0.8s linear infinite;}' +
+  '@keyframes spin{to{transform:rotate(360deg)}}' +
+  '.loader-label{font-size:13px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:0.06em;text-transform:uppercase;}' +
+  '</style></head><body>' +
+  '<div class="loader-wrap"><div class="spinner"></div><div class="loader-label">Loading</div></div>' +
+  '</body></html>';
+}
+
+async function fetchAll() {
+  var results = [], cursor = null, hasMore = true;
+  while (hasMore) {
+    var body = { page_size: 100 };
+    if (cursor) body.start_cursor = cursor;
+    var req = new Request("https://api.notion.com/v1/databases/" + DATABASE_ID + "/query");
+    req.method = "POST";
+    req.headers = { "Authorization": "Bearer " + NOTION_TOKEN, "Notion-Version": "2022-06-28", "Content-Type": "application/json" };
+    req.body = JSON.stringify(body);
+    var data = await req.loadJSON();
+    results = results.concat(data.results || []);
+    hasMore = data.has_more === true;
+    cursor = data.next_cursor || null;
+  }
+  return results;
+}
+
+function toMonthKey(d) { return d ? String(d).slice(0, 7) : null; }
+
+function toWeekOfMonth(d) {
+  if (!d) return null;
+  var dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : "W" + Math.ceil(dt.getDate() / 7);
+}
+
+function getMonthLabel(key) {
+  if (!key) return "";
+  var p = key.split("-").map(Number);
+  return new Date(p[0], p[1] - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+}
+
+function getCategoryName(p) {
+  var c = p && p.properties && p.properties.Category;
+  if (!c || c.type !== "select") return "Uncategorised";
+  return (c.select && c.select.name) || "Uncategorised";
+}
+
+function getTaskTitle(p) {
+  var t = p && p.properties && p.properties.Task;
+  if (!t) return "Untitled";
+  if (t.type === "title" && t.title && t.title.length > 0) {
+    return t.title.map(function(r) { return r.plain_text || ""; }).join("") || "Untitled";
+  }
+  return "Untitled";
+}
+
+function getWeeksInMonth(key) {
+  var p = key.split("-").map(Number);
+  return Math.ceil(new Date(p[0], p[1], 0).getDate() / 7);
+}
+
+function getVisibleWeekKeys(key) {
+  var now = new Date();
+  var cur = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  var max = getWeeksInMonth(key);
+  var n = key < cur ? max : key === cur ? Math.min(Math.ceil(now.getDate() / 7), max) : 0;
+  return Array.from({ length: n }, function(_, i) { return "W" + (i + 1); });
+}
+
+function processPages(pages) {
+  var md = {}, cmd = {};
+  for (var i = 0; i < pages.length; i++) {
+    var p = pages[i], props = p.properties || {};
+    var cs = (props.Created && props.Created.created_time) || p.created_time || null;
+    var us = (props.Updated && props.Updated.last_edited_time) || p.last_edited_time || null;
+    var done = props.Done && props.Done.checkbox === true;
+    var cat = getCategoryName(p);
+    var title = getTaskTitle(p);
+    var cm = toMonthKey(cs), cw = toWeekOfMonth(cs);
+
+    if (cm && cw) {
+      if (!md[cm]) md[cm] = {};
+      if (!md[cm][cw]) md[cm][cw] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+      md[cm][cw].created++;
+      md[cm][cw].createdItems.push(title);
+      if (!cmd[cm]) cmd[cm] = {};
+      if (!cmd[cm][cat]) cmd[cm][cat] = { created: 0, done: 0, doneItems: [] };
+      cmd[cm][cat].created++;
+    }
+
+    if (done && us) {
+      var dm = toMonthKey(us), dw = toWeekOfMonth(us);
+      if (dm && dw) {
+        if (!md[dm]) md[dm] = {};
+        if (!md[dm][dw]) md[dm][dw] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+        md[dm][dw].done++;
+        md[dm][dw].doneItems.push(title);
+      }
+      if (dm) {
+        if (!cmd[dm]) cmd[dm] = {};
+        if (!cmd[dm][cat]) cmd[dm][cat] = { created: 0, done: 0, doneItems: [] };
+        cmd[dm][cat].done++;
+        cmd[dm][cat].doneItems.push(title);
+      }
+    }
+  }
+  for (var mk of Object.keys(md)) {
+    for (var w = 1; w <= getWeeksInMonth(mk); w++) {
+      var wk = "W" + w;
+      if (!md[mk][wk]) md[mk][wk] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+    }
+  }
+  return { monthData: md, categoryMonthData: cmd };
+}
+
+function buildBarSVG(weekData, visibleWeeks, maxVal) {
+  if (!visibleWeeks.length) return '<div style="color:' + MUTED + ';text-align:center;padding:20px 0;font-size:13px;">No data yet</div>';
+  var chartH = 200, barW = 22, barGap = 6, groupGap = 24, pL = 32, pR = 20, pT = 28, pB = 34;
+  var groupW = barW * 2 + barGap;
+  var totalW = pL + visibleWeeks.length * (groupW + groupGap) - groupGap + pR;
+  var svgH = chartH + pT + pB;
+  var svg = '<svg viewBox="0 0 ' + totalW + ' ' + svgH + '" width="' + totalW + '" height="' + svgH + '">';
+  for (var i = 0; i <= 4; i++) {
+    var y = pT + (chartH / 4) * i;
+    var val = Math.round(maxVal - (maxVal / 4) * i);
+    svg += '<line x1="' + pL + '" y1="' + y + '" x2="' + (totalW - pR) + '" y2="' + y + '" stroke="rgba(255,30,30,0.07)" stroke-width="1"/>';
+    svg += '<text x="' + (pL - 5) + '" y="' + (y + 4) + '" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="9" font-family="-apple-system">' + val + '</text>';
+  }
+  visibleWeeks.forEach(function(week, i) {
+    var wd = weekData[week] || {}, created = wd.created || 0, done = wd.done || 0;
+    var gx = pL + i * (groupW + groupGap);
+    var ch = maxVal > 0 ? Math.max(created > 0 ? 3 : 0, (created / maxVal) * chartH) : 0;
+    var cx2 = gx, cy = pT + chartH - ch;
+    if (created > 0) {
+      svg += '<rect x="' + cx2 + '" y="' + cy + '" width="' + barW + '" height="' + ch + '" fill="rgb(' + HK_RED + ')" rx="5"/>';
+      svg += '<text x="' + (cx2 + barW / 2) + '" y="' + (cy - 6) + '" text-anchor="middle" fill="#fff" font-size="10" font-weight="800" font-family="-apple-system">' + created + '</text>';
+    }
+    var dh = maxVal > 0 ? Math.max(done > 0 ? 3 : 0, (done / maxVal) * chartH) : 0;
+    var dx2 = gx + barW + barGap, dy = pT + chartH - dh;
+    if (done > 0) {
+      svg += '<rect x="' + dx2 + '" y="' + dy + '" width="' + barW + '" height="' + dh + '" fill="' + DONE_COLOR + '" rx="5"/>';
+      svg += '<text x="' + (dx2 + barW / 2) + '" y="' + (dy - 6) + '" text-anchor="middle" fill="#fff" font-size="10" font-weight="800" font-family="-apple-system">' + done + '</text>';
+    }
+    svg += '<text x="' + (gx + groupW / 2) + '" y="' + (pT + chartH + 22) + '" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="11" font-weight="700" font-family="-apple-system">' + week + '</text>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function buildCategoryHTML(catData) {
+  var entries = Object.entries(catData || {}).sort(function(a, b) {
+    return ((b[1].created || 0) + (b[1].done || 0)) - ((a[1].created || 0) + (a[1].done || 0));
+  }).slice(0, 8);
+  if (!entries.length) return '<div style="color:' + MUTED + ';text-align:center;padding:16px 0;font-size:13px;">No category data</div>';
+  var maxVal = Math.max(1, ...entries.map(function(e) { return Math.max(e[1].created || 0, e[1].done || 0); }));
+  return entries.map(function(entry) {
+    var name = entry[0], vals = entry[1];
+    var created = vals.created || 0, done = vals.done || 0;
+    var cp = Math.max(0, Math.min(100, (created / maxVal) * 100));
+    var dp = Math.max(0, Math.min(100, (done / maxVal) * 100));
+    return '<div class="cat-row">' +
+      '<div class="cat-name">' + esc(name) + '</div>' +
+      '<div class="cat-bars">' +
+        '<div class="cat-bar-line">' +
+          '<span class="cat-lbl">Created</span>' +
+          '<div class="cat-bar-bg"><div class="cat-bar-fg" style="width:' + cp + '%;background:rgb(' + HK_RED + ')"></div></div>' +
+          '<span class="cat-val" style="color:rgb(' + HK_RED + ')">' + created + '</span>' +
+        '</div>' +
+        '<div class="cat-bar-line">' +
+          '<span class="cat-lbl">Done</span>' +
+          '<div class="cat-bar-bg"><div class="cat-bar-fg" style="width:' + dp + '%;background:' + DONE_COLOR + '"></div></div>' +
+          '<span class="cat-val" style="color:' + DONE_COLOR + '">' + done + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join("");
+}
+
+function buildWeekRows(weeks, vw, maxVal, safeMonth) {
+  if (!vw.length) return '<div style="color:' + MUTED + ';text-align:center;padding:12px;font-size:13px">No weeks yet</div>';
+  return vw.map(function(w, idx) {
+    var data = weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] };
+    var c = data.created || 0, d = data.done || 0;
+    var createdItems = data.createdItems || [];
+    var doneItems = data.doneItems || [];
+    var cp = maxVal > 0 ? (c / maxVal) * 100 : 0;
+    var dp = maxVal > 0 ? (d / maxVal) * 100 : 0;
+    var hasItems = createdItems.length > 0 || doneItems.length > 0;
+    var expandId = "wi-" + safeMonth + "-" + idx;
+    var chevId = "wch-" + safeMonth + "-" + idx;
+
+    var createdSection = createdItems.length > 0
+      ? '<div class="expand-section-label" style="color:rgb(' + HK_RED + ')">Created</div>' +
+        createdItems.map(function(t) {
+          return '<div class="expand-item"><div class="expand-dot" style="background:rgb(' + HK_RED + ')"></div><span>' + esc(t) + '</span></div>';
+        }).join("")
+      : '';
+
+    var doneSection = doneItems.length > 0
+      ? '<div class="expand-section-label" style="color:' + DONE_COLOR + '">Completed</div>' +
+        doneItems.map(function(t) {
+          return '<div class="expand-item"><div class="expand-dot" style="background:' + DONE_COLOR + '"></div><span>' + esc(t) + '</span></div>';
+        }).join("")
+      : '';
+
+    var expandHTML = (createdSection || doneSection)
+      ? '<div class="week-expand" id="' + expandId + '">' + createdSection + doneSection + '</div>'
+      : '';
+
+    return '<div class="week-row">' +
+      '<div class="week-head"' + (hasItems ? ' onclick="toggleWeek(\'' + expandId + '\',\'' + chevId + '\')" style="cursor:pointer"' : '') + '>' +
+        '<span class="week-name">' + w + '</span>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<div class="week-nums"><span class="wc">' + c + '</span><span class="wd">' + d + '</span></div>' +
+          (hasItems ? '<div class="week-chevron" id="' + chevId + '">&#9658;</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="week-bars">' +
+        '<div class="wbar-line"><span class="wbar-lbl">Created</span><div class="wbar-bg"><div class="wbar-fg red" style="width:' + cp + '%"></div></div></div>' +
+        '<div class="wbar-line"><span class="wbar-lbl">Done</span><div class="wbar-bg"><div class="wbar-fg green" style="width:' + dp + '%"></div></div></div>' +
+      '</div>' +
+      expandHTML +
+    '</div>';
+  }).join("");
+}
+
+async function buildHTML() {
+  var pages = await fetchAll();
+  var result = processPages(pages);
+  var monthData = result.monthData, categoryMonthData = result.categoryMonthData;
+  var sortedMonths = Object.keys(monthData).sort();
+
+  if (!sortedMonths.length) {
+    return '<html><body style="margin:0;background:#000;color:#fff;font-family:-apple-system;display:flex;align-items:center;justify-content:center;height:100vh"><div style="text-align:center"><div style="font-size:22px;font-weight:800">🔥 My Workload</div><div style="color:rgba(255,255,255,0.45);margin-top:8px;font-size:14px">No data found</div></div></body></html>';
+  }
+
+  var lastKey = sortedMonths[sortedMonths.length - 1];
+
+  var monthPills = sortedMonths.map(function(key) {
+    var isActive = key === lastKey;
+    return '<button class="month-pill' + (isActive ? ' active' : '') + '" id="pill-' + esc(key) + '" onclick="showMonth(\'' + esc(key) + '\')">' + esc(getMonthLabel(key)) + '</button>';
+  }).join("");
+
+  var allCharts = sortedMonths.map(function(key) {
+    var safeMonth = key.replace(/-/g, "");
+    var weeks = monthData[key] || {};
+    var vw = getVisibleWeekKeys(key);
+    var vwd = {};
+    vw.forEach(function(w) { vwd[w] = weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] }; });
+    var maxVal = Math.max(1, ...Object.values(vwd).map(function(w) { return Math.max(w.created || 0, w.done || 0); }));
+    var svg = buildBarSVG(weeks, vw, maxVal);
+    var tc = Object.values(vwd).reduce(function(a, w) { return a + (w.created || 0); }, 0);
+    var td = Object.values(vwd).reduce(function(a, w) { return a + (w.done || 0); }, 0);
+    var ratio = tc > 0 ? Math.round((td / tc) * 100) : 0;
+    var rc = ratio >= 80 ? DONE_COLOR : ratio >= 50 ? "#FFC107" : HK_RED_HEX;
+    var catHtml = buildCategoryHTML(categoryMonthData[key] || {});
+    var weekRowsHtml = buildWeekRows(weeks, vw, maxVal, safeMonth);
+
+    return '<div class="chart-view" id="chart-' + esc(key) + '" style="display:none">' +
+      '<div class="pills">' +
+        '<div class="pill"><div class="pdot" style="background:rgb(' + HK_RED + ')"></div><span class="plbl">Created</span><span class="pval" style="color:rgb(' + HK_RED + ')">' + tc + '</span></div>' +
+        '<div class="pill"><div class="pdot" style="background:' + DONE_COLOR + '"></div><span class="plbl">Done</span><span class="pval" style="color:' + DONE_COLOR + '">' + td + '</span></div>' +
+        '<div class="pill"><span class="plbl">Completion</span><span class="pval" style="color:' + rc + '">' + ratio + '%</span></div>' +
+      '</div>' +
+      '<div class="card glass">' +
+        '<div class="chart-wrap">' + svg + '</div>' +
+        '<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:rgb(' + HK_RED + ')"></div>Created</div><div class="leg-item"><div class="leg-dot" style="background:' + DONE_COLOR + '"></div>Done</div></div>' +
+      '</div>' +
+      '<div class="sec-title">Weekly Breakdown</div>' +
+      '<div class="card glass week-list">' + weekRowsHtml + '</div>' +
+      '<div class="sec-title">Category Breakdown</div>' +
+      '<div class="card glass cat-list">' + catHtml + '</div>' +
+    '</div>';
+  }).join("");
+
+  return '<!DOCTYPE html><html><head>' +
+'<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=yes">' +
+'<style>' +
+'*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}' +
+'html{background:#000;touch-action:pan-y pinch-zoom;}' +
+'body{color:#fff;font-family:-apple-system,sans-serif;' +
+  'padding:max(20px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 60px max(14px,env(safe-area-inset-left));}' +
+'.page-wrap{max-width:960px;margin:0 auto;}' +
+'.header{padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:14px;}' +
+'.header-title{font-size:clamp(20px,4vw,28px);font-weight:900;color:#fff;text-align:center;margin-bottom:32px;}' +
+'.month-scroller{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;justify-content:center;}' +
+'.month-scroller::-webkit-scrollbar{display:none;}' +
+'.month-pill{flex-shrink:0;padding:8px 16px;border-radius:999px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);font-size:clamp(12px,1.8vw,14px);font-weight:700;font-family:-apple-system,sans-serif;cursor:pointer;white-space:nowrap;transition:all 0.15s ease;}' +
+'.month-pill.active{background:rgb(' + HK_RED + ');border-color:rgb(' + HK_RED + ');color:#fff;}' +
+'.pills{display:flex;gap:clamp(6px,1.5vw,10px);margin-bottom:12px;}' +
+'.pill{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:clamp(8px,2vw,12px) 8px;display:flex;flex-direction:column;align-items:center;gap:3px;}' +
+'.pdot{width:7px;height:7px;border-radius:50%;}' +
+'.plbl{color:' + MUTED + ';font-size:clamp(8px,1.3vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.3px;}' +
+'.pval{font-size:clamp(15px,3vw,22px);font-weight:900;line-height:1;}' +
+'.glass{background:rgba(255,255,255,0.03);border:1px solid ' + BORDER + ';border-radius:16px;}' +
+'.card{padding:clamp(10px,2vw,16px) clamp(10px,2vw,14px);overflow:hidden;margin-bottom:8px;}' +
+'.sec-title{font-size:clamp(10px,1.3vw,13px);font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:0.08em;margin:14px 0 8px 2px;}' +
+'.chart-wrap{display:flex;justify-content:center;overflow-x:auto;padding-bottom:2px;margin-bottom:10px;touch-action:pan-x pan-y pinch-zoom;}' +
+'.chart-wrap::-webkit-scrollbar{display:none;}' +
+'.legend{display:flex;justify-content:center;gap:16px;padding-top:10px;border-top:1px solid rgba(255,30,30,0.07);}' +
+'.leg-item{display:flex;align-items:center;gap:5px;font-size:clamp(9px,1.5vw,12px);color:' + MUTED + ';}' +
+'.leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}' +
+'.week-list{display:flex;flex-direction:column;gap:clamp(6px,1.5vw,10px);padding:clamp(10px,2vw,14px);}' +
+'.week-row{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:clamp(8px,2vw,12px);}' +
+'.week-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}' +
+'.week-name{font-size:clamp(12px,2vw,15px);font-weight:900;}' +
+'.week-nums{display:flex;gap:6px;}' +
+'.wc{font-size:clamp(10px,1.8vw,13px);font-weight:800;color:rgb(' + HK_RED + ');padding:3px 7px;border-radius:999px;background:rgba(255,30,30,0.1);}' +
+'.wd{font-size:clamp(10px,1.8vw,13px);font-weight:800;color:' + DONE_COLOR + ';padding:3px 7px;border-radius:999px;background:rgba(76,175,80,0.1);}' +
+'.week-chevron{font-size:12px;color:rgba(255,255,255,0.35);transition:transform 0.2s ease;display:inline-block;line-height:1;}' +
+'.week-chevron.open{transform:rotate(90deg);}' +
+'.week-bars{display:flex;flex-direction:column;gap:6px;}' +
+'.wbar-line{display:grid;grid-template-columns:50px 1fr;gap:6px;align-items:center;}' +
+'.wbar-lbl{font-size:clamp(8px,1.3vw,11px);color:' + MUTED + ';font-weight:700;text-transform:uppercase;letter-spacing:0.2px;}' +
+'.wbar-bg{height:6px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;}' +
+'.wbar-fg{height:100%;border-radius:4px;}' +
+'.wbar-fg.red{background:rgb(' + HK_RED + ');}' +
+'.wbar-fg.green{background:' + DONE_COLOR + ';}' +
+'.week-expand{display:none;flex-direction:column;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);}' +
+'.expand-section-label{font-size:clamp(8px,1.3vw,11px);font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;margin-bottom:4px;}' +
+'.expand-section-label:first-child{margin-top:0;}' +
+'.expand-item{display:flex;align-items:flex-start;gap:8px;font-size:clamp(11px,1.8vw,14px);color:rgba(255,255,255,0.72);line-height:1.4;padding:2px 0;}' +
+'.expand-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:5px;}' +
+'.cat-list{padding:clamp(10px,2vw,14px);display:flex;flex-direction:column;gap:10px;}' +
+'.cat-row{padding-bottom:10px;border-bottom:1px solid rgba(255,30,30,0.05);}' +
+'.cat-row:last-child{border-bottom:none;padding-bottom:0;}' +
+'.cat-name{font-size:clamp(11px,1.8vw,14px);font-weight:800;margin-bottom:6px;}' +
+'.cat-bars{display:flex;flex-direction:column;gap:5px;}' +
+'.cat-bar-line{display:grid;grid-template-columns:50px 1fr 28px;gap:6px;align-items:center;}' +
+'.cat-lbl{font-size:clamp(8px,1.3vw,11px);color:' + MUTED + ';font-weight:700;text-transform:uppercase;letter-spacing:0.2px;}' +
+'.cat-bar-bg{height:6px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;}' +
+'.cat-bar-fg{height:100%;border-radius:4px;}' +
+'.cat-val{font-size:clamp(9px,1.5vw,12px);font-weight:800;text-align:right;}' +
+'</style></head><body>' +
+'<div class="page-wrap">' +
+'<div class="header">' +
+'<div class="header-title">🔥 My Workload</div>' +
+'<div class="month-scroller" id="monthScroller">' + monthPills + '</div>' +
+'</div>' +
+'<div id="charts">' + allCharts + '</div>' +
+'</div>' +
+'<script>' +
+'function showMonth(k){' +
+'  document.querySelectorAll(".chart-view").forEach(function(e){e.style.display="none";});' +
+'  var e=document.getElementById("chart-"+k);' +
+'  if(e) e.style.display="block";' +
+'  document.querySelectorAll(".month-pill").forEach(function(p){p.classList.remove("active");});' +
+'  var pill=document.getElementById("pill-"+k);' +
+'  if(pill){' +
+'    pill.classList.add("active");' +
+'    pill.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});' +
+'  }' +
+'}' +
+'function toggleWeek(expandId,chevId){' +
+'  var el=document.getElementById(expandId);' +
+'  var ch=document.getElementById(chevId);' +
+'  if(!el) return;' +
+'  var isOpen=el.style.display==="flex";' +
+'  el.style.display=isOpen?"none":"flex";' +
+'  if(ch) ch.classList.toggle("open",!isOpen);' +
+'}' +
+'showMonth("' + esc(lastKey) + '");' +
+'<\/script>' +
+'</body></html>';
+}
+
+async function run() {
+  var wv = new WebView();
+  await wv.loadHTML(loaderHTML());
+  wv.present(IS_IPAD);
+  var html = await buildHTML();
+  await wv.loadHTML(html);
+}
+
+module.exports = { run: run, buildHTML: buildHTML }
+if (module.filename.indexOf(Script.name()) !== -1) {
+  run().catch(function(e) { console.error("run() error: " + e) })
+}

@@ -355,6 +355,149 @@ router.post("/pages", async (req, res) => {
   }
 });
 
+function toMonthKey(d: string | null): string | null {
+  return d ? d.slice(0, 7) : null;
+}
+function toWeekOfMonth(d: string | null): string | null {
+  if (!d) return null;
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : "W" + Math.ceil(dt.getDate() / 7);
+}
+function getWeeksInMonth(key: string): number {
+  const [y, m] = key.split("-").map(Number);
+  return Math.ceil(new Date(y, m, 0).getDate() / 7);
+}
+function getVisibleWeekCount(key: string): number {
+  const now = new Date();
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const max = getWeeksInMonth(key);
+  if (key < cur) return max;
+  if (key === cur) return Math.min(Math.ceil(now.getDate() / 7), max);
+  return 0;
+}
+
+router.get("/workload", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { database_id } = req.query;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  if (!database_id) { res.status(400).json({ message: "Missing database_id" }); return; }
+
+  type WeekBucket = { created: number; done: number; createdItems: string[]; doneItems: string[] };
+  type MonthWeeks = Record<string, WeekBucket>;
+  type CatBucket = { created: number; done: number; doneItems: string[] };
+
+  try {
+    const allPages: any[] = [];
+    let cursor: string | undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      const body: any = { page_size: 100 };
+      if (cursor) body.start_cursor = cursor;
+      const response = await fetch(
+        `https://api.notion.com/v1/databases/${database_id}/query`,
+        { method: "POST", headers: notionHeaders(apiKey), body: JSON.stringify(body) }
+      );
+      if (!response.ok) {
+        const err = await response.json();
+        res.status(response.status).json({ message: err.message || "Notion error" });
+        return;
+      }
+      const data = await response.json();
+      allPages.push(...(data.results || []));
+      hasMore = data.has_more;
+      cursor = data.next_cursor;
+    }
+
+    const monthData: Record<string, MonthWeeks> = {};
+    const categoryMonthData: Record<string, Record<string, CatBucket>> = {};
+
+    for (const page of allPages) {
+      const props = page.properties || {};
+      const cs: string | null = props.Created?.created_time || page.created_time || null;
+      const us: string | null = props.Updated?.last_edited_time || page.last_edited_time || null;
+      const done = props.Done?.checkbox === true;
+      const cat: string = props.Category?.type === "select"
+        ? (props.Category.select?.name || "Uncategorised")
+        : "Uncategorised";
+      const titleArr: any[] = props.Task?.title || [];
+      const title = titleArr.map((t: any) => t.plain_text || "").join("") || "Untitled";
+
+      const cm = toMonthKey(cs);
+      const cw = toWeekOfMonth(cs);
+      if (cm && cw) {
+        if (!monthData[cm]) monthData[cm] = {};
+        if (!monthData[cm][cw]) monthData[cm][cw] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+        monthData[cm][cw].created++;
+        monthData[cm][cw].createdItems.push(title);
+        if (!categoryMonthData[cm]) categoryMonthData[cm] = {};
+        if (!categoryMonthData[cm][cat]) categoryMonthData[cm][cat] = { created: 0, done: 0, doneItems: [] };
+        categoryMonthData[cm][cat].created++;
+      }
+
+      if (done && us) {
+        const dm = toMonthKey(us);
+        const dw = toWeekOfMonth(us);
+        if (dm && dw) {
+          if (!monthData[dm]) monthData[dm] = {};
+          if (!monthData[dm][dw]) monthData[dm][dw] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+          monthData[dm][dw].done++;
+          monthData[dm][dw].doneItems.push(title);
+        }
+        if (dm) {
+          if (!categoryMonthData[dm]) categoryMonthData[dm] = {};
+          if (!categoryMonthData[dm][cat]) categoryMonthData[dm][cat] = { created: 0, done: 0, doneItems: [] };
+          categoryMonthData[dm][cat].done++;
+          categoryMonthData[dm][cat].doneItems.push(title);
+        }
+      }
+    }
+
+    // Fill missing weeks
+    for (const mk of Object.keys(monthData)) {
+      for (let w = 1; w <= getWeeksInMonth(mk); w++) {
+        const wk = `W${w}`;
+        if (!monthData[mk][wk]) monthData[mk][wk] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+      }
+    }
+
+    const sortedKeys = Object.keys(monthData).sort();
+
+    const months = sortedKeys.map((key) => {
+      const visibleCount = getVisibleWeekCount(key);
+      const visibleWeeks = Array.from({ length: visibleCount }, (_, i) => `W${i + 1}`);
+      const weeks = monthData[key];
+      const tc = visibleWeeks.reduce((a, w) => a + (weeks[w]?.created || 0), 0);
+      const td = visibleWeeks.reduce((a, w) => a + (weeks[w]?.done || 0), 0);
+      const maxWeekVal = Math.max(1, ...visibleWeeks.map((w) => Math.max(weeks[w]?.created || 0, weeks[w]?.done || 0)));
+      const [y, m] = key.split("-").map(Number);
+      const label = new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+      const catEntries = Object.entries(categoryMonthData[key] || {})
+        .sort((a, b) => (b[1].created + b[1].done) - (a[1].created + a[1].done))
+        .slice(0, 8);
+      const maxCatVal = Math.max(1, ...catEntries.map(([, v]) => Math.max(v.created, v.done)));
+      return {
+        key, label, totalCreated: tc, totalDone: td, maxWeekVal,
+        visibleWeeks,
+        weeks: Object.fromEntries(
+          Object.entries(weeks).map(([k, v]) => [k, {
+            created: v.created, done: v.done,
+            createdItems: v.createdItems, doneItems: v.doneItems,
+          }])
+        ),
+        categories: catEntries.map(([name, v]) => ({
+          name, created: v.created, done: v.done, doneItems: v.doneItems,
+        })),
+        maxCatVal,
+      };
+    });
+
+    res.json({ months });
+  } catch (e: any) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 const MOOD_ORDER = ["Awesome", "Good", "Meh", "Tired", "Low", "Stressed"];
 
 router.get("/moods", async (req, res) => {
