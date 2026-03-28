@@ -14,6 +14,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,6 +88,9 @@ export default function IRQuickAdd() {
   const insets = useSafeAreaInsets();
   const { openDrawer } = useDrawer();
   const { apiKey } = useNotion();
+  const { width: screenW } = useWindowDimensions();
+  const isTablet  = screenW >= 768;
+  const contentW  = isTablet ? Math.min(screenW * 0.62, 720) : undefined;
 
   const [schema, setSchema]             = useState<Schema | null>(null);
   const [schemaError, setSchemaError]   = useState<string | null>(null);
@@ -334,9 +338,16 @@ export default function IRQuickAdd() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Centred max-width column on tablet */}
+          <View style={{ alignSelf: "center", width: "100%", maxWidth: contentW }}>
+
           {/* Logo */}
           <View style={styles.logoWrap}>
-            <Image source={{ uri: IR_HEADER_LOGO }} style={styles.logo} resizeMode="contain" />
+            <Image
+              source={{ uri: IR_HEADER_LOGO }}
+              style={[styles.logo, isTablet && styles.logoTablet]}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Warnings */}
@@ -420,6 +431,9 @@ export default function IRQuickAdd() {
               })}
             </ScrollView>
           </View>
+
+          {/* close tablet wrapper */}
+          </View>
         </ScrollView>
       </Animated.View>
 
@@ -428,6 +442,7 @@ export default function IRQuickAdd() {
         style={[styles.footer, { bottom: keyboardOffset }]}
         onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
       >
+        <View style={{ alignSelf: "center", width: "100%", maxWidth: contentW }}>
         {errorMsg && (
           <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
         )}
@@ -449,6 +464,7 @@ export default function IRQuickAdd() {
             <Text style={styles.saveBtnText}>Save</Text>
           </TouchableOpacity>
         </View>
+        </View>{/* close footer tablet wrapper */}
       </Animated.View>
 
       {/* ── Loader overlay ─────────────────────────────────────────────────── */}
@@ -496,8 +512,9 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: { paddingHorizontal: 18, paddingBottom: 16 },
-  logoWrap: { alignItems: "center", marginBottom: 20, marginTop: 10 },
+  logoWrap: { alignItems: "center", marginBottom: 24, marginTop: 10 },
   logo: { width: 300, height: 160 },
+  logoTablet: { width: 420, height: 220 },
 
   warningBox: {
     flexDirection: "row", alignItems: "center", gap: 8,
