@@ -101,8 +101,13 @@ export function Drawer() {
           { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] },
         ]}
       >
-        {/* Header placeholder — image will go here */}
-        <View style={{ height: topPad + 32 }} />
+        {/* Header image area */}
+        <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 20 }}>
+          <View style={styles.imagePlaceholder}>
+            <Feather name="image" size={28} color="rgba(255,255,255,0.15)" />
+            <Text style={styles.imagePlaceholderText}>Your image here</Text>
+          </View>
+        </View>
 
         <ScrollView
           style={styles.scrollArea}
@@ -225,6 +230,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 20,
+  },
+  imagePlaceholder: {
+    height: 110,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderStyle: "dashed",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  imagePlaceholderText: {
+    color: "rgba(255,255,255,0.2)",
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    letterSpacing: 0.3,
   },
   scrollArea: { flex: 1 },
   section: { paddingHorizontal: 12, marginBottom: 4 },
