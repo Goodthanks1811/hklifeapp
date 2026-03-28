@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { ResizeMode, Video } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -234,16 +234,21 @@ export default function MiNenaScreen() {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed: Folder[] = JSON.parse(raw);
-          // Check each URI — remove ones that are gone
+          // Check each URI — remove ones that are no longer accessible
           const migrated = await Promise.all(
             parsed.map(async (folder) => {
               const alive: MediaItem[] = [];
               for (const item of folder.items) {
                 try {
-                  const info = await FileSystem.getInfoAsync(item.uri);
-                  if (info.exists) alive.push(item);
+                  // Only check items that look like permanent local paths
+                  if (item.uri.includes("mi_nena_media")) {
+                    const info = await FileSystem.getInfoAsync(item.uri);
+                    if (info.exists) alive.push(item);
+                  } else {
+                    // Old-style URI — skip silently (they're likely broken)
+                  }
                 } catch {
-                  // skip broken
+                  // skip on error
                 }
               }
               return { ...folder, items: alive };
@@ -271,12 +276,9 @@ export default function MiNenaScreen() {
       });
       if (result.canceled || !result.assets.length) return;
 
-      // Ensure our permanent media dir exists
+      // Ensure our permanent media dir exists (safe to call even if it already exists)
       const mediaDir = `${FileSystem.documentDirectory}mi_nena_media/`;
-      const dirInfo  = await FileSystem.getInfoAsync(mediaDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(mediaDir, { intermediates: true });
-      }
+      await FileSystem.makeDirectoryAsync(mediaDir, { intermediates: true }).catch(() => {});
 
       // Copy every picked file into permanent storage so URIs survive restarts
       const picked: MediaItem[] = [];
@@ -284,13 +286,14 @@ export default function MiNenaScreen() {
         const name = a.name ?? a.uri.split("/").pop() ?? `file_${Date.now()}`;
         const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const dest = `${mediaDir}${Date.now()}_${safe}`;
+        let finalUri = a.uri; // start with source
         try {
           await FileSystem.copyAsync({ from: a.uri, to: dest });
-          picked.push({ uri: dest, name, isVideo: isVideo(name) });
-        } catch {
-          // copy failed — keep the cache URI for this session
-          picked.push({ uri: a.uri, name, isVideo: isVideo(name) });
+          finalUri = dest; // permanent copy succeeded
+        } catch (copyErr) {
+          console.warn("[MiNena] copy failed, using cache URI:", copyErr);
         }
+        picked.push({ uri: finalUri, name, isVideo: isVideo(name) });
       }
 
       setFolders((prev) => {
