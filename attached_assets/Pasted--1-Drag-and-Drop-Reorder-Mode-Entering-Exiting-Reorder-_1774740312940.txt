@@ -1,0 +1,44 @@
+## 1. Drag and Drop (Reorder Mode)
+
+### Entering / Exiting Reorder Mode
+- A **reorder FAB** (bottom-left, braille-grid icon `⠿`) toggles reorder mode on and off.
+- When active the FAB gains a red tint (`rgba(255,30,30,0.18)`), a red border, and red-tinted icon colour.
+- Toggling calls `setReorderMode(on)`, which:
+  - Sets `window.__reorderMode`
+  - Adds/removes `reorder-mode` class on `<body>`
+  - Freezes the scroll container (`overflow-y: hidden` while reordering)
+  - Calls `render()` to re-bind interactions
+
+### Visual State in Reorder Mode
+- All items drop to `opacity: 0.55` and show a `cursor: grab` style.
+- A braille handle (`⠿`) appears absolutely-positioned at the left of each card via a CSS `::before` pseudo-element.
+- Swipe-to-delete and long-press-to-edit are both blocked while `window.__reorderMode` is true.
+
+### Drag Gesture (`bindTouchReorder`)
+Each item registers a `touchstart / touchmove / touchend / touchcancel` set.
+
+**touchstart:**
+- Ignored unless `window.__reorderMode` is true.
+- Touches on `.emoji`, `.check`, or `.epic-tag` are excluded.
+- Captures `startY`, `currentTouchY`, and the scroller's `scrollTop` as `startScrollTop`.
+- Builds `sectionRows`: the list of *other* rows that share the same emoji group, with their current midpoint Y (`midY`).
+- Records `rdSrcPosInSection` (this item's position within the section).
+
+**touchmove:**
+- After 6px of vertical movement, `isDragging` flips to true; the card gets class `rd-dragging` and `transition: none`, `z-index: 200`.
+- A `requestAnimationFrame` loop (`dragFrame`) runs for the duration of the drag:
+  - **Auto-scroll:** if the finger is within 80px of the top or bottom of the viewport, the scroller accelerates (max 14px per frame).
+  - **Card position:** `item.style.transform = translateY(deltaY)` where `deltaY = (currentTouchY - startY) + scrollDelta`.
+  - **Target detection:** finds the `sectionRow` whose `midY` is closest to the finger, stores as `__rdCurrentTarget`.
+  - **Nudge classes:** all rows between the source and target positions receive either `rd-nudge-up` (`translateY(-52px)`) or `rd-nudge-down` (`translateY(52px)`) to animate the gap opening up.
+
+**touchend / touchcancel:**
+- Cancels the RAF loop.
+- Removes `rd-dragging`, resets `transform` and `transition` on the dragged card.
+- Clears all nudge classes.
+- If a `__rdCurrentTarget` exists: splices the task out of `tasks` at `srcIndex` and inserts it at the target's index.
+- Calls `render()` — the reordering is local/in-memory only; no Notion write is made.
+
+### Constraints
+- Reorder is **section-scoped**: items can only be moved within rows that share the same emoji value as the dragged item.
+- Reorder is blocked if the add/edit modal is open (`window.__isAddModalOpen`).
