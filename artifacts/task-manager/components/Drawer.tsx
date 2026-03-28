@@ -32,8 +32,9 @@ const APPS_ITEMS = [
 ];
 const FOOTY_ITEMS = [PLACEHOLDER_ITEM];
 const TOOLS_ITEMS = [
-  { label: "IR Quick Add",  icon: "zap"        as const, route: "/ir-quick-add",  description: "Add to Notion DB"        },
-  { label: "HK Quick Add",  icon: "plus-circle" as const, route: "/hk-quick-add", description: "HK Automation task add"  },
+  { label: "IR Quick Add",  icon: "zap"         as const, route: "/ir-quick-add",   description: "Add to Notion DB"       },
+  { label: "HK Quick Add",  icon: "plus-circle" as const, route: "/hk-quick-add",   description: "HK Automation task add" },
+  { label: "Photo Slider",  icon: "image"       as const, route: "/photo-slider",   description: "Compare & export photos"},
 ];
 const KNOWLEDGE_ITEMS = [PLACEHOLDER_ITEM];
 
@@ -124,7 +125,7 @@ export function Drawer() {
   const reports   = useAccordion(true,  REPORTS_ITEMS.length);
   const apps      = useAccordion(false, APPS_ITEMS.length);
   const footy     = useAccordion(false, FOOTY_ITEMS.length);
-  const tools     = useAccordion(false, TOOLS_ITEMS.length);
+  const tools     = useAccordion(false, TOOLS_ITEMS.length); 
   const knowledge = useAccordion(false, KNOWLEDGE_ITEMS.length);
   const uiKit     = useAccordion(false, UI_KIT_ITEMS.length);
 
