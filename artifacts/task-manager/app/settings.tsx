@@ -23,102 +23,157 @@ import {
   type SectionKey,
 } from "@/context/DrawerConfigContext";
 
-// ── Menu section editor ───────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+type ActiveMove = { section: SectionKey; label: string };
+
+// ── Menu section card ─────────────────────────────────────────────────────────
 function MenuSectionCard({
   sectionKey,
-  isFirst,
-  isLast,
-  onMoveUp,
-  onMoveDown,
+  sectionIsFirst,
+  sectionIsLast,
+  onMoveSectionUp,
+  onMoveSectionDown,
+  activeMove,
+  onStartMove,
+  onCompleteMove,
+  onCancelMove,
 }: {
-  sectionKey: SectionKey;
-  isFirst:    boolean;
-  isLast:     boolean;
-  onMoveUp:   () => void;
-  onMoveDown: () => void;
+  sectionKey:        SectionKey;
+  sectionIsFirst:    boolean;
+  sectionIsLast:     boolean;
+  onMoveSectionUp:   () => void;
+  onMoveSectionDown: () => void;
+  activeMove:        ActiveMove | null;
+  onStartMove:       (label: string) => void;
+  onCompleteMove:    (label: string, toSection: SectionKey) => void;
+  onCancelMove:      () => void;
 }) {
-  const { getAllItems, isHidden, toggleHidden, moveUp, moveDown } = useDrawerConfig();
-  const items = getAllItems(sectionKey);
+  const {
+    getAllItems, isHidden, toggleHidden,
+    moveUp, moveDown,
+    isSectionHidden, toggleSectionHidden,
+    getSectionOrder,
+  } = useDrawerConfig();
+
+  const items       = getAllItems(sectionKey);
+  const secHidden   = isSectionHidden(sectionKey);
+  const orderedSecs = getSectionOrder();
 
   return (
-    <View style={mStyles.card}>
-      {/* Section header with reorder arrows */}
+    <View style={[mStyles.card, secHidden && mStyles.cardHidden]}>
+      {/* ── Section header ──────────────────────────────────────────────────── */}
       <View style={mStyles.sectionHeader}>
-        <Text style={mStyles.sectionTitle}>{SECTION_LABELS[sectionKey]}</Text>
-        <View style={mStyles.sectionArrows}>
+        <Text style={[mStyles.sectionTitle, secHidden && mStyles.sectionTitleHidden]}>
+          {SECTION_LABELS[sectionKey]}
+        </Text>
+        <View style={mStyles.sectionControls}>
+          {/* Section reorder arrows */}
           <Pressable
-            onPress={() => { if (!isFirst) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveUp(); } }}
-            style={({ pressed }) => [mStyles.arrowBtn, (isFirst || pressed) && mStyles.arrowBtnDisabled]}
+            onPress={() => { if (!sectionIsFirst) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveSectionUp(); } }}
+            style={({ pressed }) => [mStyles.arrowBtn, (sectionIsFirst || pressed) && mStyles.arrowBtnDim]}
             hitSlop={8}
           >
-            <Feather name="chevron-up" size={16} color={isFirst ? Colors.textMuted : Colors.textSecondary} />
+            <Feather name="chevron-up" size={15} color={sectionIsFirst ? Colors.textMuted : Colors.textSecondary} />
           </Pressable>
           <Pressable
-            onPress={() => { if (!isLast) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveDown(); } }}
-            style={({ pressed }) => [mStyles.arrowBtn, (isLast || pressed) && mStyles.arrowBtnDisabled]}
+            onPress={() => { if (!sectionIsLast) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onMoveSectionDown(); } }}
+            style={({ pressed }) => [mStyles.arrowBtn, (sectionIsLast || pressed) && mStyles.arrowBtnDim]}
             hitSlop={8}
           >
-            <Feather name="chevron-down" size={16} color={isLast ? Colors.textMuted : Colors.textSecondary} />
+            <Feather name="chevron-down" size={15} color={sectionIsLast ? Colors.textMuted : Colors.textSecondary} />
+          </Pressable>
+          {/* Section hide toggle */}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleSectionHidden(sectionKey); }}
+            style={({ pressed }) => [mStyles.eyeBtn, pressed && { opacity: 0.6 }]}
+            hitSlop={8}
+          >
+            <Feather name={secHidden ? "eye-off" : "eye"} size={16} color={secHidden ? Colors.textMuted : Colors.primary} />
           </Pressable>
         </View>
       </View>
+
+      {/* ── Items ───────────────────────────────────────────────────────────── */}
       {items.map((item, idx) => {
-        const hidden    = isHidden(sectionKey, item.label);
-        const itemFirst = idx === 0;
-        const itemLast  = idx === items.length - 1;
+        const hidden     = isHidden(sectionKey, item.label);
+        const itemFirst  = idx === 0;
+        const itemLast   = idx === items.length - 1;
+        const isMoving   = activeMove?.section === sectionKey && activeMove?.label === item.label;
 
         return (
-          <View key={item.label} style={[mStyles.itemRow, hidden && mStyles.itemRowHidden]}>
-            {/* Icon + label */}
-            <View style={[mStyles.iconBox, hidden && mStyles.iconBoxHidden]}>
-              <Feather name={item.icon as any} size={14} color={hidden ? Colors.textMuted : Colors.primary} />
-            </View>
-            <View style={mStyles.itemText}>
-              <Text style={[mStyles.itemLabel, hidden && mStyles.itemLabelHidden]}>{item.label}</Text>
-              <Text style={mStyles.itemDesc}>{item.description}</Text>
-            </View>
+          <View key={item.label}>
+            {/* Item row */}
+            <View style={[mStyles.itemRow, hidden && mStyles.itemRowHidden]}>
+              <View style={[mStyles.iconBox, hidden && mStyles.iconBoxHidden]}>
+                <Feather name={item.icon as any} size={14} color={hidden ? Colors.textMuted : Colors.primary} />
+              </View>
+              <View style={mStyles.itemText}>
+                <Text style={[mStyles.itemLabel, hidden && mStyles.itemLabelHidden]}>{item.label}</Text>
+                <Text style={mStyles.itemDesc}>{item.description}</Text>
+              </View>
 
-            {/* Reorder arrows */}
-            <View style={mStyles.arrows}>
+              {/* Reorder arrows */}
+              <View style={mStyles.arrows}>
+                <Pressable
+                  onPress={() => { if (!itemFirst) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveUp(sectionKey, item.label); } }}
+                  style={({ pressed }) => [mStyles.arrowBtn, (itemFirst || pressed) && mStyles.arrowBtnDim]}
+                  hitSlop={5}
+                >
+                  <Feather name="chevron-up" size={15} color={itemFirst ? Colors.textMuted : Colors.textSecondary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => { if (!itemLast) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveDown(sectionKey, item.label); } }}
+                  style={({ pressed }) => [mStyles.arrowBtn, (itemLast || pressed) && mStyles.arrowBtnDim]}
+                  hitSlop={5}
+                >
+                  <Feather name="chevron-down" size={15} color={itemLast ? Colors.textMuted : Colors.textSecondary} />
+                </Pressable>
+              </View>
+
+              {/* Move-to-section button */}
               <Pressable
                 onPress={() => {
-                  if (itemFirst) return;
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  moveUp(sectionKey, item.label);
+                  isMoving ? onCancelMove() : onStartMove(item.label);
                 }}
-                style={({ pressed }) => [mStyles.arrowBtn, (itemFirst || pressed) && mStyles.arrowBtnDisabled]}
+                style={({ pressed }) => [mStyles.moveBtn, (isMoving || pressed) && mStyles.moveBtnActive]}
                 hitSlop={6}
               >
-                <Feather name="chevron-up" size={16} color={itemFirst ? Colors.textMuted : Colors.textSecondary} />
+                <Feather name="log-in" size={15} color={isMoving ? Colors.primary : Colors.textSecondary} />
               </Pressable>
+
+              {/* Eye toggle */}
               <Pressable
-                onPress={() => {
-                  if (itemLast) return;
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  moveDown(sectionKey, item.label);
-                }}
-                style={({ pressed }) => [mStyles.arrowBtn, (itemLast || pressed) && mStyles.arrowBtnDisabled]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleHidden(sectionKey, item.label); }}
+                style={({ pressed }) => [mStyles.eyeBtn, pressed && { opacity: 0.6 }]}
                 hitSlop={6}
               >
-                <Feather name="chevron-down" size={16} color={itemLast ? Colors.textMuted : Colors.textSecondary} />
+                <Feather name={hidden ? "eye-off" : "eye"} size={16} color={hidden ? Colors.textMuted : Colors.primary} />
               </Pressable>
             </View>
 
-            {/* Eye toggle */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                toggleHidden(sectionKey, item.label);
-              }}
-              style={({ pressed }) => [mStyles.eyeBtn, pressed && { opacity: 0.6 }]}
-              hitSlop={8}
-            >
-              <Feather
-                name={hidden ? "eye-off" : "eye"}
-                size={17}
-                color={hidden ? Colors.textMuted : Colors.primary}
-              />
-            </Pressable>
+            {/* Inline section picker */}
+            {isMoving && (
+              <View style={mStyles.picker}>
+                <Text style={mStyles.pickerLabel}>Move to:</Text>
+                <View style={mStyles.pickerPills}>
+                  {orderedSecs
+                    .filter((k) => k !== sectionKey)
+                    .map((k) => (
+                      <Pressable
+                        key={k}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCompleteMove(item.label, k); }}
+                        style={({ pressed }) => [mStyles.pill, pressed && mStyles.pillPressed]}
+                      >
+                        <Text style={mStyles.pillText}>{SECTION_LABELS[k]}</Text>
+                      </Pressable>
+                    ))}
+                </View>
+                <Pressable onPress={onCancelMove} style={mStyles.pickerCancel} hitSlop={8}>
+                  <Feather name="x" size={14} color={Colors.textMuted} />
+                </Pressable>
+              </View>
+            )}
           </View>
         );
       })}
@@ -130,12 +185,13 @@ function MenuSectionCard({
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey, setApiKey, clearConfig } = useNotion();
-  const { getSectionOrder, moveSectionUp, moveSectionDown } = useDrawerConfig();
+  const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection } = useDrawerConfig();
 
-  const [draft, setDraft]       = useState(apiKey ?? "");
-  const [saved, setSaved]       = useState(false);
-  const [masked, setMasked]     = useState(true);
-  const [clearing, setClearing] = useState(false);
+  const [draft,       setDraft]       = useState(apiKey ?? "");
+  const [saved,       setSaved]       = useState(false);
+  const [masked,      setMasked]      = useState(true);
+  const [clearing,    setClearing]    = useState(false);
+  const [activeMove,  setActiveMove]  = useState<ActiveMove | null>(null);
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
@@ -167,6 +223,7 @@ export default function SettingsScreen() {
     setClearing(false);
   };
 
+  const orderedSections = getSectionOrder();
   const isChanged = draft.trim() !== (apiKey ?? "");
   const hasKey    = !!apiKey;
 
@@ -181,15 +238,27 @@ export default function SettingsScreen() {
       >
         {/* ── Menu Customisation ─────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>MENU</Text>
-        <Text style={styles.sectionHint}>Reorder sections and items with the arrows. Tap the eye to show or hide.</Text>
-        {getSectionOrder().map((key, idx, arr) => (
+        <Text style={styles.sectionHint}>
+          Reorder sections and items with ↑↓. Tap{" "}
+          <Feather name="log-in" size={11} color={Colors.textMuted} /> to move an item to a different section.
+          Tap the eye to show or hide.
+        </Text>
+
+        {orderedSections.map((key, idx) => (
           <MenuSectionCard
             key={key}
             sectionKey={key}
-            isFirst={idx === 0}
-            isLast={idx === arr.length - 1}
-            onMoveUp={() => moveSectionUp(key)}
-            onMoveDown={() => moveSectionDown(key)}
+            sectionIsFirst={idx === 0}
+            sectionIsLast={idx === orderedSections.length - 1}
+            onMoveSectionUp={() => moveSectionUp(key)}
+            onMoveSectionDown={() => moveSectionDown(key)}
+            activeMove={activeMove?.section === key ? activeMove : null}
+            onStartMove={(label) => setActiveMove({ section: key, label })}
+            onCompleteMove={(label, toSection) => {
+              moveItemToSection(key, label, toSection);
+              setActiveMove(null);
+            }}
+            onCancelMove={() => setActiveMove(null)}
           />
         ))}
 
@@ -248,16 +317,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           {hasKey && (
-            <TouchableOpacity
-              activeOpacity={0.75}
-              style={styles.clearBtn}
-              onPress={handleClear}
-              disabled={clearing}
-            >
+            <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={handleClear} disabled={clearing}>
               <Feather name="trash-2" size={14} color={Colors.textSecondary} />
-              <Text style={styles.clearBtnText}>
-                {clearing ? "Clearing…" : "Remove saved key"}
-              </Text>
+              <Text style={styles.clearBtnText}>{clearing ? "Clearing…" : "Remove saved key"}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -294,13 +356,14 @@ const mStyles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 10,
   },
+  cardHidden: { opacity: 0.5 },
+
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -310,56 +373,79 @@ const mStyles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.8,
     textTransform: "uppercase",
+    flex: 1,
   },
-  sectionArrows: {
-    flexDirection: "row",
-    gap: 2,
-  },
+  sectionTitleHidden: { color: Colors.textMuted },
+  sectionControls: { flexDirection: "row", alignItems: "center", gap: 2 },
+
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 11,
-    gap: 10,
+    paddingVertical: 10,
+    gap: 9,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  itemRowHidden: { opacity: 0.45 },
+  itemRowHidden: { opacity: 0.4 },
+
   iconBox: {
-    width: 28, height: 28,
+    width: 26, height: 26,
     backgroundColor: "rgba(224,49,49,0.1)",
     borderRadius: 7,
     alignItems: "center", justifyContent: "center",
   },
   iconBoxHidden: { backgroundColor: "rgba(255,255,255,0.05)" },
+
   itemText: { flex: 1 },
-  itemLabel: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-  },
+  itemLabel: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
   itemLabelHidden: { color: Colors.textMuted },
-  itemDesc: {
+  itemDesc: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+
+  arrows: { flexDirection: "row", gap: 1 },
+  arrowBtn: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderRadius: 6 },
+  arrowBtnDim: { opacity: 0.3 },
+
+  moveBtn: {
+    width: 28, height: 28, alignItems: "center", justifyContent: "center",
+    borderRadius: 7, borderWidth: 1, borderColor: "transparent",
+  },
+  moveBtnActive: {
+    backgroundColor: "rgba(224,49,49,0.12)",
+    borderColor: Colors.border,
+  },
+
+  eyeBtn: { width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 8 },
+
+  // Inline section picker
+  picker: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "rgba(224,49,49,0.05)",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  pickerLabel: {
     color: Colors.textMuted,
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
+    fontFamily: "Inter_500Medium",
   },
-  arrows: {
-    flexDirection: "row",
-    gap: 2,
+  pickerPills: { flexDirection: "row", flexWrap: "wrap", gap: 6, flex: 1 },
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: Colors.cardBgElevated,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  arrowBtn: {
-    width: 28, height: 28,
-    alignItems: "center", justifyContent: "center",
-    borderRadius: 6,
-  },
-  arrowBtnDisabled: { opacity: 0.3 },
-  eyeBtn: {
-    width: 32, height: 32,
-    alignItems: "center", justifyContent: "center",
-    borderRadius: 8,
-  },
+  pillPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
+  pillText: { color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  pickerCancel: { padding: 4 },
 });
 
 // ── Existing styles ───────────────────────────────────────────────────────────
@@ -381,7 +467,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     marginBottom: 10,
-    lineHeight: 17,
+    lineHeight: 18,
   },
 
   card: {
@@ -399,12 +485,7 @@ const styles = StyleSheet.create({
 
   divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: -18 },
 
-  fieldLabel: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.4,
-  },
+  fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -424,16 +505,8 @@ const styles = StyleSheet.create({
   },
   eyeBtn: { padding: 6 },
 
-  hint: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 18,
-  },
-  hintLink: {
-    color: Colors.info,
-    fontFamily: "Inter_500Medium",
-  },
+  hint: { color: Colors.textMuted, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  hintLink: { color: Colors.info, fontFamily: "Inter_500Medium" },
 
   saveBtn: {
     backgroundColor: Colors.primary,
@@ -446,18 +519,8 @@ const styles = StyleSheet.create({
   saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   savedRow: { flexDirection: "row", alignItems: "center", gap: 6 },
 
-  clearBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 6,
-  },
-  clearBtnText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
+  clearBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 6 },
+  clearBtnText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular" },
 
   step: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   stepNum: {
@@ -468,11 +531,5 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   stepNumText: { color: Colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" },
-  stepText: {
-    flex: 1,
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 19,
-  },
+  stepText: { flex: 1, color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
 });

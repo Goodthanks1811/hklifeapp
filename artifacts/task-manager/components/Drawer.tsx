@@ -96,7 +96,7 @@ function AccordionSection({
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
   const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH } = useDrawer();
-  const { getVisible, getSectionOrder } = useDrawerConfig();
+  const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
   const insets = useSafeAreaInsets();
 
   const sectionOrder = getSectionOrder();
@@ -154,7 +154,7 @@ export function Drawer() {
           contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {sectionOrder.map((key, i) => (
+          {sectionOrder.filter((key) => !isSectionHidden(key)).map((key, i) => (
             <React.Fragment key={key}>
               <AccordionSection
                 label={SECTION_LABELS[key]}
