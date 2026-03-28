@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import {
   Animated,
   Platform,
@@ -35,22 +35,23 @@ const ITEM_HEIGHT = 56;
 
 // ── Accordion hook ────────────────────────────────────────────────────────────
 function useAccordion(initialOpen: boolean, itemCount: number) {
-  const [open, setOpen] = useState(initialOpen);
-  const anim      = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
-  const chevron   = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
-  const lastPress = useRef(0);
+  const openRef = useRef(initialOpen);
+  const locked  = useRef(false);
+  const anim    = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
+  const chevron = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
 
   const toggle = () => {
-    const now = Date.now();
-    if (now - lastPress.current < 500) return;
-    lastPress.current = now;
+    if (locked.current) return;
+    locked.current = true;
 
-    const next = !open;
-    setOpen(next);
+    openRef.current = !openRef.current;
+    const toValue = openRef.current ? 1 : 0;
+
     Animated.parallel([
-      Animated.spring(anim,    { toValue: next ? 1 : 0, useNativeDriver: false, bounciness: 4 }),
-      Animated.timing(chevron, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: true }),
-    ]).start();
+      Animated.spring(anim,    { toValue, useNativeDriver: false, bounciness: 4 }),
+      Animated.timing(chevron, { toValue, duration: 220, useNativeDriver: true }),
+    ]).start(() => { locked.current = false; });
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -64,7 +65,7 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
     outputRange: ["0deg", "90deg"],
   });
 
-  return { open, toggle, listHeight, chevronRotate };
+  return { toggle, listHeight, chevronRotate };
 }
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
