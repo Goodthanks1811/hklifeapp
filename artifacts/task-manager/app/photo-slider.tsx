@@ -67,7 +67,7 @@ canvas { position:absolute; top:0; left:0; display:block; }
 
 #sheet-bg { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,0); pointer-events:none; transition:background 0.28s; }
 #sheet-bg.open { background:rgba(0,0,0,.65); pointer-events:all; }
-#sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; background:${C.surface}; border-radius:20px 20px 0 0; padding:0 20px 48px; transform:translateY(100%); transition:transform 0.32s cubic-bezier(0.32,.72,0,1); border-top:1px solid ${C.border}; }
+#sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; background:${C.surface}; border-radius:20px 20px 0 0; padding:0 20px 48px; transform:translateY(100%); transition:transform 0.32s cubic-bezier(0.32,.72,0,1), bottom 0.22s ease; border-top:1px solid ${C.border}; }
 #sheet.open { transform:translateY(0); }
 .sheet-handle { width:36px; height:5px; border-radius:3px; background:${C.border}; margin:12px auto 22px; }
 .sheet-title { font-size:17px; font-weight:800; text-align:center; margin-bottom:4px; }
@@ -118,18 +118,18 @@ input[type=file] { display:none; }
   <div id="divider"></div>
   <div id="loader">
     <div id="loader-spw">
-      <svg width="79" height="79" viewBox="0 0 79 79" style="animation:spin 600ms linear infinite;display:block;">
-        <circle cx="39.5" cy="39.5" r="31" fill="none" stroke="rgba(224,49,49,0.18)" stroke-width="8.5"/>
-        <circle cx="39.5" cy="39.5" r="31" fill="none" stroke="${C.primary}" stroke-width="8.5" stroke-linecap="round" stroke-dasharray="49 146"/>
+      <svg width="75" height="75" viewBox="0 0 75 75" style="animation:spin 600ms linear infinite;display:block;">
+        <circle cx="37.5" cy="37.5" r="29.5" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="8"/>
+        <circle cx="37.5" cy="37.5" r="29.5" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="8" stroke-linecap="round" stroke-dasharray="46 139"/>
       </svg>
     </div>
     <div id="loader-scw">
-      <svg width="73" height="73" viewBox="0 0 73 73">
-        <circle cx="36.5" cy="36.5" r="35.5" fill="${C.primary}"/>
-        <path id="tkp" fill="none" stroke="#fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" d="M18 38 L28 50 L51 23"/>
+      <svg width="68" height="68" viewBox="0 0 68 68">
+        <circle cx="34" cy="34" r="33" fill="${C.primary}"/>
+        <path id="tkp" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7"/>
       </svg>
     </div>
-    <div id="loader-word">saved</div>
+    <div id="loader-word">SAVED</div>
   </div>
 </div>
 
@@ -199,9 +199,19 @@ function H(){return stage.clientHeight;}
 function showLoadPanel(){panelLoad.style.display='block';panelName.style.display='none';}
 function showNamePanel(){panelLoad.style.display='none';panelName.style.display='block';}
 function openLoadSheet(){document.getElementById('load-cancel').style.display=(img1||img2)?'block':'none';showLoadPanel();sheetBg.classList.add('open');sheet.classList.add('open');}
-function closeSheet(){sheetBg.classList.remove('open');sheet.classList.remove('open');}
+function closeSheet(){sheetBg.classList.remove('open');sheet.classList.remove('open');sheet.style.bottom='';}
 function bgTap(){if(img1||img2)closeSheet();}
 function triggerPick(){document.getElementById('filePick').click();}
+
+// ── Keyboard avoidance ──────────────────────────────────
+if(window.visualViewport){
+  function _onVV(){
+    var kb=Math.max(0,window.innerHeight-window.visualViewport.height);
+    sheet.style.bottom=kb>50?kb+'px':'';
+  }
+  window.visualViewport.addEventListener('resize',_onVV);
+  window.visualViewport.addEventListener('scroll',_onVV);
+}
 
 // ── Image button taps ──────────────────────────────────
 function imgBtnTap(n){
@@ -247,20 +257,30 @@ function eob(t){var c=1.70158,c3=c+1;return 1+c3*Math.pow(t-1,3)+c*Math.pow(t-1,
 function eio(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
 function an(dur,fn,done,ease){ease=ease||eo;var s=performance.now();(function f(now){var raw=Math.min((now-s)/dur,1);fn(ease(raw));if(raw<1)requestAnimationFrame(f);else if(done)done();})(performance.now());}
 
-// ── Loader ────────────────────────────────────────────
-function showLoader(onSpinDone){
+// ── Loader (Scriptable-style timings) ────────────────────
+var T_FI=200,T_SI=250,T_SPIN=1300,T_POP=420,T_TICK=400,T_WORD=280,T_HOLD=900,T_FO=450;
+var _spinDone=false,_saveOk=null;
+function _tryResolve(){if(_spinDone&&_saveOk!==null)resolveLoader(_saveOk);}
+
+function showLoader(onSpinVisible){
+  _spinDone=false;_saveOk=null;
   var len=tkp.getTotalLength();tkp.style.strokeDasharray=len;tkp.style.strokeDashoffset=len;
   ldrScw.style.transform='scale(0)';ldrScw.style.opacity='0';ldrWord.style.opacity='0';ldrSpw.style.opacity='0';
   ldr.style.opacity='0';ldr.style.pointerEvents='all';
-  an(200,function(t){ldr.style.opacity=t;},function(){an(250,function(t){ldrSpw.style.opacity=t;},function(){onSpinDone();});});
+  an(T_FI,function(t){ldr.style.opacity=t;},function(){
+    an(T_SI,function(t){ldrSpw.style.opacity=t;},function(){
+      onSpinVisible();
+      setTimeout(function(){_spinDone=true;_tryResolve();},T_SPIN);
+    });
+  });
 }
 function resolveLoader(success){
-  an(420,function(t){ldrSpw.style.opacity=1-t;ldrScw.style.opacity=t;ldrScw.style.transform='scale('+eob(t)+')';},function(){
+  an(T_POP,function(t){ldrSpw.style.opacity=1-t;ldrScw.style.opacity=t;ldrScw.style.transform='scale('+eob(t)+')';},function(){
     ldrSpw.style.opacity=0;
     if(!success){an(300,function(t){ldr.style.opacity=1-t;},function(){ldr.style.opacity='0';ldr.style.pointerEvents='none';ldrScw.style.transform='scale(0)';loaderRunning=false;});return;}
-    an(400,function(t){tkp.style.strokeDashoffset=tkp.getTotalLength()*(1-t);},function(){
-      an(280,function(t){ldrWord.style.opacity=t;},function(){
-        setTimeout(function(){an(450,function(t){ldr.style.opacity=1-t;},function(){ldr.style.opacity='0';ldr.style.pointerEvents='none';ldrScw.style.transform='scale(0)';ldrWord.style.opacity=0;loaderRunning=false;});},900);
+    an(T_TICK,function(t){tkp.style.strokeDashoffset=tkp.getTotalLength()*(1-t);},function(){
+      an(T_WORD,function(t){ldrWord.style.opacity=t;},function(){
+        setTimeout(function(){an(T_FO,function(t){ldr.style.opacity=1-t;},function(){ldr.style.opacity='0';ldr.style.pointerEvents='none';ldrScw.style.transform='scale(0)';ldrWord.style.opacity=0;loaderRunning=false;});},T_HOLD);
       },eio);
     },eio);
   },eo);
@@ -272,11 +292,12 @@ function shareCanvas(){
   loaderRunning=true;
   var b64=cv.toDataURL('image/png').split(',')[1];
   showLoader(function(){
-    try{window.ReactNativeWebView.postMessage('save:'+b64);}catch(e){resolveLoader(false);}
+    try{window.ReactNativeWebView.postMessage('save:'+b64);}
+    catch(e){_saveOk=false;_tryResolve();}
   });
 }
 // Called from native after save resolves
-window.nativeSaveResult=function(ok){resolveLoader(ok);};
+window.nativeSaveResult=function(ok){_saveOk=ok;_tryResolve();};
 
 // ── Canvas ────────────────────────────────────────────
 function cloneTx(t){return t?{scale:t.scale,cx:t.cx,cy:t.cy}:null;}

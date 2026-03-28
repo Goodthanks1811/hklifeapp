@@ -1,0 +1,155 @@
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: red; icon-glyph: magic;
+
+// ─── Config ───────────────────────────────────────────────
+const CFG = {
+  // Overlay
+  overlayBg:  'rgba(11,11,12,0.82)',
+
+  // Spinner — Classic Red 01
+  SP:        75,       // SVG size px
+  SPK:       8.0,      // stroke width
+  spinCol:   'rgba(255,255,255,0.88)',
+  spinTrack: 'rgba(255,255,255,0.12)',
+  spinDash:  0.25,     // arc fraction 0.0–1.0
+  spinSpeed: 600,      // ms per rotation
+
+  // Success circle
+  CIR:    68,          // SVG size px
+  cirBg:  '#ff1e1e',   // circle fill
+  tick:   '#ffffff',   // tick colour
+  tickSW: 8.0,         // tick stroke width
+
+  // Word
+  word:      '',
+  wordCol:   '#ffffff',
+
+  // Timings (ms)
+  T_FADE_IN:    200,
+  T_SPINNER_IN: 250,
+  T_SPIN:       1300,
+  T_POP:        420,
+  T_TICK:       400,
+  T_HOLD:       900,
+  T_FADE_OUT:   450,
+  T_WORD:       280,
+};
+// ─────────────────────────────────────────────────────────
+
+function buildHTML(cfg) {
+  // Spinner geometry
+  var SP  = cfg.SP, SPK = cfg.SPK, cx = SP / 2;
+  var r   = (SP - SPK * 2) / 2;
+  var full = Math.round(Math.PI * r * 2);
+  var dash = Math.round(full * cfg.spinDash);
+  var gap  = full - dash;
+
+  // Success tick — scale canonical points M18 38 L28 50 L51 23 to CIR
+  var C  = cfg.CIR, ch = C / 2;
+  var sc = C / 72;
+  function s(n){ return Math.round(n * sc * 10) / 10; }
+  var tickPath = 'M'+s(18)+' '+s(38)+' L'+s(28)+' '+s(50)+' L'+s(51)+' '+s(23);
+
+  var spinnerSVG =
+    '<svg width="'+SP+'" height="'+SP+'" viewBox="0 0 '+SP+' '+SP+'" style="animation:spin '+cfg.spinSpeed+'ms linear infinite;display:block;">' +
+      '<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+cfg.spinTrack+'" stroke-width="'+SPK+'"/>' +
+      '<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+cfg.spinCol+'"   stroke-width="'+SPK+'" stroke-linecap="round" stroke-dasharray="'+dash+' '+gap+'"/>' +
+    '</svg>';
+
+  var successSVG =
+    '<svg width="'+C+'" height="'+C+'" viewBox="0 0 '+C+' '+C+'">' +
+      '<circle cx="'+ch+'" cy="'+ch+'" r="'+(ch-1)+'" fill="'+cfg.cirBg+'"/>' +
+      '<path id="tkp" fill="none" stroke="'+cfg.tick+'" stroke-width="'+cfg.tickSW+'" stroke-linecap="round" stroke-linejoin="round" d="'+tickPath+'"/>' +
+    '</svg>';
+
+  var css = [
+    '* { margin:0; padding:0; box-sizing:border-box; }',
+    'html,body { height:100%; background:#000; display:flex; align-items:center; justify-content:center; font-family:-apple-system,sans-serif; }',
+    '#overlay { position:fixed; inset:0; background:'+cfg.overlayBg+'; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; }',
+    '#spw { position:absolute; opacity:0; }',
+    '#scw { position:absolute; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(0); }',
+    '#word { font-size:20px; font-weight:800; letter-spacing:5px; color:'+cfg.wordCol+'; opacity:0; margin-top:110px; text-transform:uppercase; }',
+    '@keyframes spin { to { transform:rotate(360deg); } }',
+  ].join('');
+
+  var js = [
+    'var T_FADE_IN='+cfg.T_FADE_IN+',T_SPINNER_IN='+cfg.T_SPINNER_IN+',T_SPIN='+cfg.T_SPIN+';',
+    'var T_POP='+cfg.T_POP+',T_TICK='+cfg.T_TICK+',T_HOLD='+cfg.T_HOLD+';',
+    'var T_FADE_OUT='+cfg.T_FADE_OUT+',T_WORD='+cfg.T_WORD+';',
+    'var ov=document.getElementById("overlay");',
+    'var spw=document.getElementById("spw");',
+    'var scw=document.getElementById("scw");',
+    'var wd=document.getElementById("word");',
+    'var tkp=document.getElementById("tkp");',
+    'window.__done=false;',
+
+    // Easings
+    'function eo(t){return 1-Math.pow(1-t,3);}',
+    'function eob(t){var c=1.70158,c3=c+1;return 1+c3*Math.pow(t-1,3)+c*Math.pow(t-1,2);}',
+    'function eio(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}',
+    'function an(dur,fn,done,ease){',
+    '  ease=ease||eo;var s=performance.now();',
+    '  (function f(now){var raw=Math.min((now-s)/dur,1);fn(ease(raw));',
+    '  if(raw<1)requestAnimationFrame(f);else if(done)done();})(performance.now());',
+    '}',
+
+    // Init tick dash
+    'var len=tkp.getTotalLength();',
+    'tkp.style.strokeDasharray=len;',
+    'tkp.style.strokeDashoffset=len;',
+    'scw.style.transform="scale(0)";',
+
+    // Run sequence
+    'an(T_FADE_IN,function(t){ov.style.opacity=t;},function(){',
+    '  an(T_SPINNER_IN,function(t){spw.style.opacity=t;},function(){',
+    '    setTimeout(function(){',
+    '      an(T_POP,function(t){',
+    '        spw.style.opacity=1-t;',
+    '        scw.style.opacity=t;',
+    '        scw.style.transform="scale("+eob(t)+")";',
+    '      },function(){',
+    '        spw.style.opacity=0;',
+    '        an(T_TICK,function(t){',
+    '          tkp.style.strokeDashoffset=len*(1-t);',
+    '        },function(){',
+    '          an(T_WORD,function(t){wd.style.opacity=t;},function(){',
+    '            setTimeout(function(){',
+    '              an(T_FADE_OUT,function(t){ov.style.opacity=1-t;},function(){',
+    '                ov.style.opacity="0";',
+    '                window.__done=true;',
+    '              });',
+    '            },T_HOLD);',
+    '          },eio);',
+    '        },eio);',
+    '      },eo);',
+    '    },T_SPIN);',
+    '  });',
+    '});',
+  ].join('\n');
+
+  return '<!DOCTYPE html><html><head>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">' +
+    '<style>' + css + '</style>' +
+    '</head><body>' +
+    '<div id="overlay">' +
+      '<div id="spw">' + spinnerSVG + '</div>' +
+      '<div id="scw">' + successSVG + '</div>' +
+      '<div id="word">' + cfg.word + '</div>' +
+    '</div>' +
+    '<script>' + js + '<\/script>' +
+    '</body></html>';
+}
+
+// ─── Run ──────────────────────────────────────────────────
+const wv = new WebView();
+await wv.loadHTML(buildHTML(CFG));
+wv.present(true); // non-awaited so we can poll
+
+// Wait for animation to complete then auto-dismiss
+const totalMs =
+  CFG.T_FADE_IN + CFG.T_SPINNER_IN + CFG.T_SPIN +
+  CFG.T_POP + CFG.T_TICK + CFG.T_WORD + CFG.T_HOLD + CFG.T_FADE_OUT + 200;
+
+await new Promise(r => Timer.schedule(totalMs, false, r));
+Script.complete();
