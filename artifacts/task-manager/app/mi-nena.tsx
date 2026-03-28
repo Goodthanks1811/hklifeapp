@@ -28,11 +28,12 @@ interface MediaAsset {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff)$/i;
-const VIDEO_EXT = /\.(mp4|mov|m4v|avi|mkv|wmv|3gp)$/i;
-const FOLDER    = "Mi Nena";
-const COLS      = 3;
-const GAP       = 2;
+const IMAGE_EXT  = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff)$/i;
+const VIDEO_EXT  = /\.(mp4|mov|m4v|avi|mkv|wmv|3gp)$/i;
+const FOLDER     = "Mi Nena";
+const FOLDER_ENC = encodeURIComponent(FOLDER); // "Mi%20Nena"
+const COLS       = 3;
+const GAP        = 2;
 
 // ── Viewer (full-screen modal) ────────────────────────────────────────────────
 function Viewer({
@@ -153,19 +154,28 @@ export default function MiNenaScreen() {
   useEffect(() => {
     const load = async () => {
       try {
-        const folder = (FileSystem.documentDirectory ?? "") + FOLDER + "/";
+        const base   = FileSystem.documentDirectory ?? "";
+        const folder = base + FOLDER_ENC + "/";       // encoded for getInfo/readDir
+        const rawFolder = base + FOLDER + "/";        // raw for Image/Video URIs
+
         const info = await FileSystem.getInfoAsync(folder);
         if (!info.exists) {
-          setError(`Folder not found.\n\nIn the Files app go to:\nOn My iPhone → Expo → create a folder called "${FOLDER}"`);
-          setLoading(false);
-          return;
+          // also try raw path (some versions accept unencoded)
+          const infoRaw = await FileSystem.getInfoAsync(rawFolder);
+          if (!infoRaw.exists) {
+            setError(`Folder not found.\n\nIn the Files app go to:\nOn My iPhone → Expo → create a folder called "${FOLDER}"`);
+            setLoading(false);
+            return;
+          }
         }
-        const files = await FileSystem.readDirectoryAsync(folder);
+        // use whichever path worked
+        const workingFolder = (await FileSystem.getInfoAsync(folder)).exists ? folder : rawFolder;
+        const files = await FileSystem.readDirectoryAsync(workingFolder);
         const media: MediaAsset[] = files
           .filter((f) => IMAGE_EXT.test(f) || VIDEO_EXT.test(f))
           .sort()
           .map((f) => ({
-            uri:     folder + f,
+            uri:     workingFolder + encodeURIComponent(f),
             name:    f,
             isVideo: VIDEO_EXT.test(f),
           }));
