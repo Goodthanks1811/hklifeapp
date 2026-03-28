@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -117,6 +118,66 @@ function SkeletonBox({ width, height = 16, radius = 6 }: { width: number | strin
     <Animated.View style={{ width, height, borderRadius: radius, backgroundColor: Colors.cardBgElevated, opacity: anim }} />
   );
 }
+
+function HeartbeatLoader({ uri, size = 100 }: { uri: string; size?: number }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const glow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const beat = Animated.sequence([
+      Animated.timing(scale, { toValue: 1.28, duration: 120, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scale, { toValue: 0.92, duration: 100, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(scale, { toValue: 1.16, duration: 110, useNativeDriver: false, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scale, { toValue: 1.0, duration: 150, useNativeDriver: false, easing: Easing.inOut(Easing.quad) }),
+      Animated.delay(700),
+    ]);
+
+    const glowBeat = Animated.sequence([
+      Animated.timing(glow, { toValue: 1, duration: 120, useNativeDriver: false }),
+      Animated.timing(glow, { toValue: 0, duration: 600, useNativeDriver: false }),
+      Animated.delay(360),
+    ]);
+
+    Animated.loop(
+      Animated.parallel([beat, glowBeat])
+    ).start();
+  }, []);
+
+  const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] });
+  const glowScale = scale.interpolate({ inputRange: [0.9, 1.3], outputRange: [1.0, 1.6] });
+
+  return (
+    <View style={heartStyles.wrapper}>
+      <Animated.View
+        style={[
+          heartStyles.glowRing,
+          { width: size * 1.6, height: size * 1.6, borderRadius: size * 0.8, opacity: glowOpacity, transform: [{ scale: glowScale }] },
+        ]}
+      />
+      <Animated.Image
+        source={{ uri }}
+        style={[heartStyles.image, { width: size, height: size, transform: [{ scale }] }]}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
+const heartStyles = StyleSheet.create({
+  wrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 180,
+    height: 180,
+  },
+  glowRing: {
+    position: "absolute",
+    backgroundColor: "#4A6FFF",
+  },
+  image: {
+    borderRadius: 12,
+  },
+});
 
 function Section({ title }: { title: string }) {
   return (
@@ -289,6 +350,17 @@ export default function LoadersScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        <Section title="Heartbeat Loader" />
+        <View style={[styles.card, { padding: 0, overflow: "hidden" }]}>
+          <View style={styles.heartbeatBg}>
+            <HeartbeatLoader
+              uri="https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png"
+              size={110}
+            />
+            <Text style={styles.heartbeatLabel}>Loading...</Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -474,5 +546,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     paddingVertical: 4,
+  },
+  heartbeatBg: {
+    backgroundColor: "#0C1846",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 36,
+    gap: 16,
+    borderRadius: 14,
+  },
+  heartbeatLabel: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
   },
 });
