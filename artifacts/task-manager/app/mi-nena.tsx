@@ -156,12 +156,19 @@ export default function MiNenaScreen() {
       try {
         const base = FileSystem.documentDirectory ?? "";
 
+        // In Expo Go, documentDirectory is deep inside .../Documents/ExponentExperienceData/...
+        // The Files app "On My iPhone → Expo" folder is the top-level .../Documents/ folder.
+        // We extract the Documents root by splitting on "/Documents/".
+        const docRoot = base.includes("/Documents/")
+          ? base.split("/Documents/")[0] + "/Documents/"
+          : base;
+
         // Try several path variants for the folder
         const candidates = [
+          docRoot + "Mi Nena/",
+          docRoot + "Mi%20Nena/",
           base + "Mi Nena/",
           base + "Mi%20Nena/",
-          base + "mi nena/",
-          base + "mi%20nena/",
         ];
 
         let workingFolder: string | null = null;
