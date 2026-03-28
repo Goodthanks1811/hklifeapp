@@ -1,14 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Animated,
   Dimensions,
-  FlatList,
   Platform,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +12,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CategoryColumn } from "@/components/CategoryColumn";
-import { SetupScreen } from "@/components/SetupScreen";
 import { Colors } from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
@@ -38,36 +33,11 @@ export default function TaskBoardScreen() {
   const { toggleDrawer } = useDrawer();
   const {
     tasks,
-    isLoading,
-    error,
-    isConfigured,
-    fetchTasks,
     updateTaskStatus,
-    clearConfig,
-    databaseId,
-    databases,
   } = useNotion();
 
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const columnWidth = getColumnWidth();
-
-  const dbName = useMemo(() => {
-    const db = databases.find((d) => d.id === databaseId);
-    return db?.title || "Notion Tasks";
-  }, [databases, databaseId]);
-
-  useEffect(() => {
-    if (isConfigured) {
-      fetchTasks();
-    }
-  }, [isConfigured]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchTasks();
-    setRefreshing(false);
-  }, [fetchTasks]);
 
   const groupedTasks = useMemo(() => {
     const filtered = filterStatus
@@ -77,29 +47,11 @@ export default function TaskBoardScreen() {
     for (const s of STATUSES) {
       grouped[s] = filtered.filter((t) => t.status === s);
     }
-    const remainingStatuses = [
-      ...new Set(filtered.map((t) => t.status)),
-    ].filter((s) => !STATUSES.includes(s));
-    for (const s of remainingStatuses) {
-      grouped[s] = filtered.filter((t) => t.status === s);
-    }
     return grouped;
   }, [tasks, filterStatus]);
 
-  const allStatuses = useMemo(() => {
-    const extra = [...new Set(tasks.map((t) => t.status))].filter(
-      (s) => !STATUSES.includes(s)
-    );
-    return [...STATUSES, ...extra];
-  }, [tasks]);
-
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
-  const bottomPad =
-    Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
-
-  if (!isConfigured) {
-    return <SetupScreen />;
-  }
+  const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -117,28 +69,8 @@ export default function TaskBoardScreen() {
           <View style={styles.logoMark} />
           <View>
             <Text style={styles.headerTitle}>TaskBoard</Text>
-            <Text style={styles.headerSub}>{dbName}</Text>
+            <Text style={styles.headerSub}>UI Components</Text>
           </View>
-        </View>
-        <View style={styles.headerRight}>
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              fetchTasks();
-            }}
-          >
-            <Feather name="refresh-cw" size={18} color={Colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              clearConfig();
-            }}
-          >
-            <Feather name="settings" size={18} color={Colors.textSecondary} />
-          </Pressable>
         </View>
       </View>
 
@@ -148,25 +80,7 @@ export default function TaskBoardScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
-          <Pressable
-            style={[
-              styles.filterChip,
-              !filterStatus && styles.filterChipActive,
-            ]}
-            onPress={() => setFilterStatus(null)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                !filterStatus && styles.filterChipTextActive,
-              ]}
-            >
-              All ({tasks.length})
-            </Text>
-          </Pressable>
-          {allStatuses.map((s) => {
-            const count = tasks.filter((t) => t.status === s).length;
-            if (count === 0) return null;
+          {STATUSES.map((s) => {
             const isActive = filterStatus === s;
             const color = Colors.categories[s] || Colors.textMuted;
             return (
@@ -176,18 +90,19 @@ export default function TaskBoardScreen() {
                   styles.filterChip,
                   isActive && { borderColor: color, backgroundColor: `${color}22` },
                 ]}
-                onPress={() => setFilterStatus(isActive ? null : s)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setFilterStatus(isActive ? null : s);
+                }}
               >
-                <View
-                  style={[styles.filterDot, { backgroundColor: color }]}
-                />
+                <View style={[styles.filterDot, { backgroundColor: color }]} />
                 <Text
                   style={[
                     styles.filterChipText,
-                    isActive && { color: color, fontFamily: "Inter_600SemiBold" },
+                    isActive && { color, fontFamily: "Inter_600SemiBold" },
                   ]}
                 >
-                  {s} ({count})
+                  {s}
                 </Text>
               </Pressable>
             );
@@ -195,72 +110,23 @@ export default function TaskBoardScreen() {
         </ScrollView>
       </View>
 
-      {isLoading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading tasks...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Feather name="alert-circle" size={32} color={Colors.primary} />
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={fetchTasks}>
-            <Text style={styles.retryText}>Try Again</Text>
-          </Pressable>
-        </View>
-      ) : IS_TABLET ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.board,
-            { paddingBottom: bottomPad + 20 },
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary}
-            />
-          }
+      <View style={styles.emptyState}>
+        <Feather name="layers" size={40} color={Colors.textMuted} />
+        <Text style={styles.emptyTitle}>No tasks yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Open the menu to explore the UI kit components
+        </Text>
+        <Pressable
+          style={styles.menuHint}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            toggleDrawer();
+          }}
         >
-          {allStatuses.map((s) => (
-            <CategoryColumn
-              key={s}
-              status={s}
-              tasks={groupedTasks[s] || []}
-              onStatusChange={updateTaskStatus}
-              columnWidth={columnWidth}
-            />
-          ))}
-        </ScrollView>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.boardVertical,
-            { paddingBottom: bottomPad + 20 },
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary}
-            />
-          }
-        >
-          {allStatuses.map((s) => (
-            <View key={s} style={styles.columnWrapper}>
-              <CategoryColumn
-                status={s}
-                tasks={groupedTasks[s] || []}
-                onStatusChange={updateTaskStatus}
-                columnWidth={columnWidth}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      )}
+          <Feather name="menu" size={16} color="#fff" />
+          <Text style={styles.menuHintText}>Open Menu</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
