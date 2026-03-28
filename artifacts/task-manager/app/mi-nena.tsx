@@ -1,6 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { ResizeMode, Video } from "expo-av";
-import * as FileSystem from "expo-file-system/legacy";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,20 +21,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDrawer } from "@/context/DrawerContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const FOLDER_NAME = "Mi Nena";
+const STORAGE_KEY = "mi_nena_files_v1";
 const COLS        = 3;
 const GAP         = 2;
-const IMAGE_EXTS  = [".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif"];
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 type MediaItem = { uri: string; name: string; isVideo: boolean };
 
-function extOf(name: string) {
-  return name.slice(name.lastIndexOf(".")).toLowerCase();
+function isVideo(name: string) {
+  const ext = name.slice(name.lastIndexOf(".")).toLowerCase();
+  return VIDEO_EXTS.includes(ext);
 }
-function isImage(name: string) { return IMAGE_EXTS.includes(extOf(name)); }
-function isVideo(name: string) { return VIDEO_EXTS.includes(extOf(name)); }
 
 // ── Full-screen viewer ────────────────────────────────────────────────────────
 function Viewer({
@@ -116,26 +114,14 @@ function Viewer({
 }
 
 // ── Thumbnail ─────────────────────────────────────────────────────────────────
-function Thumbnail({
-  item,
-  size,
-  onPress,
-}: {
-  item: MediaItem;
-  size: number;
-  onPress: () => void;
-}) {
+function Thumbnail({ item, size, onPress }: { item: MediaItem; size: number; onPress: () => void }) {
   return (
     <TouchableOpacity
       style={[styles.thumb, { width: size, height: size }]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <Image
-        source={{ uri: item.uri }}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
+      <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {item.isVideo && (
         <View style={styles.playOverlay}>
           <View style={styles.playBadge}>
@@ -152,61 +138,66 @@ export default function MiNenaScreen() {
   const { openDrawer } = useDrawer();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const topPad =
-    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
   const [items,       setItems]       = useState<MediaItem[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState<string | null>(null);
+  const [picking,     setPicking]     = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const base = FileSystem.documentDirectory ?? "";
-      const folderUri = base + FOLDER_NAME + "/";
-
-      const info = await FileSystem.getInfoAsync(folderUri);
-      if (!info.exists) {
-        // Show the exact path the user needs to create the folder at
-        setError(
-          `Folder "${FOLDER_NAME}" not found.\n\n` +
-          `In the Files app, create this folder:\n\n${folderUri}\n\n` +
-          `In Expo Go, navigate to:\n` +
-          `On My iPhone → Expo → ExponentExperienceData → @anonymous → [your project] → Mi Nena\n\n` +
-          `In the standalone app, the folder will be:\n` +
-          `On My iPhone → [App Name] → Mi Nena`
-        );
-        setLoading(false);
-        return;
-      }
-
-      const entries = await FileSystem.readDirectoryAsync(folderUri);
-      const media: MediaItem[] = entries
-        .filter((n) => isImage(n) || isVideo(n))
-        .map((n) => ({
-          uri: folderUri + n,
-          name: n,
-          isVideo: isVideo(n),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      if (media.length === 0) {
-        setError(`The "${FOLDER_NAME}" folder exists but contains no photos or videos.`);
-        setLoading(false);
-        return;
-      }
-
-      setItems(media);
-    } catch (e: any) {
-      setError(`Error loading folder: ${e?.message ?? String(e)}`);
-    } finally {
+  // Load saved URIs from storage
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const saved: MediaItem[] = JSON.parse(raw);
+          setItems(saved);
+        }
+      } catch (_) {}
       setLoading(false);
+    })();
+  }, []);
+
+  // Open document picker and append selected files
+  const pickFiles = useCallback(async () => {
+    setPicking(true);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/*", "video/*"],
+        multiple: true,
+        copyToCacheDirectory: false,
+      });
+
+      if (result.canceled) return;
+
+      const picked: MediaItem[] = result.assets.map((a) => ({
+        uri:     a.uri,
+        name:    a.name ?? a.uri.split("/").pop() ?? "file",
+        isVideo: isVideo(a.name ?? a.uri),
+      }));
+
+      // Merge with existing, de-duplicate by URI
+      setItems((prev) => {
+        const existingUris = new Set(prev.map((x) => x.uri));
+        const fresh = picked.filter((p) => !existingUris.has(p.uri));
+        const merged = [...prev, ...fresh].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged)).catch(() => {});
+        return merged;
+      });
+    } catch (_) {
+    } finally {
+      setPicking(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Clear all saved files
+  const clearFiles = useCallback(async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    setItems([]);
+  }, []);
 
   const cellSize = (width - GAP * (COLS + 1)) / COLS;
 
@@ -223,10 +214,8 @@ export default function MiNenaScreen() {
 
   return (
     <View style={styles.screen}>
-      <Pressable
-        onPress={openDrawer}
-        style={[styles.hamburger, { top: topPad + 10 }]}
-      >
+      {/* Hamburger */}
+      <Pressable onPress={openDrawer} style={[styles.hamburger, { top: topPad + 10 }]}>
         <Feather name="menu" size={24} color="#fff" />
       </Pressable>
 
@@ -234,15 +223,26 @@ export default function MiNenaScreen() {
         <View style={styles.centred}>
           <ActivityIndicator size="large" color="#E03131" />
         </View>
-      ) : error ? (
+      ) : items.length === 0 ? (
+        /* ── Empty state ── */
         <View style={styles.centred}>
-          <Feather name="folder" size={40} color="#333" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load} activeOpacity={0.8}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+          <View style={styles.emptyIcon}>
+            <Feather name="image" size={36} color="#E03131" />
+          </View>
+          <Text style={styles.emptyTitle}>Mi Nena</Text>
+          <Text style={styles.emptySubtitle}>
+            Tap below to select your photos and videos from the Files app.
+            You only need to do this once — they'll be remembered.
+          </Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={pickFiles} activeOpacity={0.8} disabled={picking}>
+            {picking
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <><Feather name="folder" size={16} color="#fff" style={{ marginRight: 8 }} /><Text style={styles.primaryBtnText}>Select Files</Text></>
+            }
           </TouchableOpacity>
         </View>
       ) : (
+        /* ── Grid ── */
         <FlatList
           data={items}
           numColumns={COLS}
@@ -257,9 +257,31 @@ export default function MiNenaScreen() {
           columnWrapperStyle={{ gap: GAP }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Mi Nena</Text>
-              <Text style={styles.headerCount}>{items.length} items</Text>
+            <View style={styles.gridHeader}>
+              <View>
+                <Text style={styles.headerTitle}>Mi Nena</Text>
+                <Text style={styles.headerCount}>{items.length} items</Text>
+              </View>
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.addBtn}
+                  onPress={pickFiles}
+                  activeOpacity={0.8}
+                  disabled={picking}
+                >
+                  {picking
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Feather name="plus" size={18} color="#fff" />
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.clearBtn}
+                  onPress={clearFiles}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="refresh-cw" size={15} color="#555" />
+                </TouchableOpacity>
+              </View>
             </View>
           }
         />
@@ -280,45 +302,74 @@ export default function MiNenaScreen() {
 const styles = StyleSheet.create({
   screen:    { flex: 1, backgroundColor: "#000" },
   hamburger: { position: "absolute", left: 16, zIndex: 10, padding: 8 },
-  centred:   {
+
+  centred: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
+    paddingHorizontal: 36,
     gap: 16,
   },
-  errorText: {
-    color: "#555",
-    fontSize: 12,
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(224,49,49,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  emptyTitle:    { fontSize: 24, fontWeight: "900", color: "#fff", fontFamily: "Inter_700Bold" },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#666",
     fontFamily: "Inter_400Regular",
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 22,
   },
-  retryBtn:     {
-    paddingVertical: 10,
-    paddingHorizontal: 28,
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    backgroundColor: "#E03131",
+    borderRadius: 14,
+  },
+  primaryBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  gridHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingBottom: 12,
+  },
+  headerTitle:   { fontSize: 26, fontWeight: "900", color: "#fff", fontFamily: "Inter_700Bold" },
+  headerCount:   { fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: "Inter_400Regular", marginTop: 2 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 4 },
+  addBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#E03131",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clearBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#1a1a1a",
-    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#2a2a2a",
   },
-  retryBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  header:       { paddingHorizontal: 4, paddingBottom: 12 },
-  headerTitle:  {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#fff",
-    fontFamily: "Inter_700Bold",
-  },
-  headerCount:  {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.4)",
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
+
   thumb:       { backgroundColor: "#111", overflow: "hidden" },
   playOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
-  playBadge:   {
+  playBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -328,8 +379,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.6)",
   },
-  viewerBg:          { flex: 1, backgroundColor: "#000" },
-  viewerClose:       {
+
+  viewerBg:    { flex: 1, backgroundColor: "#000" },
+  viewerClose: {
     position: "absolute",
     top: 52,
     right: 20,
@@ -340,7 +392,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  viewerCounter:     {
+  viewerCounter: {
     position: "absolute",
     bottom: 48,
     alignSelf: "center",
