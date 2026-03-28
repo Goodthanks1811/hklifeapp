@@ -348,7 +348,7 @@ function SwipeableRow({
     })
   ).current;
 
-  const deleteOpacity = translateX.interpolate({ inputRange: [-140, -THRESHOLD, 0], outputRange: [1, 0.4, 0] });
+  const deleteOpacity = translateX.interpolate({ inputRange: [-140, THRESHOLD, 0], outputRange: [1, 0.4, 0] });
   const rowHeight = heightAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 60] });
 
   return (
