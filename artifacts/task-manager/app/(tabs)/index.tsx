@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CategoryColumn } from "@/components/CategoryColumn";
 import { SetupScreen } from "@/components/SetupScreen";
 import { Colors } from "@/constants/colors";
+import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
 
 const STATUSES = ["Not started", "In Progress", "Done", "Backlog", "Cancelled"];
@@ -34,6 +35,7 @@ function getColumnWidth() {
 
 export default function TaskBoardScreen() {
   const insets = useSafeAreaInsets();
+  const { toggleDrawer } = useDrawer();
   const {
     tasks,
     isLoading,
@@ -102,7 +104,16 @@ export default function TaskBoardScreen() {
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            toggleDrawer();
+          }}
+        >
+          <Feather name="menu" size={20} color={Colors.textSecondary} />
+        </Pressable>
+        <View style={styles.headerCenter}>
           <View style={styles.logoMark} />
           <View>
             <Text style={styles.headerTitle}>TaskBoard</Text>
@@ -263,12 +274,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    gap: 10,
   },
-  headerLeft: {
+  headerCenter: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

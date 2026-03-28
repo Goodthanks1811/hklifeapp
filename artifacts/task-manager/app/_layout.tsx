@@ -15,6 +15,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Drawer } from "@/components/Drawer";
+import { DrawerProvider } from "@/context/DrawerContext";
 import { NotionProvider } from "@/context/NotionContext";
 
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -27,9 +29,13 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="ui-kit" />
+      </Stack>
+      <Drawer />
+    </>
   );
 }
 
@@ -54,11 +60,13 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <NotionProvider>
-            <GestureHandlerRootView>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
+            <DrawerProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </DrawerProvider>
           </NotionProvider>
         </QueryClientProvider>
       </ErrorBoundary>
