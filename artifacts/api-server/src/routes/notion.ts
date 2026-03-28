@@ -270,4 +270,89 @@ router.patch("/tasks/:taskId", async (req, res) => {
   }
 });
 
+router.get("/schema/:dbId", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { dbId } = req.params;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  try {
+    const response = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
+      headers: notionHeaders(apiKey),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      res.status(response.status).json({ message: err.message || "Notion error" });
+      return;
+    }
+    const db = await response.json();
+    const props = db.properties || {};
+    const priProp = props["-"];
+    const priType = priProp?.type || "select";
+    const priOptions =
+      priType === "select" ? (priProp?.select?.options || []).map((o: any) => o.name.replace(/\uFE0F/g, "")) :
+      priType === "status" ? (priProp?.status?.options || []).map((o: any) => o.name.replace(/\uFE0F/g, "")) : null;
+    const epicProp = props["Epic"];
+    const epicType = epicProp?.type || "select";
+    const priorityProp = props["Priority"];
+    const priorityType = priorityProp?.type || "select";
+    res.json({ priType, priOptions, epicType, priorityType });
+  } catch (e: any) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/pages", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { dbId, title, epic, emoji, priType, priOptions, epicType, priorityType } = req.body;
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  if (!dbId || !title) { res.status(400).json({ message: "Missing dbId or title" }); return; }
+
+  const IR_PRIORITY_NOW = " ".repeat(23) + "\u2757\uFE0F Now";
+
+  function findBest(wanted: string, options: string[] | null): string {
+    if (!options) return wanted;
+    const w = wanted.toLowerCase().trim();
+    for (const o of options) { if (o.toLowerCase().trim() === w) return o; }
+    return wanted;
+  }
+
+  try {
+    const body: any = {
+      parent: { database_id: dbId },
+      properties: {
+        Task: { title: [{ type: "text", text: { content: title } }] },
+        Done: { checkbox: false },
+      },
+    };
+
+    if (priorityType === "select") body.properties.Priority = { select: { name: IR_PRIORITY_NOW } };
+    else if (priorityType === "status") body.properties.Priority = { status: { name: IR_PRIORITY_NOW } };
+
+    if (epic) {
+      if (epicType === "select") body.properties.Epic = { select: { name: epic } };
+      else if (epicType === "status") body.properties.Epic = { status: { name: epic } };
+    }
+
+    const emojiVal = String(emoji || "\uD83D\uDD25").replace(/\uFE0F/g, "");
+    if (priType === "select") body.properties["-"] = { select: { name: findBest(emojiVal, priOptions) } };
+    else if (priType === "status") body.properties["-"] = { status: { name: findBest(emojiVal, priOptions) } };
+    else body.properties["-"] = { rich_text: [{ type: "text", text: { content: emojiVal } }] };
+
+    const response = await fetch("https://api.notion.com/v1/pages", {
+      method: "POST",
+      headers: notionHeaders(apiKey),
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      res.status(response.status).json({ message: err.message || "Notion error" });
+      return;
+    }
+    const page = await response.json();
+    res.json({ success: true, id: page.id });
+  } catch (e: any) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 export default router;

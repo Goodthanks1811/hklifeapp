@@ -53,6 +53,15 @@ const MENU_ITEMS = [
   },
 ];
 
+const SCRIPT_ITEMS = [
+  {
+    label: "IR Quick Add",
+    icon: "zap" as const,
+    route: "/ir-quick-add",
+    description: "Add to Notion DB",
+  },
+];
+
 export function Drawer() {
   const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH } = useDrawer();
   const insets = useSafeAreaInsets();
@@ -106,6 +115,15 @@ export function Drawer() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>NAVIGATION</Text>
           {MENU_ITEMS.slice(0, 1).map((item) => (
+            <MenuItem key={item.route} item={item} onPress={() => navigate(item.route)} />
+          ))}
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Scripts</Text>
+          {SCRIPT_ITEMS.map((item) => (
             <MenuItem key={item.route} item={item} onPress={() => navigate(item.route)} />
           ))}
         </View>
