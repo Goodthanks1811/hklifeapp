@@ -520,43 +520,57 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPress, onChecked, onDelete }: {
-  task:         LifeTask;
-  isDragging:   boolean;
-  dimValue:     Animated.Value;   // 0=normal, 1=dimmed (drag mode, non-dragged rows)
-  onEmojiPress: () => void;
-  onPress:      () => void;
-  onLongPress:  () => void;
-  onChecked:    () => void;
-  onDelete:     () => void;
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen }: {
+  task:          LifeTask;
+  isDragging:    boolean;
+  dimValue:      Animated.Value;
+  onEmojiPress:  () => void;
+  onPress:       () => void;
+  onLongPress:   () => void;
+  onChecked:     () => void;
+  onDelete:      () => void;
+  onSwipeOpen?:  (close: () => void) => void;
 }) {
-  const checkScale  = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(1)).current;
-  const rowScale    = useRef(new Animated.Value(1)).current;
-  const translateX  = useRef(new Animated.Value(0)).current;
-  const deletingRef = useRef(false);
-  const startXRef   = useRef(0);
+  const checkScale   = useRef(new Animated.Value(0)).current;
+  const opacityAnim  = useRef(new Animated.Value(1)).current;
+  const rowScale     = useRef(new Animated.Value(1)).current;
+  const translateX   = useRef(new Animated.Value(0)).current;
+  const deletingRef  = useRef(false);
+  const startXRef    = useRef(0);
+  const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
-  // ── Swipe callbacks (stored in ref so PanResponder closure stays fresh) ───
+  // ── Swipe animations — smooth timing, not springy ─────────────────────────
   const swipeCbs = useRef({
-    snapBack:  () => Animated.spring(translateX, { toValue: 0,    useNativeDriver: false, tension: 160, friction: 14 }).start(),
-    snapReveal:() => Animated.spring(translateX, { toValue: -120, useNativeDriver: false, tension: 160, friction: 14 }).start(),
+    snapBack: () => {
+      isRevealedRef.current = false;
+      Animated.timing(translateX, {
+        toValue: 0, duration: 280,
+        useNativeDriver: false,
+        easing: Easing.out(Easing.cubic),
+      }).start();
+    },
+    snapReveal: () => {
+      isRevealedRef.current = true;
+      Animated.timing(translateX, {
+        toValue: -120, duration: 240,
+        useNativeDriver: false,
+        easing: Easing.out(Easing.cubic),
+      }).start();
+    },
   });
 
-  // ── PanResponder for swipe-to-delete (native PanResponder = no RNGH conflict) ──
+  // Stable reference to the callbacks object so PanResponder closure is fresh
+  const swipeCbsRef = swipeCbs;
+
+  // ── PanResponder ───────────────────────────────────────────────────────────
   const swipePan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 7 && Math.abs(gs.dy) < 10,
-      // Capture phase: claim horizontal swipes before Pressable can block them.
-      // The outer drag PanResponder runs capture first (since it's an ancestor), so
-      // when isDragging=true the outer wins and this never fires.
+        !deletingRef.current && Math.abs(gs.dx) > 6 && Math.abs(gs.dy) < 12,
       onMoveShouldSetPanResponderCapture: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 7 && Math.abs(gs.dy) < 10,
+        !deletingRef.current && Math.abs(gs.dx) > 6 && Math.abs(gs.dy) < 12,
       onPanResponderGrant: () => {
-        // Record the current translateX value so subsequent moves are relative
-        // to where the row already is (e.g. delete button already revealed).
         translateX.stopAnimation((val) => { startXRef.current = val; });
       },
       onPanResponderMove: (_, gs) => {
@@ -564,12 +578,26 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
       },
       onPanResponderRelease: (_, gs) => {
         const finalX = startXRef.current + gs.dx;
-        if (finalX < -60) swipeCbs.current.snapReveal();
-        else swipeCbs.current.snapBack();
+        // Any leftward movement → stay open. Only close if swiped back right.
+        if (finalX < -16) {
+          swipeCbsRef.current.snapReveal();
+          // Notify parent so it can close any previously open row
+          (swipeCbsRef as any)._notifyOpen?.();
+        } else {
+          swipeCbsRef.current.snapBack();
+        }
       },
-      onPanResponderTerminate: () => swipeCbs.current.snapBack(),
+      onPanResponderTerminate: () => {
+        // Only snap back if still in motion (not already revealed)
+        if (!isRevealedRef.current) swipeCbsRef.current.snapBack();
+      },
     })
   ).current;
+
+  // Store the notifyOpen callback in the pan responder ref so the closure can call it
+  (swipeCbs as any)._notifyOpen = useCallback(() => {
+    onSwipeOpen?.(() => swipeCbs.current.snapBack());
+  }, [onSwipeOpen]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
@@ -594,7 +622,16 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
     }, 320);
   };
 
-  // Combine row opacity: check-off anim × drag dim (1 - dimValue * 0.75 → 0.25 when dimmed)
+  // If the row is revealed, any tap on it closes the swipe instead of acting
+  const handleRowTap = (action: () => void) => {
+    if (isRevealedRef.current) {
+      swipeCbs.current.snapBack();
+    } else {
+      action();
+    }
+  };
+
+  // Combine row opacity: check-off anim × drag dim (0.22 when dimmed)
   const combinedOpacity = Animated.multiply(
     opacityAnim,
     dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] })
@@ -618,17 +655,17 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
       {/* Swipeable foreground */}
       <Animated.View {...swipePan.panHandlers} style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateX }] }]}>
         {/* Emoji */}
-        <Pressable onPress={onEmojiPress} hitSlop={6} style={sc.emojiBtn}>
+        <Pressable onPress={() => handleRowTap(onEmojiPress)} hitSlop={6} style={sc.emojiBtn}>
           <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
         </Pressable>
 
         {/* Name */}
-        <Pressable style={{ flex: 1 }} onPress={onPress} onLongPress={onLongPress} delayLongPress={200}>
+        <Pressable style={{ flex: 1 }} onPress={() => handleRowTap(onPress)} onLongPress={onLongPress} delayLongPress={200}>
           <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
         </Pressable>
 
         {/* Checkbox */}
-        <Pressable onPress={handleCheck} hitSlop={8} style={sc.checkBtn}>
+        <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={sc.checkBtn}>
           <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
             <Animated.View style={{ transform: [{ scale: checkScale }] }}>
               <Feather name="check" size={12} color="#fff" />
@@ -733,6 +770,19 @@ export default function LifeTaskScreen() {
     const n = norm(activeEmoji);
     return tasks.filter(t => norm(t.emoji) === n);
   }, [tasks, activeEmoji]);
+
+  // ── Active swipe tracking — only one row open at a time ─────────────────────
+  const activeSwipeClose = useRef<(() => void) | null>(null);
+
+  const handleSwipeOpen = useCallback((close: () => void) => {
+    activeSwipeClose.current?.();   // close previous open row
+    activeSwipeClose.current = close;
+  }, []);
+
+  const closeActiveSwipe = useCallback(() => {
+    activeSwipeClose.current?.();
+    activeSwipeClose.current = null;
+  }, []);
 
   // ── Drag & drop ──────────────────────────────────────────────────────────────
   const posAnims         = useRef<Record<string, Animated.Value>>({});
@@ -1109,6 +1159,7 @@ export default function LifeTaskScreen() {
           onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
+          onScrollBeginDrag={closeActiveSwipe}
         >
           {/* Filtered view: simple flow layout, no drag */}
           {activeEmoji !== null && (
@@ -1126,6 +1177,7 @@ export default function LifeTaskScreen() {
                       onLongPress={() => {}}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
+                      onSwipeOpen={handleSwipeOpen}
                     />
                   </View>
                 ))}
@@ -1167,6 +1219,7 @@ export default function LifeTaskScreen() {
                       onLongPress={() => startDrag(idx)}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
+                      onSwipeOpen={handleSwipeOpen}
                     />
                   </Animated.View>
                 );
