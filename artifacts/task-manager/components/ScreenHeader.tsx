@@ -1,12 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type React from "react";
 import Colors from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
 
-interface Props { title: string; }
+interface Props { title: string; right?: React.ReactNode; }
 
-export function ScreenHeader({ title }: Props) {
+export function ScreenHeader({ title, right }: Props) {
   const { openDrawer } = useDrawer();
   return (
     <View style={styles.header}>
@@ -18,7 +19,7 @@ export function ScreenHeader({ title }: Props) {
         <Feather name="menu" size={20} color={Colors.textPrimary} />
       </Pressable>
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      <View style={styles.spacer} />
+      {right ? <View style={styles.rightSlot}>{right}</View> : <View style={styles.spacer} />}
     </View>
   );
 }
@@ -51,4 +52,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   spacer: { width: 38 },
+  rightSlot: { width: 38, alignItems: "center", justifyContent: "center" },
 });

@@ -626,6 +626,19 @@ export default function LifeTaskScreen() {
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
+  // ── Emoji index helper (component-level so drag + sort + add share same logic) ─
+  const emojiIdxFn = useCallback((e: string) => {
+    const catEmojis = config?.emojis ?? [];
+    const ne = norm(e);
+    let i = catEmojis.findIndex(ce => norm(ce) === ne);
+    if (i !== -1) return i;
+    i = catEmojis.findIndex(ce => {
+      const nc = norm(ce);
+      return ne.startsWith(nc) || nc.startsWith(ne);
+    });
+    return i === -1 ? 999 : i;
+  }, [config]);
+
   // ── Data ────────────────────────────────────────────────────────────────────
   const [tasks,    setTasks]    = useState<LifeTask[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -652,29 +665,13 @@ export default function LifeTaskScreen() {
           // Hide items with emojis not in this category's defined set (rogue)
           return config.emojis.some(e => norm(e) === norm(t.emoji));
         });
-        // Sort: items with distinct positive sortOrder first (ascending), then by emoji position
-        const catEmojis = config.emojis;
-        const emojiIdx  = (e: string) => {
-          const ne = norm(e);
-          // Exact stripped match
-          let i = catEmojis.findIndex(ce => norm(ce) === ne);
-          if (i !== -1) return i;
-          // Prefix match (handles extra ZWJ sequences or modifiers)
-          i = catEmojis.findIndex(ce => {
-            const nc = norm(ce);
-            return ne.startsWith(nc) || nc.startsWith(ne);
-          });
-          return i === -1 ? 999 : i;
-        };
+        // Sort: emoji group first, then sortOrder within group, then alphabetical
         filtered.sort((a, b) => {
-          const aOrd = (a.sortOrder !== null && a.sortOrder > 0) ? a.sortOrder : null;
-          const bOrd = (b.sortOrder !== null && b.sortOrder > 0) ? b.sortOrder : null;
-          if (aOrd !== null && bOrd !== null && aOrd !== bOrd) return aOrd - bOrd;
-          if (aOrd !== null && bOrd === null) return -1;
-          if (aOrd === null && bOrd !== null) return 1;
-          // Both lack a meaningful sort order → emoji position, then alphabetical
-          const ei = emojiIdx(a.emoji) - emojiIdx(b.emoji);
+          const ei = emojiIdxFn(a.emoji) - emojiIdxFn(b.emoji);
           if (ei !== 0) return ei;
+          const aOrd = a.sortOrder ?? 9999;
+          const bOrd = b.sortOrder ?? 9999;
+          if (aOrd !== bOrd) return aOrd - bOrd;
           return a.title.localeCompare(b.title);
         });
         setTasks(filtered);
@@ -811,19 +808,50 @@ export default function LifeTaskScreen() {
     onPanResponderTerminate: () => endDrag(),
   }), [animatePositions, endDrag]);
 
+  // Banded sort orders: emoji group 0 → 100s, group 1 → 200s, etc.
+  // So "top of group" always works: new item gets (groupBase - 1).
   const syncSortOrders = useCallback((ordered: LifeTask[]) => {
     if (!apiKey) return;
-    ordered.forEach((t, i) => {
-      const newOrder = i + 1;
-      if (t.sortOrder !== newOrder) {
-        fetch(`${BASE_URL}/api/notion/life-tasks/${t.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-          body: JSON.stringify({ sortOrder: newOrder }),
-        }).catch(() => {});
-      }
+    const groupCounters: Record<number, number> = {};
+    ordered.forEach(t => {
+      const gi = emojiIdxFn(t.emoji);
+      if (groupCounters[gi] === undefined) groupCounters[gi] = 0;
+      const newOrder = (gi + 1) * 100 + groupCounters[gi];
+      groupCounters[gi]++;
+      fetch(`${BASE_URL}/api/notion/life-tasks/${t.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+        body: JSON.stringify({ sortOrder: newOrder }),
+      }).catch(() => {});
     });
-  }, [apiKey]);
+  }, [apiKey, emojiIdxFn]);
+
+  // Reset: sort all tasks by emoji group then title, assign fresh banded sort orders
+  const handleResetOrder = useCallback(async () => {
+    if (!apiKey) return;
+    const ordered = [...tasksRef.current].sort((a, b) => {
+      const ei = emojiIdxFn(a.emoji) - emojiIdxFn(b.emoji);
+      if (ei !== 0) return ei;
+      return a.title.localeCompare(b.title);
+    });
+    const groupCounters: Record<number, number> = {};
+    const updated = ordered.map(t => {
+      const gi = emojiIdxFn(t.emoji);
+      if (groupCounters[gi] === undefined) groupCounters[gi] = 0;
+      const newOrder = (gi + 1) * 100 + groupCounters[gi];
+      groupCounters[gi]++;
+      return { ...t, sortOrder: newOrder };
+    });
+    setTasks(updated);
+    updated.forEach((t, i) => posAnims.current[t.id]?.setValue(i * SLOT_H));
+    await Promise.all(updated.map(t =>
+      fetch(`${BASE_URL}/api/notion/life-tasks/${t.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+        body: JSON.stringify({ sortOrder: t.sortOrder }),
+      }).catch(() => {})
+    ));
+  }, [apiKey, emojiIdxFn]);
 
   // ── Task actions ─────────────────────────────────────────────────────────────
   const [detailTask,   setDetailTask]   = useState<LifeTask | null>(null);
@@ -922,11 +950,42 @@ export default function LifeTaskScreen() {
 
   const handleQuickAdded = useCallback((task: LifeTask) => {
     setTasks(prev => {
-      const next = [...prev, task];
-      posAnims.current[task.id] = new Animated.Value((next.length - 1) * SLOT_H);
+      // Find the minimum sortOrder in the same emoji group and go one below it
+      const gi        = emojiIdxFn(task.emoji);
+      const groupBase = (gi + 1) * 100;
+      const groupTasks = prev.filter(t => emojiIdxFn(t.emoji) === gi);
+      const minOrder  = groupTasks.length > 0
+        ? Math.min(...groupTasks.map(t => t.sortOrder ?? groupBase + 50))
+        : groupBase;
+      const newOrder  = minOrder - 1;
+
+      const updatedTask = { ...task, sortOrder: newOrder };
+
+      // Persist new sort order
+      if (apiKey) {
+        fetch(`${BASE_URL}/api/notion/life-tasks/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+          body: JSON.stringify({ sortOrder: newOrder }),
+        }).catch(() => {});
+      }
+
+      // Re-sort: emoji group first, then sortOrder within group
+      const next = [...prev, updatedTask];
+      next.sort((a, b) => {
+        const ei = emojiIdxFn(a.emoji) - emojiIdxFn(b.emoji);
+        if (ei !== 0) return ei;
+        const aOrd = a.sortOrder ?? 9999;
+        const bOrd = b.sortOrder ?? 9999;
+        return aOrd - bOrd;
+      });
+      next.forEach((t, i) => {
+        if (!posAnims.current[t.id]) posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+        else posAnims.current[t.id].setValue(i * SLOT_H);
+      });
       return next;
     });
-  }, []);
+  }, [apiKey, emojiIdxFn]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   if (!config) {
@@ -940,9 +999,29 @@ export default function LifeTaskScreen() {
 
   const pickerTask = pickerTaskId ? tasks.find(t => t.id === pickerTaskId) ?? null : null;
 
+  const [resetting, setResetting] = useState(false);
+  const onResetPress = useCallback(async () => {
+    if (resetting) return;
+    setResetting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await handleResetOrder();
+    setResetting(false);
+  }, [resetting, handleResetOrder]);
+
   return (
     <View style={[sc.root, { paddingTop: topPad }]}>
-      <ScreenHeader title={config.title} />
+      <ScreenHeader
+        title={config.title}
+        right={
+          <Pressable
+            onPress={onResetPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={sc.resetBtn}
+          >
+            <Feather name={resetting ? "loader" : "refresh-cw"} size={16} color={resetting ? Colors.primary : Colors.textMuted} />
+          </Pressable>
+        }
+      />
 
       {/* ── Emoji filter bar ─────────────────────────────────────────────────── */}
       {config.emojis.length > 1 && (
@@ -1186,6 +1265,7 @@ const sc = StyleSheet.create({
   errorText: { color: Colors.primary, fontSize: 14, fontFamily: "Inter_500Medium" },
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.border },
   retryTx: { color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  resetBtn: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
 
   filterBar: { borderBottomWidth: 1, borderBottomColor: Colors.border },
   filterScroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
