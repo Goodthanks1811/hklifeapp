@@ -597,7 +597,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
         </Pressable>
 
         {/* Name */}
-        <Pressable style={{ flex: 1 }} onPress={onPress} onLongPress={onLongPress} delayLongPress={400}>
+        <Pressable style={{ flex: 1 }} onPress={onPress} onLongPress={onLongPress} delayLongPress={200}>
           <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
         </Pressable>
 
@@ -1100,6 +1100,13 @@ export default function LifeTaskScreen() {
               {...panResponder.panHandlers}
               style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
             >
+              {/* Tap-anywhere-to-cancel overlay — sits above non-dragging rows (z:1) but below the dragging row (z:100) */}
+              {dragActiveIdx !== -1 && (
+                <Pressable
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+                  onPress={() => endDrag()}
+                />
+              )}
               {tasks.map((task, idx) => {
                 const isDragging = dragActiveIdx === idx;
                 const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
