@@ -9,13 +9,24 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBiometric } from "@/context/BiometricContext";
+import { useBiometric, type UnlockError } from "@/context/BiometricContext";
 import { Colors } from "@/constants/colors";
+
+function errorMessage(err: UnlockError): string {
+  switch (err) {
+    case "lockout":           return "Too many attempts. Unlock your device with your passcode first, then try again.";
+    case "lockout_permanent": return "Face ID is permanently locked. Please unlock your device.";
+    case "cancelled":         return "Authentication cancelled.";
+    case "unavailable":       return "Face ID is not available right now.";
+    case "failed":            return "Face not recognised. Try again.";
+    default:                  return "Authenticate to continue";
+  }
+}
 
 export function LockScreen() {
   const insets                        = useSafeAreaInsets();
   const { unlock }                    = useBiometric();
-  const [failed, setFailed]           = useState(false);
+  const [lastError, setLastError]     = useState<UnlockError>(null);
   const [prompting, setPrompting]     = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -41,15 +52,21 @@ export function LockScreen() {
   const handleUnlock = async () => {
     if (prompting) return;
     setPrompting(true);
-    setFailed(false);
-    const success = await unlock();
+    setLastError(null);
+    const { success, error } = await unlock();
     setPrompting(false);
     if (!success) {
-      setFailed(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      shake();
+      setLastError(error);
+      // Don't shake for lockout — shaking implies "try again" which won't help
+      if (error !== "lockout" && error !== "lockout_permanent") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        shake();
+      }
     }
   };
+
+  const isLockedOut = lastError === "lockout" || lastError === "lockout_permanent";
+  const subtitle    = lastError ? errorMessage(lastError) : "Authenticate to continue";
 
   return (
     <Animated.View
@@ -62,26 +79,32 @@ export function LockScreen() {
     >
       {/* Lock circle + title */}
       <Animated.View style={[styles.centerGroup, { transform: [{ translateX: shakeAnim }] }]}>
-        <View style={styles.lockCircle}>
-          <Feather name="lock" size={36} color={Colors.primary} />
+        <View style={[styles.lockCircle, isLockedOut && styles.lockCircleWarning]}>
+          <Feather
+            name={isLockedOut ? "alert-triangle" : "lock"}
+            size={36}
+            color={isLockedOut ? "#F59F00" : Colors.primary}
+          />
         </View>
-        <Text style={styles.title}>App Locked</Text>
-        <Text style={styles.subtitle}>
-          {failed ? "Face ID failed. Try again." : "Authenticate to continue"}
+        <Text style={styles.title}>{isLockedOut ? "Locked Out" : "App Locked"}</Text>
+        <Text style={[styles.subtitle, isLockedOut && styles.subtitleWarning]}>
+          {subtitle}
         </Text>
       </Animated.View>
 
-      {/* Unlock button */}
-      <Pressable
-        style={({ pressed }) => [styles.unlockBtn, pressed && { opacity: 0.82 }]}
-        onPress={handleUnlock}
-        disabled={prompting}
-      >
-        <Feather name="cpu" size={18} color="#fff" />
-        <Text style={styles.unlockBtnText}>
-          {prompting ? "Authenticating…" : "Unlock with Face ID"}
-        </Text>
-      </Pressable>
+      {/* Unlock button — hidden when locked out */}
+      {!isLockedOut && (
+        <Pressable
+          style={({ pressed }) => [styles.unlockBtn, pressed && { opacity: 0.82 }]}
+          onPress={handleUnlock}
+          disabled={prompting}
+        >
+          <Feather name="cpu" size={18} color="#fff" />
+          <Text style={styles.unlockBtnText}>
+            {prompting ? "Authenticating…" : "Unlock with Face ID"}
+          </Text>
+        </Pressable>
+      )}
     </Animated.View>
   );
 }
@@ -96,6 +119,7 @@ const styles = StyleSheet.create({
   centerGroup: {
     alignItems: "center",
     marginBottom: 56,
+    paddingHorizontal: 32,
   },
   lockCircle: {
     width: 88, height: 88, borderRadius: 44,
@@ -103,6 +127,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: "rgba(224,49,49,0.3)",
     alignItems: "center", justifyContent: "center",
     marginBottom: 24,
+  },
+  lockCircleWarning: {
+    backgroundColor: "rgba(245,159,0,0.12)",
+    borderColor: "rgba(245,159,0,0.35)",
   },
   title: {
     color: "#ffffff",
@@ -116,6 +144,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
+    lineHeight: 22,
+  },
+  subtitleWarning: {
+    color: "#F59F00",
+    fontSize: 14,
   },
   unlockBtn: {
     flexDirection: "row",

@@ -107,8 +107,8 @@ export function Drawer() {
     visibleItems[key] = getVisible(key);
   }
 
-  const reports   = useAccordion(true,  visibleItems.reports.length);
-  const life      = useAccordion(false, visibleItems.life.length);
+  const reports   = useAccordion(false, visibleItems.reports.length);
+  const life      = useAccordion(true,  visibleItems.life.length);
   const apps      = useAccordion(false, visibleItems.apps.length);
   const footy     = useAccordion(false, visibleItems.footy.length);
   const tools     = useAccordion(false, visibleItems.tools.length);

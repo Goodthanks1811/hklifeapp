@@ -11,13 +11,21 @@ import { Platform } from "react-native";
 
 const STORAGE_KEY = "biometric_lock_enabled";
 
+export type UnlockError =
+  | "lockout"           // too many attempts — need device passcode to reset
+  | "lockout_permanent" // permanently locked
+  | "cancelled"         // user pressed Cancel
+  | "failed"            // face not recognized
+  | "unavailable"       // hardware/permission issue
+  | null;               // no error (success)
+
 interface BiometricContextType {
-  isEnabled:          boolean;
-  isSupported:        boolean;
-  isReady:            boolean;
-  isLocked:           boolean;
-  unlock:             () => Promise<boolean>;
-  setEnabled:         (val: boolean) => Promise<boolean>;
+  isEnabled:    boolean;
+  isSupported:  boolean;
+  isReady:      boolean;
+  isLocked:     boolean;
+  unlock:       () => Promise<{ success: boolean; error: UnlockError }>;
+  setEnabled:   (val: boolean) => Promise<boolean>;
 }
 
 const BiometricContext = createContext<BiometricContextType | null>(null);
@@ -50,24 +58,34 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
     init();
   }, []);
 
-  const unlock = useCallback(async (): Promise<boolean> => {
-    if (!isSupported) { setIsLocked(false); return true; }
+  const unlock = useCallback(async (): Promise<{ success: boolean; error: UnlockError }> => {
+    if (!isSupported) {
+      setIsLocked(false);
+      return { success: true, error: null };
+    }
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage:         "Unlock the app",
-        // Empty string hides the "Enter Passcode" fallback button in the dialog
-        // while keeping the Face ID dialog functional
-        fallbackLabel:         "",
         cancelLabel:           "Cancel",
-        disableDeviceFallback: false,
+        disableDeviceFallback: true,  // Face ID only — no PIN
       });
+
       if (result.success) {
         setIsLocked(false);
-        return true;
+        return { success: true, error: null };
       }
-      return false;
+
+      // Map error codes to our enum
+      const err = (result as any).error as string | undefined;
+      if (err === "biometry_lockout")           return { success: false, error: "lockout" };
+      if (err === "biometry_lockout_permanent") return { success: false, error: "lockout_permanent" };
+      if (err === "user_cancel" || err === "system_cancel" || err === "app_cancel")
+                                                return { success: false, error: "cancelled" };
+      if (err === "biometry_not_available" || err === "not_available")
+                                                return { success: false, error: "unavailable" };
+      return { success: false, error: "failed" };
     } catch {
-      return false;
+      return { success: false, error: "unavailable" };
     }
   }, [isSupported]);
 
@@ -77,9 +95,8 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await LocalAuthentication.authenticateAsync({
           promptMessage:         "Authenticate to enable Face ID lock",
-          fallbackLabel:         "",
           cancelLabel:           "Cancel",
-          disableDeviceFallback: false,
+          disableDeviceFallback: true,
         });
         if (!result.success) return false;
       } catch {

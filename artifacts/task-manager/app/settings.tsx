@@ -480,9 +480,9 @@ export default function SettingsScreen() {
                 value={biometricEnabled}
                 onValueChange={handleBiometricToggle}
                 disabled={!biometricSupported || bioToggling}
-                trackColor={{ false: Colors.cardBgElevated, true: "rgba(224,49,49,0.4)" }}
-                thumbColor={biometricEnabled ? Colors.primary : Colors.textMuted}
-                ios_backgroundColor={Colors.cardBgElevated}
+                trackColor={{ false: "#0a0a0a", true: "rgba(224,49,49,0.5)" }}
+                thumbColor={biometricEnabled ? Colors.primary : "#555555"}
+                ios_backgroundColor="#0a0a0a"
               />
             </View>
 
