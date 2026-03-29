@@ -7,7 +7,7 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
-app.use("/files", express.static(path.join(__dirname, "../public")));
+app.use("/api/files", express.static(path.join(__dirname, "../public")));
 
 app.use(
   pinoHttp({
