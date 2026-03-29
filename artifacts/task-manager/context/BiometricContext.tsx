@@ -12,7 +12,7 @@ import { Platform } from "react-native";
 const STORAGE_KEY = "biometric_lock_enabled";
 
 export type UnlockError =
-  | "lockout"           // too many attempts — need device passcode to reset
+  | "lockout"           // too many attempts
   | "lockout_permanent" // permanently locked
   | "cancelled"         // user pressed Cancel
   | "failed"            // face not recognized
@@ -66,8 +66,11 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage:         "Unlock the app",
+        // Empty fallbackLabel hides the "Enter Passcode" button in the Face ID dialog
+        fallbackLabel:         "",
         cancelLabel:           "Cancel",
-        disableDeviceFallback: true,  // Face ID only — no PIN
+        // Must be false for Expo Go — true silently blocks the Face ID dialog
+        disableDeviceFallback: false,
       });
 
       if (result.success) {
@@ -75,7 +78,6 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
         return { success: true, error: null };
       }
 
-      // Map error codes to our enum
       const err = (result as any).error as string | undefined;
       if (err === "biometry_lockout")           return { success: false, error: "lockout" };
       if (err === "biometry_lockout_permanent") return { success: false, error: "lockout_permanent" };
@@ -95,8 +97,9 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await LocalAuthentication.authenticateAsync({
           promptMessage:         "Authenticate to enable Face ID lock",
+          fallbackLabel:         "",
           cancelLabel:           "Cancel",
-          disableDeviceFallback: true,
+          disableDeviceFallback: false,
         });
         if (!result.success) return false;
       } catch {
