@@ -119,22 +119,26 @@ function EmojiPicker({ visible, onSelect, onClose }: {
   );
 }
 
-// ── Detail sheet (AlertModal-style: scale-in, centered) ────────────────────────
+// ── Detail sheet (bottom sheet, like QuickAddSheet) ────────────────────────────
 const DS_SPINNER_SIZE   = 72;
 const DS_SPINNER_STROKE = 8;
 const DS_CIRCLE_SIZE    = 74;
 
-function DetailSheet({ task, body, bodyLoading, onClose, onSave, onEmojiChange }: {
-  task: LifeTask | null; body: string | null; bodyLoading: boolean;
-  onClose: () => void;
+function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange }: {
+  task:          LifeTask | null;
+  catEmojis:     string[];
+  body:          string | null;
+  bodyLoading:   boolean;
+  onClose:       () => void;
   onSave:        (id: string, title: string) => Promise<void>;
   onEmojiChange: (id: string, emoji: string) => void;
 }) {
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const opacAnim  = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(600)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
+  const kbAnim    = useRef(new Animated.Value(0)).current;
+  const insets    = useSafeAreaInsets();
   const [title,   setTitle]  = useState("");
-  const [showEP,  setShowEP] = useState(false);
+  const visible = !!task;
 
   // ── Loader anims ──────────────────────────────────────────────────────────
   const [loaderVisible,   setLoaderVisible]   = useState(false);
@@ -147,35 +151,43 @@ function DetailSheet({ task, body, bodyLoading, onClose, onSave, onEmojiChange }
   const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
-  // ── Open animation ────────────────────────────────────────────────────────
+  // ── Keyboard avoidance ────────────────────────────────────────────────────
   useEffect(() => {
-    if (task) {
-      scaleAnim.setValue(0.85);
-      opacAnim.setValue(0);
-      bgAnim.setValue(0);
-      setTitle(task.title);
+    const onShow = (e: any) => Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
+    const onHide = (e: any) => Animated.timing(kbAnim, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
+    const s1 = Keyboard.addListener("keyboardWillShow", onShow);
+    const s2 = Keyboard.addListener("keyboardWillHide", onHide);
+    const s3 = Keyboard.addListener("keyboardDidShow",  onShow);
+    const s4 = Keyboard.addListener("keyboardDidHide",  onHide);
+    return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
+  }, [kbAnim]);
+
+  // ── Open / close animation ────────────────────────────────────────────────
+  useEffect(() => {
+    if (visible) {
+      setTitle(task!.title);
       Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 260, friction: 20 }),
-        Animated.timing(opacAnim,  { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.timing(bgAnim,    { toValue: 1, duration: 250, useNativeDriver: false }),
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 90, friction: 13 }),
+        Animated.timing(bgAnim,    { toValue: 1, duration: 220, useNativeDriver: false }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 600, duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(bgAnim,    { toValue: 0,   duration: 190, useNativeDriver: false }),
       ]).start();
     }
-  }, [task]);
+  }, [visible]);
 
-  const dismiss = useCallback((cb?: () => void) => {
+  const dismiss = useCallback(() => {
     Keyboard.dismiss();
-    Animated.parallel([
-      Animated.timing(scaleAnim, { toValue: 0.88, duration: 200, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
-      Animated.timing(opacAnim,  { toValue: 0,    duration: 180, useNativeDriver: true }),
-      Animated.timing(bgAnim,    { toValue: 0,    duration: 200, useNativeDriver: false }),
-    ]).start(() => { cb?.(); onClose(); });
-  }, [scaleAnim, opacAnim, bgAnim, onClose]);
+    onClose();
+  }, [onClose]);
 
   const resetLoader = useCallback(() => {
     overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
     spinnerRotation.setValue(0); circleScale.setValue(0);
     circleOpacity.setValue(0);   tickScale.setValue(0);
-  }, [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale]);
+  }, []);
 
   const runLoader = useCallback(
     (apiPromise: Promise<void>) =>
@@ -195,16 +207,17 @@ function DetailSheet({ task, body, bodyLoading, onClose, onSave, onEmojiChange }
             Promise.all([tracked, minSpin]).then(() => {
               spinLoopRef.current?.stop();
               Animated.parallel([
-                Animated.timing(spinnerOpacity, { toValue: 0,    duration: T_POP,       useNativeDriver: true }),
-                Animated.timing(circleOpacity,  { toValue: 1,    duration: T_POP * 0.4, useNativeDriver: true }),
-                Animated.timing(circleScale,    { toValue: 1,    duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
+                Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP,       useNativeDriver: true }),
+                Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
+                Animated.timing(circleScale,    { toValue: 1, duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
               ]).start(() => {
                 Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
                   setTimeout(() => {
                     Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
                       setLoaderVisible(false);
                       resetLoader();
-                      dismiss(() => resolve());
+                      dismiss();
+                      resolve();
                     });
                   }, T_HOLD);
                 });
@@ -213,7 +226,7 @@ function DetailSheet({ task, body, bodyLoading, onClose, onSave, onEmojiChange }
           });
         });
       }),
-    [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoader, dismiss]
+    [resetLoader, dismiss]
   );
 
   const handleSave = useCallback(() => {
@@ -222,89 +235,99 @@ function DetailSheet({ task, body, bodyLoading, onClose, onSave, onEmojiChange }
     runLoader(onSave(task.id, title.trim()));
   }, [task, title, onSave, runLoader]);
 
-  const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.75)"] });
+  const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"] });
 
   return (
-    <>
-      <Modal visible={!!task} transparent animationType="none" onRequestClose={() => dismiss()}>
-        <Animated.View style={[s.overlay, { backgroundColor: bg, justifyContent: "center" }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => dismiss()} />
-          <Animated.View style={[s.alertCard, { opacity: opacAnim, transform: [{ scale: scaleAnim }] }]}>
-            {/* Emoji (tap to change) */}
-            <Pressable onPress={() => setShowEP(true)} style={({ pressed }) => [s.alertEmojiBox, pressed && { opacity: 0.7 }]}>
-              <Text style={s.alertEmojiText}>{task?.emoji ?? DEFAULT_EMOJI}</Text>
-              <Text style={s.alertEmojiHint}>tap to change</Text>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
+      <Animated.View style={[s.overlay, { backgroundColor: bg }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+        <Animated.View style={[
+          s.sheet,
+          { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }], paddingBottom: insets.bottom + 20 },
+        ]}>
+          <View style={s.handle} />
+
+          {/* Title input — full width, no icon */}
+          <TextInput
+            style={s.dsTitleInput}
+            value={title}
+            onChangeText={setTitle}
+            multiline
+            placeholder="Task name…"
+            placeholderTextColor={Colors.textMuted}
+            selectionColor={Colors.primary}
+            keyboardAppearance="dark"
+          />
+
+          {/* Emoji section */}
+          {catEmojis.length > 0 && (
+            <>
+              <Text style={s.dsSectionLabel}>EMOJI</Text>
+              <View style={s.dsEmojiRow}>
+                {catEmojis.map(e => {
+                  const selected = norm(task?.emoji ?? "") === norm(e);
+                  return (
+                    <Pressable
+                      key={e}
+                      onPress={() => { if (task) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEmojiChange(task.id, e); } }}
+                      style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
+                    >
+                      <Text style={s.dsEmojiText}>{e}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Notes */}
+          <Text style={s.dsSectionLabel}>NOTES</Text>
+          {bodyLoading
+            ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "flex-start", marginBottom: 12 }} />
+            : body
+              ? <ScrollView style={{ maxHeight: 100 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                  <Text style={s.dsBodyText}>{body}</Text>
+                </ScrollView>
+              : <Text style={s.dsBodyPlaceholder}>No notes</Text>
+          }
+
+          {/* Reference URL */}
+          {task?.url ? (
+            <>
+              <Text style={[s.dsSectionLabel, { marginTop: 12 }]}>REFERENCE</Text>
+              <Pressable onPress={() => task.url && Linking.openURL(task.url)}>
+                <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          {/* Action buttons */}
+          <View style={s.dsActions}>
+            <Pressable style={s.dsCancelBtn} onPress={dismiss}>
+              <Text style={s.dsCancelTx}>Cancel</Text>
             </Pressable>
+            <TouchableOpacity activeOpacity={0.8} style={s.dsUpdateBtn} onPress={handleSave}>
+              <Feather name="check" size={15} color="#fff" />
+              <Text style={s.dsUpdateTx}>Update</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Title input */}
-            <TextInput
-              style={s.alertTitleInput}
-              value={title}
-              onChangeText={setTitle}
-              multiline
-              placeholder="Task name…"
-              placeholderTextColor={Colors.textMuted}
-              selectionColor={Colors.primary}
-            />
-
-            <View style={s.alertDivider} />
-
-            {/* Notes */}
-            <Text style={s.alertSectionLabel}>NOTES</Text>
-            {bodyLoading
-              ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "center", marginVertical: 8 }} />
-              : body
-                ? <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                    <Text style={s.alertBodyText}>{body}</Text>
-                  </ScrollView>
-                : <Text style={s.alertBodyPlaceholder}>No notes</Text>
-            }
-
-            {/* Reference URL */}
-            {task?.url ? (
-              <>
-                <View style={[s.alertDivider, { marginTop: 14 }]} />
-                <Text style={[s.alertSectionLabel, { marginTop: 10 }]}>REFERENCE</Text>
-                <Pressable onPress={() => task.url && Linking.openURL(task.url)}>
-                  <Text style={s.alertUrlText} numberOfLines={2}>{task.url}</Text>
-                </Pressable>
-              </>
-            ) : null}
-
-            {/* Buttons */}
-            <View style={s.alertActions}>
-              <Pressable style={s.cancelBtn} onPress={() => dismiss()}>
-                <Text style={s.cancelBtnTx}>Cancel</Text>
-              </Pressable>
-              <Pressable style={s.saveBtn} onPress={handleSave}>
-                <Feather name="check" size={15} color="#fff" />
-                <Text style={s.saveBtnTx}>Save</Text>
-              </Pressable>
-            </View>
-
-            {/* Loader overlay (inside card) */}
-            {loaderVisible && (
-              <Animated.View style={[s.cardLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
-                <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
-                  <View style={s.dsSpinnerRing} />
-                </Animated.View>
-                <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
-                  <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-                    <Feather name="check" size={40} color="#fff" />
-                  </Animated.View>
+          {/* Loader overlay (inside sheet) */}
+          {loaderVisible && (
+            <Animated.View style={[s.dsLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
+              <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+                <View style={s.dsSpinnerRing} />
+              </Animated.View>
+              <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+                <Animated.View style={{ transform: [{ scale: tickScale }] }}>
+                  <Feather name="check" size={40} color="#fff" />
                 </Animated.View>
               </Animated.View>
-            )}
-          </Animated.View>
+            </Animated.View>
+          )}
         </Animated.View>
-      </Modal>
-
-      <EmojiPicker
-        visible={showEP}
-        onSelect={(e) => { if (task) onEmojiChange(task.id, e); setShowEP(false); }}
-        onClose={() => setShowEP(false)}
-      />
-    </>
+      </Animated.View>
+    </Modal>
   );
 }
 
@@ -1006,6 +1029,7 @@ export default function LifeTaskScreen() {
       {/* ── Modals ───────────────────────────────────────────────────────────── */}
       <DetailSheet
         task={detailTask}
+        catEmojis={config?.emojis ?? []}
         body={pageBody}
         bodyLoading={bodyLoading}
         onClose={() => setDetailTask(null)}
@@ -1049,37 +1073,35 @@ const s = StyleSheet.create({
   emojiCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   emojiCellText: { fontSize: 26 },
 
-  // ── Detail card (AlertModal-style, scale-in, centered) ─────────────────
-  alertCard: {
-    backgroundColor: Colors.cardBg, borderRadius: 20, borderWidth: 1, borderColor: Colors.border,
-    marginHorizontal: 24, paddingHorizontal: 22, paddingTop: 24, paddingBottom: 20,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.5, shadowRadius: 32, elevation: 12,
-    overflow: "hidden",
+  // ── Detail sheet (bottom sheet) ─────────────────────────────────────────
+  dsTitleInput: {
+    color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_600SemiBold",
+    lineHeight: 26, marginBottom: 20, paddingVertical: 0,
+    backgroundColor: Colors.cardBgElevated, borderRadius: 12, borderWidth: 1,
+    borderColor: Colors.borderLight, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
   },
-  alertEmojiBox: { alignItems: "center", marginBottom: 14 },
-  alertEmojiText: { fontSize: 52 },
-  alertEmojiHint: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 4 },
-  alertTitleInput: {
-    color: Colors.textPrimary, fontSize: 18, fontFamily: "Inter_600SemiBold",
-    textAlign: "center", lineHeight: 26, marginBottom: 16, paddingVertical: 0,
+  dsSectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 10 },
+  dsEmojiRow: { flexDirection: "row", gap: 10, marginBottom: 20, flexWrap: "wrap" },
+  dsEmojiChip: {
+    width: 50, height: 50, borderRadius: 12, backgroundColor: Colors.cardBgElevated,
+    alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border,
   },
-  alertDivider: { height: 1, backgroundColor: Colors.border, marginBottom: 12 },
-  alertSectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 8 },
-  alertBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  alertBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic" },
-  alertUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline" },
-  alertActions: { flexDirection: "row", gap: 10, marginTop: 20 },
+  dsEmojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
+  dsEmojiText: { fontSize: 24 },
+  dsBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginBottom: 4 },
+  dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
+  dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline", marginBottom: 4 },
+  dsActions: { flexDirection: "row", gap: 10, marginTop: 20 },
+  dsCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
+  dsCancelTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  dsUpdateBtn: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
+  dsUpdateTx: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
-  cancelBtnTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  saveBtn: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
-  saveBtnTx: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
-
-  // ── Detail card loader (same pattern as life-quick-add) ─────────────────
-  cardLoader: {
+  // ── Detail sheet loader ──────────────────────────────────────────────────
+  dsLoader: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.75)",
-    alignItems: "center", justifyContent: "center", borderRadius: 20, zIndex: 999,
+    alignItems: "center", justifyContent: "center", borderTopLeftRadius: 24, borderTopRightRadius: 24, zIndex: 999,
   },
   dsSpinnerWrap: {
     width: DS_SPINNER_SIZE, height: DS_SPINNER_SIZE,
