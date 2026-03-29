@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import Svg, { Path as SvgPath } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, {
@@ -335,7 +336,16 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
               </Animated.View>
               <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
                 <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-                  <Feather name="check" size={40} color="#fff" />
+                  <Svg width={52} height={52} viewBox="0 0 68 68">
+                    <SvgPath
+                      fill="none"
+                      stroke="#fff"
+                      strokeWidth={8}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 35.9 L26.4 47.2 L48.2 21.7"
+                    />
+                  </Svg>
                 </Animated.View>
               </Animated.View>
             </Animated.View>
