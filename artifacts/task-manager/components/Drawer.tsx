@@ -95,13 +95,12 @@ function AccordionSection({
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
-  const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH } = useDrawer();
+  const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH, isTablet } = useDrawer();
   const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
   const insets = useSafeAreaInsets();
 
   const sectionOrder = getSectionOrder();
 
-  // Compute visible items per section
   const visibleItems: Record<SectionKey, MenuItem[]> = {} as any;
   for (const key of SECTION_ORDER) {
     visibleItems[key] = getVisible(key);
@@ -119,16 +118,74 @@ export function Drawer() {
     reports, life, apps, footy, tools, knowledge, uikit: uiKit,
   };
 
-  if (!isOpen) return null;
+  if (!isTablet && !isOpen) return null;
 
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    closeDrawer();
-    setTimeout(() => router.push(route as any), 200);
+    if (!isTablet) closeDrawer();
+    if (!isTablet) {
+      setTimeout(() => router.push(route as any), 200);
+    } else {
+      router.push(route as any);
+    }
   };
 
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
+
+  const drawerContent = (
+    <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
+      <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
+        <Image
+          source={{ uri: "https://i.postimg.cc/JzFsWTbz/IMG-5952.png" }}
+          style={styles.headerImage}
+          resizeMode="cover"
+        />
+      </View>
+
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {sectionOrder.filter((key) => !isSectionHidden(key)).map((key) => (
+          <React.Fragment key={key}>
+            <AccordionSection
+              label={SECTION_LABELS[key]}
+              items={visibleItems[key]}
+              accordion={accordions[key]}
+              navigate={navigate}
+            />
+            <View style={styles.divider} />
+          </React.Fragment>
+        ))}
+
+        <View style={styles.settingsSection}>
+          <Pressable
+            style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed]}
+            onPress={() => navigate("/settings")}
+          >
+            <View style={styles.menuIcon}>
+              <Feather name="settings" size={18} color={Colors.textSecondary} />
+            </View>
+            <Text style={styles.settingsLabel}>Settings</Text>
+          </Pressable>
+          <View style={styles.badge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.badgeText}>Built on Replit</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+
+  if (isTablet) {
+    return (
+      <View style={styles.sidebarContainer}>
+        {drawerContent}
+      </View>
+    );
+  }
 
   return (
     <>
@@ -142,48 +199,7 @@ export function Drawer() {
           { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] },
         ]}
       >
-        <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
-          <Image
-            source={{ uri: "https://i.postimg.cc/JzFsWTbz/IMG-5952.png" }}
-            style={styles.headerImage}
-            resizeMode="cover"
-          />
-        </View>
-
-        <ScrollView
-          style={styles.scrollArea}
-          contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {sectionOrder.filter((key) => !isSectionHidden(key)).map((key, i) => (
-            <React.Fragment key={key}>
-              <AccordionSection
-                label={SECTION_LABELS[key]}
-                items={visibleItems[key]}
-                accordion={accordions[key]}
-                navigate={navigate}
-              />
-              <View style={styles.divider} />
-            </React.Fragment>
-          ))}
-
-          {/* Settings */}
-          <View style={styles.settingsSection}>
-            <Pressable
-              style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed]}
-              onPress={() => navigate("/settings")}
-            >
-              <View style={styles.menuIcon}>
-                <Feather name="settings" size={18} color={Colors.textSecondary} />
-              </View>
-              <Text style={styles.settingsLabel}>Settings</Text>
-            </Pressable>
-            <View style={styles.badge}>
-              <View style={styles.badgeDot} />
-              <Text style={styles.badgeText}>Built on Replit</Text>
-            </View>
-          </View>
-        </ScrollView>
+        {drawerContent}
       </Animated.View>
     </>
   );
@@ -228,6 +244,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
     zIndex: 100,
   },
+  sidebarContainer: {
+    position: "absolute",
+    top: 0, left: 0, bottom: 0,
+    zIndex: 101,
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+    backgroundColor: "#111111",
+  },
   drawer: {
     position: "absolute",
     top: 0, left: 0, bottom: 0,
@@ -240,6 +264,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 20,
+  },
+  drawerInner: {
+    flex: 1,
+    backgroundColor: "#111111",
   },
   headerImage: {
     width: "50%",

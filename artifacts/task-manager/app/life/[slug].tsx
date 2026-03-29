@@ -127,7 +127,7 @@ const DS_SPINNER_SIZE   = 72;
 const DS_SPINNER_STROKE = 8;
 const DS_CIRCLE_SIZE    = 74;
 
-function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange }: {
+function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange, isTablet }: {
   task:          LifeTask | null;
   catEmojis:     string[];
   body:          string | null;
@@ -135,6 +135,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   onClose:       () => void;
   onSave:        (id: string, title: string, notes: string) => Promise<void>;
   onEmojiChange: (id: string, emoji: string) => void;
+  isTablet:      boolean;
 }) {
   const slideAnim = useRef(new Animated.Value(600)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
@@ -246,14 +247,20 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 
   const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"] });
 
+  const tabletSheetStyle = isTablet ? {
+    position: undefined as any, left: undefined, right: undefined, bottom: undefined,
+    width: 560, maxWidth: "90%" as any, borderRadius: 20,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    alignSelf: "center" as const,
+    marginHorizontal: "auto" as any,
+    transform: [{ scale: slideAnim.interpolate({ inputRange: [0, 600], outputRange: [1, 0.92] }) }],
+  } : { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] };
+
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
-      <Animated.View style={[s.overlay, { backgroundColor: bg }]}>
+      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[
-          s.sheet,
-          { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }], paddingBottom: insets.bottom + 20 },
-        ]}>
+        <Animated.View style={[s.sheet, { paddingBottom: isTablet ? 24 : insets.bottom + 20 }, tabletSheetStyle]}>
           <View style={s.handle} />
 
           {/* Title input — full width, no icon */}
@@ -359,10 +366,11 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 }
 
 // ── Quick-add sheet ────────────────────────────────────────────────────────────
-function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, onClose }: {
+function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, onClose, isTablet }: {
   visible: boolean; catEmojis: string[]; catValue: string;
   schema: Schema | null; apiKey: string | null;
   onAdded: (task: LifeTask) => void; onClose: () => void;
+  isTablet: boolean;
 }) {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
@@ -451,11 +459,20 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 
   const bg = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.65)"] });
 
+  const tabletSheetStyle = isTablet ? {
+    position: undefined as any, left: undefined, right: undefined, bottom: undefined,
+    width: 480, maxWidth: "90%" as any, borderRadius: 20,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    alignSelf: "center" as const,
+    marginHorizontal: "auto" as any,
+    transform: [{ scale: slideAnim.interpolate({ inputRange: [0, 500], outputRange: [1, 0.92] }) }],
+  } : { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] };
+
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
-      <Animated.View style={[s.overlay, { backgroundColor: bg }]}>
+      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[s.sheet, { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }], paddingBottom: insets.bottom + 20 }]}>
+        <Animated.View style={[s.sheet, { paddingBottom: isTablet ? 24 : insets.bottom + 20 }, tabletSheetStyle]}>
           <View style={s.handle} />
           <Text style={s.sheetTitle}>Quick Add</Text>
 
@@ -518,6 +535,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   const rowScale    = useRef(new Animated.Value(1)).current;
   const translateX  = useRef(new Animated.Value(0)).current;
   const deletingRef = useRef(false);
+  const startXRef   = useRef(0);
   const [checked, setChecked] = useState(false);
 
   // ── Swipe callbacks (stored in ref so PanResponder closure stays fresh) ───
@@ -536,11 +554,17 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
       // when isDragging=true the outer wins and this never fires.
       onMoveShouldSetPanResponderCapture: (_, gs) =>
         !deletingRef.current && Math.abs(gs.dx) > 7 && Math.abs(gs.dy) < 10,
+      onPanResponderGrant: () => {
+        // Record the current translateX value so subsequent moves are relative
+        // to where the row already is (e.g. delete button already revealed).
+        translateX.stopAnimation((val) => { startXRef.current = val; });
+      },
       onPanResponderMove: (_, gs) => {
-        translateX.setValue(Math.max(-120, Math.min(0, gs.dx)));
+        translateX.setValue(Math.max(-120, Math.min(0, startXRef.current + gs.dx)));
       },
       onPanResponderRelease: (_, gs) => {
-        if (gs.dx < -60) swipeCbs.current.snapReveal();
+        const finalX = startXRef.current + gs.dx;
+        if (finalX < -60) swipeCbs.current.snapReveal();
         else swipeCbs.current.snapBack();
       },
       onPanResponderTerminate: () => swipeCbs.current.snapBack(),
@@ -1169,6 +1193,7 @@ export default function LifeTaskScreen() {
         onClose={() => setDetailTask(null)}
         onSave={handleSaveTitle}
         onEmojiChange={handleEmojiChange}
+        isTablet={isTablet}
       />
 
       <EmojiPicker
@@ -1185,6 +1210,7 @@ export default function LifeTaskScreen() {
         apiKey={apiKey}
         onAdded={handleQuickAdded}
         onClose={() => setShowQuickAdd(false)}
+        isTablet={isTablet}
       />
     </View>
   );
@@ -1192,7 +1218,8 @@ export default function LifeTaskScreen() {
 
 // ── Shared sheet styles ────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  overlay:        { flex: 1, justifyContent: "center" },
+  overlay:        { flex: 1 },
+  overlayCenter:  { justifyContent: "center", alignItems: "center" },
 
   // ── EmojiPicker sheet (still a bottom sheet) ────────────────────────────
   sheet: {
