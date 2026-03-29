@@ -547,6 +547,62 @@ router.get("/page-blocks/:pageId", async (req, res) => {
   }
 });
 
+// Replace all paragraph blocks on a page with new text
+router.patch("/page-blocks/:pageId", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { pageId } = req.params;
+  const { body } = req.body as { body: string };
+  if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
+
+  try {
+    // 1. Fetch existing block IDs
+    const listRes = await fetch(
+      `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`,
+      { headers: notionHeaders(apiKey) }
+    );
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      const blockIds: string[] = (listData.results || []).map((b: any) => b.id);
+      // Delete each existing block
+      await Promise.all(
+        blockIds.map(bid =>
+          fetch(`https://api.notion.com/v1/blocks/${bid}`, {
+            method: "DELETE",
+            headers: notionHeaders(apiKey),
+          })
+        )
+      );
+    }
+
+    // 2. Append new paragraph blocks (one per non-empty line)
+    const lines = (body || "").split("\n").filter(l => l.trim().length > 0);
+    const children = lines.length > 0
+      ? lines.map(line => ({
+          type: "paragraph",
+          paragraph: { rich_text: [{ type: "text", text: { content: line } }] },
+        }))
+      : [{ type: "paragraph", paragraph: { rich_text: [] } }];
+
+    const appendRes = await fetch(
+      `https://api.notion.com/v1/blocks/${pageId}/children`,
+      {
+        method: "PATCH",
+        headers: notionHeaders(apiKey),
+        body: JSON.stringify({ children }),
+      }
+    );
+    if (!appendRes.ok) {
+      const err = await appendRes.json();
+      res.status(appendRes.status).json({ message: err.message || "Failed to update blocks" });
+      return;
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    req.log?.error({ err: e }, "Failed to patch page blocks");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 function toMonthKey(d: string | null): string | null {
   return d ? d.slice(0, 7) : null;
 }

@@ -130,7 +130,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   body:          string | null;
   bodyLoading:   boolean;
   onClose:       () => void;
-  onSave:        (id: string, title: string) => Promise<void>;
+  onSave:        (id: string, title: string, notes: string) => Promise<void>;
   onEmojiChange: (id: string, emoji: string) => void;
 }) {
   const slideAnim = useRef(new Animated.Value(600)).current;
@@ -138,6 +138,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
   const [title,   setTitle]  = useState("");
+  const [notes,   setNotes]  = useState("");
   const visible = !!task;
 
   // ── Loader anims ──────────────────────────────────────────────────────────
@@ -161,6 +162,11 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     const s4 = Keyboard.addListener("keyboardDidHide",  onHide);
     return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
   }, [kbAnim]);
+
+  // Sync notes from body prop whenever sheet opens or body loads
+  useEffect(() => {
+    if (visible) setNotes(body ?? "");
+  }, [visible, body]);
 
   // ── Open / close animation ────────────────────────────────────────────────
   useEffect(() => {
@@ -232,8 +238,8 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const handleSave = useCallback(() => {
     if (!task) return;
     Keyboard.dismiss();
-    runLoader(onSave(task.id, title.trim()));
-  }, [task, title, onSave, runLoader]);
+    runLoader(onSave(task.id, title.trim(), notes.trim()));
+  }, [task, title, notes, onSave, runLoader]);
 
   const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"] });
 
@@ -284,11 +290,20 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
           <Text style={s.dsSectionLabel}>NOTES</Text>
           {bodyLoading
             ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "flex-start", marginBottom: 12 }} />
-            : body
-              ? <ScrollView style={{ maxHeight: 100 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                  <Text style={s.dsBodyText}>{body}</Text>
-                </ScrollView>
-              : <Text style={s.dsBodyPlaceholder}>No notes</Text>
+            : (
+              <TextInput
+                style={s.dsNotesInput}
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={4}
+                placeholder="Add notes…"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+                keyboardAppearance="dark"
+                textAlignVertical="top"
+              />
+            )
           }
 
           {/* Reference URL */}
@@ -822,14 +837,22 @@ export default function LifeTaskScreen() {
     }
   }, [apiKey]);
 
-  const handleSaveTitle = useCallback((id: string, title: string): Promise<void> => {
+  const handleSaveTitle = useCallback((id: string, title: string, notes: string): Promise<void> => {
     if (!apiKey) return Promise.resolve();
     setTasks(prev => prev.map(t => t.id === id ? { ...t, title } : t));
-    return fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-      body: JSON.stringify({ title }),
-    }).then(() => {}).catch(() => {});
+    // Save title + notes concurrently
+    return Promise.all([
+      fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+        body: JSON.stringify({ title }),
+      }),
+      fetch(`${BASE_URL}/api/notion/page-blocks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+        body: JSON.stringify({ body: notes }),
+      }),
+    ]).then(() => {}).catch(() => {});
   }, [apiKey]);
 
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
@@ -1088,6 +1111,12 @@ const s = StyleSheet.create({
   },
   dsEmojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   dsEmojiText: { fontSize: 24 },
+  dsNotesInput: {
+    backgroundColor: Colors.cardBgElevated, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight,
+    color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12,
+    minHeight: 90, marginBottom: 4, lineHeight: 21,
+  },
   dsBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginBottom: 4 },
   dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
   dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline", marginBottom: 4 },
