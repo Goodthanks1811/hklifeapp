@@ -24,9 +24,8 @@ import { NotionProvider } from "@/context/NotionContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
 import { HeaderImageProvider } from "@/context/HeaderImageContext";
 
-if (process.env.EXPO_PUBLIC_DOMAIN) {
-  setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
-}
+const apiDomain = process.env.EXPO_PUBLIC_DOMAIN || "814374fd-199d-4ed7-9a1e-8e8568da7f50-00-1sgtb2onftd5g.spock.replit.dev";
+setBaseUrl(`https://${apiDomain}`);
 
 SplashScreen.preventAutoHideAsync();
 
