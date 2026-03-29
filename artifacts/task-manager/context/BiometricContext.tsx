@@ -55,8 +55,11 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage:         "Unlock the app",
+        // Empty string hides the "Enter Passcode" fallback button in the dialog
+        // while keeping the Face ID dialog functional
+        fallbackLabel:         "",
         cancelLabel:           "Cancel",
-        disableDeviceFallback: true,   // Face ID only — no PIN fallback
+        disableDeviceFallback: false,
       });
       if (result.success) {
         setIsLocked(false);
@@ -74,8 +77,9 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await LocalAuthentication.authenticateAsync({
           promptMessage:         "Authenticate to enable Face ID lock",
+          fallbackLabel:         "",
           cancelLabel:           "Cancel",
-          disableDeviceFallback: true,   // Face ID only — no PIN fallback
+          disableDeviceFallback: false,
         });
         if (!result.success) return false;
       } catch {

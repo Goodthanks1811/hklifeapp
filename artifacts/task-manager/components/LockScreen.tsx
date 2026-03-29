@@ -3,8 +3,6 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -14,8 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBiometric } from "@/context/BiometricContext";
 import { Colors } from "@/constants/colors";
 
-const LOGO_URI = "https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png";
-
 export function LockScreen() {
   const insets                        = useSafeAreaInsets();
   const { unlock }                    = useBiometric();
@@ -23,16 +19,10 @@ export function LockScreen() {
   const [prompting, setPrompting]     = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  // Fade in on mount
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 380, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, tension: 160, friction: 14, useNativeDriver: true }),
-    ]).start();
-    // Auto-prompt a moment after mount
+    Animated.timing(fadeAnim, { toValue: 1, duration: 340, useNativeDriver: true }).start();
     const t = setTimeout(() => { handleUnlock(); }, 420);
     return () => clearTimeout(t);
   }, []);
@@ -40,11 +30,11 @@ export function LockScreen() {
   const shake = () => {
     shakeAnim.setValue(0);
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue:  9, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -9, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue:  6, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -6, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue:  0, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:  10, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:   7, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:  -7, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:   0, duration: 45, useNativeDriver: true }),
     ]).start();
   };
 
@@ -70,23 +60,14 @@ export function LockScreen() {
         { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
       ]}
     >
-      {/* Logo */}
-      <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: "center" }}>
-        <Image
-          source={{ uri: LOGO_URI }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </Animated.View>
-
-      {/* Lock icon + message */}
+      {/* Lock circle + title */}
       <Animated.View style={[styles.centerGroup, { transform: [{ translateX: shakeAnim }] }]}>
         <View style={styles.lockCircle}>
-          <Feather name="lock" size={32} color={Colors.primary} />
+          <Feather name="lock" size={36} color={Colors.primary} />
         </View>
         <Text style={styles.title}>App Locked</Text>
         <Text style={styles.subtitle}>
-          {failed ? "Authentication failed. Try again." : "Authenticate to continue"}
+          {failed ? "Face ID failed. Try again." : "Authenticate to continue"}
         </Text>
       </Animated.View>
 
@@ -110,35 +91,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#0a0a0a",
     alignItems: "center",
     justifyContent: "center",
-    gap: 0,
     zIndex: 9999,
-  },
-  logo: {
-    width: 130,
-    height: 130,
-    marginBottom: 48,
   },
   centerGroup: {
     alignItems: "center",
-    marginBottom: 52,
+    marginBottom: 56,
   },
   lockCircle: {
-    width: 76, height: 76, borderRadius: 38,
+    width: 88, height: 88, borderRadius: 44,
     backgroundColor: "rgba(224,49,49,0.12)",
     borderWidth: 1.5, borderColor: "rgba(224,49,49,0.3)",
     alignItems: "center", justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   title: {
     color: "#ffffff",
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: "Inter_700Bold",
-    marginBottom: 8,
-    letterSpacing: -0.3,
+    marginBottom: 10,
+    letterSpacing: -0.4,
   },
   subtitle: {
     color: Colors.textMuted,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
   },
@@ -147,8 +122,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     backgroundColor: Colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingHorizontal: 36,
+    paddingVertical: 17,
     borderRadius: 18,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
