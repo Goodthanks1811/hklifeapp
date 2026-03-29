@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Keyboard,
   Linking,
   Modal,
@@ -31,6 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
+import { useHeaderImage } from "@/context/HeaderImageContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LIFE_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
@@ -1008,6 +1010,8 @@ export default function LifeTaskScreen() {
     setResetting(false);
   }, [resetting, handleResetOrder]);
 
+  const { uri: hImgUri, resizeMode: hResizeMode, offsetX: hOffX, offsetY: hOffY } = useHeaderImage();
+
   return (
     <View style={[sc.root, { paddingTop: topPad }]}>
       <ScreenHeader
@@ -1022,6 +1026,17 @@ export default function LifeTaskScreen() {
           </Pressable>
         }
       />
+
+      {/* ── Header image banner ──────────────────────────────────────────────── */}
+      {hImgUri ? (
+        <View style={sc.headerBanner}>
+          <Image
+            source={{ uri: hImgUri }}
+            style={[sc.headerBannerImg, { transform: [{ translateX: hOffX }, { translateY: hOffY }] }]}
+            resizeMode={hResizeMode}
+          />
+        </View>
+      ) : null}
 
       {/* ── Emoji filter bar ─────────────────────────────────────────────────── */}
       {config.emojis.length > 1 && (
@@ -1273,6 +1288,8 @@ const sc = StyleSheet.create({
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Colors.cardBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.border },
   retryTx: { color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
   resetBtn: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  headerBanner: { height: 160, overflow: "hidden", backgroundColor: "#000" },
+  headerBannerImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
 
   filterBar: { borderBottomWidth: 1, borderBottomColor: Colors.border },
   filterScroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },

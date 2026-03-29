@@ -1,10 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   Keyboard,
   LayoutAnimation,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -26,6 +29,7 @@ import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 import { useBiometric } from "@/context/BiometricContext";
+import { useHeaderImage, type ResizeMode } from "@/context/HeaderImageContext";
 import {
   SECTION_LABELS,
   useDrawerConfig,
@@ -283,14 +287,62 @@ export default function SettingsScreen() {
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection } = useDrawerConfig();
 
-  const [draft,       setDraft]       = useState(apiKey ?? "");
-  const [saved,       setSaved]       = useState(false);
-  const [masked,      setMasked]      = useState(true);
-  const [clearing,    setClearing]    = useState(false);
-  const [activeMove,  setActiveMove]  = useState<ActiveMove | null>(null);
-  const [bioToggling, setBioToggling] = useState(false);
+  const { uri: headerUri, resizeMode: headerResizeMode, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
-  const tickOpacity = useRef(new Animated.Value(0)).current;
+  const [draft,        setDraft]        = useState(apiKey ?? "");
+  const [saved,        setSaved]        = useState(false);
+  const [masked,       setMasked]       = useState(true);
+  const [clearing,     setClearing]     = useState(false);
+  const [activeMove,   setActiveMove]   = useState<ActiveMove | null>(null);
+  const [bioToggling,  setBioToggling]  = useState(false);
+  const [imgDisplay,   setImgDisplay]   = useState({ x: headerOffX, y: headerOffY });
+
+  const tickOpacity  = useRef(new Animated.Value(0)).current;
+  const savedOffRef  = useRef({ x: headerOffX, y: headerOffY });
+  const headerUpdRef = useRef(headerUpdate);
+  headerUpdRef.current = headerUpdate;
+
+  useEffect(() => {
+    savedOffRef.current = { x: headerOffX, y: headerOffY };
+    setImgDisplay({ x: headerOffX, y: headerOffY });
+  }, [headerOffX, headerOffY]);
+
+  const previewPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      savedOffRef.current = { ...savedOffRef.current };
+    },
+    onPanResponderMove: (_, gs) => {
+      setImgDisplay({
+        x: Math.max(-300, Math.min(300, savedOffRef.current.x + gs.dx)),
+        y: Math.max(-200, Math.min(200, savedOffRef.current.y + gs.dy)),
+      });
+    },
+    onPanResponderRelease: (_, gs) => {
+      const final = {
+        x: Math.max(-300, Math.min(300, savedOffRef.current.x + gs.dx)),
+        y: Math.max(-200, Math.min(200, savedOffRef.current.y + gs.dy)),
+      };
+      savedOffRef.current = final;
+      setImgDisplay(final);
+      headerUpdRef.current({ offsetX: final.x, offsetY: final.y });
+    },
+  }), []);
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.9,
+      allowsEditing: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      headerUpdRef.current({ uri: result.assets[0].uri, offsetX: 0, offsetY: 0 });
+      savedOffRef.current = { x: 0, y: 0 };
+      setImgDisplay({ x: 0, y: 0 });
+    }
+  };
 
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
@@ -457,6 +509,69 @@ export default function SettingsScreen() {
           </View>
         </Accordion>
 
+        {/* ══ HEADER IMAGE ════════════════════════════════════════════════════ */}
+        <Accordion title="Header Image" icon="image" defaultOpen={false}>
+          <View style={styles.accordionBody}>
+
+            {headerUri ? (
+              <>
+                {/* Preview — drag to reposition */}
+                <View
+                  style={imgSt.previewBox}
+                  {...previewPan.panHandlers}
+                >
+                  <Image
+                    source={{ uri: headerUri }}
+                    style={[
+                      imgSt.previewImg,
+                      { transform: [{ translateX: imgDisplay.x }, { translateY: imgDisplay.y }] },
+                    ]}
+                    resizeMode={headerResizeMode}
+                  />
+                  <View style={imgSt.previewHint}>
+                    <Feather name="move" size={11} color="rgba(255,255,255,0.7)" />
+                    <Text style={imgSt.previewHintText}>Drag to reposition</Text>
+                  </View>
+                </View>
+
+                {/* Display mode */}
+                <Text style={styles.fieldLabel}>DISPLAY MODE</Text>
+                <View style={imgSt.modeRow}>
+                  {(["cover", "contain", "center", "stretch"] as ResizeMode[]).map(mode => (
+                    <Pressable
+                      key={mode}
+                      onPress={() => headerUpdate({ resizeMode: mode })}
+                      style={[imgSt.modePill, headerResizeMode === mode && imgSt.modePillActive]}
+                    >
+                      <Text style={[imgSt.modePillText, headerResizeMode === mode && imgSt.modePillTextActive]}>
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View style={styles.divider} />
+              </>
+            ) : (
+              <Text style={styles.sectionHint}>
+                Pick an image from your library to show as a banner at the top of each Life section. Drag the preview to reposition it.
+              </Text>
+            )}
+
+            <TouchableOpacity activeOpacity={0.8} style={styles.saveBtn} onPress={pickImage}>
+              <Text style={styles.saveBtnText}>{headerUri ? "Replace Image" : "Pick from Library"}</Text>
+            </TouchableOpacity>
+
+            {headerUri && (
+              <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={headerClear}>
+                <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                <Text style={styles.clearBtnText}>Remove image</Text>
+              </TouchableOpacity>
+            )}
+
+          </View>
+        </Accordion>
+
         {/* ══ SECURITY ════════════════════════════════════════════════════════ */}
         <Accordion title="Security" icon="shield" defaultOpen={false}>
           <View style={styles.accordionBody}>
@@ -598,6 +713,55 @@ const mStyles = StyleSheet.create({
   pillPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   pillText: { color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   pickerCancel: { padding: 4 },
+});
+
+// ── Header image styles ───────────────────────────────────────────────────────
+const imgSt = StyleSheet.create({
+  previewBox: {
+    height: 170,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: Colors.cardBgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    position: "relative",
+  },
+  previewImg: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  previewHint: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 8,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  previewHintText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+  },
+  modeRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginBottom: 4 },
+  modePill: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.cardBgElevated,
+  },
+  modePillActive: {
+    borderColor: Colors.primary,
+    backgroundColor: "rgba(224,49,49,0.15)",
+  },
+  modePillText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  modePillTextActive: { color: Colors.primary },
 });
 
 // ── Screen styles ─────────────────────────────────────────────────────────────

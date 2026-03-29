@@ -21,6 +21,7 @@ import { DrawerProvider } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
+import { HeaderImageProvider } from "@/context/HeaderImageContext";
 
 if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
@@ -78,15 +79,17 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <NotionProvider>
-            <DrawerConfigProvider>
-            <DrawerProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </DrawerProvider>
-            </DrawerConfigProvider>
+            <HeaderImageProvider>
+              <DrawerConfigProvider>
+                <DrawerProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <KeyboardProvider>
+                      <RootLayoutNav />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </DrawerProvider>
+              </DrawerConfigProvider>
+            </HeaderImageProvider>
           </NotionProvider>
         </QueryClientProvider>
       </ErrorBoundary>
