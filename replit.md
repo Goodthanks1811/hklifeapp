@@ -298,43 +298,65 @@ When the project has been idle, Replit puts it to sleep. On wake:
 
 EAS builds run from a standalone copy at `/tmp/hklife-standalone/`. The critical issue with preview builds: `expo-dev-client` pulls in `EXDevMenu`, which has a React Native 0.81 incompatibility (missing `React-RCTAppDelegate-umbrella.h`). The ONLY reliable fix is to ensure expo-dev-client is absent from BOTH `package.json` AND `package-lock.json` before submission.
 
-**Preview build sequence** (`com.hklife.app`):
+**Preview build sequence** (`com.hklife.app`) — the ONLY reliable build method:
+
 ```bash
+# 1. Recreate standalone
+rm -rf /tmp/hklife-standalone
+mkdir -p /tmp/hklife-standalone/artifacts/task-manager
+cd /home/runner/workspace/artifacts/task-manager
+tar --exclude='./node_modules' --exclude='./.git' --exclude='./ios' --exclude='./android' \
+  -cf - . | tar -xf - -C /tmp/hklife-standalone/artifacts/task-manager/
+
 cd /tmp/hklife-standalone/artifacts/task-manager
 
-# 1. Remove expo-dev-client BEFORE generating the lock file
-node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete p.dependencies['expo-dev-client'];delete (p.devDependencies||{})['expo-dev-client'];fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+# 2. Resolve catalog: entries and remove expo-dev-client
+node -e "
+const fs=require('fs');
+const yaml=fs.readFileSync('/home/runner/workspace/pnpm-workspace.yaml','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const catalogMap={'@tanstack/react-query':'^5.90.21'};
+const lines=yaml.split('\n');let inCatalog=false;
+for(const line of lines){if(line.trim()==='catalog:')inCatalog=true;else if(inCatalog&&line.startsWith('  ')){const m=line.match(/^\s+'?([^':]+)'?:\s+(.+)$/);if(m)catalogMap[m[1].trim()]=m[2].trim();}else if(inCatalog&&!line.startsWith(' ')&&line.trim())break;}
+for(const sec of['dependencies','devDependencies']){if(!pkg[sec])continue;for(const[k,v] of Object.entries(pkg[sec])){if(v==='catalog:'&&catalogMap[k]){pkg[sec][k]=catalogMap[k];}}}
+delete pkg.devDependencies['expo-dev-client'];
+fs.writeFileSync('package.json',JSON.stringify(pkg,null,2));
+"
 
-# 2. Generate lock file WITHOUT expo-dev-client
+# 3. Generate lock file WITHOUT expo-dev-client
 npm install --package-lock-only --legacy-peer-deps
 
-# 3. Regenerate ios/ (verify prebuild does NOT re-add expo-dev-client)
-rm -rf ios/
+# 4. Regenerate ios/ with prebuild
 PNPM_MODULES="/home/runner/workspace/node_modules/.pnpm/node_modules"
 NODE_PATH="$PNPM_MODULES" node /home/runner/workspace/artifacts/task-manager/node_modules/.bin/expo \
   prebuild --platform ios --no-install --clean
 
-# 4. Verify (all should show 0)
-grep -c '"expo-dev-client"' package.json package-lock.json
-grep -c "expo-dev\|EXDevMenu\|DevMenu" ios/Podfile
+# 5. Create symlinks so EAS CLI can parse app.config.js
+mkdir -p node_modules/@expo
+WORKSPACE_NM="/home/runner/workspace/artifacts/task-manager/node_modules"
+for pkg in "expo-router" "expo" "expo-font" "expo-web-browser" "expo-media-library" "expo-calendar" "expo-image-picker"; do
+  ln -sf "$WORKSPACE_NM/$pkg" "node_modules/$pkg" 2>/dev/null || true
+done
+for pkg in /home/runner/workspace/artifacts/task-manager/node_modules/@expo/*/; do
+  ln -sf "$pkg" "node_modules/@expo/$(basename $pkg)" 2>/dev/null || true
+done
 
-# 5. Submit
+# 6. Submit
 EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform ios --profile preview --non-interactive
 ```
 
-**Dev client build sequence** (`com.hklife.app.dev`):
-- Keep expo-dev-client in package.json (it uses a pre-compiled EXDevMenu binary, so the umbrella header issue doesn't apply)
-- Use `APP_VARIANT=development` env var
-- Needs Apple credentials for `com.hklife.app.dev` bundle ID (set up with `eas credentials`)
+**Dev client builds**: PERMANENTLY BROKEN due to EXDevMenu/React_RCTAppDelegate umbrella header incompatibility in RN 0.81. All post_install Podfile fixes fail because Clang's module system resolves frameworks from BUILT_PRODUCTS_DIR, not Pods/Headers. Every approach attempted (header copy, fake framework, disable modules, build phase script, no-ios/ submission) consistently fails with the same error. The one historical successful dev build (36b5a49f) appears to have been a lucky EAS worker cache hit and is not reproducible.
+
+**OTA updates (expo-updates)**: Also failing — EAS "Calculate expo-updates runtime version" build phase throws unknown error. Likely a transient or version-compatibility issue. Can be revisited later.
 
 **EAS project**: `@hk1811/hk-life-app`, projectId `a4b0c416-348f-4f50-914c-76e1b191ca72`  
 **Apple Team ID**: `LDPV4NPPKY` (hkmail18@gmail.com)  
-**Stable bundle ID**: `com.hklife.app` (ad-hoc, existing provisioning)  
-**Dev bundle ID**: `com.hklife.app.dev` (needs setup)
+**Stable bundle ID**: `com.hklife.app` (ad-hoc, existing provisioning)
 
 **Latest builds**:
-- Preview (stable): `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa`
-- Dev client: `36b5a49f` — IPA: `https://expo.dev/artifacts/eas/7KQpkrcWBDYk9DqQPEkv6a.ipa`
+- Preview `721cf08b` — IPA: `https://expo.dev/artifacts/eas/f6hFsdnvpZ9fArwDrpRKo4.ipa` (current, latest code)
+- Preview `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa` (older, still valid)
+- Dev client: ALL FAILED — see above
 
 Things that only work in a native EAS build (not Expo Go):
 - `keyboardAppearance="dark"` on TextInput
