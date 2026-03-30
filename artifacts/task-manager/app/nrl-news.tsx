@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useDrawer } from "@/context/DrawerContext";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -159,6 +160,7 @@ const ab = StyleSheet.create({
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function NrlNewsScreen() {
+  const { openDrawer } = useDrawer();
   const insets               = useSafeAreaInsets();
   const { width: screenW }   = useWindowDimensions();
   const isTablet             = screenW >= 768;
@@ -245,6 +247,15 @@ export default function NrlNewsScreen() {
     <View style={[styles.root, { backgroundColor: C.bg }]}>
       {/* ── LIST VIEW ────────────────────────────────────────────────────── */}
       <Animated.View style={[styles.pane, { transform: [{ translateX: listTranslateX }] }]}>
+        {/* Hamburger — always accessible in list view */}
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+          style={[styles.hamburger, { top: topPad + 4 }]}
+          hitSlop={16}
+        >
+          <Feather name="menu" size={isTablet ? 22 : 20} color="rgba(255,255,255,0.7)" />
+        </Pressable>
+
         {/* Full-screen centred loader — rendered outside ScrollView so it's truly centred */}
         {loading && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -356,6 +367,10 @@ export default function NrlNewsScreen() {
 const styles = StyleSheet.create({
   root:      { flex: 1, backgroundColor: C.bg, overflow: "hidden" },
   pane:      { ...StyleSheet.absoluteFillObject },
+  hamburger: { position: "absolute", left: 14, zIndex: 100,
+               width: 36, height: 36, borderRadius: 10,
+               backgroundColor: "rgba(255,255,255,0.08)",
+               alignItems: "center", justifyContent: "center" },
   center:    { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
   errorText: { color: C.muted, fontSize: 15, textAlign: "center", marginBottom: 16 },
   retryBtn:  { borderWidth: 1, borderColor: C.green, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
