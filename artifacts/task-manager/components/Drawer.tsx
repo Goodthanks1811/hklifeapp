@@ -175,11 +175,9 @@ export function Drawer() {
               <View style={styles.badgeDot} />
               <Text style={styles.badgeText}>Built on Replit</Text>
             </View>
-            {__DEV__ && (
-              <View style={styles.devBadge}>
-                <Text style={styles.devBadgeText}>DEV</Text>
-              </View>
-            )}
+            <View style={styles.devBadge}>
+              <Text style={styles.devBadgeText}>DEV</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
