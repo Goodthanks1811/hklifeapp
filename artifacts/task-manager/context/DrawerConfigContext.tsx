@@ -47,7 +47,8 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Review Digest", icon: "file-text", route: null,            description: "Coming soon"         },
   ],
   apps: [
-    { label: "Mi Nena", icon: "heart", route: "/mi-nena", description: "Photo & video gallery" },
+    { label: "Mi Nena",   icon: "heart",  route: "/mi-nena",   description: "Photo & video gallery" },
+    { label: "Time Burn", icon: "clock",  route: "/time-burn", description: "Budget burn rate timer" },
   ],
   footy: [
     { label: "Schedule", icon: "calendar", route: "/nrl-schedule", description: "NRL fixtures & ladder" },
