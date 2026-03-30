@@ -20,6 +20,7 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -567,9 +568,9 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   const swipePan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 4 && Math.abs(gs.dy) < 22,
+        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.5,
       onMoveShouldSetPanResponderCapture: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 4 && Math.abs(gs.dy) < 22,
+        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.5,
       onPanResponderGrant: () => {
         translateX.stopAnimation((val) => { startXRef.current = val; });
       },
@@ -703,16 +704,17 @@ export default function LifeTaskScreen() {
   }, [config]);
 
   // ── Data ────────────────────────────────────────────────────────────────────
-  const [tasks,    setTasks]    = useState<LifeTask[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [schema,   setSchema]   = useState<Schema | null>(null);
+  const [tasks,      setTasks]      = useState<LifeTask[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [schema,     setSchema]     = useState<Schema | null>(null);
   const tasksRef = useRef<LifeTask[]>([]);
   tasksRef.current = tasks;
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (silent = false) => {
     if (!apiKey || !config) return;
-    setLoading(true); setError(null);
+    if (!silent) setLoading(true); setError(null);
     try {
       const enc = encodeURIComponent(config.catValue);
       const r   = await fetch(`${BASE_URL}/api/notion/life-tasks?category=${enc}`, {
@@ -760,6 +762,12 @@ export default function LifeTaskScreen() {
       .then(r => r.json())
       .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType }))
       .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select" }));
+  }, [fetchTasks]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTasks(true);
+    setRefreshing(false);
   }, [fetchTasks]);
 
   // ── Emoji filter ─────────────────────────────────────────────────────────────
@@ -1160,6 +1168,14 @@ export default function LifeTaskScreen() {
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
           onScrollBeginDrag={closeActiveSwipe}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
         >
           {/* Filtered view: simple flow layout, no drag */}
           {activeEmoji !== null && (

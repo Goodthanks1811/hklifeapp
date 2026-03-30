@@ -133,6 +133,11 @@ input[type=file] { display:none; }
     <input class="brush-range" type="range" id="bsoftsl" min="0" max="100" value="0" oninput="brushSoft=this.value/100;document.getElementById('bsval').textContent=Math.round(this.value)+'%';">
     <span class="brush-lbl" id="bsval">0%</span>
   </div>
+  <div class="brush-row">
+    <span class="brush-row-lbl">Px</span>
+    <input class="brush-range" type="range" id="bopsl" min="1" max="100" value="100" oninput="brushOpacity=this.value/100;document.getElementById('bopval').textContent=Math.round(this.value)+'%';">
+    <span class="brush-lbl" id="bopval">100%</span>
+  </div>
 </div>
 <div class="obar" id="obar" style="display:none;">
   <label>Image 2 opacity</label>
@@ -202,7 +207,7 @@ var undoStack=[];
 var MAX_UNDO=30;
 
 // ── Brush state ────────────────────────────────────────
-var brushMode=false,brushErase=true,brushSize=20,brushSoft=0;
+var brushMode=false,brushErase=true,brushSize=20,brushSoft=0,brushOpacity=1.0;
 var maskCanvas=null,offCanvas=null,offCtx=null;
 var bCursor=null; // {x,y} for brush preview circle
 var rafPending=false;
@@ -394,16 +399,6 @@ function draw(){
     if(img2&&etx2)drawImg(img2,etx2,opacity2,!!maskCanvas);
   }
   updateSliderOverlay(w,h);
-  // Brush cursor — solid fill tinted by mode
-  if(brushMode&&bCursor){
-    ctx.save();
-    ctx.fillStyle=brushErase?'rgba(224,49,49,0.30)':'rgba(48,168,48,0.30)';
-    ctx.beginPath();ctx.arc(bCursor.x,bCursor.y,brushSize,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=brushErase?'rgba(224,49,49,0.80)':'rgba(48,168,48,0.80)';
-    ctx.lineWidth=1.5;ctx.setLineDash([]);
-    ctx.beginPath();ctx.arc(bCursor.x,bCursor.y,brushSize,0,Math.PI*2);ctx.stroke();
-    ctx.restore();
-  }
 }
 function drawWithSlider(w,h,etx1,etx2){
   var sp=sliderVert?sliderPos*w:sliderPos*h;
@@ -511,16 +506,16 @@ function paintMask(sx,sy){
     var grad=m.createRadialGradient(ix,iy,hardR,ix,iy,ir);
     if(brushErase){
       m.globalCompositeOperation='destination-out';
-      grad.addColorStop(0,'rgba(0,0,0,1)');grad.addColorStop(1,'rgba(0,0,0,0)');
+      grad.addColorStop(0,'rgba(0,0,0,'+brushOpacity+')');grad.addColorStop(1,'rgba(0,0,0,0)');
     }else{
       m.globalCompositeOperation='source-over';
-      grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(1,'rgba(255,255,255,0)');
+      grad.addColorStop(0,'rgba(255,255,255,'+brushOpacity+')');grad.addColorStop(1,'rgba(255,255,255,0)');
     }
     m.fillStyle=grad;
     m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
   }else{
     m.globalCompositeOperation=brushErase?'destination-out':'source-over';
-    m.fillStyle=brushErase?'rgba(0,0,0,1)':'#fff';
+    m.fillStyle=brushErase?'rgba(0,0,0,'+brushOpacity+')':'rgba(255,255,255,'+brushOpacity+')';
     m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
   }
   m.globalCompositeOperation='source-over';
