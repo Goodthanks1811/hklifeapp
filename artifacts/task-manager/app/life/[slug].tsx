@@ -78,8 +78,8 @@ const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(ma
 const ZERO_ANIM = new Animated.Value(0);
 
 // ── Emoji picker sheet ─────────────────────────────────────────────────────────
-function EmojiPicker({ visible, onSelect, onClose }: {
-  visible: boolean; onSelect: (e: string) => void; onClose: () => void;
+function EmojiPicker({ visible, emojis, onSelect, onClose }: {
+  visible: boolean; emojis: string[]; onSelect: (e: string) => void; onClose: () => void;
 }) {
   const slideAnim = useRef(new Animated.Value(400)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
@@ -109,7 +109,7 @@ function EmojiPicker({ visible, onSelect, onClose }: {
           <View style={s.handle} />
           <Text style={s.sheetTitle}>Choose Emoji</Text>
           <View style={s.emojiGrid}>
-            {FULL_PICKER.map(e => (
+            {emojis.map(e => (
               <Pressable
                 key={e} style={({ pressed }) => [s.emojiCell, pressed && s.emojiCellPressed]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSelect(e); }}
@@ -675,8 +675,8 @@ export default function LifeTaskScreen() {
           if (norm(t.emoji) === norm(HIDDEN_EMOJI)) return false;
           // Keep items with no emoji assigned (default "-")
           if (t.emoji === DEFAULT_EMOJI || t.emoji === "") return true;
-          // Hide items with emojis not in this category's defined set (rogue)
-          return config.emojis.some(e => norm(e) === norm(t.emoji));
+          // Allow any emoji from the full picker set (so cross-category picks aren't silently lost)
+          return FULL_PICKER.some(e => norm(e) === norm(t.emoji));
         });
         // Sort: emoji group first, then sortOrder within group, then alphabetical
         filtered.sort((a, b) => {
@@ -1215,13 +1215,14 @@ export default function LifeTaskScreen() {
 
       <EmojiPicker
         visible={!!pickerTask}
+        emojis={config.emojis}
         onSelect={(e) => { if (pickerTask) handleEmojiChange(pickerTask.id, e); }}
         onClose={() => setPickerTaskId(null)}
       />
 
       <QuickAddSheet
         visible={showQuickAdd}
-        catEmojis={config.emojis}
+        catEmojis={FULL_PICKER}
         catValue={config.catValue}
         schema={schema}
         apiKey={apiKey}
