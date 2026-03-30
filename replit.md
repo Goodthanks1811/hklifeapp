@@ -74,6 +74,14 @@ Expo / React Native mobile app targeting **iPhone + iPad Pro 12.9"**.
 | `context/DrawerContext.tsx` | Drawer open/close state |
 | `constants/colors.ts` | Shared colour tokens |
 
+### Critical Architecture Notes
+
+**Swipe-to-delete (`app/life/[slug].tsx` — `TaskRow`)**: Uses `Swipeable` from `react-native-gesture-handler` (NOT `PanResponder`). JavaScript PanResponder cannot compete with the native iOS scroll gesture recognizer — any diagonal swipe gets consumed by the ScrollView before JS sees it. `Swipeable` from RNGH operates at the native layer and wins horizontal gestures reliably. `GestureHandlerRootView` is at the root layout (`app/_layout.tsx`).
+
+**Keyboard handling**: NEVER use `KeyboardAvoidingView`. Always use `Keyboard.addListener` + `Animated.Value`.
+
+**Animated.parallel**: NEVER mix `useNativeDriver: true` and `false` in the same parallel call.
+
 ### Drawer Structure
 
 NAVIGATION → Task Board  
