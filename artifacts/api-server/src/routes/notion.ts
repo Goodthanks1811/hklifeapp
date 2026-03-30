@@ -326,14 +326,6 @@ router.get("/schema/:dbId", async (req, res) => {
       categoryType === "select"       ? (categoryProp?.select?.options       || []).map((o: any) => o.name) :
       categoryType === "multi_select" ? (categoryProp?.multi_select?.options || []).map((o: any) => o.name) :
       categoryType === "status"       ? (categoryProp?.status?.options       || []).map((o: any) => o.name) : [];
-    req.log?.info({
-      categoryType,
-      categoryOptions,
-      categoryCodePoints: categoryOptions.map(opt => ({
-        name: opt,
-        cps: [...opt].map(c => `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4,"0")}`).join(" "),
-      })),
-    }, "schema category options");
     res.json({ priType, priOptions, epicType, priorityType, categoryType, categoryOptions });
   } catch (e: any) {
     res.status(500).json({ message: "Internal server error" });
@@ -446,12 +438,6 @@ router.get("/life-tasks", async (req, res) => {
     }
 
     const data = await response.json();
-    req.log?.info({
-      category,
-      categoryCodePoints: category ? [...(category as string)].map(c => `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4,"0")}`).join(" ") : null,
-      notionResultCount: (data.results || []).length,
-      notionHasMore: data.has_more,
-    }, "life-tasks query");
     const tasks = (data.results || []).map((page: any) => {
       const props = page.properties || {};
       const titleArr: any[] = props.Task?.title || [];

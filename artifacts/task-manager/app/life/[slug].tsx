@@ -568,9 +568,9 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   const swipePan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.5,
+        !deletingRef.current && Math.abs(gs.dx) > 2 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.25,
       onMoveShouldSetPanResponderCapture: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.5,
+        !deletingRef.current && Math.abs(gs.dx) > 2 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.25,
       onPanResponderGrant: () => {
         translateX.stopAnimation((val) => { startXRef.current = val; });
       },

@@ -59,7 +59,8 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .obar input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:${C.text}; box-shadow:0 1px 6px rgba(0,0,0,.5); }
 .oval { font-size:12px; color:${C.muted}; width:36px; text-align:right; }
 
-#stage { flex:1; min-height:0; position:relative; touch-action:none; user-select:none; overflow:hidden; background:${C.bg}; }
+#stage { flex:1; min-height:0; position:relative; touch-action:none; user-select:none; overflow:hidden; background:${C.bg}; cursor:none; }
+#stage.brush-active { cursor:none; }
 canvas { position:absolute; top:0; left:0; display:block; }
 #divider { position:absolute; z-index:3; background:rgba(255,255,255,.85); box-shadow:0 0 8px rgba(0,0,0,.6); pointer-events:none; display:none; }
 
@@ -134,7 +135,7 @@ input[type=file] { display:none; }
     <span class="brush-lbl" id="bsval">0%</span>
   </div>
   <div class="brush-row">
-    <span class="brush-row-lbl">Px</span>
+    <span class="brush-row-lbl" style="width:32px;">Press</span>
     <input class="brush-range" type="range" id="bopsl" min="1" max="100" value="100" oninput="brushOpacity=this.value/100;document.getElementById('bopval').textContent=Math.round(this.value)+'%';">
     <span class="brush-lbl" id="bopval">100%</span>
   </div>
@@ -209,7 +210,6 @@ var MAX_UNDO=30;
 // ── Brush state ────────────────────────────────────────
 var brushMode=false,brushErase=true,brushSize=20,brushSoft=0,brushOpacity=1.0;
 var maskCanvas=null,offCanvas=null,offCtx=null;
-var bCursor=null; // {x,y} for brush preview circle
 var rafPending=false;
 function drawRaf(){if(rafPending)return;rafPending=true;requestAnimationFrame(function(){rafPending=false;draw();});}
 
@@ -422,7 +422,7 @@ stage.addEventListener('touchstart',function(e){
   e.preventDefault();
   var t=e.touches,p=stXY(t[0]);
   if(brushMode&&img2&&maskCanvas){
-    if(t.length===1){tMode='brush';panLast=p;bCursor=p;paintMask(p.x,p.y);draw();}
+    if(t.length===1){tMode='brush';panLast=p;paintMask(p.x,p.y);draw();}
     else if(t.length>=2){
       // two-finger pinch still zooms in brush mode
       tMode='pinch';var ax=activeTx()||tx2;psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;
@@ -436,7 +436,7 @@ stage.addEventListener('touchmove',function(e){
   e.preventDefault();
   var t=e.touches;
   if(tMode==='brush'&&t.length===1){
-    var p=stXY(t[0]);bCursor=p;
+    var p=stXY(t[0]);
     paintMaskLine(panLast.x,panLast.y,p.x,p.y);
     panLast=p;drawRaf();return;
   }
@@ -449,7 +449,7 @@ stage.addEventListener('touchend',function(e){
   e.preventDefault();
   var rem=e.touches.length;
   if(rem===0){
-    if(tMode==='brush'){snapshot();tMode='none';bCursor=null;draw();return;}
+    if(tMode==='brush'){snapshot();tMode='none';draw();return;}
     if(tMode==='pan'||tMode==='pinch'||tMode==='slider'){snapshot();}
     if(tMode==='pan'){var now=Date.now();if(now-lastTap<280){if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};}else if(active!==0){var img=active===1?img1:img2;if(img)setActiveTx(defaultTx(img,W(),H()));}draw();snapshot();}lastTap=now;}
     tMode='none';
@@ -483,7 +483,7 @@ function initMask(){
 }
 function toggleBrush(){
   if(!img2||!maskCanvas){return;}
-  brushMode=!brushMode;bCursor=null;
+  brushMode=!brushMode;
   document.getElementById('btnBrush').className='btn-icon'+(brushMode?' brush-active':'');
   document.getElementById('brush-bar').className=brushMode?'visible':'';
   draw();
