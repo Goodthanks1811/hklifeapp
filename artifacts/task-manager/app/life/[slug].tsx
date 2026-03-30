@@ -30,6 +30,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
@@ -532,113 +533,22 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   onDelete:      () => void;
   onSwipeOpen?:  (close: () => void) => void;
 }) {
+  const swipeableRef = useRef<Swipeable>(null);
   const checkScale   = useRef(new Animated.Value(0)).current;
   const opacityAnim  = useRef(new Animated.Value(1)).current;
   const rowScale     = useRef(new Animated.Value(1)).current;
-  const translateX   = useRef(new Animated.Value(0)).current;
   const deletingRef  = useRef(false);
-  const startXRef    = useRef(0);
   const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
-
-  // Velocity tracking (mirrors the reference bindSwipeDelete implementation)
-  const velRef  = useRef(0);       // px/ms, updated each move event
-
-  const REVEAL = 140;
-
-  // ── Snap helpers — velocity-aware duration ─────────────────────────────────
-  const swipeCbs = useRef({
-    snapBack: (absVelPxMs = 0) => {
-      isRevealedRef.current = false;
-      const dur = absVelPxMs
-        ? Math.max(160, Math.min(320, 260 - absVelPxMs * 1000 * 0.5))
-        : 280;
-      Animated.timing(translateX, {
-        toValue: 0, duration: dur,
-        useNativeDriver: false,
-        easing: Easing.out(Easing.cubic),
-      }).start();
-    },
-    snapReveal: (absVelPxMs = 0) => {
-      isRevealedRef.current = true;
-      const dur = absVelPxMs
-        ? Math.max(160, Math.min(320, 260 - absVelPxMs * 1000 * 0.5))
-        : 240;
-      Animated.timing(translateX, {
-        toValue: -REVEAL, duration: dur,
-        useNativeDriver: false,
-        easing: Easing.out(Easing.cubic),
-      }).start();
-    },
-  });
-
-  const swipeCbsRef = swipeCbs;
-
-  // ── PanResponder — mirrors reference bindSwipeDelete logic ─────────────────
-  const swipePan = useRef(
-    PanResponder.create({
-      // If row is already open, claim any touch immediately so we control close/re-open
-      onStartShouldSetPanResponder: () => isRevealedRef.current && !deletingRef.current,
-      onStartShouldSetPanResponderCapture: () => false,
-      // Claim once there's clear horizontal movement — very permissive diagonal tolerance
-      onMoveShouldSetPanResponder: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.3,
-      onMoveShouldSetPanResponderCapture: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.3,
-      onPanResponderGrant: () => {
-        translateX.stopAnimation((val) => { startXRef.current = val; });
-        velRef.current = 0;
-      },
-      onPanResponderMove: (_, gs) => {
-        // Track velocity from PanResponder's built-in vx (px/ms)
-        velRef.current = gs.vx;
-        const raw = startXRef.current + gs.dx;
-        // Rubber-band past both ends (mirrors reference)
-        let target: number;
-        if (raw > 0)            target = raw * 0.1;
-        else if (raw < -REVEAL) target = -REVEAL + (raw + REVEAL) * 0.15;
-        else                    target = raw;
-        translateX.setValue(target);
-      },
-      onPanResponderRelease: (_, gs) => {
-        const vel    = velRef.current;        // px/ms
-        const absVel = Math.abs(vel);
-        const totalX = startXRef.current + gs.dx;
-        if (isRevealedRef.current) {
-          // Already open — close on rightward flick or big rightward drag
-          if (vel > 0.25 || gs.dx > 25) {
-            swipeCbsRef.current.snapBack(absVel);
-          } else {
-            swipeCbsRef.current.snapReveal(absVel);
-          }
-        } else {
-          // Closed — open on leftward flick or big leftward drag
-          if (vel < -0.25 || -totalX > 20) {
-            swipeCbsRef.current.snapReveal(absVel);
-            (swipeCbsRef as any)._notifyOpen?.();
-          } else {
-            swipeCbsRef.current.snapBack(absVel);
-          }
-        }
-      },
-      onPanResponderTerminate: () => {
-        if (!isRevealedRef.current) swipeCbsRef.current.snapBack(0);
-      },
-    })
-  ).current;
-
-  // Store the notifyOpen callback in the pan responder ref so the closure can call it
-  (swipeCbs as any)._notifyOpen = useCallback(() => {
-    onSwipeOpen?.(() => swipeCbs.current.snapBack());
-  }, [onSwipeOpen]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
     deletingRef.current = true;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    swipeableRef.current?.close();
     Animated.parallel([
-      Animated.timing(translateX,  { toValue: -500, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.timing(opacityAnim, { toValue: 0,    duration: 220, useNativeDriver: false }),
+      Animated.timing(opacityAnim, { toValue: 0,    duration: 280, useNativeDriver: false }),
+      Animated.timing(rowScale,    { toValue: 0.85, duration: 280, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
     ]).start(() => onDelete());
   }, [onDelete]);
 
@@ -655,57 +565,63 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
     }, 320);
   };
 
-  // If the row is revealed, any tap on it closes the swipe instead of acting
   const handleRowTap = (action: () => void) => {
     if (isRevealedRef.current) {
-      swipeCbs.current.snapBack();
+      swipeableRef.current?.close();
     } else {
       action();
     }
   };
 
-  // Combine row opacity: check-off anim × drag dim (0.22 when dimmed)
   const combinedOpacity = Animated.multiply(
     opacityAnim,
     dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] })
   );
 
-  const pillOpacity   = translateX.interpolate({ inputRange: [-140, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
-  const pillTranslate = translateX.interpolate({ inputRange: [-140, 0], outputRange: [0, 14], extrapolate: "clamp" });
+  const renderRightActions = useCallback(() => (
+    <Pressable style={sc.deleteAction} onPress={triggerDelete}>
+      <Feather name="trash-2" size={16} color="#fff" />
+      <Text style={sc.deletePillTx}>Delete</Text>
+    </Pressable>
+  ), [triggerDelete]);
 
   return (
     <Animated.View style={[sc.rowOuter, { opacity: combinedOpacity, transform: [{ scale: rowScale }] }]}>
-      {/* Delete background — entire exposed area is a tap target */}
-      <Pressable style={sc.deleteBg} onPress={triggerDelete}>
-        <Animated.View style={[sc.deletePillWrap, { opacity: pillOpacity, transform: [{ translateX: pillTranslate }] }]}>
-          <View style={sc.deletePill}>
-            <Feather name="trash-2" size={14} color="#fff" />
-            <Text style={sc.deletePillTx}>Delete</Text>
-          </View>
-        </Animated.View>
-      </Pressable>
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={renderRightActions}
+        overshootRight={false}
+        rightThreshold={40}
+        friction={1.5}
+        enabled={!isDragging && !deletingRef.current}
+        onSwipeableOpen={() => {
+          isRevealedRef.current = true;
+          onSwipeOpen?.(() => swipeableRef.current?.close());
+        }}
+        onSwipeableClose={() => { isRevealedRef.current = false; }}
+        containerStyle={{ borderRadius: 14, overflow: "hidden" }}
+      >
+        <View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
+          {/* Emoji */}
+          <Pressable onPress={() => handleRowTap(onEmojiPress)} hitSlop={6} style={sc.emojiBtn}>
+            <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
+          </Pressable>
 
-      {/* Swipeable foreground */}
-      <Animated.View {...swipePan.panHandlers} style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateX }] }]}>
-        {/* Emoji */}
-        <Pressable onPress={() => handleRowTap(onEmojiPress)} hitSlop={6} style={sc.emojiBtn}>
-          <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
-        </Pressable>
+          {/* Name */}
+          <Pressable style={{ flex: 1 }} onPress={() => handleRowTap(onPress)} onLongPress={onLongPress} delayLongPress={200}>
+            <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
+          </Pressable>
 
-        {/* Name */}
-        <Pressable style={{ flex: 1 }} onPress={() => handleRowTap(onPress)} onLongPress={onLongPress} delayLongPress={200}>
-          <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
-        </Pressable>
-
-        {/* Checkbox */}
-        <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={sc.checkBtn}>
-          <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
-            <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-              <Feather name="check" size={12} color="#fff" />
+          {/* Checkbox */}
+          <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={sc.checkBtn}>
+            <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
+              <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+                <Feather name="check" size={12} color="#fff" />
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
-        </Pressable>
-      </Animated.View>
+          </Pressable>
+        </View>
+      </Swipeable>
     </Animated.View>
   );
 }
@@ -1432,20 +1348,11 @@ const sc = StyleSheet.create({
 
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
 
-  rowOuter: { height: ITEM_H, borderRadius: 14, overflow: "hidden" },
-  deleteBg: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center", alignItems: "flex-end",
-    backgroundColor: "rgba(224,49,49,0.12)",
-  },
-  deletePillWrap: {
-    justifyContent: "center", alignItems: "center",
-    width: 140, height: "100%",
-  },
-  deletePill: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: Colors.primary, borderRadius: 10,
-    paddingHorizontal: 18, paddingVertical: 10,
+  rowOuter: { height: ITEM_H },
+  deleteAction: {
+    width: 110, height: ITEM_H,
+    backgroundColor: Colors.primary,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
   },
   deletePillTx: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
