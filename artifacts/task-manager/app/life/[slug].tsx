@@ -544,7 +544,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   // Velocity tracking (mirrors the reference bindSwipeDelete implementation)
   const velRef  = useRef(0);       // px/ms, updated each move event
 
-  const REVEAL = 120;
+  const REVEAL = 140;
 
   // ── Snap helpers — velocity-aware duration ─────────────────────────────────
   const swipeCbs = useRef({
@@ -577,11 +577,14 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   // ── PanResponder — mirrors reference bindSwipeDelete logic ─────────────────
   const swipePan = useRef(
     PanResponder.create({
-      // Claim once there's meaningful horizontal movement — permissive diagonal tolerance
+      // If row is already open, claim any touch immediately so we control close/re-open
+      onStartShouldSetPanResponder: () => isRevealedRef.current && !deletingRef.current,
+      onStartShouldSetPanResponderCapture: () => false,
+      // Claim once there's clear horizontal movement — very permissive diagonal tolerance
       onMoveShouldSetPanResponder: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 4 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.4,
+        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.3,
       onMoveShouldSetPanResponderCapture: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 4 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.4,
+        !deletingRef.current && Math.abs(gs.dx) > 3 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.3,
       onPanResponderGrant: () => {
         translateX.stopAnimation((val) => { startXRef.current = val; });
         velRef.current = 0;
@@ -667,20 +670,20 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
     dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] })
   );
 
-  const pillOpacity   = translateX.interpolate({ inputRange: [-120, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
-  const pillTranslate = translateX.interpolate({ inputRange: [-120, 0], outputRange: [0, 14], extrapolate: "clamp" });
+  const pillOpacity   = translateX.interpolate({ inputRange: [-140, -20, 0], outputRange: [1, 0.1, 0], extrapolate: "clamp" });
+  const pillTranslate = translateX.interpolate({ inputRange: [-140, 0], outputRange: [0, 14], extrapolate: "clamp" });
 
   return (
     <Animated.View style={[sc.rowOuter, { opacity: combinedOpacity, transform: [{ scale: rowScale }] }]}>
-      {/* Delete background — revealed when row slides left */}
-      <View style={sc.deleteBg}>
-        <Animated.View style={{ opacity: pillOpacity, transform: [{ translateX: pillTranslate }] }}>
-          <Pressable style={sc.deletePill} onPress={triggerDelete}>
-            <Feather name="trash-2" size={12} color="#fff" />
+      {/* Delete background — entire exposed area is a tap target */}
+      <Pressable style={sc.deleteBg} onPress={triggerDelete}>
+        <Animated.View style={[sc.deletePillWrap, { opacity: pillOpacity, transform: [{ translateX: pillTranslate }] }]}>
+          <View style={sc.deletePill}>
+            <Feather name="trash-2" size={14} color="#fff" />
             <Text style={sc.deletePillTx}>Delete</Text>
-          </Pressable>
+          </View>
         </Animated.View>
-      </View>
+      </Pressable>
 
       {/* Swipeable foreground */}
       <Animated.View {...swipePan.panHandlers} style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateX }] }]}>
@@ -1328,9 +1331,9 @@ const s = StyleSheet.create({
   handle: { width: 38, height: 5, borderRadius: 3, backgroundColor: Colors.border, alignSelf: "center", marginTop: 10, marginBottom: 18 },
   sheetTitle: { color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 20 },
   emojiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 8 },
-  emojiCell: { width: 54, height: 54, borderRadius: 14, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border },
+  emojiCell: { width: 68, height: 68, borderRadius: 16, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border },
   emojiCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
-  emojiCellText: { fontSize: 26 },
+  emojiCellText: { fontSize: 30 },
 
   // ── Detail sheet (bottom sheet) ─────────────────────────────────────────
   dsTitleInput: {
@@ -1432,15 +1435,19 @@ const sc = StyleSheet.create({
   rowOuter: { height: ITEM_H, borderRadius: 14, overflow: "hidden" },
   deleteBg: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "center", alignItems: "flex-end", paddingRight: 14,
+    justifyContent: "center", alignItems: "flex-end",
     backgroundColor: "rgba(224,49,49,0.12)",
   },
-  deletePill: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: Colors.primary, borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 7,
+  deletePillWrap: {
+    justifyContent: "center", alignItems: "center",
+    width: 140, height: "100%",
   },
-  deletePillTx: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  deletePill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: Colors.primary, borderRadius: 10,
+    paddingHorizontal: 18, paddingVertical: 10,
+  },
+  deletePillTx: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   rowWrap: {
     flexDirection: "row", alignItems: "center", gap: 12,
