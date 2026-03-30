@@ -541,56 +541,93 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
-  // ── Swipe animations — smooth timing, not springy ─────────────────────────
+  // Velocity tracking (mirrors the reference bindSwipeDelete implementation)
+  const velRef  = useRef(0);       // px/ms, updated each move event
+
+  const REVEAL = 120;
+
+  // ── Snap helpers — velocity-aware duration ─────────────────────────────────
   const swipeCbs = useRef({
-    snapBack: () => {
+    snapBack: (absVelPxMs = 0) => {
       isRevealedRef.current = false;
+      const dur = absVelPxMs
+        ? Math.max(160, Math.min(320, 260 - absVelPxMs * 1000 * 0.5))
+        : 280;
       Animated.timing(translateX, {
-        toValue: 0, duration: 280,
+        toValue: 0, duration: dur,
         useNativeDriver: false,
         easing: Easing.out(Easing.cubic),
       }).start();
     },
-    snapReveal: () => {
+    snapReveal: (absVelPxMs = 0) => {
       isRevealedRef.current = true;
+      const dur = absVelPxMs
+        ? Math.max(160, Math.min(320, 260 - absVelPxMs * 1000 * 0.5))
+        : 240;
       Animated.timing(translateX, {
-        toValue: -120, duration: 240,
+        toValue: -REVEAL, duration: dur,
         useNativeDriver: false,
         easing: Easing.out(Easing.cubic),
       }).start();
     },
   });
 
-  // Stable reference to the callbacks object so PanResponder closure is fresh
   const swipeCbsRef = swipeCbs;
 
-  // ── PanResponder ───────────────────────────────────────────────────────────
+  // ── PanResponder — mirrors reference bindSwipeDelete logic ─────────────────
   const swipePan = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 2 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.25,
-      onMoveShouldSetPanResponderCapture: (_, gs) =>
-        !deletingRef.current && Math.abs(gs.dx) > 2 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.25,
+      // Wait for ≥5px total movement, then claim only if clearly horizontal (dx > dy*1.1)
+      onMoveShouldSetPanResponder: (_, gs) => {
+        if (deletingRef.current) return false;
+        const total = Math.hypot(gs.dx, gs.dy);
+        if (total < 5) return false;
+        return Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1;
+      },
+      onMoveShouldSetPanResponderCapture: (_, gs) => {
+        if (deletingRef.current) return false;
+        const total = Math.hypot(gs.dx, gs.dy);
+        if (total < 5) return false;
+        return Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1;
+      },
       onPanResponderGrant: () => {
         translateX.stopAnimation((val) => { startXRef.current = val; });
+        velRef.current = 0;
       },
       onPanResponderMove: (_, gs) => {
-        translateX.setValue(Math.max(-120, Math.min(0, startXRef.current + gs.dx)));
+        // Track velocity from PanResponder's built-in vx (px/ms)
+        velRef.current = gs.vx;
+        const raw = startXRef.current + gs.dx;
+        // Rubber-band past both ends (mirrors reference)
+        let target: number;
+        if (raw > 0)            target = raw * 0.1;
+        else if (raw < -REVEAL) target = -REVEAL + (raw + REVEAL) * 0.15;
+        else                    target = raw;
+        translateX.setValue(target);
       },
       onPanResponderRelease: (_, gs) => {
-        const finalX = startXRef.current + gs.dx;
-        // Any leftward movement → stay open. Only close if swiped back right.
-        if (finalX < -16) {
-          swipeCbsRef.current.snapReveal();
-          // Notify parent so it can close any previously open row
-          (swipeCbsRef as any)._notifyOpen?.();
+        const vel    = velRef.current;        // px/ms
+        const absVel = Math.abs(vel);
+        const totalX = startXRef.current + gs.dx;
+        if (isRevealedRef.current) {
+          // Already open — close on rightward flick or big rightward drag
+          if (vel > 0.25 || gs.dx > 25) {
+            swipeCbsRef.current.snapBack(absVel);
+          } else {
+            swipeCbsRef.current.snapReveal(absVel);
+          }
         } else {
-          swipeCbsRef.current.snapBack();
+          // Closed — open on leftward flick or big leftward drag
+          if (vel < -0.25 || -totalX > 25) {
+            swipeCbsRef.current.snapReveal(absVel);
+            (swipeCbsRef as any)._notifyOpen?.();
+          } else {
+            swipeCbsRef.current.snapBack(absVel);
+          }
         }
       },
       onPanResponderTerminate: () => {
-        // Only snap back if still in motion (not already revealed)
-        if (!isRevealedRef.current) swipeCbsRef.current.snapBack();
+        if (!isRevealedRef.current) swipeCbsRef.current.snapBack(0);
       },
     })
   ).current;

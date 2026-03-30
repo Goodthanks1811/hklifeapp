@@ -1,0 +1,217 @@
+});
+const deleteConfirmOverlay=document.getElementById('deleteConfirmOverlay');
+const deleteConfirmName=document.getElementById('deleteConfirmName');
+const deleteConfirmCancel=document.getElementById('deleteConfirmCancel');
+const deleteConfirmOk=document.getElementById('deleteConfirmOk');
+let pendingDeleteId=null;
+function openDeleteConfirm(id){ const t=tasks.find(function(x){ return x.id===id; }); if(!t) return; pendingDeleteId=id; deleteConfirmName.textContent=t.title.length>48?t.title.slice(0,48)+'\u2026':t.title; deleteConfirmOverlay.classList.add('show'); requestAnimationFrame(function(){requestAnimationFrame(function(){deleteConfirmOverlay.classList.add('visible');})}); }
+function closeDeleteConfirm(resetSwipe){ deleteConfirmOverlay.classList.remove('visible'); if(resetSwipe&&pendingDeleteId){ const row=document.getElementById('row-'+pendingDeleteId); if(row){ const track=row.querySelector('.auto-item-track'); if(track){track.style.transition='transform 0.3s ease';track.style.transform='translateX(0)';} if(__openSwipeRow===row) __openSwipeRow=null; } } setTimeout(function(){ deleteConfirmOverlay.classList.remove('show'); pendingDeleteId=null; },180); }
+deleteConfirmCancel.addEventListener('click',function(){closeDeleteConfirm(true);});
+deleteConfirmOverlay.addEventListener('click',function(e){ if(e.target===deleteConfirmOverlay) closeDeleteConfirm(true); });
+deleteConfirmOk.addEventListener('click',function(){ if(!pendingDeleteId) return; const id=pendingDeleteId; closeDeleteConfirm(false); performDelete(id); });
+var SWIPE_EASE='cubic-bezier(0.22,1,0.36,1)';
+function performDelete(id){
+  const t=tasks.find(function(x){ return x.id===id; }); if(!t) return;
+  const row=document.getElementById('row-'+id);
+  if(row){
+    var h=row.offsetHeight;
+    row.style.transition='none'; row.style.height=h+'px'; row.style.marginBottom='8px'; row.style.opacity='1'; row.style.overflow='hidden';
+    row.offsetHeight;
+    row.style.transition='height 0.42s '+SWIPE_EASE+',margin-bottom 0.42s '+SWIPE_EASE+',opacity 0.3s ease';
+    row.style.height='0'; row.style.marginBottom='0'; row.style.opacity='0';
+    setTimeout(function(){ t.done=true; renderList(); nativeSend('native://deleteItem?ctx=hk&pageId='+encodeURIComponent(id)); },480);
+  } else {
+    t.done=true; renderList(); nativeSend('native://deleteItem?ctx=hk&pageId='+encodeURIComponent(id));
+  }
+}
+function finalizeRemove(id){ const t=tasks.find(function(x){ return x.id===id; }); if(!t) return; t.done=true; renderList(); nativeSend('native://markDone?pageId='+encodeURIComponent(id)); }
+function animateRemove(id){ const row=document.getElementById("row-"+id); if(!row) return finalizeRemove(id); const check=row.querySelector(".check"); if(check) check.classList.add("done"); row.classList.add("removing"); setTimeout(function(){finalizeRemove(id);},640); }
+var __openSwipeRow=null;
+var SWIPE_REVEAL=96;
+function bindSwipeDelete(item){
+  var track=item.querySelector('.auto-item-track');
+  if(!track) return;
+  var isOpen=false;
+  var startX=0,startY=0,baseX=0;
+  var dragging=false,decided=false,isHoriz=false;
+  var lastX=0,lastT=0,vel=0;
+  function getCardW(){ var inner=item.querySelector('.item-inner'); return inner?inner.offsetWidth:item.offsetWidth; }
+  function setTrackX(x,dur){
+    track.style.transition=dur!=null?('transform '+dur+'ms '+SWIPE_EASE):'none';
+    track.style.transform='translateX('+x+'px)';
+  }
+  function snapOpen(v){
+    isOpen=true; __openSwipeRow=item;
+    var dur=v?Math.max(160,Math.min(320,260-v*0.5)):280;
+    setTrackX(-SWIPE_REVEAL,dur);
+  }
+  function snapClose(v){
+    isOpen=false;
+    if(__openSwipeRow===item) __openSwipeRow=null;
+    var dur=v?Math.max(160,Math.min(320,260-v*0.5)):280;
+    setTrackX(0,dur);
+  }
+  function closeOther(){
+    if(__openSwipeRow&&__openSwipeRow!==item){
+      var ot=__openSwipeRow.querySelector('.auto-item-track');
+      if(ot){ ot.style.transition='transform 300ms '+SWIPE_EASE; ot.style.transform='translateX(0)'; }
+      __openSwipeRow=null;
+    }
+  }
+  function onStart(e){
+    if(window.__isAddModalOpen) return; if(window.__reorderMode) return;
+    if(e.target.closest('.emoji')||e.target.closest('.check')||e.target.closest('.epic-tag')) return;
+    if(e.target.closest('.del-btn')) return;
+    closeOther();
+    var pt=e.touches?e.touches[0]:e;
+    startX=pt.clientX; startY=pt.clientY;
+    lastX=startX; lastT=Date.now(); vel=0;
+    baseX=isOpen?-SWIPE_REVEAL:0;
+    dragging=true; decided=false; isHoriz=false;
+    track.style.transition='none';
+  }
+  function onMove(e){
+    if(!dragging) return;
+    var pt=e.touches?e.touches[0]:e;
+    var dx=pt.clientX-startX; var dy=pt.clientY-startY;
+    if(!decided){
+      if(Math.abs(dx)<5&&Math.abs(dy)<5) return;
+      isHoriz=Math.abs(dx)>Math.abs(dy)*1.1;
+      decided=true;
+    }
+    if(!isHoriz) return;
+    if(Math.abs(dx)>8) __cancelLongPress();
+    e.preventDefault();
+    var now=Date.now(); var dt=now-lastT;
+    if(dt>0) vel=(pt.clientX-lastX)/dt;
+    lastX=pt.clientX; lastT=now;
+    var raw=baseX+dx;
+    var target;
+    if(raw>0){ target=raw*0.1; }
+    else if(raw<-SWIPE_REVEAL){ target=-SWIPE_REVEAL+(raw+SWIPE_REVEAL)*0.15; }
+    else{ target=raw; }
+    track.style.transition='none';
+    track.style.transform='translateX('+target+'px)';
+  }
+  function onEnd(e){
+    if(!dragging) return; dragging=false;
+    if(!isHoriz) return;
+    var pt=e.changedTouches?e.changedTouches[0]:e;
+    var dx=pt.clientX-startX;
+    var totalX=baseX+dx;
+    var absVel=Math.abs(vel)*1000;
+    if(isOpen){
+      if(vel>0.25||dx>25){ snapClose(absVel); } else { snapOpen(absVel); }
+    } else {
+      if(vel<-0.25||-totalX>25){ snapOpen(absVel); } else { snapClose(absVel); }
+    }
+  }
+  var card=item.querySelector('.item-inner');
+  if(card){
+    card.addEventListener('touchstart',onStart,{passive:true});
+    card.addEventListener('touchmove',onMove,{passive:false});
+    card.addEventListener('touchend',onEnd,{passive:true});
+    card.addEventListener('touchcancel',onEnd,{passive:true});
+  }
+  var delBtn=item.querySelector('.del-btn');
+  if(delBtn){
+    delBtn.addEventListener('click',function(e){
+      e.preventDefault(); e.stopPropagation();
+      __openSwipeRow=null; isOpen=false;
+      var cardW=getCardW();
+      track.style.transition='transform 200ms cubic-bezier(0.4,0,1,1)';
+      track.style.transform='translateX(-'+(cardW+SWIPE_REVEAL)+'px)';
+      setTimeout(function(){ performDelete(item.dataset.id); },220);
+    });
+    delBtn.addEventListener('touchend',function(e){ e.stopPropagation(); },{passive:true});
+  }
+}
+let __lpTimer=null,__lpArmed=false,__lpItem=null,__lpStartX=0,__lpStartY=0;
+function __cancelLongPress(){ __lpArmed=false; clearTimeout(__lpTimer); if(__lpItem){ __lpItem.style.transform=''; __lpItem.style.opacity='1'; } __lpItem=null; }
+function bindLongPress(item){
+  function start(e){ if(window.__reorderMode) return; if(window.__isAddModalOpen) return; if(e.target.closest('.emoji')||e.target.closest('.check')||e.target.closest('.epic-tag')) return; if(e.target.closest('.del-btn')) return; const pt=e.touches?e.touches[0]:e; __lpStartX=pt.clientX; __lpStartY=pt.clientY; __lpItem=item; __lpArmed=true; item.style.transition='transform 120ms ease,opacity 120ms ease'; item.style.transform='scale(0.985)'; item.style.opacity='0.76'; __lpTimer=setTimeout(function(){ if(!__lpArmed) return; __lpArmed=false; item.style.transform='scale(1)'; item.style.opacity='1'; setReorderMode(true); },${LONG_PRESS_MS}); }
+  function move(e){ if(!__lpArmed) return; const pt=e.touches?e.touches[0]:e; const dx=Math.abs(pt.clientX-__lpStartX); const dy=Math.abs(pt.clientY-__lpStartY); if(dx>6||dy>10) __cancelLongPress(); }
+  function end(){ __cancelLongPress(); }
+  item.addEventListener('touchstart',start,{passive:true}); item.addEventListener('touchmove',move,{passive:true}); item.addEventListener('touchend',end,{passive:true}); item.addEventListener('touchcancel',end,{passive:true}); item.addEventListener('mousedown',start); item.addEventListener('mousemove',move); item.addEventListener('mouseup',end); item.addEventListener('mouseleave',end);
+}
+function itemHTML(t){
+  const insertClass=t.__justAdded?' insert-in':'';
+  const st=epicStyle(t.epic,false);
+  return \`<div class="auto-item\${insertClass}" id="row-\${t.id}" data-id="\${t.id}"><div class="auto-item-track"><div class="item-inner"><div class="emoji" data-id="\${t.id}">\${escapeHTML(t.emoji||"-")}</div><div class="text"><div class="title-text title-tap" data-id="\${t.id}">\${escapeHTML(t.title)}</div></div><div class="item-right"><span class="epic-tag" style="\${st}" data-id="\${t.id}">\${escapeHTML(t.epic)}</span><div class="check" data-id="\${t.id}"></div></div></div><div class="del-zone"><button class="del-btn" data-id="\${t.id}">Delete</button></div></div></div>\`;
+}
+function bindRowInteractions(){
+  document.querySelectorAll('.emoji').forEach(function(el){ el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); closeEpicPicker(); openPickerFor(el.dataset.id); }); });
+  document.querySelectorAll('.title-tap').forEach(function(el){ el.addEventListener('click',function(e){ if(window.__reorderMode) return; e.preventDefault(); e.stopPropagation(); closePicker(); closeEpicPicker(); const t=tasks.find(function(x){ return x.id===el.dataset.id; }); if(t) openPageModal(t); }); });
+  document.querySelectorAll('.epic-tag').forEach(function(el){ el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); closePicker(); openEpicPickerFor(el.dataset.id,el); }); });
+  document.querySelectorAll('.check').forEach(function(el){ el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); closePicker(); closeEpicPicker(); animateRemove(el.dataset.id); }); });
+  document.querySelectorAll('.auto-item').forEach(function(item){ bindSwipeDelete(item); bindLongPress(item); bindTouchReorder(item); });
+}
+function renderList(){
+  const visible=getVisibleTasks();
+  const list=document.getElementById("list");
+  let html="";
+  GROUPS.forEach(function(group){
+    const items=visible.filter(function(t){ return t.emoji===group.emoji; });
+    if(items.length===0) return;
+    html+=\`<div class="group-head"><div class="group-title">\${escapeHTML(group.label)}</div></div>\`;
+    html+=items.map(itemHTML).join("");
+    html+='<div class="sep"></div>';
+  });
+  if(!html) html='<div class="empty">No items.</div>';
+  const wasReady=list.classList.contains('ready');
+  list.classList.remove('ready'); list.innerHTML=html;
+  bindRowInteractions();
+  if(wasReady){ list.classList.add('ready'); } else { requestAnimationFrame(function(){requestAnimationFrame(function(){list.classList.add('ready');});}); }
+  tasks.forEach(function(t){delete t.__justAdded;});
+}
+function render(){
+  closePicker(); closeEpicPicker(); updateHeader(); renderEpicFilters(); renderList();
+}
+const pageOverlay=document.getElementById('pageOverlay');
+const pageModalTitleInput=document.getElementById('pageModalTitleInput');
+const pageModalMetaRow=document.getElementById('pageModalMetaRow');
+const pmBodyToolbar=document.getElementById('pmBodyToolbar');
+const pmBodyRender=document.getElementById('pmBodyRender');
+const pageModalBodyInput=document.getElementById('pageModalBodyInput');
+const pageModalClose=document.getElementById('pageModalClose');
+const pageModalSave=document.getElementById('pageModalSave');
+let pmTaskId=null;
+let pmRefUrl='';
+let pmOrigTitle='';
+let pmOrigEpic='';
+let pmOrigEmoji='';
+let pmOrigSize='';
+let pmDraftEpic='';
+let pmDraftEmoji='';
+let pmBodyEditing=false;
+let pmRawText='';
+function renderPmMetaRow(epic,emoji,refUrl,size){
+  var st=epicStyle(epic||'General',false);
+  var html='<span class="pm-meta-label">Epic</span><div class="pm-epic-pill" id="pmEpicPill" style="'+st+'">'+escapeHTML(epic||'General')+'</div>';
+  html+='<span class="pm-meta-label" style="margin-left:4px;">Priority</span><div class="pm-emoji-pill" id="pmEmojiPill">'+escapeHTML(emoji||'-')+'</div>';
+  if(size) html+='<span class="pm-meta-label" style="margin-left:4px;">Size</span><div class="pm-size-pill">'+escapeHTML(size)+'</div>';
+  if(refUrl){
+    var tk=EPIC_TOKENS[epicKey('Redesign')]||EPIC_TOKENS.redesign||EPIC_TOKENS.general;
+    html+='<span class="pm-meta-label" style="margin-left:4px;">Link</span><div class="pm-link-open-pill" id="pmLinkOpenBtn" style="background:'+tk.bg+';color:'+tk.text+';box-shadow:0 0 6px '+tk.glow+',inset 0 0 0 1px '+tk.glow+';">Open</div>';
+  }
+  pageModalMetaRow.innerHTML=html;
+  document.getElementById('pmEpicPill').addEventListener('click',function(e){
+    e.preventDefault(); e.stopPropagation();
+    if(!pmTaskId) return;
+    closePicker();
+    openEpicPickerFor(pmTaskId,document.getElementById('pmEpicPill'));
+  });
+  document.getElementById('pmEmojiPill').addEventListener('click',function(e){
+    e.preventDefault(); e.stopPropagation();
+    closePicker();
+    openPickerFor(pmTaskId);
+  });
+  if(refUrl){ var lb=document.getElementById('pmLinkOpenBtn'); if(lb) lb.addEventListener('click',function(){ nativeSend('native://openUrl?url='+encodeURIComponent(refUrl)); }); }
+}
+function blocksToHTML(blocks){
+  var html='';
+  (blocks||[]).forEach(function(b){
+    var type=b.type; var bd=b[type]||{}; var rt=bd.rich_text||[];
+    function renderRT(rt){
+      return rt.map(function(seg){
+        var text=seg.plain_text||'';
