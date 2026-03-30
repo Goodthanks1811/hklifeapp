@@ -304,6 +304,25 @@ config.resolver.blockList = /.*\/expo-keep-awake\/.*/;
 ```
 Blocking the package entirely causes the `try/catch` in `withDevTools.ios.tsx` to swallow the `require()` failure and fall back to a no-op hook — exactly correct behaviour for Expo Go where keep-awake isn't needed.
 
+#### pnpm Monorepo + Expo Go: Dual-React Instance Fix (resolveRequest)
+
+**Symptom**: Expo Go shows red screen:
+> `[TypeError: Cannot read property 'useRef' of null]` from `@react-navigation/core`
+
+**Root cause**: The root workspace has its **own real copy** of `react` at `node_modules/react/` (not a pnpm symlink). When Metro follows pnpm symlinks to real paths and then traverses up from packages in the root workspace (e.g. `@react-navigation/core`), it finds that root copy. The renderer (ReactFabric in `react-native`) uses the pnpm-store copy from the task-manager's local symlink. Two different JS objects = `ReactCurrentDispatcher.current` is null in one instance = hook crash.
+
+**Fix applied (`metro.config.js`)**:
+```js
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const override = SINGLETONS[moduleName]; // react, react-dom, scheduler
+  if (override) {
+    return { type: 'sourceFile', filePath: override }; // pnpm-store real path
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+```
+All `require('react')` calls anywhere in the bundle — regardless of where the importer lives — are forced to the same pnpm-store real file, guaranteeing a single React instance.
+
 ### 9. Replit Cold-Start Behaviour
 
 When the project has been idle, Replit puts it to sleep. On wake:
