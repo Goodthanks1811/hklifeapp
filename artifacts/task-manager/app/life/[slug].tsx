@@ -42,7 +42,7 @@ const ITEM_GAP     = 8;
 const SLOT_H       = ITEM_H + ITEM_GAP;
 const HIDDEN_EMOJI = "👎";
 const DEFAULT_EMOJI = "-";
-const FULL_PICKER  = ["🔥","🚩","👀","🧠","💳","💰","🎧","📌","📕"];
+const FULL_PICKER  = ["🔥","🚩","👀","🧠","💳","💰","🎧","📌","📕","🏡","🖥️"];
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
@@ -577,19 +577,11 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   // ── PanResponder — mirrors reference bindSwipeDelete logic ─────────────────
   const swipePan = useRef(
     PanResponder.create({
-      // Wait for ≥5px total movement, then claim only if clearly horizontal (dx > dy*1.1)
-      onMoveShouldSetPanResponder: (_, gs) => {
-        if (deletingRef.current) return false;
-        const total = Math.hypot(gs.dx, gs.dy);
-        if (total < 5) return false;
-        return Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1;
-      },
-      onMoveShouldSetPanResponderCapture: (_, gs) => {
-        if (deletingRef.current) return false;
-        const total = Math.hypot(gs.dx, gs.dy);
-        if (total < 5) return false;
-        return Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1;
-      },
+      // Claim once there's meaningful horizontal movement — permissive diagonal tolerance
+      onMoveShouldSetPanResponder: (_, gs) =>
+        !deletingRef.current && Math.abs(gs.dx) > 4 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.4,
+      onMoveShouldSetPanResponderCapture: (_, gs) =>
+        !deletingRef.current && Math.abs(gs.dx) > 4 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.4,
       onPanResponderGrant: () => {
         translateX.stopAnimation((val) => { startXRef.current = val; });
         velRef.current = 0;
@@ -618,7 +610,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
           }
         } else {
           // Closed — open on leftward flick or big leftward drag
-          if (vel < -0.25 || -totalX > 25) {
+          if (vel < -0.25 || -totalX > 20) {
             swipeCbsRef.current.snapReveal(absVel);
             (swipeCbsRef as any)._notifyOpen?.();
           } else {
