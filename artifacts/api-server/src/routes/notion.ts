@@ -12,6 +12,32 @@ function notionHeaders(apiKey: string) {
   };
 }
 
+// ── In-memory schema cache (5-minute TTL) ─────────────────────────────────────
+const _schemaCache: Map<string, { options: string[]; type: string; ts: number }> = new Map();
+const SCHEMA_TTL_MS = 5 * 60 * 1000;
+
+async function getCategoryOptions(dbId: string, apiKey: string): Promise<{ options: string[]; type: string }> {
+  const cached = _schemaCache.get(dbId);
+  if (cached && Date.now() - cached.ts < SCHEMA_TTL_MS) {
+    return { options: cached.options, type: cached.type };
+  }
+  try {
+    const r = await fetch(`https://api.notion.com/v1/databases/${dbId}`, { headers: notionHeaders(apiKey) });
+    if (!r.ok) return { options: [], type: "select" };
+    const db = await r.json();
+    const catProp = db.properties?.Category;
+    const type: string = catProp?.type || "select";
+    const options: string[] =
+      type === "select"       ? (catProp?.select?.options       || []).map((o: any) => o.name as string) :
+      type === "multi_select" ? (catProp?.multi_select?.options || []).map((o: any) => o.name as string) :
+      type === "status"       ? (catProp?.status?.options       || []).map((o: any) => o.name as string) : [];
+    _schemaCache.set(dbId, { options, type, ts: Date.now() });
+    return { options, type };
+  } catch {
+    return { options: [], type: "select" };
+  }
+}
+
 function extractTitle(titleProp: any): string {
   if (!titleProp) return "Untitled";
   const arr = titleProp.title || titleProp.rich_text || [];
@@ -389,7 +415,18 @@ router.get("/life-tasks", async (req, res) => {
       { property: "Done", checkbox: { equals: false } },
     ];
     if (category) {
-      filterClauses.push({ property: "Category", select: { equals: category as string } });
+      const { options: catOptions, type: catType } = await getCategoryOptions(LIFE_DB_ID, apiKey);
+      const needle = (category as string).trim();
+      // Find ALL option variants that match after trimming (catches spacey duplicates in Notion)
+      const matches = catOptions.filter(o => o.trim() === needle);
+      const variants: string[] = matches.length > 0 ? matches : [category as string];
+      const filterOp = catType === "multi_select" ? "contains" : "equals";
+      const filterKey = catType === "multi_select" ? "multi_select" : "select";
+      if (variants.length === 1) {
+        filterClauses.push({ property: "Category", [filterKey]: { [filterOp]: variants[0] } });
+      } else {
+        filterClauses.push({ or: variants.map(v => ({ property: "Category", [filterKey]: { [filterOp]: v } })) });
+      }
     }
 
     const body: any = {
