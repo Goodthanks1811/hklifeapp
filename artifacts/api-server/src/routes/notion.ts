@@ -397,6 +397,12 @@ router.get("/life-tasks", async (req, res) => {
     }
 
     const data = await response.json();
+    req.log?.info({
+      category,
+      categoryCodePoints: category ? [...(category as string)].map(c => `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4,"0")}`).join(" ") : null,
+      notionResultCount: (data.results || []).length,
+      notionHasMore: data.has_more,
+    }, "life-tasks query");
     const tasks = (data.results || []).map((page: any) => {
       const props = page.properties || {};
       const titleArr: any[] = props.Task?.title || [];
