@@ -170,9 +170,16 @@ export function Drawer() {
             </View>
             <Text style={styles.settingsLabel}>Settings</Text>
           </Pressable>
-          <View style={styles.badge}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.badgeText}>Built on Replit</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.badge}>
+              <View style={styles.badgeDot} />
+              <Text style={styles.badgeText}>Built on Replit</Text>
+            </View>
+            {__DEV__ && (
+              <View style={styles.devBadge}>
+                <Text style={styles.devBadgeText}>DEV</Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -329,6 +336,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   settingsLabel: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_500Medium" },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -341,4 +349,12 @@ const styles = StyleSheet.create({
   },
   badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.primary },
   badgeText: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" },
+  devBadge: {
+    paddingVertical: 6, paddingHorizontal: 10,
+    backgroundColor: "rgba(224,49,49,0.15)",
+    borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.primary,
+    alignSelf: "flex-start",
+  },
+  devBadgeText: { color: Colors.primary, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 1 },
 });
