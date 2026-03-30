@@ -23,9 +23,9 @@ interface DrawerContextType {
 const DrawerContext = createContext<DrawerContextType | null>(null);
 
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(isTablet);
-  const drawerAnim  = useRef(new Animated.Value(isTablet ? 0 : -DRAWER_WIDTH)).current;
-  const overlayAnim = useRef(new Animated.Value(isTablet ? 0 : 0)).current;
+  const [isOpen, setIsOpen] = useState(true);
+  const drawerAnim  = useRef(new Animated.Value(0)).current;
+  const overlayAnim = useRef(new Animated.Value(isTablet ? 0 : 1)).current;
 
   const openDrawer = useCallback(() => {
     if (isTablet) return;

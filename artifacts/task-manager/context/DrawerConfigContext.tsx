@@ -33,6 +33,7 @@ export const SECTION_ORDER: SectionKey[] = [
 
 export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   life: [
+    { label: "Calendar",    icon: "calendar",    route: "/calendar",         description: "HK upcoming events"  },
     { label: "Life Admin",  icon: "clipboard",   route: "/life/life-admin",  description: "Tasks & life admin"   },
     { label: "Investigate", icon: "search",       route: "/life/investigate", description: "Things to look into" },
     { label: "To Buy",      icon: "shopping-bag", route: "/life/to-buy",      description: "Shopping list"        },
