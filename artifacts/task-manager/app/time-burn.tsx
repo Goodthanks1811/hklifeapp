@@ -101,8 +101,8 @@ function GridBackground({ w, h }: { w: number; h: number }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 2500, easing: Easing.inOut(Easing.sine), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 2500, easing: Easing.inOut(Easing.sine), useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration: 2500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 2500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ])
     ).start();
   }, []);

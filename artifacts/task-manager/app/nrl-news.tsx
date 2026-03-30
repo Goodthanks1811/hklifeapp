@@ -245,6 +245,13 @@ export default function NrlNewsScreen() {
     <View style={[styles.root, { backgroundColor: C.bg }]}>
       {/* ── LIST VIEW ────────────────────────────────────────────────────── */}
       <Animated.View style={[styles.pane, { transform: [{ translateX: listTranslateX }] }]}>
+        {/* Full-screen centred loader — rendered outside ScrollView so it's truly centred */}
+        {loading && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <NrlSpinner />
+          </View>
+        )}
+
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingTop: topPad + 16, paddingBottom: insets.bottom + 32, paddingHorizontal: sidePad }}
@@ -258,16 +265,16 @@ export default function NrlNewsScreen() {
             />
           }
         >
-          {/* Header image */}
-          <View style={{ alignItems: "center", marginBottom: isTablet ? 52 : 42 }}>
-            <Image
-              source={{ uri: HEADER_IMAGE }}
-              style={{ width: headerImgW, maxWidth: isTablet ? 250 : 240, height: undefined, aspectRatio: 3.4, borderRadius: 12 }}
-              resizeMode="contain"
-            />
-          </View>
-
-          {loading && <NrlSpinner />}
+          {/* Header image — hidden while loading so nothing pushes the spinner down */}
+          {!loading && (
+            <View style={{ alignItems: "center", marginBottom: isTablet ? 52 : 42 }}>
+              <Image
+                source={{ uri: HEADER_IMAGE }}
+                style={{ width: headerImgW, maxWidth: isTablet ? 250 : 240, height: undefined, aspectRatio: 3.4, borderRadius: 12 }}
+                resizeMode="contain"
+              />
+            </View>
+          )}
 
           {error && !loading && (
             <View style={styles.center}>

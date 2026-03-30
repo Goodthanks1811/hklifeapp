@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: Colors.textPrimary,
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "Inter_700Bold",
   },
   divider: {
@@ -322,9 +322,9 @@ const styles = StyleSheet.create({
   },
   menuIconDimmed:  { backgroundColor: "rgba(255,255,255,0.05)" },
   menuText:        { flex: 1 },
-  menuLabel:       { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  menuLabel:       { color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   menuLabelDimmed: { color: Colors.textMuted },
-  menuDesc:        { color: Colors.textMuted,   fontSize: 11, fontFamily: "Inter_400Regular" },
+  menuDesc:        { color: Colors.textMuted,   fontSize: 12, fontFamily: "Inter_400Regular" },
   settingsSection: { paddingHorizontal: 20, paddingTop: 8 },
   settingsRow: {
     flexDirection: "row",
