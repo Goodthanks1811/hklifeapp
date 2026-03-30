@@ -296,7 +296,19 @@ router.get("/schema/:dbId", async (req, res) => {
     const priorityType = priorityProp?.type || "select";
     const categoryProp = props["Category"];
     const categoryType = categoryProp?.type || "select";
-    res.json({ priType, priOptions, epicType, priorityType, categoryType });
+    const categoryOptions: string[] =
+      categoryType === "select"       ? (categoryProp?.select?.options       || []).map((o: any) => o.name) :
+      categoryType === "multi_select" ? (categoryProp?.multi_select?.options || []).map((o: any) => o.name) :
+      categoryType === "status"       ? (categoryProp?.status?.options       || []).map((o: any) => o.name) : [];
+    req.log?.info({
+      categoryType,
+      categoryOptions,
+      categoryCodePoints: categoryOptions.map(opt => ({
+        name: opt,
+        cps: [...opt].map(c => `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4,"0")}`).join(" "),
+      })),
+    }, "schema category options");
+    res.json({ priType, priOptions, epicType, priorityType, categoryType, categoryOptions });
   } catch (e: any) {
     res.status(500).json({ message: "Internal server error" });
   }
