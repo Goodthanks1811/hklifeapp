@@ -51,6 +51,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   ],
   footy: [
     { label: "Schedule", icon: "calendar", route: "/nrl-schedule", description: "NRL fixtures & ladder" },
+    { label: "News",     icon: "rss",      route: "/nrl-news",     description: "NRL headlines from Fox Sports" },
   ],
   tools: [
     { label: "IR Quick Add",   icon: "zap",         route: "/ir-quick-add",   description: "Add to Notion DB"        },

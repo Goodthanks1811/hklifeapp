@@ -1,0 +1,549 @@
+// ===========================================
+// NRL — Fox Sports
+// ===========================================
+
+const CONFIG = {
+  FEED_URL: "https://www.foxsports.com.au/content-feeds/rugby-league",
+  MAX_ITEMS: 30,
+  HEADER_IMAGE: "https://i.postimg.cc/8CFL755P/IMG-4791.png",
+
+  PHONE: {
+    TOP_PAD_PX: 90,
+    PAGE_SIDE_PAD_PX: 14,
+    HEADER_WIDTH_PCT: 46,
+    HEADER_MAX_W_PX: 240,
+    HEADER_MARGIN_BOTTOM_PX: 42,
+
+    LIST_CARD_MAX_W_PX: 760,
+    LIST_CARD_RADIUS_PX: 16,
+    LIST_CARD_PAD_Y_PX: 24,
+    LIST_CARD_PAD_X_PX: 16,
+    LIST_CARD_GAP_PX: 12,
+    LIST_TITLE_SIZE_PX: 18,
+    LIST_TITLE_LINE_HEIGHT: 1.4,
+    LIST_ROW_GAP_PX: 18,
+    LIST_CARD_MIN_HEIGHT_PX: 84,
+
+    GLOW_WIDTH_PCT: 90,
+    GLOW_HEIGHT_PX: 72,
+    GLOW_BLUR_PX: 26,
+    GLOW_OPACITY: 0.22,
+    GLOW_OFFSET_Y_PX: 18,
+
+    ARTICLE_MAX_W_PX: 860,
+    ARTICLE_HEADER_PAD_PX: 6,
+    ARTICLE_BODY_RADIUS_PX: 16,
+    ARTICLE_BODY_PAD_PX: 18,
+    ARTICLE_TITLE_SIZE_PX: 21,
+    ARTICLE_TEXT_SIZE_PX: 20,
+    ARTICLE_TEXT_LINE_HEIGHT: 1.62,
+    SECTION_HEADING_SIZE_PX: 20,
+    SECTION_DIVIDER_MARGIN_TOP_PX: 28,
+    SECTION_DIVIDER_MARGIN_BOTTOM_PX: 14,
+    SECTION_DIVIDER_HEIGHT_PX: 3,
+    SECTION_DIVIDER_INSET_PX: 10
+  },
+
+  IPAD: {
+    TOP_PAD_PX: 100,
+    PAGE_SIDE_PAD_PX: 20,
+    HEADER_WIDTH_PCT: 22,
+    HEADER_MAX_W_PX: 250,
+    HEADER_MARGIN_BOTTOM_PX: 52,
+
+    LIST_CARD_MAX_W_PX: 850,
+    LIST_CARD_RADIUS_PX: 18,
+    LIST_CARD_PAD_Y_PX: 28,
+    LIST_CARD_PAD_X_PX: 22,
+    LIST_CARD_GAP_PX: 14,
+    LIST_TITLE_SIZE_PX: 24,
+    LIST_TITLE_LINE_HEIGHT: 1.38,
+    LIST_ROW_GAP_PX: 22,
+    LIST_CARD_MIN_HEIGHT_PX: 70,
+
+    GLOW_WIDTH_PCT: 88,
+    GLOW_HEIGHT_PX: 86,
+    GLOW_BLUR_PX: 34,
+    GLOW_OPACITY: 0.18,
+    GLOW_OFFSET_Y_PX: 22,
+
+    ARTICLE_MAX_W_PX: 980,
+    ARTICLE_HEADER_PAD_PX: 8,
+    ARTICLE_BODY_RADIUS_PX: 18,
+    ARTICLE_BODY_PAD_PX: 24,
+    ARTICLE_TITLE_SIZE_PX: 28,
+    ARTICLE_TEXT_SIZE_PX: 24,
+    ARTICLE_TEXT_LINE_HEIGHT: 1.68,
+    SECTION_HEADING_SIZE_PX: 24,
+    SECTION_DIVIDER_MARGIN_TOP_PX: 32,
+    SECTION_DIVIDER_MARGIN_BOTTOM_PX: 16,
+    SECTION_DIVIDER_HEIGHT_PX: 4,
+    SECTION_DIVIDER_INSET_PX: 14
+  }
+};
+
+// --- Loader config ---
+const LOADER_SIZE_PX      = 60;
+const LOADER_STROKE_PX    = 6;
+const LOADER_SPEED_S      = 1;
+const LOADER_LIFT_PX      = 70;
+const LOADER_COLOR        = "#00D85B";
+const LOADER_GLOW_PX      = 16;
+const LOADER_GLOW_OPACITY = 0.4;
+
+// --- NRL green ---
+const NRL_GREEN     = "45,182,95";
+const NRL_GREEN_HEX = "#000000";
+
+// --- Back hotspot ---
+const BACK_HOTSPOT_W_PX = 140;
+const BACK_HOTSPOT_H_PX = 64;
+
+const TRANSITION_MS = 700;
+
+const UI = Device.isPad() ? CONFIG.IPAD : CONFIG.PHONE;
+
+// ===========================================
+// UTILITIES
+// ===========================================
+
+const Utils = {
+  escape: function(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  },
+
+  decodeHtml: function(s) {
+    return String(s || "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#(\d+);/g, function(_, n) { return String.fromCharCode(parseInt(n, 10)); });
+  },
+
+  stripTags: function(html) {
+    return this.decodeHtml(
+      String(html || "")
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n\n")
+        .replace(/<[^>]+>/g, "")
+    ).replace(/\n{3,}/g, "\n\n").trim();
+  },
+
+  cleanLine: function(s) {
+    return String(s || "").replace(/\s+/g, " ").trim();
+  },
+
+  startsWithWatchEveryGame: function(s) {
+    return /^watch every game\b/i.test(this.cleanLine(s));
+  },
+
+  isBlockedSectionHeading: function(s) {
+    var t = this.cleanLine(s).toLowerCase();
+    if (/^more nrl news\b/.test(t)) return true;
+    if (/^crawls?\b/.test(t)) return true;
+    return false;
+  },
+
+  isLabelPrefixLine: function(s) {
+    var t = this.cleanLine(s);
+    if (!t) return false;
+    if (t.length > 90) return false;
+    if (!/^[A-Z][A-Z0-9\s&''/\-()]{1,60}:\s*/.test(t)) return false;
+    var parts = t.split(":");
+    if (parts.length < 2) return false;
+    var afterColon = parts.slice(1).join(":").trim();
+    if (!afterColon) return true;
+    if (afterColon.length <= 28) return true;
+    var letters = afterColon.replace(/[^A-Za-z]/g, "");
+    if (letters.length >= 6) {
+      var upper = letters.replace(/[^A-Z]/g, "").length;
+      if (upper / letters.length >= 0.8) return true;
+    }
+    return false;
+  },
+
+  isJunkLine: function(s) {
+    var raw = String(s || "");
+    var t = raw.toLowerCase();
+    if (!t) return true;
+    if (["cookie", "subscribe", "sign up", "newsletter", "privacy"].some(function(p) { return t.includes(p); })) return true;
+    if (this.startsWithWatchEveryGame(raw)) return true;
+    if (this.isLabelPrefixLine(raw)) return true;
+    return false;
+  },
+
+  isAllCapsHeadingLike: function(s) {
+    var t = this.cleanLine(s);
+    if (t.length < 10 || t.length > 120) return false;
+    if (/[.!?]$/.test(t)) return false;
+    var letters = t.replace(/[^A-Za-z]/g, "");
+    if (letters.length < 10) return false;
+    var upper = letters.replace(/[^A-Z]/g, "").length;
+    return (upper / letters.length) >= 0.82;
+  },
+
+  isTitleCaseHeadingLike: function(s) {
+    var t = this.cleanLine(s);
+    if (t.length < 16 || t.length > 95) return false;
+    if (/[.!?]$/.test(t)) return false;
+    if (/:/.test(t)) return false;
+    var words = t.split(/\s+/).filter(Boolean);
+    if (words.length < 3 || words.length > 14) return false;
+    var lower = ["a","an","and","as","at","but","by","for","from","in","into","of","on","or","the","to","vs","via","with"];
+    var titleish = 0;
+    var alphaWords = 0;
+    for (var i = 0; i < words.length; i++) {
+      var plain = words[i].replace(/[^A-Za-z''\-]/g, "");
+      if (!plain) continue;
+      alphaWords++;
+      if (lower.indexOf(plain.toLowerCase()) !== -1) { titleish++; continue; }
+      if (/^[A-Z][a-zA-Z''\-]*$/.test(plain) || /^[A-Z]{2,}$/.test(plain)) titleish++;
+    }
+    if (alphaWords < 3) return false;
+    return (titleish / alphaWords) >= 0.72;
+  },
+
+  isHeadingLike: function(s) {
+    return this.isAllCapsHeadingLike(s) || this.isTitleCaseHeadingLike(s);
+  },
+
+  getMeta: function(html, key, value) {
+    var re = new RegExp("<meta[^>]+" + key + "=[\"']" + value + "[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>", "i");
+    var m = html.match(re);
+    return m ? this.decodeHtml(m[1]).trim() : "";
+  },
+
+  getTitle: function(html) {
+    var raw =
+      this.getMeta(html, "property", "og:title") ||
+      this.getMeta(html, "name", "twitter:title") ||
+      this.decodeHtml((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [,"Article"])[1]);
+    return raw
+      .replace(/\s*\|\s*FOX SPORTS.*$/i, "")
+      .replace(/\s*\|\s*Fox Sports.*$/i, "")
+      .replace(/\s*-\s*Fox Sports.*$/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+};
+
+// ===========================================
+// FETCHING
+// ===========================================
+
+function fetchUrl(url) {
+  var req = new Request(url);
+  req.headers = {
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+  };
+  req.timeoutInterval = 15;
+  return req.loadString();
+}
+
+function fetchRssItems() {
+  return fetchUrl(CONFIG.FEED_URL).then(function(xml) {
+    var current = null;
+    var items = [];
+    var parser = new XMLParser(xml);
+
+    parser.didStartElement = function(name) {
+      if (name === "item") current = {};
+      if (current) current._currentTag = name;
+    };
+
+    parser.foundCharacters = function(text) {
+      if (!current || !current._currentTag) return;
+      var t = text.trim();
+      if (!t) return;
+      current[current._currentTag] = (current[current._currentTag] || "") + t;
+    };
+
+    parser.didEndElement = function(name) {
+      if (name === "item" && current) { items.push(current); current = null; }
+      if (current) current._currentTag = null;
+    };
+
+    parser.parse();
+    return items;
+  });
+}
+
+// ===========================================
+// ARTICLE PARSING
+// ===========================================
+
+function extractArticleBlocks(html) {
+  var articleMatch = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i);
+  if (!articleMatch) return [];
+
+  var content = articleMatch[1];
+  var blockRegex = /<(h2|h3|p)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+  var blocks = [];
+  var match;
+  var blocked = false;
+
+  while ((match = blockRegex.exec(content)) !== null) {
+    var tag = match[1].toLowerCase();
+    var text = Utils.cleanLine(Utils.stripTags(match[2]));
+    if (!text || Utils.isJunkLine(text)) continue;
+
+    if (tag === "h2" || tag === "h3") {
+      if (text.length < 8) continue;
+      if (Utils.isBlockedSectionHeading(text)) { blocked = true; continue; }
+      blocked = false;
+      blocks.push({ type: "heading", text: text });
+      continue;
+    }
+
+    if (tag === "p") {
+      if (blocked) continue;
+      if (Utils.isHeadingLike(text)) {
+        if (Utils.isBlockedSectionHeading(text)) { blocked = true; continue; }
+        blocked = false;
+        blocks.push({ type: "heading", text: text });
+      } else if (text.length >= 40) {
+        blocks.push({ type: "paragraph", text: text });
+      }
+    }
+  }
+
+  var seen = {};
+  return blocks.filter(function(b) {
+    var k = b.type + ":" + b.text;
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+}
+
+function buildArticleBody(blocks) {
+  if (!blocks.length) return "<p>Couldn't extract article content.</p>";
+
+  var html = "";
+  var firstHeadingSeen = false;
+  var previousType = null;
+  var limit = blocks.length < 80 ? blocks.length : 80;
+
+  for (var i = 0; i < limit; i++) {
+    var block = blocks[i];
+    if (block.type === "heading") {
+      if (firstHeadingSeen) html += "<div class=\"section-divider\"></div>";
+      html += "<div class=\"section-heading\"><h2>" + Utils.escape(block.text) + "</h2></div>";
+      firstHeadingSeen = true;
+      previousType = "heading";
+    } else {
+      if (previousType === "heading") html += "<div class=\"heading-spacer\"></div>";
+      html += "<p>" + Utils.escape(block.text) + "</p>";
+      previousType = "paragraph";
+    }
+  }
+
+  return html;
+}
+
+// ===========================================
+// LOADER
+// ===========================================
+
+function nrlLoader() {
+  var gc = "rgba(0,216,91," + LOADER_GLOW_OPACITY + ")";
+  return '<!DOCTYPE html>' +
+    '<html><head>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">' +
+    '<style>' +
+    '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+    'html, body { margin: 0; height: 100%; width: 100%; background: #0a0a0a; }' +
+    'body { font-family: -apple-system; user-select: none; overflow: hidden; }' +
+    '.ring {' +
+    ' position: absolute;' +
+    ' left: 50%;' +
+    ' top: 50%;' +
+    ' width: ' + LOADER_SIZE_PX + 'px;' +
+    ' height: ' + LOADER_SIZE_PX + 'px;' +
+    ' border-radius: 50%;' +
+    ' border: ' + LOADER_STROKE_PX + 'px solid #1a1a1a;' +
+    ' border-top-color: ' + LOADER_COLOR + ';' +
+    ' border-right-color: ' + LOADER_COLOR + ';' +
+    ' box-sizing: border-box;' +
+    ' transform: translate(-50%, -50%) translateY(-' + LOADER_LIFT_PX + 'px);' +
+    ' animation: spin ' + LOADER_SPEED_S + 's cubic-bezier(0.6,0.2,0.4,0.8) infinite;' +
+    ' box-shadow: 0 0 ' + LOADER_GLOW_PX + 'px ' + gc + ';' +
+    '}' +
+    '@keyframes spin {' +
+    ' to { transform: translate(-50%,-50%) translateY(-' + LOADER_LIFT_PX + 'px) rotate(360deg); }' +
+    '}' +
+    '</style></head>' +
+    '<body><div class="ring"></div></body></html>';
+}
+
+// ===========================================
+// INTERCEPT JS
+// ===========================================
+
+var INTERCEPT_JS = '(function() {' +
+  'document.addEventListener("click", function(e) {' +
+  'var el = e.target.closest("a");' +
+  'if (el && el.href) { e.preventDefault(); completion(el.href); }' +
+  '}, true);' +
+  'null;' +
+  '})();';
+
+// ===========================================
+// HTML BUILDERS
+// ===========================================
+
+function listHTML(items) {
+  var rows = "";
+  for (var i = 0; i < items.length; i++) {
+    rows += '<a href="nrl://article/' + i + '" class="article-link">' +
+      '<div class="article-shell">' +
+        '<div class="article-glow"></div>' +
+        '<div class="article-card">' +
+          '<div class="article-title">' + Utils.escape(items[i].title) + '</div>' +
+          '<div class="chevron">\u203a</div>' +
+        '</div>' +
+      '</div>' +
+    '</a>';
+  }
+
+  var glowActiveOpacity = Math.min(UI.GLOW_OPACITY + 0.06, 0.34);
+  var chevronSize = Device.isPad() ? 24 : 20;
+
+  return '<!DOCTYPE html>' +
+    '<html><head>' +
+    '<meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
+    '<style>' +
+    '*{margin:0;padding:0;box-sizing:border-box;}' +
+    'html,body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}' +
+    'body{padding:calc(' + UI.TOP_PAD_PX + 'px + env(safe-area-inset-top)) ' + UI.PAGE_SIDE_PAD_PX + 'px calc(24px + env(safe-area-inset-bottom)) ' + UI.PAGE_SIDE_PAD_PX + 'px;}' +
+    '.header-image{width:' + UI.HEADER_WIDTH_PCT + '%;max-width:' + UI.HEADER_MAX_W_PX + 'px;margin:0 auto ' + UI.HEADER_MARGIN_BOTTOM_PX + 'px auto;border-radius:14px;overflow:hidden;display:block;}' +
+    '.header-image img{width:100%;height:auto;display:block;}' +
+    '.article-link{text-decoration:none;display:block;margin-bottom:' + UI.LIST_ROW_GAP_PX + 'px;}' +
+    '.article-shell{position:relative;max-width:' + UI.LIST_CARD_MAX_W_PX + 'px;margin:0 auto;}' +
+    '.article-glow{position:absolute;left:50%;transform:translateX(-50%);bottom:-' + Math.round(UI.GLOW_OFFSET_Y_PX / 2) + 'px;width:' + UI.GLOW_WIDTH_PCT + '%;height:' + UI.GLOW_HEIGHT_PX + 'px;border-radius:999px;background:rgba(' + NRL_GREEN + ',' + UI.GLOW_OPACITY + ');filter:blur(' + UI.GLOW_BLUR_PX + 'px);pointer-events:none;z-index:0;}' +
+    '.article-card{position:relative;z-index:1;background:#111214;border:1px solid rgba(255,255,255,0.08);box-shadow:inset 0 1px 0 rgba(255,255,255,0.03),0 14px 28px rgba(0,0,0,0.34);border-radius:' + UI.LIST_CARD_RADIUS_PX + 'px;padding:' + UI.LIST_CARD_PAD_Y_PX + 'px ' + UI.LIST_CARD_PAD_X_PX + 'px;display:flex;align-items:center;gap:' + UI.LIST_CARD_GAP_PX + 'px;min-height:' + UI.LIST_CARD_MIN_HEIGHT_PX + 'px;}' +
+    '.article-link:active .article-card{background:#17191b;}' +
+    '.article-link:active .article-glow{background:rgba(' + NRL_GREEN + ',' + glowActiveOpacity + ');}' +
+    '.article-title{flex:1;font-size:' + UI.LIST_TITLE_SIZE_PX + 'px;line-height:' + UI.LIST_TITLE_LINE_HEIGHT + ';font-weight:650;color:#fff;text-align:center;letter-spacing:-0.01em;}' +
+    '.chevron{color:#666;font-size:' + chevronSize + 'px;line-height:1;margin-left:2px;}' +
+    '</style></head>' +
+    '<body>' +
+    '<div class="header-image"><img src="' + CONFIG.HEADER_IMAGE + '" alt="NRL"></div>' +
+    rows +
+    '</body></html>';
+}
+
+function articleHTML(title, body) {
+  return '<!DOCTYPE html>' +
+    '<html><head>' +
+    '<meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
+    '<style>' +
+    '*{margin:0;padding:0;box-sizing:border-box;}' +
+    'html,body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}' +
+    'body{padding:calc(' + UI.TOP_PAD_PX + 'px + env(safe-area-inset-top)) ' + UI.PAGE_SIDE_PAD_PX + 'px calc(24px + env(safe-area-inset-bottom)) ' + UI.PAGE_SIDE_PAD_PX + 'px;}' +
+    '.backHot{position:fixed;left:0;top:calc(env(safe-area-inset-top) + 0px);width:' + BACK_HOTSPOT_W_PX + 'px;height:' + BACK_HOTSPOT_H_PX + 'px;z-index:9999;background:transparent;-webkit-tap-highlight-color:transparent;}' +
+    '.wrap{max-width:' + UI.ARTICLE_MAX_W_PX + 'px;margin:0 auto;}' +
+    '.article-header{padding:' + UI.ARTICLE_HEADER_PAD_PX + 'px 4px 16px 4px;margin-bottom:4px;}' +
+    'h1{font-size:' + UI.ARTICLE_TITLE_SIZE_PX + 'px;font-weight:750;line-height:1.28;color:#fff;margin:0;letter-spacing:-0.015em;text-align:center;}' +
+    '.article-body{border:1px solid rgba(255,255,255,0.08);background:#151515;box-shadow:inset 0 1px 0 rgba(255,255,255,0.03),0 12px 34px rgba(0,0,0,0.32);border-radius:' + UI.ARTICLE_BODY_RADIUS_PX + 'px;padding:' + UI.ARTICLE_BODY_PAD_PX + 'px;overflow:hidden;}' +
+    'p{margin:0 0 16px 0;font-size:' + UI.ARTICLE_TEXT_SIZE_PX + 'px;line-height:' + UI.ARTICLE_TEXT_LINE_HEIGHT + ';color:#fff;letter-spacing:-0.01em;}' +
+    'p:last-child{margin-bottom:0;}' +
+    '.section-divider{height:' + UI.SECTION_DIVIDER_HEIGHT_PX + 'px;background:linear-gradient(90deg,rgba(' + NRL_GREEN + ',0.96),rgba(95,235,145,0.96));border-radius:' + UI.SECTION_DIVIDER_HEIGHT_PX + 'px;width:calc(100% - (' + UI.SECTION_DIVIDER_INSET_PX + 'px * 2));margin-left:' + UI.SECTION_DIVIDER_INSET_PX + 'px;margin-right:' + UI.SECTION_DIVIDER_INSET_PX + 'px;margin-top:' + UI.SECTION_DIVIDER_MARGIN_TOP_PX + 'px;margin-bottom:' + UI.SECTION_DIVIDER_MARGIN_BOTTOM_PX + 'px;box-shadow:0 0 10px rgba(' + NRL_GREEN + ',0.16);}' +
+    '.section-heading{margin:0 0 10px 0;}' +
+    '.section-heading h2{font-size:' + UI.SECTION_HEADING_SIZE_PX + 'px;font-weight:800;color:#fff;line-height:1.3;margin:0;letter-spacing:-0.015em;}' +
+    '.heading-spacer{height:4px;}' +
+    '</style></head>' +
+    '<body>' +
+    '<a href="nrl://back" class="backHot"></a>' +
+    '<div class="wrap">' +
+      '<div class="article-header"><h1>' + Utils.escape(title) + '</h1></div>' +
+      '<div class="article-body">' + body + '</div>' +
+    '</div>' +
+    '</body></html>';
+}
+
+// ===========================================
+// HELPERS
+// ===========================================
+
+function sleep(ms) {
+  return new Promise(function(r) { Timer.schedule(ms, false, r); });
+}
+
+function loadAndWaitForTap(wv, html) {
+  return wv.loadHTML(html).then(function() {
+    return wv.evaluateJavaScript(INTERCEPT_JS, true);
+  });
+}
+
+// ===========================================
+// MAIN
+// ===========================================
+
+async function main() {
+  var wv = new WebView();
+  await wv.loadHTML(nrlLoader());
+  wv.present(true);
+
+  var listItems = [];
+
+  try {
+    var results = await Promise.all([fetchRssItems(), sleep(TRANSITION_MS)]);
+    listItems = results[0]
+      .slice(0, CONFIG.MAX_ITEMS)
+      .filter(function(i) { return i.title && i.link; });
+  } catch(e) {
+    await wv.loadHTML(
+      '<body style="background:#000;color:#fff;padding:20px;font-family:-apple-system;">' +
+        '<h1 style="margin:0 0 12px 0;">Error loading feed</h1>' +
+        '<p style="margin:0;">' + Utils.escape(String(e)) + '</p>' +
+      '</body>'
+    );
+    Script.complete();
+    return;
+  }
+
+  while (true) {
+    var tapped = await loadAndWaitForTap(wv, listHTML(listItems));
+    if (!tapped || tapped.indexOf("nrl://article/") !== 0) continue;
+
+    var idx = parseInt(tapped.replace("nrl://article/", ""), 10);
+    var item = listItems[idx];
+    if (!item) continue;
+
+    await wv.loadHTML(nrlLoader());
+
+    var articleTitle = "";
+    var articleBody = "";
+
+    try {
+      var fetchResults = await Promise.all([fetchUrl(item.link), sleep(TRANSITION_MS)]);
+      var html = fetchResults[0];
+      articleTitle = Utils.getTitle(html);
+      var blocks = extractArticleBlocks(html);
+      articleBody = buildArticleBody(blocks);
+    } catch(e) {
+      articleTitle = "Error";
+      articleBody = "<p>" + Utils.escape(String(e)) + "</p>";
+    }
+
+    await loadAndWaitForTap(wv, articleHTML(articleTitle, articleBody));
+
+    await wv.loadHTML(nrlLoader());
+    await sleep(TRANSITION_MS);
+  }
+}
+
+main();
