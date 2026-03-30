@@ -289,7 +289,20 @@ The Expo URL is in the `artifacts/task-manager: expo` workflow logs every time i
 
 **Fix applied (`metro.config.js`)**:
 - Added `watchFolders: [workspaceRoot]`
-- Added `resolver.nodeModulesPaths: [task-manager/node_modules, workspace/node_modules]`
+- Added `resolver.nodeModulesPaths: [task-manager/node_modules only]`
+
+#### pnpm Monorepo + Expo Go: expo-keep-awake Hook Error Fix
+
+**Symptom**: Expo Go shows red screen after the EXPO_ROUTER fix above was applied:
+> `[TypeError: Cannot read property 'useId' of null]` from `expo-keep-awake/src/index.ts`
+
+**Root cause**: `withDevTools.ios.tsx` (inside `expo` package) optionally `require()`s `expo-keep-awake`. Metro follows symlinks to the **real path** of `withDevTools.ios.tsx` deep in the pnpm store (`node_modules/.pnpm/expo@.../`), then traverses **up** from that real path when resolving `expo-keep-awake` and `react` — finding the root-workspace copies, not the task-manager's. Those root-workspace React files are different JS objects from the renderer's React → dispatcher is null → hook crash.
+
+**Fix applied (`metro.config.js`)**:
+```js
+config.resolver.blockList = /.*\/expo-keep-awake\/.*/;
+```
+Blocking the package entirely causes the `try/catch` in `withDevTools.ios.tsx` to swallow the `require()` failure and fall back to a no-op hook — exactly correct behaviour for Expo Go where keep-awake isn't needed.
 
 ### 9. Replit Cold-Start Behaviour
 
