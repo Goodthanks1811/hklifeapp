@@ -294,11 +294,47 @@ When the project has been idle, Replit puts it to sleep. On wake:
 
 ### 11. EAS Build
 
+#### Working Build Process (as of RN 0.81 + Expo 54)
+
+EAS builds run from a standalone copy at `/tmp/hklife-standalone/`. The critical issue with preview builds: `expo-dev-client` pulls in `EXDevMenu`, which has a React Native 0.81 incompatibility (missing `React-RCTAppDelegate-umbrella.h`). The ONLY reliable fix is to ensure expo-dev-client is absent from BOTH `package.json` AND `package-lock.json` before submission.
+
+**Preview build sequence** (`com.hklife.app`):
 ```bash
-eas login
-eas init          # only needed once per project
-eas build --platform ios --profile preview
+cd /tmp/hklife-standalone/artifacts/task-manager
+
+# 1. Remove expo-dev-client BEFORE generating the lock file
+node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete p.dependencies['expo-dev-client'];delete (p.devDependencies||{})['expo-dev-client'];fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+
+# 2. Generate lock file WITHOUT expo-dev-client
+npm install --package-lock-only --legacy-peer-deps
+
+# 3. Regenerate ios/ (verify prebuild does NOT re-add expo-dev-client)
+rm -rf ios/
+PNPM_MODULES="/home/runner/workspace/node_modules/.pnpm/node_modules"
+NODE_PATH="$PNPM_MODULES" node /home/runner/workspace/artifacts/task-manager/node_modules/.bin/expo \
+  prebuild --platform ios --no-install --clean
+
+# 4. Verify (all should show 0)
+grep -c '"expo-dev-client"' package.json package-lock.json
+grep -c "expo-dev\|EXDevMenu\|DevMenu" ios/Podfile
+
+# 5. Submit
+EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform ios --profile preview --non-interactive
 ```
+
+**Dev client build sequence** (`com.hklife.app.dev`):
+- Keep expo-dev-client in package.json (it uses a pre-compiled EXDevMenu binary, so the umbrella header issue doesn't apply)
+- Use `APP_VARIANT=development` env var
+- Needs Apple credentials for `com.hklife.app.dev` bundle ID (set up with `eas credentials`)
+
+**EAS project**: `@hk1811/hk-life-app`, projectId `a4b0c416-348f-4f50-914c-76e1b191ca72`  
+**Apple Team ID**: `LDPV4NPPKY` (hkmail18@gmail.com)  
+**Stable bundle ID**: `com.hklife.app` (ad-hoc, existing provisioning)  
+**Dev bundle ID**: `com.hklife.app.dev` (needs setup)
+
+**Latest builds**:
+- Preview (stable): `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa`
+- Dev client: `36b5a49f` — IPA: `https://expo.dev/artifacts/eas/7KQpkrcWBDYk9DqQPEkv6a.ipa`
 
 Things that only work in a native EAS build (not Expo Go):
 - `keyboardAppearance="dark"` on TextInput

@@ -3,10 +3,17 @@ const path = require('path');
 const fs = require('fs');
 
 /**
- * Config plugin that patches the Podfile to fix expo-dev-menu-EXDevMenu
- * header search path issue with React Native 0.81+ (React-RCTAppDelegate
- * merged into React.framework but expo-dev-menu still expects old pod-style
- * headers). Injects the fix INSIDE the existing post_install block.
+ * Config plugin that patches the Podfile post_install block to fix
+ * expo-dev-menu-EXDevMenu compilation error with React Native 0.81+.
+ *
+ * Root cause: expo-dev-menu imports:
+ *   #import <React_RCTAppDelegate/React-RCTAppDelegate-umbrella.h>
+ * (hyphenated filename), but RN 0.81 CocoaPods generates it as:
+ *   React_RCTAppDelegate-umbrella.h  (underscore, no hyphen variant)
+ * and merged React-RCTAppDelegate into React.framework.
+ *
+ * Fix: In post_install, create the missing hyphenated umbrella header as a
+ * compatibility shim that re-exports the real individual headers.
  */
 module.exports = function withExpoDevMenuFix(config) {
   return withDangerousMod(config, [
@@ -19,28 +26,50 @@ module.exports = function withExpoDevMenuFix(config) {
       if (!fs.existsSync(podfilePath)) return config;
 
       let podfile = fs.readFileSync(podfilePath, 'utf8');
-      const marker = '# expo-dev-menu-EXDevMenu-header-fix';
+      const marker = '# expo-dev-menu-RCTAppDelegate-compat-shim';
       if (podfile.includes(marker)) return config;
 
-      const fixSnippet = `  ${marker}
-  installer.pods_project.targets.each do |target|
-    if target.name == 'expo-dev-menu-EXDevMenu'
-      target.build_configurations.each do |cfg|
-        existing = cfg.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)'
-        arr = existing.is_a?(Array) ? existing.dup : [existing]
-        unless arr.any? { |p| p.to_s.include?('React.framework/Headers') }
-          arr << '"$(BUILT_PRODUCTS_DIR)/React.framework/Headers"'
-          arr << '"$(BUILT_PRODUCTS_DIR)/React.framework/PrivateHeaders"'
-        end
-        cfg.build_settings['HEADER_SEARCH_PATHS'] = arr
+      // Ruby code that creates the missing umbrella header shim
+      const fixSnippet = `
+  ${marker}
+  require 'fileutils'
+  sandbox_pub = installer.sandbox.root.join('Headers', 'Public').to_s
+  compat_dir = File.join(sandbox_pub, 'React_RCTAppDelegate')
+  FileUtils.mkdir_p(compat_dir)
+  hyphen_umbrella = File.join(compat_dir, 'React-RCTAppDelegate-umbrella.h')
+  unless File.exist?(hyphen_umbrella)
+    possible_src_dirs = [
+      File.join(sandbox_pub, 'React-RCTAppDelegate'),
+      File.join(sandbox_pub, 'React_RCTAppDelegate'),
+      File.join(installer.sandbox.root.to_s, 'Headers', 'Private', 'React-RCTAppDelegate'),
+      File.join(installer.sandbox.root.to_s, 'Headers', 'Private', 'React_RCTAppDelegate'),
+      File.join(sandbox_pub, 'ReactNativeDependencies', 'React-RCTAppDelegate'),
+      File.join(sandbox_pub, 'ReactNativeDependencies', 'React_RCTAppDelegate'),
+    ]
+    src_dir = possible_src_dirs.find { |d| Dir.exist?(d) }
+    if src_dir
+      headers = Dir.glob(File.join(src_dir, '*.h'))
+        .map { |f| File.basename(f) }
+        .reject { |f| f.include?('umbrella') || f.include?('compat') }
+        .sort
+      content = headers.map { |h| "#import <React_RCTAppDelegate/#{h}>" }.join("\\n")
+      File.write(hyphen_umbrella, "#ifdef __OBJC__\\n#import <UIKit/UIKit.h>\\n#endif\\n#{content}\\n")
+      puts "[withExpoDevMenuFix] Created compat umbrella (#{headers.size} headers from #{src_dir})"
+    else
+      underscore_umbrella = File.join(compat_dir, 'React_RCTAppDelegate-umbrella.h')
+      if File.exist?(underscore_umbrella)
+        File.write(hyphen_umbrella, "#import \\"React_RCTAppDelegate-umbrella.h\\"\\n")
+        puts "[withExpoDevMenuFix] Created compat umbrella as alias for underscore version"
+      else
+        File.write(hyphen_umbrella, "// React-RCTAppDelegate compat shim\\n#ifdef __OBJC__\\n#import <UIKit/UIKit.h>\\n#endif\\n")
+        puts "[withExpoDevMenuFix] Created empty compat umbrella (headers not found - build may still work)"
       end
     end
   end
 `;
 
       if (podfile.includes('post_install do |installer|')) {
-        // Inject INSIDE the existing post_install block before its closing `end`
-        // Strategy: replace the last occurrence of `^end` (the post_install end)
+        // Inject inside the existing post_install block before its final `end`
         const postInstallIdx = podfile.lastIndexOf('post_install do |installer|');
         const endIdx = podfile.indexOf('\nend', postInstallIdx);
         if (endIdx !== -1) {
@@ -52,12 +81,11 @@ module.exports = function withExpoDevMenuFix(config) {
         } else {
           podfile += `\npost_install do |installer|\n${fixSnippet}\nend\n`;
         }
-        console.log('[withExpoDevMenuFix] Injected EXDevMenu header fix into post_install block');
       } else {
         podfile += `\npost_install do |installer|\n${fixSnippet}\nend\n`;
-        console.log('[withExpoDevMenuFix] Created new post_install block with EXDevMenu header fix');
       }
 
+      console.log('[withExpoDevMenuFix] Injected RCTAppDelegate compat shim into Podfile post_install');
       fs.writeFileSync(podfilePath, podfile);
       return config;
     },
