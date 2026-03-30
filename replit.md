@@ -276,6 +276,21 @@ The Expo URL is in the `artifacts/task-manager: expo` workflow logs every time i
 **Current Expo URL**: `exp://814374fd-199d-4ed7-9a1e-8e8568da7f50-00-1sgtb2onftd5g.expo.spock.replit.dev`
 (This may change if the Replit container is recycled — always check workflow logs for the current value.)
 
+#### pnpm Monorepo + Expo Go: EXPO_ROUTER_APP_ROOT Fix
+
+**Symptom**: Scanning QR code with Expo Go shows red screen:
+> `node_modules/expo-router/_ctx.ios.js: process.env.EXPO_ROUTER_APP_ROOT — First argument of require.context should be a string`
+
+**Root cause**: `babel-preset-expo` (in root workspace `node_modules`) calls `hasModule('expo-router')` via `require.resolve`. In pnpm strict mode, `expo-router` is only in `artifacts/task-manager/node_modules`, invisible from root. Plugin not added → env var not replaced → Metro fails.
+
+**Fix applied (dev script in `package.json`)**:
+- Added `NODE_PATH=/home/runner/workspace/artifacts/task-manager/node_modules` — makes Babel workers find `expo-router` via NODE_PATH
+- Added `--go` flag to `expo start` — forces Expo Go mode even with `expo-dev-client` in package.json
+
+**Fix applied (`metro.config.js`)**:
+- Added `watchFolders: [workspaceRoot]`
+- Added `resolver.nodeModulesPaths: [task-manager/node_modules, workspace/node_modules]`
+
 ### 9. Replit Cold-Start Behaviour
 
 When the project has been idle, Replit puts it to sleep. On wake:
