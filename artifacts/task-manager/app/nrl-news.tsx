@@ -46,10 +46,12 @@ interface Article   { title: string; blocks: ArticleBlock[] }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function isTeamList(item: NewsItem): boolean {
-  // Use the category tag from NRL.com as the primary signal
-  if (item.category) return item.category.toLowerCase().includes("team list");
-  // Fallback: check URL slug (for articles without a category tag)
-  return item.link.includes("team-list");
+  const cat = (item.category ?? "").toLowerCase();
+  // NRL.com tags team selection articles as "Team Lists" or "Match Preview"
+  if (cat.includes("team list") || cat === "match preview") return true;
+  // Fallback: URL slug contains "team-list" (and not a fantasy column)
+  if (!cat || cat === "") return item.link.includes("team-list") && !item.title.toLowerCase().includes("first take");
+  return false;
 }
 
 // ── Spinner ────────────────────────────────────────────────────────────────────
@@ -268,7 +270,7 @@ export default function NrlNewsScreen() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`${BASE_URL}/api/nrl/news`);
+      const r = await fetch(`${BASE_URL}/api/nrl/news`, { cache: "no-store" });
       if (!r.ok) throw new Error(`Server error ${r.status}`);
       const data = await r.json();
       setNews(data.items ?? []);
