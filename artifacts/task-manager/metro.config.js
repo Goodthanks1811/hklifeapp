@@ -7,7 +7,11 @@ const workspaceRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
-config.watchFolders = [workspaceRoot];
+// Only add workspace watch folders in local dev (not on EAS build servers)
+const isEASBuild = !!process.env.EAS_BUILD;
+if (!isEASBuild && fs.existsSync(path.join(workspaceRoot, "package.json"))) {
+  config.watchFolders = [workspaceRoot];
+}
 
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
