@@ -510,7 +510,7 @@ export default function SettingsScreen() {
         </Accordion>
 
         {/* ══ HEADER IMAGE ════════════════════════════════════════════════════ */}
-        <Accordion title="Header Image" icon="image" defaultOpen={false}>
+        <Accordion title="Drawer Banner" icon="image" defaultOpen={false}>
           <View style={styles.accordionBody}>
 
             {headerUri ? (

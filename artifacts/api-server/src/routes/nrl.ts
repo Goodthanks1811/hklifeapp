@@ -216,23 +216,34 @@ function parseArticle(html: string): ArticleBlock[] {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+async function fetchPage(url: string): Promise<string> {
+  const r = await fetch(url, {
+    headers: {
+      "User-Agent": UA,
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-AU,en;q=0.9",
+    },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.text();
+}
+
 router.get("/news", async (_req, res) => {
   try {
-    const response = await fetch(NEWS_URL, {
-      headers: {
-        "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-AU,en;q=0.9",
-      },
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!response.ok) {
-      res.status(502).json({ error: `NRL news fetch failed: ${response.status}` });
-      return;
-    }
-    const html  = await response.text();
-    const items = parseNewsList(html);
-    res.json({ items });
+    // Fetch pages 1 and 2 in parallel for ~48 raw articles
+    const [html1, html2] = await Promise.all([
+      fetchPage(NEWS_URL),
+      fetchPage(`${NEWS_URL}?page=2`),
+    ]);
+    const page1 = parseNewsList(html1);
+    const page2 = parseNewsList(html2);
+
+    // Deduplicate by link
+    const seen = new Set(page1.map(x => x.link));
+    const combined = [...page1, ...page2.filter(x => !seen.has(x.link))];
+
+    res.json({ items: combined });
   } catch (err: any) {
     res.status(500).json({ error: String(err?.message ?? err) });
   }

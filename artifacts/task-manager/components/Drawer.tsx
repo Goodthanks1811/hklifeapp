@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
+import { useHeaderImage } from "@/context/HeaderImageContext";
 import {
   SECTION_ORDER,
   SECTION_LABELS,
@@ -97,6 +98,8 @@ function AccordionSection({
 export function Drawer() {
   const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH, isTablet } = useDrawer();
   const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
+  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY } = useHeaderImage();
+  const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
   const insets = useSafeAreaInsets();
 
   const sectionOrder = getSectionOrder();
@@ -137,9 +140,9 @@ export function Drawer() {
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
         <Image
-          source={{ uri: "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png" }}
-          style={styles.headerImage}
-          resizeMode="cover"
+          source={{ uri: bannerUri ?? FALLBACK_BANNER }}
+          style={[styles.headerImage, bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined]}
+          resizeMode={bannerUri ? bannerResizeMode : "cover"}
         />
       </View>
 

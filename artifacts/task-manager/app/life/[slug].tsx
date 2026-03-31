@@ -34,7 +34,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
-import { useHeaderImage } from "@/context/HeaderImageContext";
+
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LIFE_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
@@ -1040,7 +1040,6 @@ export default function LifeTaskScreen() {
     setResetting(false);
   }, [resetting, handleResetOrder]);
 
-  const { uri: hImgUri, resizeMode: hResizeMode, offsetX: hOffX, offsetY: hOffY } = useHeaderImage();
 
   return (
     <View style={[sc.root, { paddingTop: topPad }]}>
@@ -1056,17 +1055,6 @@ export default function LifeTaskScreen() {
           </Pressable>
         }
       />
-
-      {/* ── Header image banner ──────────────────────────────────────────────── */}
-      {hImgUri ? (
-        <View style={sc.headerBanner}>
-          <Image
-            source={{ uri: hImgUri }}
-            style={[sc.headerBannerImg, { transform: [{ translateX: hOffX }, { translateY: hOffY }] }]}
-            resizeMode={hResizeMode}
-          />
-        </View>
-      ) : null}
 
       {/* ── Emoji filter bar ─────────────────────────────────────────────────── */}
       {config.emojis.length > 1 && (
