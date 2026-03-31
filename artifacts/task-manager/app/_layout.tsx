@@ -11,7 +11,6 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@/utils/apiClient";
 
@@ -96,9 +95,7 @@ export default function RootLayout() {
               <DrawerConfigProvider>
                 <DrawerProvider>
                   <GestureHandlerRootView style={{ flex: 1 }}>
-                    <KeyboardProvider>
-                      <RootLayoutNav />
-                    </KeyboardProvider>
+                    <RootLayoutNav />
                   </GestureHandlerRootView>
                 </DrawerProvider>
               </DrawerConfigProvider>

@@ -134,7 +134,30 @@ This is now in place. If you ever remove `expo-local-authentication`, this key c
 
 ---
 
-### 7. App crashes on launch — iOS 26 TurboModule incompatibility
+### 7. App crashes in JS thread on launch — react-native-keyboard-controller on iOS 26
+
+**Symptom**: `EXC_BAD_ACCESS (SIGSEGV)` at an unmapped address on thread `com.facebook.react.runtime.JavaScript`. App exits ~0.12 seconds after launch.
+
+**Crash log key fields**:
+```
+"exception": {"type": "EXC_BAD_ACCESS", "signal": "SIGSEGV", "subtype": "KERN_INVALID_ADDRESS at 0x0000000468d53fc8"}
+"legacyInfo": {"threadTriggered": {"name": "com.facebook.react.runtime.JavaScript"}}
+```
+
+**Cause**: `react-native-keyboard-controller` uses JSI (JavaScript Interface) bindings to hook into UIKeyboard internals. iOS 26 significantly changed UIKeyboard APIs, causing a use-after-free when keyboard-controller's JSI bindings initialize. The `KeyboardProvider` component mounts at app root (`_layout.tsx`), so this crashes on every launch.
+
+**Diagnosis**: The crash address (`0x468d53fc8`) falls in a memory gap between regions — classic use-after-free pattern. The faulting thread (`com.facebook.react.runtime.JavaScript`) confirms the crash happens when JS executes `KeyboardProvider`'s native module setup.
+
+**Fix applied**: Removed `react-native-keyboard-controller` entirely since no hooks (`useKeyboardAnimation`, etc.) were actually used — only `KeyboardProvider` was present as an unused wrapper. Removed:
+1. `import { KeyboardProvider }` from `_layout.tsx`
+2. `<KeyboardProvider>` wrapper from the component tree
+3. `"react-native-keyboard-controller"` from `package.json`
+
+**Rule**: `react-native-keyboard-controller` is permanently removed. Use `Keyboard.addListener` + `Animated.Value` (no native driver) for keyboard handling.
+
+---
+
+### 8. App crashes on launch — iOS 26 TurboModule incompatibility
 
 **Symptom**: `EXC_BAD_ACCESS (SIGSEGV)` at address `0x0000800000000097` on thread `com.meta.react.turbomodulemanager.queue`. App exits immediately with no UI.
 
@@ -189,12 +212,13 @@ You can restart them from the Replit interface or by running `wake up` (which tr
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81:
 
-| Package | Required Version |
-|---|---|
-| `react-native-keyboard-controller` | `1.18.5` |
-| `react-native` | `0.81.5` |
-| `expo` | `~54.0.27` |
-| `react-native-reanimated` | `~4.1.1` |
+| Package | Required Version | Notes |
+|---|---|---|
+| `react-native` | `0.81.5` | |
+| `expo` | `~54.0.27` | |
+| `react-native-reanimated` | `~4.1.1` | |
+| `react-native-worklets` | `0.5.1` | Required by Reanimated 4 |
+| `react-native-keyboard-controller` | **REMOVED** | Crashes on iOS 26 (use-after-free in JSI bindings) |
 
 `newArchEnabled: true` is required in `app.config.js` for Reanimated 4.x.
 
