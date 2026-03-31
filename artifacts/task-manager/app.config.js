@@ -9,7 +9,7 @@ module.exports = {
     icon: './assets/images/icon.png',
     scheme: IS_DEV ? 'hk-life-app-dev' : 'hk-life-app',
     userInterfaceStyle: 'dark',
-    newArchEnabled: false,
+    newArchEnabled: true,
     splash: {
       image: './assets/images/splash-icon.png',
       resizeMode: 'contain',
@@ -18,6 +18,7 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: IS_DEV ? 'com.hklife.app.dev' : 'com.hklife.app',
+      deploymentTarget: '15.1',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
