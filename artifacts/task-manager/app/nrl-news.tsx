@@ -33,12 +33,21 @@ const C = {
   text:      "#ffffff",
   muted:     "#888888",
   dim:       "rgba(255,255,255,0.5)",
+  tabBg:     "#111214",
+  tabActiveBg: "rgba(45,182,95,0.12)",
+  tabBorder: "rgba(255,255,255,0.06)",
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+type TabId = "news" | "teamlists";
 interface NewsItem   { title: string; link: string; pubDate: string }
 interface ArticleBlock { type: "heading" | "paragraph"; text: string }
 interface Article   { title: string; blocks: ArticleBlock[] }
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function isTeamList(item: NewsItem): boolean {
+  return item.link.includes("team-list") || item.title.toLowerCase().includes("team list");
+}
 
 // ── Spinner ────────────────────────────────────────────────────────────────────
 function NrlSpinner() {
@@ -70,6 +79,71 @@ const sp = StyleSheet.create({
   },
 });
 
+// ── Tab bar ────────────────────────────────────────────────────────────────────
+const TABS: { id: TabId; label: string }[] = [
+  { id: "news",      label: "NRL News"   },
+  { id: "teamlists", label: "Team Lists" },
+];
+
+function TabBar({ active, onChange, isTablet }: { active: TabId; onChange: (t: TabId) => void; isTablet: boolean }) {
+  return (
+    <View style={[tb.row, { marginHorizontal: isTablet ? 20 : 14, marginTop: isTablet ? 12 : 8, marginBottom: isTablet ? 18 : 14 }]}>
+      {TABS.map((tab) => {
+        const isActive = tab.id === active;
+        return (
+          <Pressable
+            key={tab.id}
+            onPress={() => {
+              if (!isActive) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onChange(tab.id);
+              }
+            }}
+            style={[tb.tab, isActive && tb.tabActive]}
+          >
+            <Text style={[tb.label, { fontSize: isTablet ? 15 : 13 }, isActive && tb.labelActive]}>
+              {tab.label}
+            </Text>
+            {isActive && <View style={tb.underline} />}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+const tb = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    backgroundColor: C.tabBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.tabBorder,
+    overflow: "hidden",
+  },
+  tab: {
+    flex: 1, alignItems: "center", justifyContent: "center",
+    paddingVertical: 11,
+    position: "relative",
+  },
+  tabActive: {
+    backgroundColor: C.tabActiveBg,
+  },
+  label: {
+    color: C.muted,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  labelActive: {
+    color: C.green,
+  },
+  underline: {
+    position: "absolute",
+    bottom: 0, left: "15%", right: "15%",
+    height: 2, borderRadius: 2,
+    backgroundColor: C.green,
+  },
+});
+
 // ── Article card ───────────────────────────────────────────────────────────────
 function ArticleCard({ item, onPress, isTablet }: { item: NewsItem; onPress: () => void; isTablet: boolean }) {
   const titleSize = isTablet ? 24 : 18;
@@ -92,7 +166,6 @@ const ac = StyleSheet.create({
     bottom: -8, height: 64,
     borderRadius: 999,
     backgroundColor: C.green,
-    // RN doesn't have filter:blur, approximate with shadow
     shadowColor: C.green, shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.6, shadowRadius: 18, elevation: 10,
   },
@@ -151,7 +224,6 @@ const ab = StyleSheet.create({
   divider: {
     borderRadius: 4,
     marginHorizontal: 10,
-    // gradient approximation with a solid green
     backgroundColor: C.green,
     shadowColor: C.green, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.2, shadowRadius: 8,
@@ -165,22 +237,28 @@ export default function NrlNewsScreen() {
   const { width: screenW }   = useWindowDimensions();
   const isTablet             = screenW >= 768;
 
-  const [news,     setNews]     = useState<NewsItem[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const [news,       setNews]       = useState<NewsItem[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab,  setActiveTab]  = useState<TabId>("news");
 
-  const [article,      setArticle]     = useState<Article | null>(null);
-  const [artLoading,   setArtLoading]  = useState(false);
-  const [artError,     setArtError]    = useState<string | null>(null);
+  const [article,    setArticle]    = useState<Article | null>(null);
+  const [artLoading, setArtLoading] = useState(false);
+  const [artError,   setArtError]   = useState<string | null>(null);
 
   // Transition anim: 0 = list, 1 = article
-  const viewAnim = useRef(new Animated.Value(0)).current;
+  const viewAnim  = useRef(new Animated.Value(0)).current;
   const articleRef = useRef<Article | null>(null);
 
-  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
-  const sidePad   = isTablet ? 20 : 14;
-  const maxW      = isTablet ? 850 : 760;
+  const topPad  = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const sidePad = isTablet ? 20 : 14;
+  const maxW    = isTablet ? 850 : 760;
+
+  // ── Filtered list ─────────────────────────────────────────────────────────
+  const visibleNews = activeTab === "teamlists"
+    ? news.filter(isTeamList)
+    : news;
 
   // ── Fetch news list ──────────────────────────────────────────────────────────
   const fetchNews = useCallback(async (isRefresh = false) => {
@@ -208,7 +286,6 @@ export default function NrlNewsScreen() {
     setArtLoading(true);
     setArticle(null);
 
-    // Slide to article view
     Animated.timing(viewAnim, {
       toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true,
     }).start();
@@ -247,7 +324,7 @@ export default function NrlNewsScreen() {
     <View style={[styles.root, { backgroundColor: C.bg }]}>
       {/* ── LIST VIEW ────────────────────────────────────────────────────── */}
       <Animated.View style={[styles.pane, { transform: [{ translateX: listTranslateX }] }]}>
-        {/* Hamburger — always accessible in list view */}
+        {/* Hamburger */}
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
           style={[styles.hamburger, { top: topPad + 4 }]}
@@ -256,7 +333,7 @@ export default function NrlNewsScreen() {
           <Feather name="menu" size={isTablet ? 22 : 20} color="rgba(255,255,255,0.7)" />
         </Pressable>
 
-        {/* Full-screen centred loader — rendered outside ScrollView so it's truly centred */}
+        {/* Full-screen centred loader */}
         {loading && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NrlSpinner />
@@ -265,7 +342,7 @@ export default function NrlNewsScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: topPad + 16, paddingBottom: insets.bottom + 32, paddingHorizontal: sidePad }}
+          contentContainerStyle={{ paddingTop: topPad + 16, paddingBottom: insets.bottom + 32, paddingHorizontal: 0 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -276,15 +353,20 @@ export default function NrlNewsScreen() {
             />
           }
         >
-          {/* Header image — hidden while loading so nothing pushes the spinner down */}
+          {/* Header image */}
           {!loading && (
-            <View style={{ alignItems: "center", marginBottom: isTablet ? 52 : 42 }}>
+            <View style={{ alignItems: "center", marginBottom: isTablet ? 28 : 22 }}>
               <Image
                 source={{ uri: HEADER_IMAGE }}
                 style={{ width: headerImgW, maxWidth: isTablet ? 250 : 240, height: undefined, aspectRatio: 3.4, borderRadius: 12 }}
                 resizeMode="contain"
               />
             </View>
+          )}
+
+          {/* Tab bar */}
+          {!loading && !error && (
+            <TabBar active={activeTab} onChange={setActiveTab} isTablet={isTablet} />
           )}
 
           {error && !loading && (
@@ -297,10 +379,16 @@ export default function NrlNewsScreen() {
           )}
 
           {!loading && !error && (
-            <View style={{ gap: isTablet ? 22 : 18, maxWidth: maxW, alignSelf: "center", width: "100%" }}>
-              {news.map((item, i) => (
-                <ArticleCard key={i} item={item} isTablet={isTablet} onPress={() => openArticle(item)} />
-              ))}
+            <View style={{ gap: isTablet ? 22 : 18, maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
+              {visibleNews.length === 0 ? (
+                <View style={styles.center}>
+                  <Text style={styles.errorText}>No articles found.</Text>
+                </View>
+              ) : (
+                visibleNews.map((item, i) => (
+                  <ArticleCard key={i} item={item} isTablet={isTablet} onPress={() => openArticle(item)} />
+                ))
+              )}
             </View>
           )}
         </ScrollView>
@@ -315,7 +403,9 @@ export default function NrlNewsScreen() {
           hitSlop={16}
         >
           <Feather name="chevron-left" size={isTablet ? 28 : 24} color={C.green} />
-          <Text style={[styles.backTx, { fontSize: isTablet ? 17 : 15 }]}>News</Text>
+          <Text style={[styles.backTx, { fontSize: isTablet ? 17 : 15 }]}>
+            {activeTab === "teamlists" ? "Team Lists" : "News"}
+          </Text>
         </Pressable>
 
         <ScrollView
@@ -342,12 +432,9 @@ export default function NrlNewsScreen() {
 
             {article && !artLoading && (
               <>
-                {/* Article title */}
                 <View style={{ paddingHorizontal: 4, paddingBottom: isTablet ? 24 : 18 }}>
                   <Text style={[styles.artTitle, { fontSize: isTablet ? 28 : 21 }]}>{article.title}</Text>
                 </View>
-
-                {/* Body */}
                 {article.blocks.length > 0 ? (
                   <ArticleBody blocks={article.blocks} isTablet={isTablet} />
                 ) : (
