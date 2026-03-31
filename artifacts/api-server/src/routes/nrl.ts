@@ -86,48 +86,67 @@ function isHeadingLike(s: string): boolean {
 
 // ── NRL.com news listing parser ───────────────────────────────────────────────
 
-interface NewsItem { title: string; link: string; pubDate: string }
+interface NewsItem { title: string; link: string; pubDate: string; category: string }
 
 function parseNewsList(html: string): NewsItem[] {
   const items: NewsItem[] = [];
-  const seen = new Set<string>();
-
-  // Extract all news article hrefs (/news/YYYY/...)
-  const hrefRx = /href="(\/news\/\d{4}\/[^"]+)"/g;
-  const links: string[] = [];
-  let hm: RegExpExecArray | null;
-  while ((hm = hrefRx.exec(html)) !== null) {
-    const path = hm[1];
-    if (!seen.has(path)) {
-      seen.add(path);
-      links.push(path);
-    }
-  }
-
-  // Extract card titles (<p class="card-content__text ...">Title</p>)
+  const seenLinks = new Set<string>();
   const junkTitles = new Set(["see more", "load more", "read more", "watch"]);
+
+  // For each card-content__text, scan backwards to find the nearest news link.
+  // This correctly pairs titles to links even when hero cards have no text element.
   const titleRx = /<p[^>]+class="[^"]*card-content__text[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
-  const titles: string[] = [];
+  const linkRx  = /href="(\/news\/\d{4}\/[^"]+)"/g;
+
+  // Build index of all link positions: { path, index }
+  const allLinks: { path: string; index: number }[] = [];
+  let lm: RegExpExecArray | null;
+  while ((lm = linkRx.exec(html)) !== null) {
+    allLinks.push({ path: lm[1], index: lm.index });
+  }
+
+  // Build index of all topic (category) positions
+  const topicRx = /<h3[^>]+class="[^"]*card-content__topic[^"]*"[^>]*>([\s\S]*?)<\/h3>/gi;
+  const allTopics: { text: string; index: number }[] = [];
+  let topm: RegExpExecArray | null;
+  while ((topm = topicRx.exec(html)) !== null) {
+    const t = cleanLine(decodeHtml(stripTags(topm[1])));
+    if (t) allTopics.push({ text: t, index: topm.index });
+  }
+
   let tm: RegExpExecArray | null;
-  while ((tm = titleRx.exec(html)) !== null) {
-    const t = cleanLine(decodeHtml(stripTags(tm[1])));
-    if (t && t.length > 5 && !junkTitles.has(t.toLowerCase())) titles.push(t);
-  }
+  while ((tm = titleRx.exec(html)) !== null && items.length < MAX_ITEMS) {
+    const titleText = cleanLine(decodeHtml(stripTags(tm[1])));
+    if (!titleText || titleText.length <= 5 || junkTitles.has(titleText.toLowerCase())) continue;
 
-  // Pair links with titles (they appear in the same order in the DOM)
-  for (let i = 0; i < Math.min(links.length, titles.length, MAX_ITEMS); i++) {
+    const titlePos = tm.index;
+
+    // Find the nearest link that appears BEFORE this title
+    let bestLink = "";
+    for (let i = allLinks.length - 1; i >= 0; i--) {
+      if (allLinks[i].index < titlePos && !seenLinks.has(allLinks[i].path)) {
+        bestLink = allLinks[i].path;
+        break;
+      }
+    }
+    if (!bestLink) continue;
+    seenLinks.add(bestLink);
+
+    // Find the nearest topic that appears BEFORE this title (within 2000 chars)
+    let category = "";
+    for (let i = allTopics.length - 1; i >= 0; i--) {
+      if (allTopics[i].index < titlePos && titlePos - allTopics[i].index < 2000) {
+        category = allTopics[i].text;
+        break;
+      }
+    }
+
     items.push({
-      title: titles[i],
-      link: BASE_URL + links[i],
+      title: titleText,
+      link: BASE_URL + bestLink,
       pubDate: "",
+      category,
     });
-  }
-
-  // If we got more links than titles, fill remaining with slug-derived titles
-  for (let i = items.length; i < Math.min(links.length, MAX_ITEMS); i++) {
-    const slug = links[i].replace(/^\/news\/\d{4}\/\d{2}\/\d{2}\//, "").replace(/\/$/, "").replace(/-/g, " ");
-    const title = slug.replace(/\b\w/g, c => c.toUpperCase());
-    items.push({ title, link: BASE_URL + links[i], pubDate: "" });
   }
 
   return items;

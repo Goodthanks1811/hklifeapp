@@ -40,13 +40,16 @@ const C = {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type TabId = "news" | "teamlists";
-interface NewsItem   { title: string; link: string; pubDate: string }
+interface NewsItem   { title: string; link: string; pubDate: string; category: string }
 interface ArticleBlock { type: "heading" | "paragraph"; text: string }
 interface Article   { title: string; blocks: ArticleBlock[] }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function isTeamList(item: NewsItem): boolean {
-  return item.link.includes("team-list") || item.title.toLowerCase().includes("team list");
+  // Use the category tag from NRL.com as the primary signal
+  if (item.category) return item.category.toLowerCase().includes("team list");
+  // Fallback: check URL slug (for articles without a category tag)
+  return item.link.includes("team-list");
 }
 
 // ── Spinner ────────────────────────────────────────────────────────────────────
