@@ -350,7 +350,21 @@ When the project has been idle, Replit puts it to sleep. On wake:
 - Backend proxies all Notion API calls — no Notion API calls are made directly from the app
 - The Replit Notion connector was dismissed; if needed again: `connector:ccfg_notion_01K49R392Z3CSNMXCPWSV67AF4`
 
-### 11. EAS Build
+### 11. EAS Build — MANDATORY PRE-BUILD RULE
+
+> **Before triggering ANY EAS build, read `artifacts/task-manager/EAS_BUILD_GUIDE.md` in full.**
+> This is not optional. The guide documents every crash, root cause, and fix from previous builds.
+> Verify the checklist below before submitting:
+> - [ ] `react-native-keyboard-controller` absent from `package.json` (iOS 26 JSI crash)
+> - [ ] `expo-glass-effect`, `expo-symbols`, `expo-location` absent (TurboModule crash)
+> - [ ] `newArchEnabled: true` in `app.config.js` (required for Reanimated 4)
+> - [ ] `react-native-worklets: 0.5.1` present (required for Reanimated 4)
+> - [ ] `NSFaceIDUsageDescription` present in `app.config.js → ios.infoPlist`
+> - [ ] `expoRouterCtxInlinePlugin` present in `babel.config.js`
+> - [ ] No new native packages added without lockfile sync (`pnpm install --no-frozen-lockfile` from root)
+> - [ ] Build command includes `NODE_PATH`, `EAS_NO_VCS=1`, `EAS_SKIP_AUTO_FINGERPRINT=1`
+
+### 11b. EAS Build
 
 #### Working Build Process (as of RN 0.81 + Expo 54)
 
@@ -412,8 +426,9 @@ EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform ios --profile prev
 **Stable bundle ID**: `com.hklife.app` (ad-hoc, existing provisioning)
 
 **Latest builds**:
-- Preview `721cf08b` — IPA: `https://expo.dev/artifacts/eas/f6hFsdnvpZ9fArwDrpRKo4.ipa` (current, latest code)
-- Preview `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa` (older, still valid)
+- Preview `a7fdfa7d` — IPA: `https://expo.dev/artifacts/eas/mKb6FYcCXcxqFJotr2Yhs7.ipa` (2026-04-01, current — NRL tabs, drawer banner, 2-page news)
+- Preview `721cf08b` — IPA: `https://expo.dev/artifacts/eas/f6hFsdnvpZ9fArwDrpRKo4.ipa` (previous)
+- Preview `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa` (older)
 - Dev client: ALL FAILED — see above
 
 Things that only work in a native EAS build (not Expo Go):
