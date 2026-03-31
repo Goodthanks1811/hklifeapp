@@ -103,7 +103,26 @@ react-native-keyboard-controller@1.21.2 - expected version: 1.18.5
 
 ---
 
-### 5. EXPO_ROUTER_APP_ROOT not inlined (bundle error in EAS)
+### 5. App force quits immediately — Face ID crash
+
+**Symptom**: App opens, splash screen briefly appears, then the app is killed by iOS before anything renders.
+
+**Cause**: iOS immediately terminates any app that calls the `LocalAuthentication` framework API (including just checking if biometrics are available) without `NSFaceIDUsageDescription` in `Info.plist`. The `BiometricProvider` calls `hasHardwareAsync()` the instant the app mounts — on any Face ID-capable device this triggers the OS kill.
+
+**Fix**: Add the usage description to `app.config.js` under `ios.infoPlist`:
+```js
+infoPlist: {
+  ITSAppUsesNonExemptEncryption: false,
+  NSFaceIDUsageDescription: 'HK Life uses Face ID to lock the app.',
+},
+```
+This is now in place. If you ever remove `expo-local-authentication`, this key can be removed too — but as long as biometric lock exists, it must be there.
+
+**Note**: This does NOT crash in Expo Go because Expo Go provides its own `NSFaceIDUsageDescription`. It only crashes in native builds.
+
+---
+
+### 6. EXPO_ROUTER_APP_ROOT not inlined (bundle error in EAS)
 
 **Error message** (on device or in Metro):
 ```

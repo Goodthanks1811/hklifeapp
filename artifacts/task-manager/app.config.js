@@ -21,6 +21,7 @@ module.exports = {
       deploymentTarget: '15.1',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSFaceIDUsageDescription: 'HK Life uses Face ID to lock the app.',
       },
     },
     android: {
