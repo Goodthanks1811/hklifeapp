@@ -2,8 +2,9 @@ import { Router } from "express";
 
 const router = Router();
 
-const RSS_URL  = "https://www.foxsports.com.au/content-feeds/rugby-league";
-const MAX_ITEMS = 30;
+const BASE_URL   = "https://www.nrl.com";
+const NEWS_URL   = "https://www.nrl.com/news/";
+const MAX_ITEMS  = 30;
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -37,8 +38,7 @@ function cleanLine(s: string): string {
 function isJunkLine(raw: string): boolean {
   const t = raw.toLowerCase();
   if (!t) return true;
-  if (["cookie", "subscribe", "sign up", "newsletter", "privacy"].some(p => t.includes(p))) return true;
-  if (/^watch every game\b/i.test(cleanLine(raw))) return true;
+  if (["cookie", "subscribe", "sign up", "newsletter", "privacy", "follow the nrl"].some(p => t.includes(p))) return true;
   return false;
 }
 
@@ -46,6 +46,7 @@ function isBlockedSectionHeading(s: string): boolean {
   const t = cleanLine(s).toLowerCase();
   if (/^more nrl news\b/.test(t)) return true;
   if (/^crawls?\b/.test(t)) return true;
+  if (/^up next\b/.test(t)) return true;
   return false;
 }
 
@@ -66,14 +67,14 @@ function isTitleCaseHeadingLike(s: string): boolean {
   if (/:/.test(t)) return false;
   const words = t.split(/\s+/).filter(Boolean);
   if (words.length < 3 || words.length > 14) return false;
-  const lower = ["a","an","and","as","at","but","by","for","from","in","into","of","on","or","the","to","vs","via","with"];
+  const lower = ["a","an","and","as","at","but","by","for","from","in","into","of","on","or","the","to","vs","via","with","v"];
   let titleish = 0, alphaWords = 0;
   for (const word of words) {
-    const plain = word.replace(/[^A-Za-z''\\-]/g, "");
+    const plain = word.replace(/[^A-Za-z''\-]/g, "");
     if (!plain) continue;
     alphaWords++;
     if (lower.includes(plain.toLowerCase())) { titleish++; continue; }
-    if (/^[A-Z][a-zA-Z''\\-]*$/.test(plain) || /^[A-Z]{2,}$/.test(plain)) titleish++;
+    if (/^[A-Z][a-zA-Z''\-]*$/.test(plain) || /^[A-Z]{2,}$/.test(plain)) titleish++;
   }
   if (alphaWords < 3) return false;
   return (titleish / alphaWords) >= 0.72;
@@ -83,52 +84,78 @@ function isHeadingLike(s: string): boolean {
   return isAllCapsHeadingLike(s) || isTitleCaseHeadingLike(s);
 }
 
-function getOgTitle(html: string): string {
-  const m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i)
-         || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["'][^>]*>/i);
-  if (m) return decodeHtml(m[1]).trim();
-  const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (t) return decodeHtml(t[1]).trim();
-  return "Article";
-}
+// ── NRL.com news listing parser ───────────────────────────────────────────────
 
-function getCleanTitle(html: string): string {
-  return getOgTitle(html)
-    .replace(/\s*\|\s*FOX SPORTS.*/i, "")
-    .replace(/\s*\|\s*Fox Sports.*/i, "")
-    .replace(/\s*-\s*Fox Sports.*/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+interface NewsItem { title: string; link: string; pubDate: string }
 
-// ── RSS parsing ───────────────────────────────────────────────────────────────
+function parseNewsList(html: string): NewsItem[] {
+  const items: NewsItem[] = [];
+  const seen = new Set<string>();
 
-interface RssItem { title: string; link: string; pubDate: string }
-
-function parseRss(xml: string): RssItem[] {
-  const items: RssItem[] = [];
-  const itemRx = /<item\b[^>]*>([\s\S]*?)<\/item>/gi;
-  let itemM: RegExpExecArray | null;
-  while ((itemM = itemRx.exec(xml)) !== null) {
-    const block = itemM[1];
-    const title   = cleanLine(decodeHtml((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || ["",""])[1]));
-    const link    = cleanLine((block.match(/<link[^>]*>([\s\S]*?)<\/link>/i) || ["",""])[1]);
-    const pubDate = cleanLine((block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i) || ["",""])[1]);
-    if (title && link) items.push({ title, link, pubDate });
+  // Extract all news article hrefs (/news/YYYY/...)
+  const hrefRx = /href="(\/news\/\d{4}\/[^"]+)"/g;
+  const links: string[] = [];
+  let hm: RegExpExecArray | null;
+  while ((hm = hrefRx.exec(html)) !== null) {
+    const path = hm[1];
+    if (!seen.has(path)) {
+      seen.add(path);
+      links.push(path);
+    }
   }
+
+  // Extract card titles (<p class="card-content__text ...">Title</p>)
+  const junkTitles = new Set(["see more", "load more", "read more", "watch"]);
+  const titleRx = /<p[^>]+class="[^"]*card-content__text[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
+  const titles: string[] = [];
+  let tm: RegExpExecArray | null;
+  while ((tm = titleRx.exec(html)) !== null) {
+    const t = cleanLine(decodeHtml(stripTags(tm[1])));
+    if (t && t.length > 5 && !junkTitles.has(t.toLowerCase())) titles.push(t);
+  }
+
+  // Pair links with titles (they appear in the same order in the DOM)
+  for (let i = 0; i < Math.min(links.length, titles.length, MAX_ITEMS); i++) {
+    items.push({
+      title: titles[i],
+      link: BASE_URL + links[i],
+      pubDate: "",
+    });
+  }
+
+  // If we got more links than titles, fill remaining with slug-derived titles
+  for (let i = items.length; i < Math.min(links.length, MAX_ITEMS); i++) {
+    const slug = links[i].replace(/^\/news\/\d{4}\/\d{2}\/\d{2}\//, "").replace(/\/$/, "").replace(/-/g, " ");
+    const title = slug.replace(/\b\w/g, c => c.toUpperCase());
+    items.push({ title, link: BASE_URL + links[i], pubDate: "" });
+  }
+
   return items;
 }
 
-// ── Article parsing ───────────────────────────────────────────────────────────
+// ── NRL.com article parser ────────────────────────────────────────────────────
 
 export interface ArticleBlock { type: "heading" | "paragraph"; text: string }
 
-function parseArticle(html: string): ArticleBlock[] {
-  const articleM = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i);
-  if (!articleM) return [];
+function getArticleTitle(html: string): string {
+  const h1 = html.match(/<h1[^>]+class="[^"]*header__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i);
+  if (h1) return cleanLine(decodeHtml(stripTags(h1[1])));
+  const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+                || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["'][^>]*>/i);
+  if (ogTitle) return cleanLine(decodeHtml(ogTitle[1])).replace(/\s*\|\s*NRL.*/i, "").trim();
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (title) return cleanLine(decodeHtml(title[1])).replace(/\s*\|\s*NRL.*/i, "").trim();
+  return "Article";
+}
 
-  const content = articleM[1];
-  const blockRx = /<(h2|h3|p)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+function parseArticle(html: string): ArticleBlock[] {
+  // Try to find the main article body
+  const articleM = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)
+                || html.match(/<div[^>]+class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+                || html.match(/<div[^>]+class="[^"]*content[^"]*body[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+
+  const content = articleM ? articleM[1] : html;
+  const blockRx = /<(h1|h2|h3|p)\b[^>]*>([\s\S]*?)<\/\1>/gi;
   const blocks: ArticleBlock[] = [];
   let blocked = false;
   let m: RegExpExecArray | null;
@@ -138,7 +165,7 @@ function parseArticle(html: string): ArticleBlock[] {
     const text = cleanLine(stripTags(m[2]));
     if (!text || isJunkLine(text)) continue;
 
-    if (tag === "h2" || tag === "h3") {
+    if (tag === "h1" || tag === "h2" || tag === "h3") {
       if (text.length < 8) continue;
       if (isBlockedSectionHeading(text)) { blocked = true; continue; }
       blocked = false;
@@ -172,16 +199,20 @@ function parseArticle(html: string): ArticleBlock[] {
 
 router.get("/news", async (_req, res) => {
   try {
-    const response = await fetch(RSS_URL, {
-      headers: { "User-Agent": UA },
+    const response = await fetch(NEWS_URL, {
+      headers: {
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-AU,en;q=0.9",
+      },
       signal: AbortSignal.timeout(12_000),
     });
     if (!response.ok) {
-      res.status(502).json({ error: `RSS fetch failed: ${response.status}` });
+      res.status(502).json({ error: `NRL news fetch failed: ${response.status}` });
       return;
     }
-    const xml   = await response.text();
-    const items = parseRss(xml).slice(0, MAX_ITEMS);
+    const html  = await response.text();
+    const items = parseNewsList(html);
     res.json({ items });
   } catch (err: any) {
     res.status(500).json({ error: String(err?.message ?? err) });
@@ -196,7 +227,11 @@ router.get("/article", async (req, res) => {
   }
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": UA },
+      headers: {
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-AU,en;q=0.9",
+      },
       signal: AbortSignal.timeout(14_000),
     });
     if (!response.ok) {
@@ -204,7 +239,7 @@ router.get("/article", async (req, res) => {
       return;
     }
     const html   = await response.text();
-    const title  = getCleanTitle(html);
+    const title  = getArticleTitle(html);
     const blocks = parseArticle(html).slice(0, 80);
     res.json({ title, blocks });
   } catch (err: any) {
