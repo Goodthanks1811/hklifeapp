@@ -45,12 +45,16 @@ interface ArticleBlock { type: "heading" | "paragraph"; text: string }
 interface Article   { title: string; blocks: ArticleBlock[] }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+function isFirstTake(item: NewsItem): boolean {
+  return item.title.toLowerCase().startsWith("first take");
+}
+
 function isTeamList(item: NewsItem): boolean {
   const cat = (item.category ?? "").toLowerCase();
   // NRL.com tags team selection articles as "Team Lists" or "Match Preview"
   if (cat.includes("team list") || cat === "match preview") return true;
-  // Fallback: URL slug contains "team-list" (and not a fantasy column)
-  if (!cat || cat === "") return item.link.includes("team-list") && !item.title.toLowerCase().includes("first take");
+  // Fallback: URL slug (no category returned) — exclude fantasy columns
+  if (!cat) return item.link.includes("team-list") && !isFirstTake(item);
   return false;
 }
 
@@ -263,15 +267,7 @@ export default function NrlNewsScreen() {
   // ── Filtered list ─────────────────────────────────────────────────────────
   const visibleNews = activeTab === "teamlists"
     ? news.filter(isTeamList)
-    : news;
-
-  // debug – remove after fix confirmed
-  useEffect(() => {
-    if (activeTab === "teamlists" && news.length > 0) {
-      console.log("[TL-DEBUG] teamlists tab has", visibleNews.length, "items:");
-      visibleNews.forEach(x => console.log(" •", x.category, "|", x.title.substring(0, 50)));
-    }
-  }, [activeTab, news]);
+    : news.filter(x => !isFirstTake(x) && !isTeamList(x));
 
   // ── Fetch news list ──────────────────────────────────────────────────────────
   const fetchNews = useCallback(async (isRefresh = false) => {
@@ -281,7 +277,6 @@ export default function NrlNewsScreen() {
       const r = await fetch(`${BASE_URL}/api/nrl/news`, { cache: "no-store" });
       if (!r.ok) throw new Error(`Server error ${r.status}`);
       const data = await r.json();
-      console.log("[TL-DEBUG] fetched", data.items?.length, "items, sample categories:", data.items?.slice(0,5).map((x:any)=>x.category));
       setNews(data.items ?? []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load news");
