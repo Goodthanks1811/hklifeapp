@@ -134,7 +134,32 @@ This is now in place. If you ever remove `expo-local-authentication`, this key c
 
 ---
 
-### 7. EXPO_ROUTER_APP_ROOT not inlined (bundle error in EAS)
+### 7. App crashes on launch — iOS 26 TurboModule incompatibility
+
+**Symptom**: `EXC_BAD_ACCESS (SIGSEGV)` at address `0x0000800000000097` on thread `com.meta.react.turbomodulemanager.queue`. App exits immediately with no UI.
+
+**Crash log key fields**:
+```
+"exception": {"type": "EXC_BAD_ACCESS", "signal": "SIGSEGV", "subtype": "KERN_INVALID_ADDRESS at 0x0000800000000097"}
+"legacyInfo": {"threadTriggered": {"queue": "com.meta.react.turbomodulemanager.queue"}}
+"osVersion": "iPhone OS 26.x.x"
+```
+
+**Cause**: iOS 26 changed internal ABI/APIs that React Native 0.81's **New Architecture** TurboModule manager depends on. The TurboModule manager dereferences a pointer that iOS 26 no longer provides, crashing before any JS code runs. `newArchEnabled: true` is the trigger.
+
+**Fix applied**:
+1. `newArchEnabled: false` in `app.config.js` — switches to old bridge architecture which avoids the TurboModule manager entirely
+2. `react-native-reanimated: ~3.16.0` — Reanimated 4.x requires new arch; v3.x works on old arch
+3. Removed `react-native-worklets` — only needed for Reanimated 4
+4. Added `react-native-reanimated/plugin` to `babel.config.js` — required for Reanimated 3
+
+**Reanimated 3 vs 4 API compatibility**: All core APIs (`useSharedValue`, `useAnimatedStyle`, `withTiming`, `withSpring`, `runOnJS`, `interpolate`, etc.) are identical between v3 and v4. No app code changes needed.
+
+**Note**: If/when React Native 0.82+ releases with iOS 26 support, `newArchEnabled: true` + Reanimated 4 can be restored. At that point, remove `react-native-reanimated/plugin` from `babel.config.js` and restore `react-native-worklets`.
+
+---
+
+### 8. EXPO_ROUTER_APP_ROOT not inlined (bundle error in EAS)
 
 **Error message** (on device or in Metro):
 ```
