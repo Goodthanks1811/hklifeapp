@@ -137,7 +137,7 @@ export function Drawer() {
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
         <Image
-          source={{ uri: "https://i.postimg.cc/JzFsWTbz/IMG-5952.png" }}
+          source={{ uri: "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png" }}
           style={styles.headerImage}
           resizeMode="cover"
         />
