@@ -122,7 +122,19 @@ This is now in place. If you ever remove `expo-local-authentication`, this key c
 
 ---
 
-### 6. EXPO_ROUTER_APP_ROOT not inlined (bundle error in EAS)
+### 6. App force quits — unused native package auto-linked
+
+**Symptom**: App crashes on launch with no clear JS error.
+
+**Cause**: `expo-glass-effect` was in `package.json` but never imported in the app. Because it has an `expo-module.config.json` with a native Swift module (`GlassEffectModule`), Expo auto-links it into every native build. With `newArchEnabled: true`, unverified packages that haven't been updated for the new architecture can crash on startup during native module initialization.
+
+**Fix**: Removed `expo-glass-effect` from `package.json` entirely since it was unused. Updated both `package-lock.json` and `pnpm-lock.yaml`.
+
+**General rule**: Any package with an `expo-module.config.json` and an `ios/` folder gets auto-linked and its native code runs on every launch, even if you never import it in JS. Remove unused native packages.
+
+---
+
+### 7. EXPO_ROUTER_APP_ROOT not inlined (bundle error in EAS)
 
 **Error message** (on device or in Metro):
 ```
