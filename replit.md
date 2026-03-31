@@ -426,7 +426,8 @@ EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform ios --profile prev
 **Stable bundle ID**: `com.hklife.app` (ad-hoc, existing provisioning)
 
 **Latest builds**:
-- Preview `3db84ee0` — IPA: `https://expo.dev/artifacts/eas/8C3wZ9WeBafYqxPhTKutSW.ipa` (2026-04-01, current — iPad provisioning attempt, HK iPad Pro UDID added)
+- Preview `1c961f4b` — IPA: `https://expo.dev/artifacts/eas/4wJPYw93dTMs9nwp6PeCXM.ipa` (2026-04-01, current — both iPhone + iPad provisioned)
+- Preview `3db84ee0` — IPA: `https://expo.dev/artifacts/eas/8C3wZ9WeBafYqxPhTKutSW.ipa` (2026-04-01, iPhone only)
 - Preview `a7fdfa7d` — IPA: `https://expo.dev/artifacts/eas/mKb6FYcCXcxqFJotr2Yhs7.ipa` (2026-04-01, NRL tabs, drawer banner, 2-page news)
 - Preview `721cf08b` — IPA: `https://expo.dev/artifacts/eas/f6hFsdnvpZ9fArwDrpRKo4.ipa` (previous)
 - Preview `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa` (older)
