@@ -5,13 +5,6 @@ const fs = require("fs");
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
 
-// Ensure expo-router can resolve its app root at bundle time.
-// Expo CLI normally injects this when it recognises the 'expo-router' plugin
-// by name; this fallback covers any edge cases on the build server.
-if (!process.env.EXPO_ROUTER_APP_ROOT) {
-  process.env.EXPO_ROUTER_APP_ROOT = 'app';
-}
-
 const config = getDefaultConfig(projectRoot);
 
 // Only add workspace watch folders in local dev (not on EAS build servers)

@@ -299,6 +299,9 @@ The Expo URL is in the `artifacts/task-manager: expo` workflow logs every time i
 - Added `watchFolders: [workspaceRoot]`
 - Added `resolver.nodeModulesPaths: [task-manager/node_modules only]`
 
+**Fix applied (`babel.config.js`) — belt-and-suspenders for EAS**:
+Added a custom Babel plugin `expoRouterCtxInlinePlugin` that explicitly replaces `process.env.EXPO_ROUTER_APP_ROOT` with the relative path from the `_ctx` file to `app/`, and `process.env.EXPO_ROUTER_IMPORT_MODE` with `'sync'`, for any file whose path includes `/expo-router/_ctx`. This guarantees inlining even if the `babel-preset-expo` Metro caller chain has edge cases in the EAS build environment. The plugin is a safe no-op if `babel-preset-expo` already handled the inlining.
+
 #### pnpm Monorepo + Expo Go: expo-keep-awake Hook Error Fix
 
 **Symptom**: Expo Go shows red screen after the EXPO_ROUTER fix above was applied:
