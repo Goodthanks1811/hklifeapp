@@ -265,6 +265,14 @@ export default function NrlNewsScreen() {
     ? news.filter(isTeamList)
     : news;
 
+  // debug – remove after fix confirmed
+  useEffect(() => {
+    if (activeTab === "teamlists" && news.length > 0) {
+      console.log("[TL-DEBUG] teamlists tab has", visibleNews.length, "items:");
+      visibleNews.forEach(x => console.log(" •", x.category, "|", x.title.substring(0, 50)));
+    }
+  }, [activeTab, news]);
+
   // ── Fetch news list ──────────────────────────────────────────────────────────
   const fetchNews = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -273,6 +281,7 @@ export default function NrlNewsScreen() {
       const r = await fetch(`${BASE_URL}/api/nrl/news`, { cache: "no-store" });
       if (!r.ok) throw new Error(`Server error ${r.status}`);
       const data = await r.json();
+      console.log("[TL-DEBUG] fetched", data.items?.length, "items, sample categories:", data.items?.slice(0,5).map((x:any)=>x.category));
       setNews(data.items ?? []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load news");
