@@ -45,7 +45,7 @@ module.exports = {
     },
     plugins: [
       [
-        'expo-router',
+        require.resolve('expo-router/app.plugin.js'),
         {
           origin: 'https://replit.com/',
         },
