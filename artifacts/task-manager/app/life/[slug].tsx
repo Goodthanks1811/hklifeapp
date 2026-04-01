@@ -233,6 +233,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   isTablet:       boolean;
 }) {
   const scaleAnim = useRef(new Animated.Value(0.93)).current;
+  const slideAnim = useRef(new Animated.Value(600)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
@@ -279,14 +280,19 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     if (visible) {
       setTitle(task!.title);
       scaleAnim.setValue(0.93);
+      slideAnim.setValue(600);
       Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: false, tension: 120, friction: 14 }),
-        Animated.timing(bgAnim,    { toValue: 1, duration: 200, useNativeDriver: false }),
+        isTablet
+          ? Animated.spring(scaleAnim, { toValue: 1,   useNativeDriver: false, tension: 120, friction: 14 })
+          : Animated.spring(slideAnim, { toValue: 0,   useNativeDriver: false, tension: 90,  friction: 13 }),
+        Animated.timing(bgAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim,    { toValue: 0,    duration: 160, useNativeDriver: false }),
+        isTablet
+          ? Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) })
+          : Animated.timing(slideAnim, { toValue: 600,  duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(bgAnim, { toValue: 0, duration: 160, useNativeDriver: false }),
       ]).start();
     }
   }, [visible]);
@@ -348,146 +354,146 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     runLoader(onSave(task.id, title.trim(), notes.trim()));
   }, [task, title, notes, onSave, runLoader]);
 
-  const bg      = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] });
-  const cardW   = isTablet ? Math.min(600, screenW * 0.88) : screenW * 0.93;
+  const bg       = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] });
+  const cardW    = Math.min(600, screenW * 0.88);
   const maxCardH = screenH * 0.82;
+
+  // ── Shared inner content ────────────────────────────────────────────────
+  const sheetContent = (
+    <>
+      {/* Title */}
+      <TextInput
+        style={s.dsTitleInput}
+        value={title}
+        onChangeText={setTitle}
+        multiline
+        placeholder="Task name…"
+        placeholderTextColor={Colors.textMuted}
+        selectionColor={Colors.primary}
+        keyboardAppearance="dark"
+      />
+
+      {/* Emoji row */}
+      {catEmojis.length > 0 && (
+        <View style={s.dsMetaRow}>
+          {catEmojis.map((e, i) => {
+            const selected = norm(task?.emoji ?? "") === norm(e);
+            return (
+              <Pressable
+                key={`emoji-${i}`}
+                onPress={() => { if (task) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEmojiChange(task.id, e); } }}
+                style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
+              >
+                <Text style={s.dsEmojiText}>{e}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Epic row */}
+      {epicOptions && epicOptions.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+          {epicOptions.map(ep => {
+            const selected = ep === localEpic;
+            const ec = epicColor(ep);
+            return (
+              <Pressable
+                key={`epic-${ep}`}
+                onPress={() => {
+                  if (!task) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setLocalEpic(ep);
+                  onEpicChange?.(task.id, ep);
+                }}
+                style={[s.dsEpicChip, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border }]}
+              >
+                <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </>
+  );
+
+  const loaderOverlay = loaderVisible ? (
+    <Animated.View style={[s.dsLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
+      <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+        <View style={s.dsSpinnerRing} />
+      </Animated.View>
+      <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+        <Animated.View style={{ transform: [{ scale: tickScale }] }}>
+          <Svg width={52} height={52} viewBox="0 0 68 68">
+            <SvgPath fill="none" stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+          </Svg>
+        </Animated.View>
+      </Animated.View>
+    </Animated.View>
+  ) : null;
+
+  const bodySection = (
+    <>
+      <View style={s.dsDivider} />
+      <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={s.dsBodyInner}>
+          {bodyLoading
+            ? <ActivityIndicator size="small" color={Colors.primary} />
+            : <TextInput
+                style={s.dsNotesInput}
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                placeholder="Add notes…"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+                keyboardAppearance="dark"
+                textAlignVertical="top"
+              />
+          }
+          {task?.url ? (
+            <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={{ marginTop: 8 }}>
+              <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </ScrollView>
+      <View style={s.dsDivider} />
+      <View style={s.dsActions}>
+        <Pressable style={s.dsCancelBtn} onPress={dismiss}>
+          <Text style={s.dsCancelTx}>Close</Text>
+        </Pressable>
+        <TouchableOpacity activeOpacity={0.8} style={s.dsUpdateBtn} onPress={handleSave}>
+          <Feather name="check" size={15} color="#fff" />
+          <Text style={s.dsUpdateTx}>Save</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
-      <Animated.View style={[s.overlay, s.overlayCenter, { backgroundColor: bg }]}>
+      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
 
-        <Animated.View style={[
-          s.dsCard,
-          {
-            width: cardW,
-            maxHeight: maxCardH,
-            marginBottom: kbAnim,
-            transform: [{ scale: scaleAnim }],
-            opacity: bgAnim,
-          },
-        ]}>
-
-          {/* ── Top: title + meta chips ──────────────────────────────── */}
-          <View style={s.dsCardTop}>
-            <TextInput
-              style={s.dsTitleInput}
-              value={title}
-              onChangeText={setTitle}
-              multiline
-              placeholder="Task name…"
-              placeholderTextColor={Colors.textMuted}
-              selectionColor={Colors.primary}
-              keyboardAppearance="dark"
-            />
-
-            {/* Emoji + Epic chips in one row */}
-            {(catEmojis.length > 0 || (epicOptions && epicOptions.length > 0)) && (
-              <View style={s.dsMetaRow}>
-                {catEmojis.map(e => {
-                  const selected = norm(task?.emoji ?? "") === norm(e);
-                  return (
-                    <Pressable
-                      key={e}
-                      onPress={() => { if (task) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEmojiChange(task.id, e); } }}
-                      style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
-                    >
-                      <Text style={s.dsEmojiText}>{e}</Text>
-                    </Pressable>
-                  );
-                })}
-                {epicOptions && epicOptions.map(ep => {
-                  const selected = ep === localEpic;
-                  const ec = epicColor(ep);
-                  return (
-                    <Pressable
-                      key={ep}
-                      onPress={() => {
-                        if (!task) return;
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setLocalEpic(ep);
-                        onEpicChange?.(task.id, ep);
-                      }}
-                      style={[s.dsEpicChip, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border }]}
-                    >
-                      <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-
-          <View style={s.dsDivider} />
-
-          {/* ── Body: scrollable notes + url ─────────────────────────── */}
-          <ScrollView
-            style={s.dsBodyScroll}
-            bounces
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={s.dsBodyInner}>
-              {bodyLoading
-                ? <ActivityIndicator size="small" color={Colors.primary} />
-                : (
-                  <TextInput
-                    style={s.dsNotesInput}
-                    value={notes}
-                    onChangeText={setNotes}
-                    multiline
-                    placeholder="Add notes…"
-                    placeholderTextColor={Colors.textMuted}
-                    selectionColor={Colors.primary}
-                    keyboardAppearance="dark"
-                    textAlignVertical="top"
-                  />
-                )
-              }
-              {task?.url ? (
-                <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={{ marginTop: 8 }}>
-                  <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
-                </Pressable>
-              ) : null}
+        {isTablet ? (
+          // ── iPad: centered modal card ─────────────────────────────
+          <Animated.View style={[s.dsCard, { width: cardW, maxHeight: maxCardH, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
+            <View style={s.dsCardTop}>
+              {sheetContent}
             </View>
-          </ScrollView>
-
-          <View style={s.dsDivider} />
-
-          {/* ── Buttons ──────────────────────────────────────────────── */}
-          <View style={s.dsActions}>
-            <Pressable style={s.dsCancelBtn} onPress={dismiss}>
-              <Text style={s.dsCancelTx}>Close</Text>
-            </Pressable>
-            <TouchableOpacity activeOpacity={0.8} style={s.dsUpdateBtn} onPress={handleSave}>
-              <Feather name="check" size={15} color="#fff" />
-              <Text style={s.dsUpdateTx}>Save</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Loader overlay ───────────────────────────────────────── */}
-          {loaderVisible && (
-            <Animated.View style={[s.dsLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
-              <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
-                <View style={s.dsSpinnerRing} />
-              </Animated.View>
-              <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
-                <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-                  <Svg width={52} height={52} viewBox="0 0 68 68">
-                    <SvgPath
-                      fill="none"
-                      stroke="#fff"
-                      strokeWidth={8}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17 35.9 L26.4 47.2 L48.2 21.7"
-                    />
-                  </Svg>
-                </Animated.View>
-              </Animated.View>
-            </Animated.View>
-          )}
-        </Animated.View>
+            {bodySection}
+            {loaderOverlay}
+          </Animated.View>
+        ) : (
+          // ── Phone: bottom sheet ───────────────────────────────────
+          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
+            <View style={s.handle} />
+            {sheetContent}
+            {bodySection}
+            {loaderOverlay}
+          </Animated.View>
+        )}
       </Animated.View>
     </Modal>
   );
@@ -1341,7 +1347,7 @@ export default function LifeTaskScreen() {
       {/* ── Modals ───────────────────────────────────────────────────────────── */}
       <DetailSheet
         task={detailTask}
-        catEmojis={[...(config?.emojis ?? []), HIDDEN_EMOJI]}
+        catEmojis={[...(config?.emojis ?? []).filter(e => norm(e) !== norm(HIDDEN_EMOJI)), HIDDEN_EMOJI]}
         body={pageBody}
         bodyLoading={bodyLoading}
         onClose={() => setDetailTask(null)}
