@@ -107,20 +107,27 @@ const ZERO_ANIM = new Animated.Value(0);
 type EmojiAnchor = { taskId: string; x: number; y: number; w: number; h: number };
 type EpicAnchor  = { taskId: string; x: number; y: number; w: number; h: number };
 
-function InlineEmojiPicker({ anchor, emojis, onSelect, onClose }: {
-  anchor:   EmojiAnchor | null;
-  emojis:   string[];
-  onSelect: (e: string) => void;
-  onClose:  () => void;
+function InlineEmojiPicker({ anchor, emojis, currentEmoji, onSelect, onClose }: {
+  anchor:        EmojiAnchor | null;
+  emojis:        string[];
+  currentEmoji:  string | null;
+  onSelect:      (e: string) => void;
+  onClose:       () => void;
 }) {
   const { width: sw, height: sh } = useWindowDimensions();
   if (!anchor) return null;
 
-  const cellSize = 40;
-  const cols     = emojis.length;   // single row — all emojis side-by-side
+  // exclude whichever emoji is already on the task
+  const options  = currentEmoji
+    ? emojis.filter(e => norm(e) !== norm(currentEmoji))
+    : emojis;
+
+  if (options.length === 0) return null;
+
+  const cellSize = 44;
   const gap      = 8;
   const pad      = 10;
-  const popW     = cols * cellSize + (cols - 1) * gap + pad * 2;
+  const popW     = options.length * cellSize + (options.length - 1) * gap + pad * 2;
   const popH     = cellSize + pad * 2;
 
   const rightX = anchor.x + anchor.w + 6;
@@ -131,7 +138,7 @@ function InlineEmojiPicker({ anchor, emojis, onSelect, onClose }: {
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={[s.emojiPopover, { top: topY, left: leftX, width: popW }]}>
-        {emojis.map(e => (
+        {options.map(e => (
           <Pressable
             key={e}
             style={({ pressed }) => [s.emojiPopCell, pressed && s.emojiPopCellPressed]}
@@ -1384,6 +1391,7 @@ export default function LifeTaskScreen() {
       <InlineEmojiPicker
         anchor={emojiAnchor}
         emojis={config.emojis}
+        currentEmoji={pickerTask?.emoji ?? null}
         onSelect={(e) => { if (pickerTask) handleEmojiChange(pickerTask.id, e); }}
         onClose={() => setEmojiAnchor(null)}
       />
@@ -1456,7 +1464,7 @@ const s = StyleSheet.create({
   epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
   epicPopText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   emojiPopCell: {
-    width: 40, height: 40, borderRadius: 10,
+    width: 44, height: 44, borderRadius: 12,
     backgroundColor: Colors.cardBgElevated,
     borderWidth: 1, borderColor: Colors.border,
     alignItems: "center", justifyContent: "center",
