@@ -593,7 +593,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
 
   useEffect(() => {
     if (visible) {
-      setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setSaving(false);
+      setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setLoaderVisible(false);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
       Animated.parallel([
