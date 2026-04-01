@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useRef } from "react";
 import {
@@ -175,7 +176,7 @@ export function Drawer() {
 
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
-      <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
+      <View style={{ paddingTop: topPad + 12, paddingBottom: 24 }}>
         <Pressable onPress={pickBannerImage} style={styles.bannerContainer}>
           <Image
             source={{ uri: bannerUri ?? FALLBACK_BANNER }}
@@ -184,6 +185,26 @@ export function Drawer() {
               bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined,
             ]}
             resizeMode={bannerUri ? bannerResizeMode : "cover"}
+          />
+          {/* bottom fade into drawer bg */}
+          <LinearGradient
+            colors={["transparent", "#111111"]}
+            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 52 }}
+            pointerEvents="none"
+          />
+          {/* left fade */}
+          <LinearGradient
+            colors={["#111111", "transparent"]}
+            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+            style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 48 }}
+            pointerEvents="none"
+          />
+          {/* right fade */}
+          <LinearGradient
+            colors={["transparent", "#111111"]}
+            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+            style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 48 }}
+            pointerEvents="none"
           />
           <View style={styles.bannerReplaceBadge}>
             <Feather name="camera" size={12} color="rgba(255,255,255,0.85)" />
@@ -327,10 +348,8 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     width: "100%",
-    height: 90,
-    borderRadius: 14,
+    height: 100,
     overflow: "hidden",
-    backgroundColor: Colors.cardBgElevated,
   },
   bannerReplaceBadge: {
     position: "absolute",
