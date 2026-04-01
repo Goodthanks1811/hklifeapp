@@ -176,10 +176,13 @@ export function Drawer() {
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
-        <Pressable onPress={pickBannerImage} style={{ borderRadius: 14, overflow: "hidden" }}>
+        <Pressable onPress={pickBannerImage} style={styles.bannerContainer}>
           <Image
             source={{ uri: bannerUri ?? FALLBACK_BANNER }}
-            style={[styles.headerImage, bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined]}
+            style={[
+              StyleSheet.absoluteFill,
+              bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined,
+            ]}
             resizeMode={bannerUri ? bannerResizeMode : "cover"}
           />
           <View style={styles.bannerReplaceBadge}>
@@ -322,12 +325,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#111111",
   },
-  headerImage: {
-    width: "50%",
-    height: 55,
-    borderRadius: 10,
+  bannerContainer: {
+    width: "100%",
+    height: 90,
+    borderRadius: 14,
     overflow: "hidden",
-    alignSelf: "flex-start",
+    backgroundColor: Colors.cardBgElevated,
   },
   bannerReplaceBadge: {
     position: "absolute",
