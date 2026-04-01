@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ import { setBaseUrl } from "@/utils/apiClient";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Drawer } from "@/components/Drawer";
 import { LockScreen } from "@/components/LockScreen";
+import { StartupScan } from "@/components/StartupScan";
 import { DrawerProvider, useDrawer } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
@@ -78,6 +79,8 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const [showStartup, setShowStartup] = useState(true);
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
@@ -96,6 +99,9 @@ export default function RootLayout() {
                 <DrawerProvider>
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <RootLayoutNav />
+                    {showStartup && (
+                      <StartupScan onDone={() => setShowStartup(false)} />
+                    )}
                   </GestureHandlerRootView>
                 </DrawerProvider>
               </DrawerConfigProvider>
