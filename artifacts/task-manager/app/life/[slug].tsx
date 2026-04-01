@@ -124,15 +124,19 @@ function InlineEmojiPicker({ anchor, emojis, currentEmoji, onSelect, onClose }: 
 
   if (options.length === 0) return null;
 
-  const cellSize = 44;
-  const gap      = 8;
-  const pad      = 10;
+  const cellSize = 40;
+  const gap      = 6;
+  const pad      = 8;
   const popW     = options.length * cellSize + (options.length - 1) * gap + pad * 2;
   const popH     = cellSize + pad * 2;
 
   const rightX = anchor.x + anchor.w + 6;
-  const leftX  = rightX + popW > sw ? anchor.x - popW - 6 : rightX;
-  const topY   = Math.min(anchor.y - 4, sh - popH - 20);
+  const leftX  = Math.min(rightX + popW > sw ? anchor.x - popW - 6 : rightX, sw - popW - 8);
+  // centre the popover vertically on the tapped emoji button
+  const topY   = Math.min(
+    Math.max(8, anchor.y + anchor.h / 2 - popH / 2),
+    sh - popH - 20
+  );
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
@@ -1464,7 +1468,7 @@ const s = StyleSheet.create({
   epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
   epicPopText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   emojiPopCell: {
-    width: 44, height: 44, borderRadius: 12,
+    width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.cardBgElevated,
     borderWidth: 1, borderColor: Colors.border,
     alignItems: "center", justifyContent: "center",
