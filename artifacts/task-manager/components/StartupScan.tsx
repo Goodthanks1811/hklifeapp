@@ -10,6 +10,9 @@ import {
 } from "react-native";
 
 const { width: W, height: H } = Dimensions.get("window");
+const isTablet = W >= 768;
+// Scale factor: elements designed for ~390pt phone, scaled down on iPad
+const SF = isTablet ? 0.72 : 1;
 
 const PHOTO = "https://i.postimg.cc/gc3sgzzV/IMG-5286.jpg";
 
@@ -193,9 +196,11 @@ export function StartupScan({ onDone }: Props) {
   );
 }
 
-const CORNER = 40;
-const BORDER = 2;
+const CORNER       = Math.round(40 * SF);
+const CORNER_INSET = Math.round(18 * SF);
+const BORDER       = 2;
 const BORDER_COLOR = "rgba(255,92,92,0.92)";
+const DOT_SIZE     = Math.round(8 * SF);
 
 const s = StyleSheet.create({
   photo: {
@@ -246,10 +251,10 @@ const s = StyleSheet.create({
     borderColor: BORDER_COLOR,
     borderWidth: BORDER,
   },
-  tl: { top: 18, left: 18, borderRightWidth: 0, borderBottomWidth: 0 },
-  tr: { top: 18, right: 18, borderLeftWidth: 0, borderBottomWidth: 0 },
-  bl: { bottom: 18, left: 18, borderRightWidth: 0, borderTopWidth: 0 },
-  br: { bottom: 18, right: 18, borderLeftWidth: 0, borderTopWidth: 0 },
+  tl: { top: CORNER_INSET, left: CORNER_INSET, borderRightWidth: 0, borderBottomWidth: 0 },
+  tr: { top: CORNER_INSET, right: CORNER_INSET, borderLeftWidth: 0, borderBottomWidth: 0 },
+  bl: { bottom: CORNER_INSET, left: CORNER_INSET, borderRightWidth: 0, borderTopWidth: 0 },
+  br: { bottom: CORNER_INSET, right: CORNER_INSET, borderLeftWidth: 0, borderTopWidth: 0 },
   // top bar
   topbar: {
     position: "absolute",
@@ -263,7 +268,7 @@ const s = StyleSheet.create({
   },
   topbarText: {
     color: "rgba(255,232,232,0.96)",
-    fontSize: 11,
+    fontSize: Math.round(11 * SF),
     letterSpacing: 3,
     fontFamily: "Inter_500Medium",
   },
@@ -273,9 +278,9 @@ const s = StyleSheet.create({
     gap: 8,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
     backgroundColor: "#ff5757",
     shadowColor: "#ff5757",
     shadowOffset: { width: 0, height: 0 },
@@ -294,7 +299,7 @@ const s = StyleSheet.create({
   },
   statusMain: {
     color: "rgba(255,234,234,0.95)",
-    fontSize: 12,
+    fontSize: Math.round(12 * SF),
     letterSpacing: 3,
     textTransform: "uppercase",
     fontFamily: "Inter_500Medium",
@@ -304,7 +309,7 @@ const s = StyleSheet.create({
   },
   statusSub: {
     color: "rgba(255,234,234,0.75)",
-    fontSize: 10,
+    fontSize: Math.round(10 * SF),
     letterSpacing: 1.6,
     textTransform: "uppercase",
     fontFamily: "Inter_400Regular",
@@ -312,7 +317,7 @@ const s = StyleSheet.create({
   },
   percentNum: {
     color: "#fff",
-    fontSize: 36,
+    fontSize: Math.round(36 * SF),
     fontFamily: "Inter_700Bold",
     letterSpacing: 2,
     textShadowColor: "rgba(255,80,80,0.65)",
@@ -321,7 +326,7 @@ const s = StyleSheet.create({
   },
   percentLabel: {
     color: "rgba(255,234,234,0.75)",
-    fontSize: 10,
+    fontSize: Math.round(10 * SF),
     letterSpacing: 1.7,
     textTransform: "uppercase",
     fontFamily: "Inter_400Regular",
