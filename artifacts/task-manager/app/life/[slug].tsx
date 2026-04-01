@@ -92,49 +92,47 @@ const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(ma
 // A static zero-value used for the dragged row so it never dims itself
 const ZERO_ANIM = new Animated.Value(0);
 
-// ── Emoji picker sheet ─────────────────────────────────────────────────────────
-function EmojiPicker({ visible, emojis, onSelect, onClose }: {
-  visible: boolean; emojis: string[]; onSelect: (e: string) => void; onClose: () => void;
+// ── Inline emoji popover ───────────────────────────────────────────────────────
+type EmojiAnchor = { taskId: string; x: number; y: number; w: number; h: number };
+
+function InlineEmojiPicker({ anchor, emojis, onSelect, onClose }: {
+  anchor:   EmojiAnchor | null;
+  emojis:   string[];
+  onSelect: (e: string) => void;
+  onClose:  () => void;
 }) {
-  const slideAnim = useRef(new Animated.Value(400)).current;
-  const bgAnim    = useRef(new Animated.Value(0)).current;
-  const insets    = useSafeAreaInsets();
+  const { width: sw, height: sh } = useWindowDimensions();
+  if (!anchor) return null;
 
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 90, friction: 13 }),
-        Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 400, duration: 230, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim, { toValue: 0, duration: 180, useNativeDriver: false }),
-      ]).start();
-    }
-  }, [visible]);
+  const cellSize = 40;
+  const cols     = 3;
+  const gap      = 8;
+  const pad      = 10;
+  const popW     = cols * cellSize + (cols - 1) * gap + pad * 2;
+  const popH     = Math.ceil(emojis.length / cols) * (cellSize + gap) - gap + pad * 2;
 
-  const bg = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.65)"] });
+  const rightX = anchor.x + anchor.w + 6;
+  const leftX  = rightX + popW > sw ? anchor.x - popW - 6 : rightX;
+  const topY   = Math.min(anchor.y - 4, sh - popH - 20);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[s.overlay, { backgroundColor: bg }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }], paddingBottom: insets.bottom + 24 }]}>
-          <View style={s.handle} />
-          <Text style={s.sheetTitle}>Choose Emoji</Text>
-          <View style={s.emojiGrid}>
-            {emojis.map(e => (
-              <Pressable
-                key={e} style={({ pressed }) => [s.emojiCell, pressed && s.emojiCellPressed]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSelect(e); }}
-              >
-                <Text style={s.emojiCellText}>{e}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Animated.View>
-      </Animated.View>
+    <Modal transparent visible animationType="none" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={[s.emojiPopover, { top: topY, left: leftX, width: popW }]}>
+        {emojis.map(e => (
+          <Pressable
+            key={e}
+            style={({ pressed }) => [s.emojiPopCell, pressed && s.emojiPopCellPressed]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onSelect(e);
+              onClose();
+            }}
+          >
+            <Text style={s.emojiPopText}>{e}</Text>
+          </Pressable>
+        ))}
+      </View>
     </Modal>
   );
 }
@@ -273,11 +271,9 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"] });
 
   const tabletSheetStyle = isTablet ? {
-    position: undefined as any, left: undefined, right: undefined, bottom: undefined,
     width: 560, maxWidth: "90%" as any, borderRadius: 20,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     alignSelf: "center" as const,
-    marginHorizontal: "auto" as any,
     transform: [{ scale: slideAnim.interpolate({ inputRange: [0, 600], outputRange: [1, 0.92] }) }],
   } : { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] };
 
@@ -285,7 +281,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
       <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[s.sheet, { paddingBottom: isTablet ? 24 : insets.bottom + 20 }, tabletSheetStyle]}>
+        <Animated.View style={[isTablet ? s.sheetBase : s.sheet, { paddingBottom: isTablet ? 24 : insets.bottom + 20 }, tabletSheetStyle]}>
           <View style={s.handle} />
 
           {/* Title input — full width, no icon */}
@@ -581,7 +577,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   task:          LifeTask;
   isDragging:    boolean;
   dimValue:      Animated.Value;
-  onEmojiPress:  () => void;
+  onEmojiPress:  (pageX: number, pageY: number, w: number, h: number) => void;
   onPress:       () => void;
   onLongPress:   () => void;
   onChecked:     () => void;
@@ -589,11 +585,12 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   onSwipeOpen?:  (close: () => void) => void;
   showEpic?:     boolean;
 }) {
-  const swipeableRef = useRef<Swipeable>(null);
-  const checkScale   = useRef(new Animated.Value(0)).current;
-  const opacityAnim  = useRef(new Animated.Value(1)).current;
-  const rowScale     = useRef(new Animated.Value(1)).current;
-  const deletingRef  = useRef(false);
+  const swipeableRef  = useRef<Swipeable>(null);
+  const emojiBtnRef   = useRef<View>(null);
+  const checkScale    = useRef(new Animated.Value(0)).current;
+  const opacityAnim   = useRef(new Animated.Value(1)).current;
+  const rowScale      = useRef(new Animated.Value(1)).current;
+  const deletingRef   = useRef(false);
   const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
@@ -659,7 +656,16 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
       >
         <View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
           {/* Emoji */}
-          <Pressable onPress={() => handleRowTap(onEmojiPress)} hitSlop={6} style={sc.emojiBtn}>
+          <Pressable
+            ref={emojiBtnRef}
+            onPress={() => handleRowTap(() => {
+              (emojiBtnRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
+                onEmojiPress(px, py, w, h);
+              });
+            })}
+            hitSlop={6}
+            style={sc.emojiBtn}
+          >
             <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
           </Pressable>
 
@@ -960,7 +966,7 @@ export default function LifeTaskScreen() {
   const [detailTask,   setDetailTask]   = useState<LifeTask | null>(null);
   const [pageBody,     setPageBody]     = useState<string | null>(null);
   const [bodyLoading,  setBodyLoading]  = useState(false);
-  const [pickerTaskId, setPickerTaskId] = useState<string | null>(null);
+  const [emojiAnchor,  setEmojiAnchor]  = useState<EmojiAnchor | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const openDetail = useCallback((task: LifeTask) => {
@@ -1005,7 +1011,7 @@ export default function LifeTaskScreen() {
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
       body: JSON.stringify({ emoji }),
     }).catch(() => {});
-    setPickerTaskId(null);
+    setEmojiAnchor(null);
   }, [apiKey]);
 
   const handleEpicChange = useCallback((id: string, epic: string) => {
@@ -1111,7 +1117,7 @@ export default function LifeTaskScreen() {
     );
   }
 
-  const pickerTask = pickerTaskId ? tasks.find(t => t.id === pickerTaskId) ?? null : null;
+  const pickerTask = emojiAnchor ? tasks.find(t => t.id === emojiAnchor.taskId) ?? null : null;
 
   const [resetting, setResetting] = useState(false);
   const onResetPress = useCallback(async () => {
@@ -1142,7 +1148,7 @@ export default function LifeTaskScreen() {
       {config.emojis.length > 1 && (
         <View style={sc.filterBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.filterScroll}>
-            {config.emojis.map(e => {
+            {config.emojis.filter(e => norm(e) !== norm(HIDDEN_EMOJI)).map(e => {
               const isActive = activeEmoji !== null && norm(activeEmoji) === norm(e);
               return (
                 <Pressable
@@ -1206,7 +1212,7 @@ export default function LifeTaskScreen() {
                       task={task}
                       isDragging={false}
                       dimValue={ZERO_ANIM}
-                      onEmojiPress={() => setPickerTaskId(task.id)}
+                      onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
                       onPress={() => openDetail(task)}
                       onLongPress={() => {}}
                       onChecked={() => handleCheckOff(task.id)}
@@ -1249,7 +1255,7 @@ export default function LifeTaskScreen() {
                       task={task}
                       isDragging={isDragging}
                       dimValue={isDragging ? ZERO_ANIM : dimAnim}
-                      onEmojiPress={() => setPickerTaskId(task.id)}
+                      onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
                       onPress={() => openDetail(task)}
                       onLongPress={() => startDrag(idx)}
                       onChecked={() => handleCheckOff(task.id)}
@@ -1287,11 +1293,11 @@ export default function LifeTaskScreen() {
         isTablet={isTablet}
       />
 
-      <EmojiPicker
-        visible={!!pickerTask}
+      <InlineEmojiPicker
+        anchor={emojiAnchor}
         emojis={config.emojis}
         onSelect={(e) => { if (pickerTask) handleEmojiChange(pickerTask.id, e); }}
-        onClose={() => setPickerTaskId(null)}
+        onClose={() => setEmojiAnchor(null)}
       />
 
       <QuickAddSheet
@@ -1313,7 +1319,13 @@ const s = StyleSheet.create({
   overlay:        { flex: 1 },
   overlayCenter:  { justifyContent: "center", alignItems: "center" },
 
-  // ── EmojiPicker sheet (still a bottom sheet) ────────────────────────────
+  // ── Sheet base (no absolute positioning — used for tablet-centred detail sheet)
+  sheetBase: {
+    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
+  },
+
+  // ── Phone bottom sheet (absolute, anchored to bottom) ───────────────────
   sheet: {
     backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
@@ -1321,10 +1333,24 @@ const s = StyleSheet.create({
   },
   handle: { width: 38, height: 5, borderRadius: 3, backgroundColor: Colors.border, alignSelf: "center", marginTop: 10, marginBottom: 18 },
   sheetTitle: { color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 20 },
-  emojiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 8 },
-  emojiCell: { width: 68, height: 68, borderRadius: 16, backgroundColor: Colors.cardBgElevated, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border },
-  emojiCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
-  emojiCellText: { fontSize: 30 },
+
+  // ── Inline emoji popover ─────────────────────────────────────────────────
+  emojiPopover: {
+    position: "absolute",
+    backgroundColor: Colors.cardBg,
+    borderRadius: 16, borderWidth: 1, borderColor: Colors.border,
+    padding: 10, flexDirection: "row", flexWrap: "wrap", gap: 8,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
+  },
+  emojiPopCell: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: Colors.cardBgElevated,
+    borderWidth: 1, borderColor: Colors.border,
+    alignItems: "center", justifyContent: "center",
+  },
+  emojiPopCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
+  emojiPopText: { fontSize: 24 },
 
   // ── Detail sheet (bottom sheet) ─────────────────────────────────────────
   dsTitleInput: {
