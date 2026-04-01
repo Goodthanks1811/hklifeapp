@@ -724,7 +724,6 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
           returnKeyType="done"
           onSubmitEditing={handleSave}
           keyboardAppearance="dark"
-          autoFocus={visible}
         />
       </Animated.View>
 
