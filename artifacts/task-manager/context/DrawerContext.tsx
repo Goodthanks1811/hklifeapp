@@ -3,7 +3,7 @@ import { Animated, Dimensions, Platform } from "react-native";
 
 const SCREEN_WIDTH  = Dimensions.get("window").width;
 export const isTablet      = SCREEN_WIDTH >= 768;
-export const SIDEBAR_WIDTH = isTablet ? Math.min(280, Math.round(SCREEN_WIDTH * 0.28)) : 0;
+export const SIDEBAR_WIDTH = isTablet ? Math.min(300, Math.round(SCREEN_WIDTH * 0.28)) : 0;
 
 const DRAWER_WIDTH_PHONE = Math.min(SCREEN_WIDTH * 0.78, 320);
 const DRAWER_WIDTH       = isTablet ? SIDEBAR_WIDTH : DRAWER_WIDTH_PHONE;

@@ -90,7 +90,7 @@ function AccordionSection({
           </Animated.View>
         )}
       </TouchableOpacity>
-      <Animated.View style={{ height: accordion.listHeight, overflow: "hidden" }}>
+      <Animated.View style={{ height: accordion.listHeight, overflow: "hidden", backgroundColor: "#111111" }}>
         {items.map((item, i) => (
           <DrawerMenuItem
             key={`${item.label}-${i}`}

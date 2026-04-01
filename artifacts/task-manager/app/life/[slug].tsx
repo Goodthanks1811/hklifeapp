@@ -68,21 +68,16 @@ const SLUG_MAP: Record<string, SlugConfig> = {
 
 // ── Epic pill colours — dark-tinted bg + coloured text ────────────────────────
 // Each slot: [bg, border, text]
-const EPIC_PALETTE: [string, string, string][] = [
-  ["#0d1e30", "#1e3e62", "#5b9bd5"], // blue
-  ["#1a0d2e", "#3a1e62", "#a07be0"], // purple
-  ["#0a201a", "#1a4038", "#3ec49e"], // teal
-  ["#201400", "#4a3400", "#e0b040"], // gold
-  ["#1e0a0a", "#5e1e1e", "#e05a5a"], // red
-  ["#1e1008", "#5c3018", "#e07840"], // orange
-  ["#0a1a0a", "#1e4e1e", "#5bc85b"], // green
-  ["#1e0a1a", "#5e1e52", "#d070c0"], // pink
-];
+const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string }> = {
+  "Enhancement": { bg: "rgba(64,192,87,0.14)",   border: "rgba(64,192,87,0.40)",   text: "#40C057" },
+  "Bug":         { bg: "rgba(224,49,49,0.14)",   border: "rgba(224,49,49,0.40)",   text: "#E03131" },
+  "Research":    { bg: "rgba(51,154,240,0.14)",  border: "rgba(51,154,240,0.40)",  text: "#339AF0" },
+  "General":     { bg: "rgba(134,142,150,0.14)", border: "rgba(134,142,150,0.40)", text: "#868E96" },
+  "New App":     { bg: "rgba(250,176,5,0.14)",   border: "rgba(250,176,5,0.40)",   text: "#FAB005" },
+};
+const EPIC_FALLBACK = { bg: "rgba(134,142,150,0.12)", border: "rgba(134,142,150,0.30)", text: "#868E96" };
 function epicColor(epic: string): { bg: string; border: string; text: string } {
-  let h = 0;
-  for (let i = 0; i < epic.length; i++) h = ((h * 31) + epic.charCodeAt(i)) >>> 0;
-  const [bg, border, text] = EPIC_PALETTE[h % EPIC_PALETTE.length];
-  return { bg, border, text };
+  return EPIC_COLOUR_MAP[epic] ?? EPIC_FALLBACK;
 }
 
 // ── Loader timing (ms) ────────────────────────────────────────────────────────

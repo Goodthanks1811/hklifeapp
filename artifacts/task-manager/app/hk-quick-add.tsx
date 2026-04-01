@@ -43,13 +43,11 @@ const HK_DB_ID  = "2c8b7eba3523802abbe2e934df42a4e2";
 const HK_CATEGORY = " ".repeat(22) + "\u26A1\uFE0F   Automation";
 
 const EPICS: { label: string; bg: string; bgA: string; tx: string }[] = [
-  { label: "General",     bg: "rgba(255,255,255,0.09)", bgA: "rgba(255,255,255,0.22)", tx: "#ffffff" },
-  { label: "Redesign",    bg: "rgba(96,165,250,0.14)",  bgA: "rgba(96,165,250,0.34)",  tx: "#93c5fd" },
-  { label: "Bug",         bg: "rgba(248,113,113,0.14)", bgA: "rgba(248,113,113,0.34)", tx: "#fca5a5" },
-  { label: "Enhancement", bg: "rgba(74,222,128,0.14)",  bgA: "rgba(74,222,128,0.34)",  tx: "#86efac" },
-  { label: "New App",     bg: "rgba(250,204,21,0.14)",  bgA: "rgba(250,204,21,0.34)",  tx: "#fde047" },
-  { label: "Spike",       bg: "rgba(192,132,252,0.14)", bgA: "rgba(192,132,252,0.34)", tx: "#d8b4fe" },
-  { label: "Research",    bg: "rgba(148,163,184,0.13)", bgA: "rgba(148,163,184,0.30)", tx: "#cbd5e1" },
+  { label: "Enhancement", bg: "rgba(64,192,87,0.14)",   bgA: "rgba(64,192,87,0.34)",   tx: "#40C057" },
+  { label: "Bug",         bg: "rgba(224,49,49,0.14)",   bgA: "rgba(224,49,49,0.34)",   tx: "#E03131" },
+  { label: "Research",    bg: "rgba(51,154,240,0.14)",  bgA: "rgba(51,154,240,0.34)",  tx: "#339AF0" },
+  { label: "General",     bg: "rgba(134,142,150,0.14)", bgA: "rgba(134,142,150,0.34)", tx: "#868E96" },
+  { label: "New App",     bg: "rgba(250,176,5,0.14)",   bgA: "rgba(250,176,5,0.34)",   tx: "#FAB005" },
 ];
 
 const PICKER_EMOJIS = ["🔥", "🚆", "🏡", "👀", "💡"];
