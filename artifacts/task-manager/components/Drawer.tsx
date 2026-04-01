@@ -206,9 +206,6 @@ export function Drawer() {
             style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 48 }}
             pointerEvents="none"
           />
-          <View style={styles.bannerReplaceBadge}>
-            <Feather name="camera" size={12} color="rgba(255,255,255,0.85)" />
-          </View>
         </Pressable>
       </View>
 
@@ -350,19 +347,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 100,
     overflow: "hidden",
-  },
-  bannerReplaceBadge: {
-    position: "absolute",
-    bottom: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    backgroundColor: "rgba(0,0,0,0.52)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
   },
   scrollArea: { flex: 1 },
   section: { paddingHorizontal: 12, marginBottom: 2 },
