@@ -30,7 +30,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable } from "react-native-gesture-handler";
+import { Swipeable, TouchableOpacity as GHTouchable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
@@ -767,9 +767,17 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const checkScale    = useRef(new Animated.Value(0)).current;
   const opacityAnim   = useRef(new Animated.Value(1)).current;
   const rowScale      = useRef(new Animated.Value(1)).current;
+  const pressScale    = useRef(new Animated.Value(1)).current;
   const deletingRef   = useRef(false);
   const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
+
+  const onPressIn = useCallback(() => {
+    Animated.spring(pressScale, { toValue: 0.965, useNativeDriver: true, tension: 500, friction: 18 }).start();
+  }, [pressScale]);
+  const onPressOut = useCallback(() => {
+    Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 14 }).start();
+  }, [pressScale]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
@@ -831,34 +839,44 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ scale: pressScale }] }]}>
           {/* Emoji */}
-          <Pressable
-            ref={emojiBtnRef}
+          <GHTouchable
+            ref={emojiBtnRef as any}
             onPress={() => handleRowTap(() => {
               (emojiBtnRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
                 onEmojiPress(px, py, w, h);
               });
             })}
             hitSlop={6}
+            activeOpacity={0.6}
             style={sc.emojiBtn}
           >
             <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
-          </Pressable>
+          </GHTouchable>
 
-          {/* Name */}
-          <Pressable style={{ flex: 1 }} onPress={() => handleRowTap(onPress)} onLongPress={onLongPress} delayLongPress={200}>
+          {/* Name — GHTouchable plays nicely with Swipeable (no double-tap) */}
+          <GHTouchable
+            style={{ flex: 1 }}
+            activeOpacity={0.7}
+            onPress={() => handleRowTap(onPress)}
+            onLongPress={onLongPress}
+            delayLongPress={200}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+          >
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
-          </Pressable>
+          </GHTouchable>
 
           {/* Epic pill — tappable when epicOptions are loaded */}
           {showEpic && task.epic ? (() => {
             const ec        = epicColor(task.epic);
             const canChange = !!(onEpicPress && epicOptions?.length);
             return (
-              <Pressable
-                ref={epicPillRef}
+              <GHTouchable
+                ref={epicPillRef as any}
                 disabled={!canChange}
+                activeOpacity={0.6}
                 onPress={() => handleRowTap(() => {
                   (epicPillRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
                     onEpicPress!(px, py, w, h);
@@ -869,7 +887,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
                 <View style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}>
                   <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic}</Text>
                 </View>
-              </Pressable>
+              </GHTouchable>
             );
           })() : null}
 
@@ -881,7 +899,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
               </Animated.View>
             </Animated.View>
           </Pressable>
-        </View>
+        </Animated.View>
       </Swipeable>
     </Animated.View>
   );
