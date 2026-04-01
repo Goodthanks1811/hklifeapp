@@ -1349,12 +1349,16 @@ export default function LifeTaskScreen() {
               {tasks.map((task, idx) => {
                 const isDragging = dragActiveIdx === idx;
                 const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
+                // Only the actively-dragged row uses posAnim+panY; all others just use posAnim
+                const translateY = isDragging
+                  ? (addedAnims.current[task.id] ?? posAnim)
+                  : posAnim;
                 return (
                   <Animated.View
                     key={task.id}
                     style={[
                       sc.absItem,
-                      { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY: addedAnims.current[task.id] ?? posAnim }] },
+                      { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] },
                     ]}
                   >
                     <TaskRow
