@@ -179,8 +179,11 @@ export function Drawer() {
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isTablet) {
-      // Life routes: ensure drawer stays open; other routes: leave drawer as-is
-      if (isLifeRoute(route)) showTabletSidebar();
+      if (isLifeRoute(route)) {
+        showTabletSidebar();   // life → keep/lock open
+      } else {
+        hideTabletSidebar();   // non-life → close; user can swipe back in
+      }
       router.push(route as any);
     } else {
       closeDrawer();
@@ -271,32 +274,15 @@ export function Drawer() {
   );
 
   if (isTablet) {
-    // Backdrop opacity tracks the sidebar slide position
-    const backdropOpacity = sidebarSlide.interpolate({
-      inputRange: [-SIDEBAR_WIDTH, 0],
-      outputRange: [0, 1],
-      extrapolate: "clamp",
-    });
     return (
-      <>
-        {/* Backdrop — only on non-life screens so user can tap to close */}
-        {!onLifeScreen && (
-          <Animated.View
-            pointerEvents={tabletSidebarVisible ? "auto" : "none"}
-            style={[styles.overlay, { opacity: backdropOpacity }]}
-          >
-            <Pressable style={StyleSheet.absoluteFill} onPress={hideTabletSidebar} />
-          </Animated.View>
-        )}
-
-        {/* Drawer panel — swipe-left to close on non-life screens */}
-        <Animated.View
-          style={[styles.sidebarContainer, { transform: [{ translateX: sidebarSlide }] }]}
-          {...(!onLifeScreen ? swipePan.panHandlers : {})}
-        >
-          {drawerContent}
-        </Animated.View>
-      </>
+      // Swipe-left on the drawer panel to close (only works on non-life screens
+      // since the effect immediately re-opens it on life screens)
+      <Animated.View
+        style={[styles.sidebarContainer, { transform: [{ translateX: sidebarSlide }] }]}
+        {...swipePan.panHandlers}
+      >
+        {drawerContent}
+      </Animated.View>
     );
   }
 
