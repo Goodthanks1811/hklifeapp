@@ -552,11 +552,21 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
-  const [title,     setTitle]    = useState("");
-  const [notes,     setNotes]    = useState("");
-  const [selEmoji,  setSelEmoji] = useState<string | null>(null);
-  const [localCat,  setLocalCat] = useState<string>(catValue);
-  const [saving,    setSaving]   = useState(false);
+  const [title,        setTitle]       = useState("");
+  const [notes,        setNotes]       = useState("");
+  const [selEmoji,     setSelEmoji]    = useState<string | null>(null);
+  const [localCat,     setLocalCat]    = useState<string>(catValue);
+  const [loaderVisible, setLoaderVisible] = useState(false);
+
+  // Loader animation refs — identical to DetailSheet
+  const overlayOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerRotation = useRef(new Animated.Value(0)).current;
+  const circleScale     = useRef(new Animated.Value(0)).current;
+  const circleOpacity   = useRef(new Animated.Value(0)).current;
+  const tickScale       = useRef(new Animated.Value(0)).current;
+  const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
+  const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -602,28 +612,71 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
     }
   }, [visible]);
 
-  const dismiss = () => { Keyboard.dismiss(); onClose(); };
+  const dismiss = useCallback(() => { Keyboard.dismiss(); onClose(); }, [onClose]);
 
-  const handleSave = async () => {
+  const resetLoader = useCallback(() => {
+    overlayOpacity.setValue(0); spinnerOpacity.setValue(0);
+    spinnerRotation.setValue(0); circleScale.setValue(0);
+    circleOpacity.setValue(0);  tickScale.setValue(0);
+  }, []);
+
+  const runLoader = useCallback(
+    (apiPromise: Promise<void>) =>
+      new Promise<void>((resolve) => {
+        resetLoader();
+        setLoaderVisible(true);
+        const tracked = apiPromise.then(() => {}).catch(() => {});
+        spinLoopRef.current = Animated.loop(
+          Animated.timing(spinnerRotation, { toValue: 1, duration: 600, easing: Easing.linear, useNativeDriver: true })
+        );
+        spinLoopRef.current.start();
+        Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
+          Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPINNER_IN, useNativeDriver: true }).start(() => {
+            const minSpin = new Promise<void>((r) => setTimeout(r, T_MIN_SPIN));
+            Promise.all([tracked, minSpin]).then(() => {
+              spinLoopRef.current?.stop();
+              Animated.parallel([
+                Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP,       useNativeDriver: true }),
+                Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
+                Animated.timing(circleScale,    { toValue: 1, duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
+              ]).start(() => {
+                Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
+                  setTimeout(() => {
+                    Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+                      setLoaderVisible(false);
+                      resetLoader();
+                      dismiss();
+                      resolve();
+                    });
+                  }, T_HOLD);
+                });
+              });
+            });
+          });
+        });
+      }),
+    [resetLoader, dismiss]
+  );
+
+  const handleSave = useCallback(() => {
     const t = title.trim();
     if (!t) { triggerShake(); return; }
-    if (!apiKey || saving) return;
-    setSaving(true);
-    try {
-      const emoji = selEmoji ?? DEFAULT_EMOJI;
-      const payload: any = {
-        dbId: LIFE_DB_ID, title: t, category: localCat,
-        emoji, priType: schema?.priType ?? "select",
-        priOptions: schema?.priOptions ?? null,
-        categoryType: schema?.categoryType ?? "select",
-      };
-      const r = await fetch(`${BASE_URL}/api/notion/pages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-        body: JSON.stringify(payload),
-      });
-      const data = await r.json();
-      if (data.id) {
+    if (!apiKey || loaderVisible) return;
+    const emoji = selEmoji ?? DEFAULT_EMOJI;
+    const payload: any = {
+      dbId: LIFE_DB_ID, title: t, category: localCat,
+      emoji, priType: schema?.priType ?? "select",
+      priOptions: schema?.priOptions ?? null,
+      categoryType: schema?.categoryType ?? "select",
+    };
+    const apiPromise = fetch(`${BASE_URL}/api/notion/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.id) throw new Error("no id");
         const n = notes.trim();
         if (n) {
           fetch(`${BASE_URL}/api/notion/page-blocks/${data.id}`, {
@@ -634,22 +687,33 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null });
-        dismiss();
-      } else {
-        setSaving(false);
-      }
-    } catch {
-      setSaving(false);
-    }
-  };
+      });
+    runLoader(apiPromise);
+  }, [title, notes, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
 
   const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.7)"] });
   const cardW   = Math.min(600, screenW * 0.88);
 
+  const qaLoaderOverlay = loaderVisible ? (
+    <Animated.View style={[s.dsLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
+      <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+        <View style={s.dsSpinnerRing} />
+      </Animated.View>
+      <Animated.View style={[s.dsCircleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+        <Animated.View style={{ transform: [{ scale: tickScale }] }}>
+          <Svg width={52} height={52} viewBox="0 0 68 68">
+            <SvgPath fill="none" stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+          </Svg>
+        </Animated.View>
+      </Animated.View>
+    </Animated.View>
+  ) : null;
+
   // ── Inner content (shared between phone/tablet) ───────────────────────────
   const innerContent = (
     <>
-      <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+      {/* Title — extra paddingBottom ensures emojis don't crowd it */}
+      <Animated.View style={{ transform: [{ translateX: shakeAnim }], paddingBottom: 4 }}>
         <TextInput
           style={s.dsTitleInput}
           value={title}
@@ -722,11 +786,9 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
         <Pressable style={s.dsCancelBtn} onPress={dismiss}>
           <Text style={s.dsCancelTx}>Close</Text>
         </Pressable>
-        <TouchableOpacity activeOpacity={0.8} style={[s.dsUpdateBtn, saving && { opacity: 0.6 }]} onPress={handleSave}>
-          {saving
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <><Feather name="plus" size={15} color="#fff" /><Text style={s.dsUpdateTx}>Add Task</Text></>
-          }
+        <TouchableOpacity activeOpacity={0.8} style={s.dsUpdateBtn} onPress={handleSave}>
+          <Feather name="plus" size={15} color="#fff" />
+          <Text style={s.dsUpdateTx}>Add Task</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -743,12 +805,14 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
             <View style={s.dsCardTop}>
               {innerContent}
             </View>
+            {qaLoaderOverlay}
           </Animated.View>
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
           <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
             <View style={s.handle} />
             {innerContent}
+            {qaLoaderOverlay}
           </Animated.View>
         )}
       </Animated.View>
