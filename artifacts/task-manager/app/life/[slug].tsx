@@ -487,7 +487,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
           </Animated.View>
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
-          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
+          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
             <View style={s.handle} />
             {sheetContent}
             {bodySection}
@@ -506,36 +506,33 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
   onAdded: (task: LifeTask) => void; onClose: () => void;
   isTablet: boolean;
 }) {
+  const scaleAnim = useRef(new Animated.Value(0.93)).current;
   const slideAnim = useRef(new Animated.Value(500)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
-  const [title,    setTitle]   = useState("");
+  const { width: screenW } = useWindowDimensions();
+  const [title,    setTitle]    = useState("");
   const [selEmoji, setSelEmoji] = useState<string | null>(null);
-  const [saving,   setSaving]  = useState(false);
-  const inputRef  = useRef<TextInput>(null);
+  const [saving,   setSaving]   = useState(false);
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 6,  duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -6, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0,  duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 55, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 55, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 50, useNativeDriver: false }),
     ]).start();
   };
 
-  // Keyboard avoidance — sheet slides up with the keyboard
+  // Keyboard avoidance
   useEffect(() => {
-    const onShow = (e: any) => Animated.timing(kbAnim, {
-      toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false,
-    }).start();
-    const onHide = (e: any) => Animated.timing(kbAnim, {
-      toValue: 0, duration: e.duration || 200, useNativeDriver: false,
-    }).start();
+    const onShow = (e: any) => Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
+    const onHide = (e: any) => Animated.timing(kbAnim, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
     const s1 = Keyboard.addListener("keyboardWillShow", onShow);
     const s2 = Keyboard.addListener("keyboardWillHide", onHide);
     const s3 = Keyboard.addListener("keyboardDidShow",  onShow);
@@ -546,13 +543,19 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
   useEffect(() => {
     if (visible) {
       setTitle(""); setSelEmoji(null); setSaving(false);
+      scaleAnim.setValue(0.93);
+      slideAnim.setValue(500);
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 90, friction: 13 }),
+        isTablet
+          ? Animated.spring(scaleAnim, { toValue: 1,   useNativeDriver: false, tension: 120, friction: 14 })
+          : Animated.spring(slideAnim, { toValue: 0,   useNativeDriver: false, tension: 90,  friction: 13 }),
         Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 500, duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        isTablet
+          ? Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) })
+          : Animated.timing(slideAnim, { toValue: 500,  duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
         Animated.timing(bgAnim, { toValue: 0, duration: 190, useNativeDriver: false }),
       ]).start();
     }
@@ -591,63 +594,81 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
     }
   };
 
-  const bg = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.65)"] });
+  const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.7)"] });
+  const cardW   = Math.min(600, screenW * 0.88);
 
-  const tabletSheetStyle = isTablet ? {
-    position: undefined as any, left: undefined, right: undefined, bottom: undefined,
-    width: 480, maxWidth: "90%" as any, borderRadius: 20,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    alignSelf: "center" as const,
-    marginHorizontal: "auto" as any,
-    transform: [{ scale: slideAnim.interpolate({ inputRange: [0, 500], outputRange: [1, 0.92] }) }],
-  } : { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] };
+  // ── Inner content (shared between phone/tablet) ───────────────────────────
+  const innerContent = (
+    <>
+      <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+        <TextInput
+          style={s.dsTitleInput}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Task name…"
+          placeholderTextColor={Colors.textMuted}
+          selectionColor={Colors.primary}
+          returnKeyType="done"
+          onSubmitEditing={handleSave}
+          keyboardAppearance="dark"
+          autoFocus={visible}
+        />
+      </Animated.View>
+
+      {/* Emoji row */}
+      {catEmojis.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 12 }]}>
+          {catEmojis.map((e, i) => {
+            const selected = norm(selEmoji ?? "") === norm(e);
+            return (
+              <Pressable
+                key={`qa-emoji-${i}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEmoji(e); }}
+                style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
+              >
+                <Text style={s.dsEmojiText}>{e}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={s.dsDivider} />
+
+      {/* Buttons */}
+      <View style={s.dsActions}>
+        <Pressable style={s.dsCancelBtn} onPress={dismiss}>
+          <Text style={s.dsCancelTx}>Close</Text>
+        </Pressable>
+        <TouchableOpacity activeOpacity={0.8} style={[s.dsUpdateBtn, saving && { opacity: 0.6 }]} onPress={handleSave}>
+          {saving
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <><Feather name="plus" size={15} color="#fff" /><Text style={s.dsUpdateTx}>Add Task</Text></>
+          }
+        </TouchableOpacity>
+      </View>
+    </>
+  );
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
       <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[s.sheet, { paddingBottom: isTablet ? 24 : insets.bottom + 20 }, tabletSheetStyle]}>
-          <View style={s.handle} />
-          <Text style={s.sheetTitle}>Quick Add</Text>
 
-          <TextInput
-            ref={inputRef}
-            style={s.qaInput}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Task name…"
-            placeholderTextColor={Colors.textMuted}
-            selectionColor={Colors.primary}
-            returnKeyType="done"
-            onSubmitEditing={handleSave}
-          />
-
-          {/* Emoji row */}
-          <View style={s.qaEmojiRow}>
-            {catEmojis.map(e => (
-              <Pressable
-                key={e}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEmoji(e); }}
-                style={[s.qaEmoji, norm(selEmoji ?? "") === norm(e) && s.qaEmojiActive]}
-              >
-                <Text style={s.qaEmojiText}>{e}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[s.qaAddBtn, saving && { opacity: 0.6 }]}
-              onPress={handleSave}
-            >
-              {saving
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <><Feather name="plus" size={16} color="#fff" /><Text style={s.qaAddBtnTx}>Add Task</Text></>
-              }
-            </TouchableOpacity>
+        {isTablet ? (
+          // ── iPad: centered card ───────────────────────────────────
+          <Animated.View style={[s.dsCard, { width: cardW, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
+            <View style={s.dsCardTop}>
+              {innerContent}
+            </View>
           </Animated.View>
-        </Animated.View>
+        ) : (
+          // ── Phone: bottom sheet ───────────────────────────────────
+          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
+            <View style={s.handle} />
+            {innerContent}
+          </Animated.View>
+        )}
       </Animated.View>
     </Modal>
   );
