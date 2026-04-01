@@ -176,7 +176,7 @@ export function Drawer() {
 
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
-      <View style={{ paddingTop: topPad + (isTablet ? 44 : 12), paddingBottom: isTablet ? 20 : 24 }}>
+      <View style={{ paddingTop: topPad + (isTablet ? 74 : 12), paddingBottom: isTablet ? 20 : 24 }}>
         <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 64 : 100 }]}>
           <Image
             source={{ uri: bannerUri ?? FALLBACK_BANNER }}
