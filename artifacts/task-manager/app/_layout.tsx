@@ -42,11 +42,11 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function TabletShell({ children }: { children: React.ReactNode }) {
-  const { isTablet, SIDEBAR_WIDTH } = useDrawer();
+  const { isTablet, SIDEBAR_WIDTH, tabletSidebarVisible } = useDrawer();
   if (!isTablet) return <>{children}</>;
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
-      <View style={{ width: SIDEBAR_WIDTH }} />
+      <View style={{ width: tabletSidebarVisible ? SIDEBAR_WIDTH : 0 }} />
       <View style={{ flex: 1 }}>{children}</View>
     </View>
   );

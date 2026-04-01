@@ -66,19 +66,27 @@ function AccordionSection({
   items,
   accordion,
   navigate,
+  permanentlyOpen,
 }: {
-  label:    string;
-  items:    MenuItem[];
-  accordion: ReturnType<typeof useAccordion>;
-  navigate: (route: string) => void;
+  label:           string;
+  items:           MenuItem[];
+  accordion:       ReturnType<typeof useAccordion>;
+  navigate:        (route: string) => void;
+  permanentlyOpen?: boolean;
 }) {
   return (
     <View style={styles.section}>
-      <TouchableOpacity style={styles.accordionHeader} onPress={accordion.toggle} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.accordionHeader}
+        onPress={permanentlyOpen ? undefined : accordion.toggle}
+        activeOpacity={permanentlyOpen ? 1 : 0.7}
+      >
         <Text style={styles.sectionLabel}>{label}</Text>
-        <Animated.View style={{ transform: [{ rotate: accordion.chevronRotate }] }}>
-          <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
-        </Animated.View>
+        {!permanentlyOpen && (
+          <Animated.View style={{ transform: [{ rotate: accordion.chevronRotate }] }}>
+            <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+          </Animated.View>
+        )}
       </TouchableOpacity>
       <Animated.View style={{ height: accordion.listHeight, overflow: "hidden" }}>
         {items.map((item, i) => (
@@ -95,8 +103,15 @@ function AccordionSection({
 }
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
+const LIFE_ROUTE_PREFIX = "/life/";
+const isLifeRoute = (route: string) => route.startsWith(LIFE_ROUTE_PREFIX);
+
 export function Drawer() {
-  const { isOpen, drawerAnim, overlayAnim, closeDrawer, DRAWER_WIDTH, isTablet } = useDrawer();
+  const {
+    isOpen, drawerAnim, overlayAnim, sidebarSlide,
+    closeDrawer, hideTabletSidebar, showTabletSidebar,
+    DRAWER_WIDTH, isTablet,
+  } = useDrawer();
   const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
   const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY } = useHeaderImage();
   const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
@@ -125,11 +140,17 @@ export function Drawer() {
 
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!isTablet) closeDrawer();
-    if (!isTablet) {
-      setTimeout(() => router.push(route as any), 200);
+    if (isTablet) {
+      if (isLifeRoute(route)) {
+        showTabletSidebar();
+        router.push(route as any);
+      } else {
+        hideTabletSidebar();
+        setTimeout(() => router.push(route as any), 80);
+      }
     } else {
-      router.push(route as any);
+      closeDrawer();
+      setTimeout(() => router.push(route as any), 200);
     }
   };
 
@@ -158,6 +179,7 @@ export function Drawer() {
               items={visibleItems[key]}
               accordion={accordions[key]}
               navigate={navigate}
+              permanentlyOpen={key === "life" && isTablet}
             />
             <View style={styles.divider} />
           </React.Fragment>
@@ -191,9 +213,9 @@ export function Drawer() {
 
   if (isTablet) {
     return (
-      <View style={styles.sidebarContainer}>
+      <Animated.View style={[styles.sidebarContainer, { transform: [{ translateX: sidebarSlide }] }]}>
         {drawerContent}
-      </View>
+      </Animated.View>
     );
   }
 
