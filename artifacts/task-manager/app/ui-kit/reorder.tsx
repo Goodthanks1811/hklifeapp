@@ -1,11 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import {
-  Gesture,
-  GestureDetector,
-  ScrollView,
-} from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -13,12 +9,13 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { runOnJS } from "react-native-reanimated";
+import { runOnJS } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 
@@ -252,12 +249,9 @@ function LiveDraggableList({ items, setItems, onItemPress }: {
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   onItemPress: (item: Item) => void;
 }) {
-  const posAnims = useRef<Record<string, Animated.Value>>({});
-  items.forEach((item, i) => {
-    if (!posAnims.current[item.id]) {
-      posAnims.current[item.id] = new Animated.Value(i * ITEM_H);
-    }
-  });
+  const posAnims = useRef<Record<string, Animated.Value>>(
+    Object.fromEntries(items.map((item, i) => [item.id, new Animated.Value(i * ITEM_H)]))
+  );
 
   const draggingIdxRef = useRef(-1);
   const hoverIdxRef = useRef(-1);
