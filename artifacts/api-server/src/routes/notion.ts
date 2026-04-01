@@ -318,6 +318,9 @@ router.get("/schema/:dbId", async (req, res) => {
       priType === "status" ? (priProp?.status?.options || []).map((o: any) => o.name.replace(/\uFE0F/g, "")) : null;
     const epicProp = props["Epic"];
     const epicType = epicProp?.type || "select";
+    const epicOptions: string[] =
+      epicType === "select" ? (epicProp?.select?.options || []).map((o: any) => o.name) :
+      epicType === "status" ? (epicProp?.status?.options || []).map((o: any) => o.name) : [];
     const priorityProp = props["Priority"];
     const priorityType = priorityProp?.type || "select";
     const categoryProp = props["Category"];
@@ -326,7 +329,7 @@ router.get("/schema/:dbId", async (req, res) => {
       categoryType === "select"       ? (categoryProp?.select?.options       || []).map((o: any) => o.name) :
       categoryType === "multi_select" ? (categoryProp?.multi_select?.options || []).map((o: any) => o.name) :
       categoryType === "status"       ? (categoryProp?.status?.options       || []).map((o: any) => o.name) : [];
-    res.json({ priType, priOptions, epicType, priorityType, categoryType, categoryOptions });
+    res.json({ priType, priOptions, epicType, epicOptions, priorityType, categoryType, categoryOptions });
   } catch (e: any) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -470,7 +473,12 @@ router.get("/life-tasks", async (req, res) => {
         }
       }
 
-      return { id: page.id, title, emoji, sortOrder, url };
+      const epicProp2 = props["Epic"];
+      let epic: string | null = null;
+      if (epicProp2?.type === "select" && epicProp2?.select?.name)       epic = epicProp2.select.name;
+      else if (epicProp2?.type === "status" && epicProp2?.status?.name)  epic = epicProp2.status.name;
+
+      return { id: page.id, title, emoji, sortOrder, url, epic };
     });
 
     res.json({ tasks });
@@ -505,7 +513,7 @@ router.delete("/life-tasks/:pageId", async (req, res) => {
 router.patch("/life-tasks/:pageId", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
   const { pageId } = req.params;
-  const { emoji, sortOrder, done, title } = req.body;
+  const { emoji, sortOrder, done, title, epic } = req.body;
   if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
 
   try {
@@ -533,6 +541,10 @@ router.patch("/life-tasks/:pageId", async (req, res) => {
         else if (propType === "status") updateProps["-"] = { status: { name: clean } };
         else                            updateProps["-"] = { rich_text: [{ type: "text", text: { content: clean } }] };
       }
+    }
+
+    if (epic !== undefined && epic !== null) {
+      updateProps.Epic = { select: { name: epic } };
     }
 
     if (Object.keys(updateProps).length === 0) { res.json({ success: true }); return; }

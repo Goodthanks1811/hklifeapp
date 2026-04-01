@@ -49,15 +49,30 @@ const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
 
 // ── Slug config ───────────────────────────────────────────────────────────────
-type SlugConfig = { title: string; catValue: string; emojis: string[] };
+type SlugConfig = { title: string; catValue: string; emojis: string[]; sortEmojis?: string[]; showEpic?: boolean };
 const SLUG_MAP: Record<string, SlugConfig> = {
-  "life-admin":  { title: "Life Admin",  catValue: "\uD83D\uDCDD Life Admin",                               emojis: ["🔥","🖥️","🏡"] },
-  "investigate": { title: "Investigate", catValue: "\uD83D\uDD0E To Investigate",                         emojis: ["🔥","🚩","👀","🧠"] },
-  "to-buy":      { title: "To Buy",      catValue: "\uD83D\uDCB0 To Buy",                                   emojis: ["🔥","💳","💰"] },
-  "music":       { title: "Music",       catValue: "\uD83C\uDFA7 Music",                                    emojis: ["🎧"] },
-  "reference":   { title: "Reference",   catValue: "\uD83D\uDCCC Reference",                                emojis: ["📌"] },
-  "to-read":     { title: "To Read",     catValue: "\uD83D\uDCD5 Read",                                     emojis: ["📕"] },
+  "life-admin":  { title: "Life Admin",  catValue: "\uD83D\uDCDD Life Admin",       emojis: ["🔥","🖥️","🏡"] },
+  "investigate": { title: "Investigate", catValue: "\uD83D\uDD0E To Investigate",   emojis: ["🔥","🚩","👀","🧠"] },
+  "to-buy":      { title: "To Buy",      catValue: "\uD83D\uDCB0 To Buy",           emojis: ["🔥","💳","💰"] },
+  "music":       { title: "Music",       catValue: "\uD83C\uDFA7 Music",            emojis: ["🎧"] },
+  "reference":   { title: "Reference",   catValue: "\uD83D\uDCCC Reference",        emojis: ["📌"] },
+  "to-read":     { title: "To Read",     catValue: "\uD83D\uDCD5 Read",             emojis: ["📕"] },
+  "automation":  {
+    title: "Automation",
+    catValue: "⚡️   Automation",
+    emojis:     ["🔥","🚆","🏡","👀","💡","👎"],
+    sortEmojis: ["-","🔥","🚆","🏡","👀","💡"],
+    showEpic: true,
+  },
 };
+
+// ── Epic pill colours (hash-based, dark-theme palette) ────────────────────────
+const EPIC_BG_PALETTE = ["#6B2020","#1E4A2E","#1C2D5E","#5C3D10","#3D1C5E","#1C3D4A","#4A4A1C"];
+function epicColor(epic: string): { bg: string; text: string } {
+  let h = 0;
+  for (let i = 0; i < epic.length; i++) h = ((h * 31) + epic.charCodeAt(i)) >>> 0;
+  return { bg: EPIC_BG_PALETTE[h % EPIC_BG_PALETTE.length], text: "#fff" };
+}
 
 // ── Loader timing (ms) ────────────────────────────────────────────────────────
 const T_FADE_IN    = 200;
@@ -69,8 +84,8 @@ const T_HOLD       = 700;
 const T_FADE_OUT   = 450;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; }
-interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; }
+interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; epic?: string | null; }
+interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; epicOptions?: string[] | null; }
 
 const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
@@ -129,22 +144,25 @@ const DS_SPINNER_SIZE   = 72;
 const DS_SPINNER_STROKE = 8;
 const DS_CIRCLE_SIZE    = 74;
 
-function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange, isTablet }: {
-  task:          LifeTask | null;
-  catEmojis:     string[];
-  body:          string | null;
-  bodyLoading:   boolean;
-  onClose:       () => void;
-  onSave:        (id: string, title: string, notes: string) => Promise<void>;
-  onEmojiChange: (id: string, emoji: string) => void;
-  isTablet:      boolean;
+function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, epicOptions, isTablet }: {
+  task:           LifeTask | null;
+  catEmojis:      string[];
+  body:           string | null;
+  bodyLoading:    boolean;
+  onClose:        () => void;
+  onSave:         (id: string, title: string, notes: string) => Promise<void>;
+  onEmojiChange:  (id: string, emoji: string) => void;
+  onEpicChange?:  (id: string, epic: string) => void;
+  epicOptions?:   string[] | null;
+  isTablet:       boolean;
 }) {
   const slideAnim = useRef(new Animated.Value(600)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
-  const [title,   setTitle]  = useState("");
-  const [notes,   setNotes]  = useState("");
+  const [title,     setTitle]    = useState("");
+  const [notes,     setNotes]    = useState("");
+  const [localEpic, setLocalEpic] = useState<string | null>(null);
   const visible = !!task;
 
   // ── Loader anims ──────────────────────────────────────────────────────────
@@ -173,6 +191,11 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   useEffect(() => {
     if (visible) setNotes(body ?? "");
   }, [visible, body]);
+
+  // Sync localEpic when sheet opens
+  useEffect(() => {
+    if (visible) setLocalEpic(task?.epic ?? null);
+  }, [visible, task?.epic]);
 
   // ── Open / close animation ────────────────────────────────────────────────
   useEffect(() => {
@@ -291,6 +314,38 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
                       style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
                     >
                       <Text style={s.dsEmojiText}>{e}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Epic section */}
+          {epicOptions && epicOptions.length > 0 && (
+            <>
+              <Text style={s.dsSectionLabel}>EPIC</Text>
+              <View style={s.dsEmojiRow}>
+                {epicOptions.map(ep => {
+                  const selected = ep === localEpic;
+                  const ec = epicColor(ep);
+                  return (
+                    <Pressable
+                      key={ep}
+                      onPress={() => {
+                        if (!task) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setLocalEpic(ep);
+                        onEpicChange?.(task.id, ep);
+                      }}
+                      style={[
+                        s.dsEpicChip,
+                        { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.bg : Colors.border },
+                      ]}
+                    >
+                      <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>
+                        {ep.toUpperCase()}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -522,7 +577,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen }: {
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic }: {
   task:          LifeTask;
   isDragging:    boolean;
   dimValue:      Animated.Value;
@@ -532,6 +587,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   onChecked:     () => void;
   onDelete:      () => void;
   onSwipeOpen?:  (close: () => void) => void;
+  showEpic?:     boolean;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
   const checkScale   = useRef(new Animated.Value(0)).current;
@@ -612,6 +668,16 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
           </Pressable>
 
+          {/* Epic pill */}
+          {showEpic && task.epic ? (() => {
+            const ec = epicColor(task.epic);
+            return (
+              <View style={[sc.epicPill, { backgroundColor: ec.bg }]}>
+                <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic.toUpperCase()}</Text>
+              </View>
+            );
+          })() : null}
+
           {/* Checkbox */}
           <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={sc.checkBtn}>
             <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
@@ -640,11 +706,15 @@ export default function LifeTaskScreen() {
 
   // ── Emoji index helper (component-level so drag + sort + add share same logic) ─
   const emojiIdxFn = useCallback((e: string) => {
-    const catEmojis = config?.emojis ?? [];
+    const orderEmojis = config?.sortEmojis ?? config?.emojis ?? [];
     const ne = norm(e);
-    let i = catEmojis.findIndex(ce => norm(ce) === ne);
+    if (ne === norm(DEFAULT_EMOJI)) {
+      const di = orderEmojis.findIndex(ce => ce === DEFAULT_EMOJI || ce === "-");
+      if (di !== -1) return di;
+    }
+    let i = orderEmojis.findIndex(ce => norm(ce) === ne);
     if (i !== -1) return i;
-    i = catEmojis.findIndex(ce => {
+    i = orderEmojis.findIndex(ce => {
       const nc = norm(ce);
       return ne.startsWith(nc) || nc.startsWith(ne);
     });
@@ -670,13 +740,14 @@ export default function LifeTaskScreen() {
       });
       const data = await r.json();
       if (data.tasks) {
+        const allowList = config.sortEmojis ?? FULL_PICKER;
         const filtered = (data.tasks as LifeTask[]).filter(t => {
           // Always hide the explicit hidden-emoji marker
           if (norm(t.emoji) === norm(HIDDEN_EMOJI)) return false;
           // Keep items with no emoji assigned (default "-")
           if (t.emoji === DEFAULT_EMOJI || t.emoji === "") return true;
-          // Allow any emoji from the full picker set (so cross-category picks aren't silently lost)
-          return FULL_PICKER.some(e => norm(e) === norm(t.emoji));
+          // For sections with sortEmojis, only show those emoji groups; otherwise allow full picker
+          return allowList.some(e => norm(e) === norm(t.emoji));
         });
         // Sort: emoji group first, then sortOrder within group, then alphabetical
         filtered.sort((a, b) => {
@@ -708,8 +779,8 @@ export default function LifeTaskScreen() {
     if (!apiKey) return;
     fetch(`${BASE_URL}/api/notion/schema/${LIFE_DB_ID}`, { headers: { "x-notion-key": apiKey } })
       .then(r => r.json())
-      .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType }))
-      .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select" }));
+      .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType, epicOptions: d.epicOptions ?? null }))
+      .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select", epicOptions: null }));
   }, [fetchTasks]);
 
   const onRefresh = useCallback(async () => {
@@ -937,6 +1008,17 @@ export default function LifeTaskScreen() {
     setPickerTaskId(null);
   }, [apiKey]);
 
+  const handleEpicChange = useCallback((id: string, epic: string) => {
+    if (!apiKey) return;
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, epic } : t));
+    setDetailTask(prev => prev?.id === id ? { ...prev, epic } : prev);
+    fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+      body: JSON.stringify({ epic }),
+    }).catch(() => {});
+  }, [apiKey]);
+
   const handleCheckOff = useCallback((id: string) => {
     if (!apiKey) return;
     setTasks(prev => {
@@ -1130,6 +1212,7 @@ export default function LifeTaskScreen() {
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onSwipeOpen={handleSwipeOpen}
+                      showEpic={config?.showEpic}
                     />
                   </View>
                 ))}
@@ -1172,6 +1255,7 @@ export default function LifeTaskScreen() {
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onSwipeOpen={handleSwipeOpen}
+                      showEpic={config?.showEpic}
                     />
                   </Animated.View>
                 );
@@ -1198,6 +1282,8 @@ export default function LifeTaskScreen() {
         onClose={() => setDetailTask(null)}
         onSave={handleSaveTitle}
         onEmojiChange={handleEmojiChange}
+        onEpicChange={config?.showEpic ? handleEpicChange : undefined}
+        epicOptions={config?.showEpic ? (schema?.epicOptions ?? null) : null}
         isTablet={isTablet}
       />
 
@@ -1255,6 +1341,11 @@ const s = StyleSheet.create({
   },
   dsEmojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   dsEmojiText: { fontSize: 24 },
+  dsEpicChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  dsEpicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
   dsNotesInput: {
     backgroundColor: Colors.cardBgElevated, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight,
     color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
@@ -1363,6 +1454,13 @@ const sc = StyleSheet.create({
     alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
   },
   checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+
+  epicPill: {
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
+  },
+  epicPillText: {
+    fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4,
+  },
 
   fab: {
     position: "absolute", bottom: 32, right: 20,
