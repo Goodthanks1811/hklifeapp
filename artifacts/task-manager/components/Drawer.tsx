@@ -2,12 +2,13 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import React, { useCallback, useRef } from "react";
+import { router, usePathname } from "expo-router";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
   Image,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -111,9 +112,29 @@ const isLifeRoute = (route: string) => route.startsWith(LIFE_ROUTE_PREFIX);
 export function Drawer() {
   const {
     isOpen, drawerAnim, overlayAnim, sidebarSlide,
+    tabletSidebarVisible,
     closeDrawer, hideTabletSidebar, showTabletSidebar,
-    DRAWER_WIDTH, isTablet,
+    DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
+
+  const pathname    = usePathname();
+  const onLifeScreen = pathname.startsWith("/life/");
+
+  // Lock the drawer open whenever we're on a life screen
+  useEffect(() => {
+    if (isTablet && onLifeScreen) showTabletSidebar();
+  }, [isTablet, onLifeScreen]);
+
+  // Swipe-left on drawer panel to close (non-life screens only)
+  const swipePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        gs.dx < -8 && Math.abs(gs.dx) > Math.abs(gs.dy),
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -40) hideTabletSidebar();
+      },
+    })
+  ).current;
   const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
   const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
 
@@ -158,13 +179,9 @@ export function Drawer() {
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isTablet) {
-      if (isLifeRoute(route)) {
-        showTabletSidebar();
-        router.push(route as any);
-      } else {
-        hideTabletSidebar();
-        router.push(route as any);
-      }
+      // Life routes: ensure drawer stays open; other routes: leave drawer as-is
+      if (isLifeRoute(route)) showTabletSidebar();
+      router.push(route as any);
     } else {
       closeDrawer();
       setTimeout(() => router.push(route as any), 30);
@@ -254,10 +271,32 @@ export function Drawer() {
   );
 
   if (isTablet) {
+    // Backdrop opacity tracks the sidebar slide position
+    const backdropOpacity = sidebarSlide.interpolate({
+      inputRange: [-SIDEBAR_WIDTH, 0],
+      outputRange: [0, 1],
+      extrapolate: "clamp",
+    });
     return (
-      <Animated.View style={[styles.sidebarContainer, { transform: [{ translateX: sidebarSlide }] }]}>
-        {drawerContent}
-      </Animated.View>
+      <>
+        {/* Backdrop — only on non-life screens so user can tap to close */}
+        {!onLifeScreen && (
+          <Animated.View
+            pointerEvents={tabletSidebarVisible ? "auto" : "none"}
+            style={[styles.overlay, { opacity: backdropOpacity }]}
+          >
+            <Pressable style={StyleSheet.absoluteFill} onPress={hideTabletSidebar} />
+          </Animated.View>
+        )}
+
+        {/* Drawer panel — swipe-left to close on non-life screens */}
+        <Animated.View
+          style={[styles.sidebarContainer, { transform: [{ translateX: sidebarSlide }] }]}
+          {...(!onLifeScreen ? swipePan.panHandlers : {})}
+        >
+          {drawerContent}
+        </Animated.View>
+      </>
     );
   }
 

@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef, useState } from "react";
 import { PanResponder, View } from "react-native";
@@ -44,6 +44,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
 
 function TabletShell({ children }: { children: React.ReactNode }) {
   const { isTablet, SIDEBAR_WIDTH, tabletSidebarVisible, showTabletSidebar } = useDrawer();
+  const pathname     = usePathname();
+  const onLifeScreen = pathname.startsWith("/life/");
 
   // Keep mutable refs so the PanResponder (created once) always has current values
   const visibleRef = useRef(tabletSidebarVisible);
@@ -66,9 +68,14 @@ function TabletShell({ children }: { children: React.ReactNode }) {
   ).current;
 
   if (!isTablet) return <>{children}</>;
+
+  // On life screens: sidebar is permanent, content is pushed right.
+  // On other screens: drawer overlays content (full width), so no offset.
+  const sidebarOffset = tabletSidebarVisible && onLifeScreen ? SIDEBAR_WIDTH : 0;
+
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
-      <View style={{ width: tabletSidebarVisible ? SIDEBAR_WIDTH : 0, backgroundColor: "#111111" }} />
+      <View style={{ width: sidebarOffset, backgroundColor: "#111111" }} />
       <View style={{ flex: 1, backgroundColor: "#000000" }} {...panResponder.panHandlers}>
         {children}
       </View>
