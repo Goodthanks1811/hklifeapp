@@ -20,15 +20,17 @@ export function ScreenHeader({ title, right }: Props) {
   const tabletPT = insets.top + DRAWER_HEADER_BELOW_INSETS - HEADER_CONTENT_H - HEADER_PB;
   return (
     <View style={[styles.header, isTablet && { paddingTop: tabletPT, paddingBottom: HEADER_PB }]}>
-      <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
-        style={styles.btn}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Feather name="menu" size={20} color={Colors.textPrimary} />
-      </Pressable>
+      {!isTablet && (
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+          style={styles.btn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name="menu" size={20} color={Colors.textPrimary} />
+        </Pressable>
+      )}
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      {right ? <View style={styles.rightSlot}>{right}</View> : <View style={styles.spacer} />}
+      {right ? <View style={styles.rightSlot}>{right}</View> : (!isTablet && <View style={styles.spacer} />)}
     </View>
   );
 }
