@@ -43,7 +43,6 @@ const ITEM_GAP     = 8;
 const SLOT_H       = ITEM_H + ITEM_GAP;
 const HIDDEN_EMOJI  = "👎";
 const DEFAULT_EMOJI = "-";
-const ALL_CATS = Object.values(SLUG_CONFIG).map(c => c.catValue);
 const FULL_PICKER  = ["🔥","🚩","👀","🧠","💳","💰","🎧","📌","📕","🏡","🖥️"];
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
@@ -66,6 +65,7 @@ const SLUG_MAP: Record<string, SlugConfig> = {
     showEpic: true,
   },
 };
+const ALL_CATS = Object.values(SLUG_MAP).map(c => c.catValue);
 
 // ── Epic pill colours — dark-tinted bg + coloured text ────────────────────────
 // Each slot: [bg, border, text]

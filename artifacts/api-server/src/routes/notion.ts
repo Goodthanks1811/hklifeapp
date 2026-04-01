@@ -572,6 +572,69 @@ router.patch("/life-tasks/:pageId", async (req, res) => {
   }
 });
 
+// ── Block ↔ markdown helpers ──────────────────────────────────────────────────
+
+/** Convert a Notion rich_text array to a markdown string (bold / italic / underline). */
+function richTextToMarkdown(richText: any[]): string {
+  return (richText || []).map((seg: any) => {
+    let text = seg.plain_text || "";
+    const ann = seg.annotations || {};
+    if (ann.bold)      text = `**${text}**`;
+    if (ann.italic)    text = `*${text}*`;
+    if (ann.underline) text = `__${text}__`;
+    if (ann.code)      text = `\`${text}\``;
+    if (ann.strikethrough) text = `~~${text}~~`;
+    return text;
+  }).join("");
+}
+
+/** Convert a single Notion block to a markdown line. */
+function blockToMarkdownLine(block: any): string | null {
+  const type: string = block.type;
+  const rich: any[] = block[type]?.rich_text || block[type]?.text || [];
+  const text = richTextToMarkdown(rich);
+  switch (type) {
+    case "heading_1":           return `# ${text}`;
+    case "heading_2":           return `## ${text}`;
+    case "heading_3":           return `### ${text}`;
+    case "bulleted_list_item":  return `- ${text}`;
+    case "numbered_list_item":  return `1. ${text}`;
+    case "divider":             return "---";
+    case "paragraph":           return text; // may be empty
+    default:                    return text || null;
+  }
+}
+
+/** Parse a markdown string segment into Notion rich_text annotations. */
+function markdownToRichText(raw: string): any[] {
+  const segments: any[] = [];
+  // Simple greedy parser: bold > italic > underline > code > strikethrough > plain
+  const re = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(\_\_(.+?)\_\_)|(`(.+?)`)|(\~\~(.+?)\~\~)|([^*_`~]+)/gs;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw)) !== null) {
+    if (m[1])  { segments.push({ type:"text", text:{ content: m[2] }, annotations:{ bold:true } }); }
+    else if (m[3])  { segments.push({ type:"text", text:{ content: m[4] }, annotations:{ italic:true } }); }
+    else if (m[5])  { segments.push({ type:"text", text:{ content: m[6] }, annotations:{ underline:true } }); }
+    else if (m[7])  { segments.push({ type:"text", text:{ content: m[8] }, annotations:{ code:true } }); }
+    else if (m[9])  { segments.push({ type:"text", text:{ content: m[10] }, annotations:{ strikethrough:true } }); }
+    else if (m[11]) { segments.push({ type:"text", text:{ content: m[11] } }); }
+  }
+  return segments.length > 0 ? segments : [{ type:"text", text:{ content: raw } }];
+}
+
+/** Convert a markdown line to a Notion block object. */
+function markdownLineToBlock(line: string): any {
+  if (/^###\s/.test(line)) return { type:"heading_3", heading_3:{ rich_text: markdownToRichText(line.replace(/^###\s/,"")) } };
+  if (/^##\s/.test(line))  return { type:"heading_2", heading_2:{ rich_text: markdownToRichText(line.replace(/^##\s/,"")) } };
+  if (/^#\s/.test(line))   return { type:"heading_1", heading_1:{ rich_text: markdownToRichText(line.replace(/^#\s/,"")) } };
+  if (/^-\s/.test(line))   return { type:"bulleted_list_item", bulleted_list_item:{ rich_text: markdownToRichText(line.replace(/^-\s/,"")) } };
+  if (/^\d+\.\s/.test(line)) return { type:"numbered_list_item", numbered_list_item:{ rich_text: markdownToRichText(line.replace(/^\d+\.\s/,"")) } };
+  if (/^---+$/.test(line.trim())) return { type:"divider", divider:{} };
+  return { type:"paragraph", paragraph:{ rich_text: markdownToRichText(line) } };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 router.get("/page-blocks/:pageId", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
   const { pageId } = req.params;
@@ -579,7 +642,7 @@ router.get("/page-blocks/:pageId", async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://api.notion.com/v1/blocks/${pageId}/children?page_size=50`,
+      `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`,
       { headers: notionHeaders(apiKey) }
     );
     if (!response.ok) {
@@ -589,16 +652,11 @@ router.get("/page-blocks/:pageId", async (req, res) => {
     }
     const data = await response.json();
 
-    const extractText = (block: any): string => {
-      const type = block.type;
-      const arr: any[] = block[type]?.rich_text || block[type]?.text || [];
-      return arr.map((t: any) => t.plain_text || "").join("");
-    };
-
     const lines = (data.results || [])
-      .map((b: any) => extractText(b))
-      .filter((t: string) => t.length > 0);
+      .map((b: any) => blockToMarkdownLine(b))
+      .filter((t: string | null) => t !== null) as string[];
 
+    // Preserve empty paragraphs as blank lines between content
     res.json({ body: lines.join("\n") });
   } catch (e: any) {
     req.log?.error({ err: e }, "Failed to fetch page blocks");
@@ -606,7 +664,7 @@ router.get("/page-blocks/:pageId", async (req, res) => {
   }
 });
 
-// Replace all paragraph blocks on a page with new text
+// Replace all blocks on a page with new markdown content
 router.patch("/page-blocks/:pageId", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
   const { pageId } = req.params;
@@ -614,7 +672,7 @@ router.patch("/page-blocks/:pageId", async (req, res) => {
   if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
 
   try {
-    // 1. Fetch existing block IDs
+    // 1. Fetch existing block IDs then delete them one by one
     const listRes = await fetch(
       `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`,
       { headers: notionHeaders(apiKey) }
@@ -622,7 +680,6 @@ router.patch("/page-blocks/:pageId", async (req, res) => {
     if (listRes.ok) {
       const listData = await listRes.json();
       const blockIds: string[] = (listData.results || []).map((b: any) => b.id);
-      // Delete each existing block
       await Promise.all(
         blockIds.map(bid =>
           fetch(`https://api.notion.com/v1/blocks/${bid}`, {
@@ -633,13 +690,10 @@ router.patch("/page-blocks/:pageId", async (req, res) => {
       );
     }
 
-    // 2. Append new paragraph blocks (one per non-empty line)
-    const lines = (body || "").split("\n").filter(l => l.trim().length > 0);
-    const children = lines.length > 0
-      ? lines.map(line => ({
-          type: "paragraph",
-          paragraph: { rich_text: [{ type: "text", text: { content: line } }] },
-        }))
+    // 2. Parse markdown → Notion blocks, one block per line
+    const lines = (body || "").split("\n");
+    const children = lines.length > 0 && lines.some(l => l.trim())
+      ? lines.map(line => markdownLineToBlock(line))
       : [{ type: "paragraph", paragraph: { rich_text: [] } }];
 
     const appendRes = await fetch(
