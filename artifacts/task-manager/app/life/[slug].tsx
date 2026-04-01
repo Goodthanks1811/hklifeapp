@@ -854,14 +854,15 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
             <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
           </Pressable>
 
-          {/* Name */}
+          {/* Name — fills full row height so tap target = entire row, not just text */}
           <Pressable
-            style={{ flex: 1 }}
+            style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
             onPress={() => handleRowTap(onPress)}
             onLongPress={onLongPress}
             delayLongPress={200}
             onPressIn={onPressIn}
             onPressOut={onPressOut}
+            hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
           >
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
           </Pressable>
@@ -1680,10 +1681,10 @@ const sc = StyleSheet.create({
     backgroundColor: Colors.cardBgElevated,
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
   },
-  emojiBtn:  { minWidth: 32, alignItems: "center" },
+  emojiBtn:  { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   rowEmoji:  { fontSize: 24 },
   rowTitle:  { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21 },
-  checkBtn:  { padding: 4 },
+  checkBtn:  { padding: 10, margin: -6 },
   checkBox: {
     width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",
     alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
