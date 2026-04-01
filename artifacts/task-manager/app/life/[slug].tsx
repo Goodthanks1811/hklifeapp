@@ -103,8 +103,9 @@ const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(ma
 // A static zero-value used for the dragged row so it never dims itself
 const ZERO_ANIM = new Animated.Value(0);
 
-// ── Inline emoji popover ───────────────────────────────────────────────────────
+// ── Inline popovers (emoji + epic) ────────────────────────────────────────────
 type EmojiAnchor = { taskId: string; x: number; y: number; w: number; h: number };
+type EpicAnchor  = { taskId: string; x: number; y: number; w: number; h: number };
 
 function InlineEmojiPicker({ anchor, emojis, onSelect, onClose }: {
   anchor:   EmojiAnchor | null;
@@ -143,6 +144,54 @@ function InlineEmojiPicker({ anchor, emojis, onSelect, onClose }: {
             <Text style={s.emojiPopText}>{e}</Text>
           </Pressable>
         ))}
+      </View>
+    </Modal>
+  );
+}
+
+// ── Inline epic picker (vertical list, opens to the left of the tapped pill) ──
+function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose }: {
+  anchor:      EpicAnchor | null;
+  epicOptions: string[];
+  currentEpic: string | null | undefined;
+  onSelect:    (taskId: string, epic: string) => void;
+  onClose:     () => void;
+}) {
+  const { width: sw, height: sh } = useWindowDimensions();
+  if (!anchor || !epicOptions.length) return null;
+
+  const rowH  = 36;
+  const pad   = 6;
+  const gap   = 4;
+  const popW  = 164;
+  const popH  = epicOptions.length * rowH + (epicOptions.length - 1) * gap + pad * 2;
+
+  // Sit to the LEFT of the tapped pill
+  const leftX = Math.max(4, anchor.x - popW - 6);
+  const topY  = Math.min(anchor.y - 4, sh - popH - 20);
+
+  return (
+    <Modal transparent visible animationType="none" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={[s.epicPopover, { top: topY, left: leftX, width: popW }]}>
+        {epicOptions.map(ep => {
+          const ec       = epicColor(ep);
+          const selected = ep === currentEpic;
+          return (
+            <Pressable
+              key={ep}
+              style={[s.epicPopRow, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : "transparent" }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onSelect(anchor.taskId, ep);
+                onClose();
+              }}
+            >
+              <View style={[s.epicPopDot, { backgroundColor: ec.text }]} />
+              <Text style={[s.epicPopText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </Modal>
   );
@@ -584,7 +633,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic }: {
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic, epicOptions }: {
   task:          LifeTask;
   isDragging:    boolean;
   dimValue:      Animated.Value;
@@ -595,9 +644,12 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
   onDelete:      () => void;
   onSwipeOpen?:  (close: () => void) => void;
   showEpic?:     boolean;
+  epicOptions?:  string[] | null;
+  onEpicPress?:  (pageX: number, pageY: number, w: number, h: number) => void;
 }) {
   const swipeableRef  = useRef<Swipeable>(null);
   const emojiBtnRef   = useRef<View>(null);
+  const epicPillRef   = useRef<View>(null);
   const checkScale    = useRef(new Animated.Value(0)).current;
   const opacityAnim   = useRef(new Animated.Value(1)).current;
   const rowScale      = useRef(new Animated.Value(1)).current;
@@ -685,13 +737,25 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
           </Pressable>
 
-          {/* Epic pill */}
+          {/* Epic pill — tappable when epicOptions are loaded */}
           {showEpic && task.epic ? (() => {
-            const ec = epicColor(task.epic);
+            const ec        = epicColor(task.epic);
+            const canChange = !!(onEpicPress && epicOptions?.length);
             return (
-              <View style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}>
-                <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic}</Text>
-              </View>
+              <Pressable
+                ref={epicPillRef}
+                disabled={!canChange}
+                onPress={() => handleRowTap(() => {
+                  (epicPillRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
+                    onEpicPress!(px, py, w, h);
+                  });
+                })}
+                hitSlop={6}
+              >
+                <View style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}>
+                  <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic}</Text>
+                </View>
+              </Pressable>
             );
           })() : null}
 
@@ -978,6 +1042,7 @@ export default function LifeTaskScreen() {
   const [pageBody,     setPageBody]     = useState<string | null>(null);
   const [bodyLoading,  setBodyLoading]  = useState(false);
   const [emojiAnchor,  setEmojiAnchor]  = useState<EmojiAnchor | null>(null);
+  const [epicAnchor,   setEpicAnchor]   = useState<EpicAnchor  | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const openDetail = useCallback((task: LifeTask) => {
@@ -1029,6 +1094,7 @@ export default function LifeTaskScreen() {
     if (!apiKey) return;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, epic } : t));
     setDetailTask(prev => prev?.id === id ? { ...prev, epic } : prev);
+    setEpicAnchor(null);
     fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
@@ -1224,12 +1290,14 @@ export default function LifeTaskScreen() {
                       isDragging={false}
                       dimValue={ZERO_ANIM}
                       onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
+                      onEpicPress={config?.showEpic ? (px, py, w, h) => setEpicAnchor({ taskId: task.id, x: px, y: py, w, h }) : undefined}
                       onPress={() => openDetail(task)}
                       onLongPress={() => {}}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onSwipeOpen={handleSwipeOpen}
                       showEpic={config?.showEpic}
+                      epicOptions={config?.showEpic ? (schema?.epicOptions ?? null) : null}
                     />
                   </View>
                 ))}
@@ -1267,12 +1335,14 @@ export default function LifeTaskScreen() {
                       isDragging={isDragging}
                       dimValue={isDragging ? ZERO_ANIM : dimAnim}
                       onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
+                      onEpicPress={config?.showEpic ? (px, py, w, h) => setEpicAnchor({ taskId: task.id, x: px, y: py, w, h }) : undefined}
                       onPress={() => openDetail(task)}
                       onLongPress={() => startDrag(idx)}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onSwipeOpen={handleSwipeOpen}
                       showEpic={config?.showEpic}
+                      epicOptions={config?.showEpic ? (schema?.epicOptions ?? null) : null}
                     />
                   </Animated.View>
                 );
@@ -1309,6 +1379,14 @@ export default function LifeTaskScreen() {
         emojis={config.emojis}
         onSelect={(e) => { if (pickerTask) handleEmojiChange(pickerTask.id, e); }}
         onClose={() => setEmojiAnchor(null)}
+      />
+
+      <InlineEpicPicker
+        anchor={epicAnchor}
+        epicOptions={schema?.epicOptions ?? []}
+        currentEpic={epicAnchor ? (tasks.find(t => t.id === epicAnchor.taskId)?.epic ?? null) : null}
+        onSelect={handleEpicChange}
+        onClose={() => setEpicAnchor(null)}
       />
 
       <QuickAddSheet
@@ -1350,10 +1428,26 @@ const s = StyleSheet.create({
     position: "absolute",
     backgroundColor: Colors.cardBg,
     borderRadius: 16, borderWidth: 1, borderColor: Colors.border,
-    padding: 10, flexDirection: "row", flexWrap: "wrap", gap: 8,
+    padding: 10, flexDirection: "row", flexWrap: "nowrap", gap: 8,
     shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
+
+  // ── Epic picker popover (vertical list, to the left) ────────────────────
+  epicPopover: {
+    position: "absolute",
+    backgroundColor: Colors.cardBg,
+    borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    padding: 6, gap: 4,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
+  },
+  epicPopRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8, borderWidth: 1,
+  },
+  epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
+  epicPopText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   emojiPopCell: {
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.cardBgElevated,
