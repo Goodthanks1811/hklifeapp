@@ -855,8 +855,12 @@ export default function LifeTaskScreen() {
         setTasks(filtered);
         // Reset position anims
         filtered.forEach((t, i) => {
-          if (!posAnims.current[t.id]) posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
-          else posAnims.current[t.id].setValue(i * SLOT_H);
+          if (!posAnims.current[t.id]) {
+            posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+            addedAnims.current[t.id] = Animated.add(posAnims.current[t.id], panY);
+          } else {
+            posAnims.current[t.id].setValue(i * SLOT_H);
+          }
         });
       } else {
         setError(data.message ?? "Failed to load");
@@ -907,6 +911,7 @@ export default function LifeTaskScreen() {
 
   // ── Drag & drop ──────────────────────────────────────────────────────────────
   const posAnims         = useRef<Record<string, Animated.Value>>({});
+  const addedAnims       = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
   const containerRef     = useRef<View>(null);
   const containerTopRef  = useRef(0);
   const scrollOffsetRef  = useRef(0);
@@ -921,7 +926,10 @@ export default function LifeTaskScreen() {
   const [scrollEnabled, setScrollEnabled] = useState(true);
 
   tasks.forEach((t, i) => {
-    if (!posAnims.current[t.id]) posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+    if (!posAnims.current[t.id]) {
+      posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+      addedAnims.current[t.id] = Animated.add(posAnims.current[t.id], panY);
+    }
   });
 
   const animatePositions = useCallback((dragIdx: number, hoverIdx: number) => {
@@ -931,9 +939,10 @@ export default function LifeTaskScreen() {
       let target = i;
       if (dragIdx < hoverIdx && i > dragIdx && i <= hoverIdx) target = i - 1;
       else if (dragIdx > hoverIdx && i >= hoverIdx && i < dragIdx) target = i + 1;
+      posAnims.current[t.id]?.stopAnimation();
       Animated.timing(posAnims.current[t.id], {
-        toValue: target * SLOT_H, duration: 140, useNativeDriver: false,
-        easing: Easing.out(Easing.cubic),
+        toValue: target * SLOT_H, duration: 110, useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
       }).start();
     });
   }, []);
@@ -1120,9 +1129,10 @@ export default function LifeTaskScreen() {
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
       next.forEach((t, i) => {
+        posAnims.current[t.id]?.stopAnimation();
         Animated.spring(posAnims.current[t.id], {
           toValue: i * SLOT_H,
-          useNativeDriver: false,
+          useNativeDriver: true,
           tension: 140,
           friction: 14,
         }).start();
@@ -1141,9 +1151,10 @@ export default function LifeTaskScreen() {
       const next = prev.filter(t => t.id !== id);
       // Re-position remaining items
       next.forEach((t, i) => {
+        posAnims.current[t.id]?.stopAnimation();
         Animated.spring(posAnims.current[t.id], {
           toValue: i * SLOT_H,
-          useNativeDriver: false,
+          useNativeDriver: true,
           tension: 120,
           friction: 14,
         }).start();
@@ -1190,8 +1201,12 @@ export default function LifeTaskScreen() {
         return aOrd - bOrd;
       });
       next.forEach((t, i) => {
-        if (!posAnims.current[t.id]) posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
-        else posAnims.current[t.id].setValue(i * SLOT_H);
+        if (!posAnims.current[t.id]) {
+          posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+          addedAnims.current[t.id] = Animated.add(posAnims.current[t.id], panY);
+        } else {
+          posAnims.current[t.id].setValue(i * SLOT_H);
+        }
       });
       return next;
     });
@@ -1339,8 +1354,7 @@ export default function LifeTaskScreen() {
                     key={task.id}
                     style={[
                       sc.absItem,
-                      { top: posAnim, zIndex: isDragging ? 100 : 1 },
-                      isDragging && { transform: [{ translateY: panY }] },
+                      { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY: addedAnims.current[task.id] ?? posAnim }] },
                     ]}
                   >
                     <TaskRow
@@ -1376,7 +1390,7 @@ export default function LifeTaskScreen() {
       {/* ── Modals ───────────────────────────────────────────────────────────── */}
       <DetailSheet
         task={detailTask}
-        catEmojis={config?.emojis ?? []}
+        catEmojis={[...(config?.emojis ?? []), HIDDEN_EMOJI]}
         body={pageBody}
         bodyLoading={bodyLoading}
         onClose={() => setDetailTask(null)}
@@ -1389,7 +1403,7 @@ export default function LifeTaskScreen() {
 
       <InlineEmojiPicker
         anchor={emojiAnchor}
-        emojis={config.emojis}
+        emojis={[...config.emojis, HIDDEN_EMOJI]}
         currentEmoji={pickerTask?.emoji ?? null}
         onSelect={(e) => { if (pickerTask) handleEmojiChange(pickerTask.id, e); }}
         onClose={() => setEmojiAnchor(null)}
