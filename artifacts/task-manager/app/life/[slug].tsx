@@ -773,10 +773,10 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const [checked, setChecked] = useState(false);
 
   const onPressIn = useCallback(() => {
-    Animated.spring(pressScale, { toValue: 0.965, useNativeDriver: true, tension: 500, friction: 18 }).start();
+    Animated.timing(pressScale, { toValue: 0.965, duration: 60, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
   }, [pressScale]);
   const onPressOut = useCallback(() => {
-    Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 14 }).start();
+    Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 600, friction: 20 }).start();
   }, [pressScale]);
 
   const triggerDelete = useCallback(() => {
