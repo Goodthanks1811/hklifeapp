@@ -892,15 +892,6 @@ export default function LifeTaskScreen() {
     setRefreshing(false);
   }, [fetchTasks]);
 
-  // ── Emoji filter ─────────────────────────────────────────────────────────────
-  const [activeEmoji, setActiveEmoji] = useState<string | null>(null);
-
-  const visibleTasks = useMemo(() => {
-    if (!activeEmoji) return tasks;
-    const n = norm(activeEmoji);
-    return tasks.filter(t => norm(t.emoji) === n);
-  }, [tasks, activeEmoji]);
-
   // ── Active swipe tracking — only one row open at a time ─────────────────────
   const activeSwipeClose = useRef<(() => void) | null>(null);
 
@@ -1254,27 +1245,10 @@ export default function LifeTaskScreen() {
         }
       />
 
-      {/* ── Emoji filter bar ─────────────────────────────────────────────────── */}
-      {config.emojis.length > 1 && (
-        <View style={sc.filterBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.filterScroll}>
-            {config.emojis.filter(e => norm(e) !== norm(HIDDEN_EMOJI)).map(e => {
-              const isActive = activeEmoji !== null && norm(activeEmoji) === norm(e);
-              return (
-                <Pressable
-                  key={e}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    // Tap active emoji again to deselect (show all)
-                    setActiveEmoji(prev => prev !== null && norm(prev) === norm(e) ? null : e);
-                  }}
-                  style={[sc.filterChip, isActive && sc.filterChipActive]}
-                >
-                  <Text style={sc.filterEmojiText}>{e}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+      {/* ── Item count ───────────────────────────────────────────────────────── */}
+      {!loading && !error && tasks.length > 0 && (
+        <View style={sc.countRow}>
+          <Text style={sc.countText}>{tasks.length} item{tasks.length !== 1 ? "s" : ""}</Text>
         </View>
       )}
 
@@ -1311,35 +1285,7 @@ export default function LifeTaskScreen() {
             />
           }
         >
-          {/* Filtered view: simple flow layout, no drag */}
-          {activeEmoji !== null && (
-            <View style={{ marginHorizontal: 16, marginTop: 8 }}>
-              {tasks
-                .filter(t => norm(t.emoji) === norm(activeEmoji))
-                .map(task => (
-                  <View key={task.id} style={{ marginBottom: ITEM_GAP }}>
-                    <TaskRow
-                      task={task}
-                      isDragging={false}
-                      dimValue={ZERO_ANIM}
-                      onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
-                      onEpicPress={config?.showEpic ? (px, py, w, h) => setEpicAnchor({ taskId: task.id, x: px, y: py, w, h }) : undefined}
-                      onPress={() => openDetail(task)}
-                      onLongPress={() => {}}
-                      onChecked={() => handleCheckOff(task.id)}
-                      onDelete={() => handleDelete(task.id)}
-                      onSwipeOpen={handleSwipeOpen}
-                      showEpic={config?.showEpic}
-                      epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
-                    />
-                  </View>
-                ))}
-            </View>
-          )}
-
-          {/* Unfiltered drag view */}
-          {activeEmoji === null && (
-            <View
+          <View
               ref={containerRef}
               {...panResponder.panHandlers}
               style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
@@ -1384,7 +1330,6 @@ export default function LifeTaskScreen() {
                 );
               })}
             </View>
-          )}
         </ScrollView>
       )}
 
@@ -1583,16 +1528,8 @@ const sc = StyleSheet.create({
   headerBanner: { height: 160, overflow: "hidden", backgroundColor: "#000" },
   headerBannerImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
 
-  filterBar: { borderBottomWidth: 1, borderBottomColor: Colors.border },
-  filterScroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border,
-  },
-  filterChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.12)" },
-  filterChipText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  filterChipTextActive: { color: Colors.primary },
-  filterEmojiText: { fontSize: 20 },
+  countRow: { paddingHorizontal: 16, paddingVertical: 8 },
+  countText: { fontSize: 12, color: Colors.textMuted, fontFamily: "Inter_500Medium" },
 
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
 
