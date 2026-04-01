@@ -249,7 +249,7 @@ export function Drawer() {
 
         <View style={styles.settingsSection}>
           <Pressable
-            style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed]}
+            style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed, pressed && { transform: [{ translateY: 2 }] }]}
             onPress={() => navigate("/settings")}
           >
             <View style={styles.menuIcon}>
@@ -319,6 +319,7 @@ function DrawerMenuItem({
       style={({ pressed }) => [
         styles.menuItem,
         pressed && onPress && styles.menuItemPressed,
+        pressed && onPress && { transform: [{ translateY: 2 }] },
         dimmed && styles.menuItemDimmed,
       ]}
       onPress={onPress}

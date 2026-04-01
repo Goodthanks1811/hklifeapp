@@ -840,17 +840,17 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const checkScale    = useRef(new Animated.Value(0)).current;
   const opacityAnim   = useRef(new Animated.Value(1)).current;
   const rowScale      = useRef(new Animated.Value(1)).current;
-  const pressScale    = useRef(new Animated.Value(1)).current;
+  const pressY        = useRef(new Animated.Value(0)).current;
   const deletingRef   = useRef(false);
   const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
   const onPressIn = useCallback(() => {
-    Animated.timing(pressScale, { toValue: 0.965, duration: 60, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
-  }, [pressScale]);
+    Animated.timing(pressY, { toValue: 2, duration: 55, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
+  }, [pressY]);
   const onPressOut = useCallback(() => {
-    Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 600, friction: 20 }).start();
-  }, [pressScale]);
+    Animated.spring(pressY, { toValue: 0, useNativeDriver: true, tension: 600, friction: 20 }).start();
+  }, [pressY]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
@@ -912,7 +912,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ scale: pressScale }] }]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateY: pressY }] }]}>
           {/* Emoji */}
           <Pressable
             ref={emojiBtnRef}

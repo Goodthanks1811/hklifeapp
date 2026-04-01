@@ -41,22 +41,16 @@ function PriorityBadge({ priority }: { priority?: string }) {
 
 export function TaskCard({ task, onStatusChange }: TaskCardProps) {
   const [menuVisible, setMenuVisible] = useState(false);
-  const scale = React.useRef(new Animated.Value(1)).current;
+  const pressY = React.useRef(new Animated.Value(0)).current;
 
   const statusColor =
     Colors.categories[task.status] || Colors.textMuted;
 
   const onPressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(pressY, { toValue: 2, duration: 55, useNativeDriver: true }).start();
   };
   const onPressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(pressY, { toValue: 0, useNativeDriver: true, tension: 600, friction: 20 }).start();
   };
 
   const handleStatusSelect = (status: string) => {
@@ -67,7 +61,7 @@ export function TaskCard({ task, onStatusChange }: TaskCardProps) {
 
   return (
     <>
-      <Animated.View style={[{ transform: [{ scale }] }]}>
+      <Animated.View style={[{ transform: [{ translateY: pressY }] }]}>
         <Pressable
           onPressIn={onPressIn}
           onPressOut={onPressOut}
