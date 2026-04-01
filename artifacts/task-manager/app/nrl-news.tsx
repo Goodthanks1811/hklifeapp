@@ -417,6 +417,13 @@ export default function NrlNewsScreen() {
           </Text>
         </Pressable>
 
+        {/* Full-screen centred loader — same pattern as list view */}
+        {artLoading && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <NrlSpinner />
+          </View>
+        )}
+
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
@@ -427,9 +434,14 @@ export default function NrlNewsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={{ maxWidth: isTablet ? 980 : 860, alignSelf: "center", width: "100%" }}>
-            {artLoading && (
-              <View style={{ height: 300 }}>
-                <NrlSpinner />
+            {/* Header logo — same as list view */}
+            {!artLoading && (
+              <View style={{ alignItems: "center", marginBottom: isTablet ? 28 : 20 }}>
+                <Image
+                  source={{ uri: HEADER_IMAGE }}
+                  style={{ width: headerImgW, maxWidth: isTablet ? 250 : 240, height: undefined, aspectRatio: 3.4, borderRadius: 12 }}
+                  resizeMode="contain"
+                />
               </View>
             )}
 
