@@ -96,7 +96,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 function TabBar({ active, onChange, isTablet }: { active: TabId; onChange: (t: TabId) => void; isTablet: boolean }) {
   return (
-    <View style={[tb.row, { marginHorizontal: isTablet ? 20 : 14, marginTop: isTablet ? 12 : 8, marginBottom: isTablet ? 18 : 14 }]}>
+    <View style={[tb.row, { marginTop: isTablet ? 12 : 8, marginBottom: isTablet ? 18 : 14 }]}>
       {TABS.map((tab) => {
         const isActive = tab.id === active;
         return (
@@ -253,7 +253,7 @@ export default function NrlNewsScreen() {
 
   const topPad  = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const sidePad = isTablet ? 20 : 14;
-  const maxW    = isTablet ? 680 : 760;
+  const maxW    = isTablet ? 1000 : 760;
 
   // ── Filtered list ─────────────────────────────────────────────────────────
   const visibleNews = activeTab === "teamlists"
@@ -364,9 +364,11 @@ export default function NrlNewsScreen() {
             </View>
           )}
 
-          {/* Tab bar */}
+          {/* Tab bar — constrained to same width as cards */}
           {!loading && !error && (
-            <TabBar active={activeTab} onChange={setActiveTab} isTablet={isTablet} />
+            <View style={{ maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
+              <TabBar active={activeTab} onChange={setActiveTab} isTablet={isTablet} />
+            </View>
           )}
 
           {error && !loading && (

@@ -48,7 +48,7 @@ function TabletShell({ children }: { children: React.ReactNode }) {
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
       <View style={{ width: tabletSidebarVisible ? SIDEBAR_WIDTH : 0, backgroundColor: "#111111" }} />
-      <View style={{ flex: 1 }}>{children}</View>
+      <View style={{ flex: 1, backgroundColor: "#000000" }}>{children}</View>
     </View>
   );
 }
@@ -58,7 +58,7 @@ function RootLayoutNav() {
     <BiometricProvider>
       <AppGate>
         <TabletShell>
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" } }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />
