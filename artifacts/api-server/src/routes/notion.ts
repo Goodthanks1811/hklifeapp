@@ -513,7 +513,7 @@ router.delete("/life-tasks/:pageId", async (req, res) => {
 router.patch("/life-tasks/:pageId", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
   const { pageId } = req.params;
-  const { emoji, sortOrder, done, title, epic } = req.body;
+  const { emoji, sortOrder, done, title, epic, category, categoryType } = req.body;
   if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
 
   try {
@@ -527,6 +527,12 @@ router.patch("/life-tasks/:pageId", async (req, res) => {
     }
     if (sortOrder !== undefined) {
       updateProps["Sort Order"] = { number: sortOrder };
+    }
+    if (category !== undefined && category !== null) {
+      const catType = categoryType || "select";
+      if (catType === "select")       updateProps.Category = { select: { name: category } };
+      else if (catType === "status")  updateProps.Category = { status: { name: category } };
+      else updateProps.Category = { multi_select: [{ name: category }] };
     }
     if (emoji !== undefined) {
       // Fetch the page to discover the "-" property type

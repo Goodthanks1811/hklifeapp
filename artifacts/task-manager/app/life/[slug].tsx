@@ -41,8 +41,9 @@ const LIFE_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
 const ITEM_H       = 48;
 const ITEM_GAP     = 8;
 const SLOT_H       = ITEM_H + ITEM_GAP;
-const HIDDEN_EMOJI = "👎";
+const HIDDEN_EMOJI  = "👎";
 const DEFAULT_EMOJI = "-";
+const ALL_CATS = Object.values(SLUG_CONFIG).map(c => c.catValue);
 const FULL_PICKER  = ["🔥","🚩","👀","🧠","💳","💰","🎧","📌","📕","🏡","🖥️"];
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
@@ -220,16 +221,19 @@ const DS_SPINNER_SIZE   = 72;
 const DS_SPINNER_STROKE = 8;
 const DS_CIRCLE_SIZE    = 74;
 
-function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, epicOptions, isTablet }: {
+function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, epicOptions, catValue, allCategories, categoryType, isTablet }: {
   task:           LifeTask | null;
   catEmojis:      string[];
   body:           string | null;
   bodyLoading:    boolean;
   onClose:        () => void;
-  onSave:         (id: string, title: string, notes: string) => Promise<void>;
+  onSave:         (id: string, title: string, notes: string, newCat: string | null) => Promise<void>;
   onEmojiChange:  (id: string, emoji: string) => void;
   onEpicChange?:  (id: string, epic: string) => void;
   epicOptions?:   string[] | null;
+  catValue:       string;
+  allCategories:  string[];
+  categoryType?:  string;
   isTablet:       boolean;
 }) {
   const scaleAnim = useRef(new Animated.Value(0.93)).current;
@@ -241,6 +245,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const [title,     setTitle]    = useState("");
   const [notes,     setNotes]    = useState("");
   const [localEpic, setLocalEpic] = useState<string | null>(null);
+  const [localCat,  setLocalCat]  = useState<string>(catValue);
   const visible = !!task;
 
   // ── Loader anims ──────────────────────────────────────────────────────────
@@ -274,6 +279,10 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   useEffect(() => {
     if (visible) setLocalEpic(task?.epic ?? null);
   }, [visible, task?.epic]);
+
+  useEffect(() => {
+    if (visible) setLocalCat(catValue);
+  }, [visible, catValue]);
 
   // ── Open / close animation ────────────────────────────────────────────────
   useEffect(() => {
@@ -351,8 +360,9 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const handleSave = useCallback(() => {
     if (!task) return;
     Keyboard.dismiss();
-    runLoader(onSave(task.id, title.trim(), notes.trim()));
-  }, [task, title, notes, onSave, runLoader]);
+    const changedCat = localCat !== catValue ? localCat : null;
+    runLoader(onSave(task.id, title.trim(), notes.trim(), changedCat));
+  }, [task, title, notes, localCat, catValue, onSave, runLoader]);
 
   const bg       = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] });
   const cardW    = Math.min(600, screenW * 0.88);
@@ -409,6 +419,24 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
                 style={[s.dsEpicChip, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border }]}
               >
                 <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Category row */}
+      {allCategories.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+          {allCategories.map(cat => {
+            const selected = cat === localCat;
+            return (
+              <Pressable
+                key={`cat-${cat}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLocalCat(cat); }}
+                style={[s.dsCatChip, selected && s.dsCatChipActive]}
+              >
+                <Text style={[s.dsCatText, selected && s.dsCatTextActive]}>{cat}</Text>
               </Pressable>
             );
           })}
@@ -500,8 +528,9 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 }
 
 // ── Quick-add sheet ────────────────────────────────────────────────────────────
-function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, onClose, isTablet }: {
+function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, apiKey, onAdded, onClose, isTablet }: {
   visible: boolean; catEmojis: string[]; catValue: string;
+  allCategories: string[];
   schema: Schema | null; apiKey: string | null;
   onAdded: (task: LifeTask) => void; onClose: () => void;
   isTablet: boolean;
@@ -513,9 +542,11 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
-  const [title,    setTitle]    = useState("");
-  const [selEmoji, setSelEmoji] = useState<string | null>(null);
-  const [saving,   setSaving]   = useState(false);
+  const [title,     setTitle]    = useState("");
+  const [notes,     setNotes]    = useState("");
+  const [selEmoji,  setSelEmoji] = useState<string | null>(null);
+  const [localCat,  setLocalCat] = useState<string>(catValue);
+  const [saving,    setSaving]   = useState(false);
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -542,7 +573,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
 
   useEffect(() => {
     if (visible) {
-      setTitle(""); setSelEmoji(null); setSaving(false);
+      setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setSaving(false);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
       Animated.parallel([
@@ -570,8 +601,8 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
     setSaving(true);
     try {
       const emoji = selEmoji ?? DEFAULT_EMOJI;
-      const body: any = {
-        dbId: LIFE_DB_ID, title: t, category: catValue,
+      const payload: any = {
+        dbId: LIFE_DB_ID, title: t, category: localCat,
         emoji, priType: schema?.priType ?? "select",
         priOptions: schema?.priOptions ?? null,
         categoryType: schema?.categoryType ?? "select",
@@ -579,10 +610,18 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
       const r = await fetch(`${BASE_URL}/api/notion/pages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       const data = await r.json();
       if (data.id) {
+        const n = notes.trim();
+        if (n) {
+          fetch(`${BASE_URL}/api/notion/page-blocks/${data.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+            body: JSON.stringify({ body: n }),
+          }).catch(() => {});
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null });
         dismiss();
@@ -632,6 +671,39 @@ function QuickAddSheet({ visible, catEmojis, catValue, schema, apiKey, onAdded, 
           })}
         </View>
       )}
+
+      {/* Category row */}
+      {allCategories.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+          {allCategories.map(cat => {
+            const selected = cat === localCat;
+            return (
+              <Pressable
+                key={`qa-cat-${cat}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLocalCat(cat); }}
+                style={[s.dsCatChip, selected && s.dsCatChipActive]}
+              >
+                <Text style={[s.dsCatText, selected && s.dsCatTextActive]}>{cat}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={s.dsDivider} />
+
+      {/* Notes body */}
+      <TextInput
+        style={[s.dsNotesInput, { minHeight: 80, paddingHorizontal: 20, paddingVertical: 14 }]}
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+        placeholder="Add notes…"
+        placeholderTextColor={Colors.textMuted}
+        selectionColor={Colors.primary}
+        keyboardAppearance="dark"
+        textAlignVertical="top"
+      />
 
       <View style={s.dsDivider} />
 
@@ -1102,15 +1174,16 @@ export default function LifeTaskScreen() {
     }
   }, [apiKey]);
 
-  const handleSaveTitle = useCallback((id: string, title: string, notes: string): Promise<void> => {
+  const handleSaveTitle = useCallback((id: string, title: string, notes: string, newCat: string | null): Promise<void> => {
     if (!apiKey) return Promise.resolve();
     setTasks(prev => prev.map(t => t.id === id ? { ...t, title } : t));
-    // Save title + notes concurrently
+    const taskPatch: any = { title };
+    if (newCat) { taskPatch.category = newCat; taskPatch.categoryType = schema?.categoryType ?? "select"; }
     return Promise.all([
       fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify(taskPatch),
       }),
       fetch(`${BASE_URL}/api/notion/page-blocks/${id}`, {
         method: "PATCH",
@@ -1118,7 +1191,7 @@ export default function LifeTaskScreen() {
         body: JSON.stringify({ body: notes }),
       }),
     ]).then(() => {}).catch(() => {});
-  }, [apiKey]);
+  }, [apiKey, schema?.categoryType]);
 
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
     if (!apiKey) return;
@@ -1376,6 +1449,9 @@ export default function LifeTaskScreen() {
         onEmojiChange={handleEmojiChange}
         onEpicChange={config?.showEpic ? handleEpicChange : undefined}
         epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
+        catValue={config?.catValue ?? ""}
+        allCategories={ALL_CATS}
+        categoryType={schema?.categoryType}
         isTablet={isTablet}
       />
 
@@ -1399,6 +1475,7 @@ export default function LifeTaskScreen() {
         visible={showQuickAdd}
         catEmojis={FULL_PICKER}
         catValue={config.catValue}
+        allCategories={ALL_CATS}
         schema={schema}
         apiKey={apiKey}
         onAdded={handleQuickAdded}
@@ -1488,6 +1565,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   dsEpicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  dsCatChip: {
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: "transparent",
+  },
+  dsCatChipActive: { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.35)" },
+  dsCatText: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted, letterSpacing: 0.2 },
+  dsCatTextActive: { color: Colors.textPrimary },
   dsDivider: { height: 1, backgroundColor: Colors.border },
   dsBodyScroll: { flexShrink: 1 },
   dsBodyInner: { paddingHorizontal: 20, paddingVertical: 18 },
