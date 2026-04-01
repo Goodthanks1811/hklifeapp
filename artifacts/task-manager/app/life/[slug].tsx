@@ -1610,7 +1610,7 @@ const sc = StyleSheet.create({
   },
   emojiBtn:  { minWidth: 32, alignItems: "center" },
   rowEmoji:  { fontSize: 24 },
-  rowTitle:  { color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 20 },
+  rowTitle:  { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21 },
   checkBtn:  { padding: 4 },
   checkBox: {
     width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",

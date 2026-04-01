@@ -176,8 +176,8 @@ export function Drawer() {
 
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
-      <View style={{ paddingTop: topPad + (isTablet ? 6 : 12), paddingBottom: isTablet ? 20 : 24 }}>
-        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 60 : 100 }]}>
+      <View style={{ paddingTop: topPad + (isTablet ? 6 : 12), paddingBottom: isTablet ? 44 : 24 }}>
+        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 40 : 100 }]}>
           <Image
             source={{ uri: bannerUri ?? FALLBACK_BANNER }}
             style={[
@@ -224,7 +224,7 @@ export function Drawer() {
               items={visibleItems[key]}
               accordion={accordions[key]}
               navigate={navigate}
-              permanentlyOpen={key === "life" && isTablet}
+              permanentlyOpen={false}
             />
             <View style={styles.divider} />
           </React.Fragment>
