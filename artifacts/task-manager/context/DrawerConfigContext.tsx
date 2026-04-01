@@ -72,6 +72,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Drag & Reorder", icon: "list",    route: "/ui-kit/reorder",       description: "Hold to drag"       },
     { label: "Delete Styles",  icon: "trash-2", route: "/ui-kit/delete-styles", description: "5 delete patterns"  },
     { label: "Pickers & Notis",icon: "bell",    route: "/ui-kit/pickers",       description: "Dates, times & alerts"},
+    { label: "Colour Explorer", icon: "droplet", route: "/ui-kit/colours",       description: "Swatches & tint scales"},
     { label: "Loaders",        icon: "loader",  route: "/ui-kit/loaders",       description: "Save states"        },
     { label: "Modals",         icon: "layers",  route: "/ui-kit/modals",        description: "Overlays & alerts"  },
   ],
