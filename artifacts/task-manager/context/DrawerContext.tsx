@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
-import { Animated, Dimensions, Platform } from "react-native";
+import { Animated, Dimensions, Easing, Platform } from "react-native";
 
 const SCREEN_WIDTH  = Dimensions.get("window").width;
 export const isTablet      = SCREEN_WIDTH >= 768;
@@ -48,11 +48,11 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
   const hideTabletSidebar = useCallback(() => {
     if (!isTablet) return;
-    Animated.spring(sidebarSlide, {
+    Animated.timing(sidebarSlide, {
       toValue: -SIDEBAR_WIDTH,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
-      damping: 20,
-      stiffness: 200,
     }).start(() => setTabletSidebarVisible(false));
   }, [sidebarSlide]);
 
@@ -78,15 +78,16 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
   const closeDrawer = useCallback(() => {
     if (isTablet) { hideTabletSidebar(); return; }
     Animated.parallel([
-      Animated.spring(drawerAnim, {
+      Animated.timing(drawerAnim, {
         toValue: -DRAWER_WIDTH,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
       }),
       Animated.timing(overlayAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start(() => setIsOpen(false));

@@ -163,11 +163,11 @@ export function Drawer() {
         router.push(route as any);
       } else {
         hideTabletSidebar();
-        setTimeout(() => router.push(route as any), 80);
+        router.push(route as any);
       }
     } else {
       closeDrawer();
-      setTimeout(() => router.push(route as any), 200);
+      setTimeout(() => router.push(route as any), 30);
     }
   };
 
