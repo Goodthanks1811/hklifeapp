@@ -30,7 +30,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NativeViewGestureHandler, Swipeable, TouchableOpacity as GHTouchable } from "react-native-gesture-handler";
+import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
@@ -747,20 +747,19 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic, epicOptions, scrollHandlerRef }: {
-  task:             LifeTask;
-  isDragging:       boolean;
-  dimValue:         Animated.Value;
-  onEmojiPress:     (pageX: number, pageY: number, w: number, h: number) => void;
-  onPress:          () => void;
-  onLongPress:      () => void;
-  onChecked:        () => void;
-  onDelete:         () => void;
-  onSwipeOpen?:     (close: () => void) => void;
-  showEpic?:        boolean;
-  epicOptions?:     string[] | null;
-  onEpicPress?:     (pageX: number, pageY: number, w: number, h: number) => void;
-  scrollHandlerRef?: React.RefObject<NativeViewGestureHandler>;
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic, epicOptions }: {
+  task:          LifeTask;
+  isDragging:    boolean;
+  dimValue:      Animated.Value;
+  onEmojiPress:  (pageX: number, pageY: number, w: number, h: number) => void;
+  onPress:       () => void;
+  onLongPress:   () => void;
+  onChecked:     () => void;
+  onDelete:      () => void;
+  onSwipeOpen?:  (close: () => void) => void;
+  showEpic?:     boolean;
+  epicOptions?:  string[] | null;
+  onEpicPress?:  (pageX: number, pageY: number, w: number, h: number) => void;
 }) {
   const swipeableRef  = useRef<Swipeable>(null);
   const emojiBtnRef   = useRef<View>(null);
@@ -831,9 +830,8 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         renderRightActions={renderRightActions}
         overshootRight={false}
         rightThreshold={40}
-        friction={1.5}
+        friction={2}
         enabled={!isDragging && !deletingRef.current}
-        simultaneousHandlers={scrollHandlerRef}
         onSwipeableOpen={() => {
           isRevealedRef.current = true;
           onSwipeOpen?.(() => swipeableRef.current?.close());
@@ -843,24 +841,22 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
       >
         <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ scale: pressScale }] }]}>
           {/* Emoji */}
-          <GHTouchable
-            ref={emojiBtnRef as any}
+          <Pressable
+            ref={emojiBtnRef}
             onPress={() => handleRowTap(() => {
               (emojiBtnRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
                 onEmojiPress(px, py, w, h);
               });
             })}
             hitSlop={6}
-            activeOpacity={0.6}
             style={sc.emojiBtn}
           >
             <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
-          </GHTouchable>
+          </Pressable>
 
-          {/* Name — GHTouchable plays nicely with Swipeable (no double-tap) */}
-          <GHTouchable
+          {/* Name */}
+          <Pressable
             style={{ flex: 1 }}
-            activeOpacity={0.7}
             onPress={() => handleRowTap(onPress)}
             onLongPress={onLongPress}
             delayLongPress={200}
@@ -868,17 +864,16 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
             onPressOut={onPressOut}
           >
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
-          </GHTouchable>
+          </Pressable>
 
           {/* Epic pill — tappable when epicOptions are loaded */}
           {showEpic && task.epic ? (() => {
             const ec        = epicColor(task.epic);
             const canChange = !!(onEpicPress && epicOptions?.length);
             return (
-              <GHTouchable
-                ref={epicPillRef as any}
+              <Pressable
+                ref={epicPillRef}
                 disabled={!canChange}
-                activeOpacity={0.6}
                 onPress={() => handleRowTap(() => {
                   (epicPillRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
                     onEpicPress!(px, py, w, h);
@@ -889,7 +884,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
                 <View style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}>
                   <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic}</Text>
                 </View>
-              </GHTouchable>
+              </Pressable>
             );
           })() : null}
 
@@ -1025,7 +1020,6 @@ export default function LifeTaskScreen() {
   const posAnims         = useRef<Record<string, Animated.Value>>({});
   const addedAnims       = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
   const containerRef     = useRef<View>(null);
-  const scrollNativeRef  = useRef<NativeViewGestureHandler>(null);
   const containerTopRef  = useRef(0);
   const scrollOffsetRef  = useRef(0);
   const startScrollRef   = useRef(0);   // scroll at drag-start — needed for accurate relY
@@ -1387,7 +1381,6 @@ export default function LifeTaskScreen() {
           <Text style={sc.mutedText}>Nothing here yet</Text>
         </View>
       ) : (
-        <NativeViewGestureHandler ref={scrollNativeRef}>
         <ScrollView
           scrollEnabled={scrollEnabled}
           showsVerticalScrollIndicator={false}
@@ -1444,14 +1437,12 @@ export default function LifeTaskScreen() {
                       onSwipeOpen={handleSwipeOpen}
                       showEpic={config?.showEpic}
                       epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
-                      scrollHandlerRef={scrollNativeRef}
                     />
                   </Animated.View>
                 );
               })}
             </View>
         </ScrollView>
-        </NativeViewGestureHandler>
       )}
 
       {/* ── FAB ──────────────────────────────────────────────────────────────── */}

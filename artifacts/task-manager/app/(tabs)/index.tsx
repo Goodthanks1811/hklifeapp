@@ -1,6 +1,5 @@
-import React from "react";
-import { View } from "react-native";
+import { Redirect } from "expo-router";
 
 export default function HomeScreen() {
-  return <View style={{ flex: 1, backgroundColor: "#0a0a0e" }} />;
+  return <Redirect href="/life/life-admin" />;
 }
