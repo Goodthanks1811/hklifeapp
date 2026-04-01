@@ -66,12 +66,23 @@ const SLUG_MAP: Record<string, SlugConfig> = {
   },
 };
 
-// ── Epic pill colours (hash-based, dark-theme palette) ────────────────────────
-const EPIC_BG_PALETTE = ["#6B2020","#1E4A2E","#1C2D5E","#5C3D10","#3D1C5E","#1C3D4A","#4A4A1C"];
-function epicColor(epic: string): { bg: string; text: string } {
+// ── Epic pill colours — dark-tinted bg + coloured text ────────────────────────
+// Each slot: [bg, border, text]
+const EPIC_PALETTE: [string, string, string][] = [
+  ["#0d1e30", "#1e3e62", "#5b9bd5"], // blue
+  ["#1a0d2e", "#3a1e62", "#a07be0"], // purple
+  ["#0a201a", "#1a4038", "#3ec49e"], // teal
+  ["#201400", "#4a3400", "#e0b040"], // gold
+  ["#1e0a0a", "#5e1e1e", "#e05a5a"], // red
+  ["#1e1008", "#5c3018", "#e07840"], // orange
+  ["#0a1a0a", "#1e4e1e", "#5bc85b"], // green
+  ["#1e0a1a", "#5e1e52", "#d070c0"], // pink
+];
+function epicColor(epic: string): { bg: string; border: string; text: string } {
   let h = 0;
   for (let i = 0; i < epic.length; i++) h = ((h * 31) + epic.charCodeAt(i)) >>> 0;
-  return { bg: EPIC_BG_PALETTE[h % EPIC_BG_PALETTE.length], text: "#fff" };
+  const [bg, border, text] = EPIC_PALETTE[h % EPIC_PALETTE.length];
+  return { bg, border, text };
 }
 
 // ── Loader timing (ms) ────────────────────────────────────────────────────────
@@ -105,11 +116,11 @@ function InlineEmojiPicker({ anchor, emojis, onSelect, onClose }: {
   if (!anchor) return null;
 
   const cellSize = 40;
-  const cols     = 3;
+  const cols     = emojis.length;   // single row — all emojis side-by-side
   const gap      = 8;
   const pad      = 10;
   const popW     = cols * cellSize + (cols - 1) * gap + pad * 2;
-  const popH     = Math.ceil(emojis.length / cols) * (cellSize + gap) - gap + pad * 2;
+  const popH     = cellSize + pad * 2;
 
   const rightX = anchor.x + anchor.w + 6;
   const leftX  = rightX + popW > sw ? anchor.x - popW - 6 : rightX;
@@ -336,11 +347,11 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
                       }}
                       style={[
                         s.dsEpicChip,
-                        { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.bg : Colors.border },
+                        { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border },
                       ]}
                     >
                       <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>
-                        {ep.toUpperCase()}
+                        {ep}
                       </Text>
                     </Pressable>
                   );
@@ -678,8 +689,8 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onPress, onLongPres
           {showEpic && task.epic ? (() => {
             const ec = epicColor(task.epic);
             return (
-              <View style={[sc.epicPill, { backgroundColor: ec.bg }]}>
-                <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic.toUpperCase()}</Text>
+              <View style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}>
+                <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic}</Text>
               </View>
             );
           })() : null}
@@ -1482,10 +1493,10 @@ const sc = StyleSheet.create({
   checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
 
   epicPill: {
-    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1,
   },
   epicPillText: {
-    fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4,
+    fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2,
   },
 
   fab: {
