@@ -558,8 +558,9 @@ export default function SettingsScreen() {
               </Text>
             )}
 
-            <TouchableOpacity activeOpacity={0.8} style={styles.saveBtn} onPress={pickImage}>
-              <Text style={styles.saveBtnText}>{headerUri ? "Replace Image" : "Pick from Library"}</Text>
+            <TouchableOpacity activeOpacity={0.8} style={styles.replaceBtn} onPress={pickImage}>
+              <Feather name="camera" size={14} color={Colors.textSecondary} />
+              <Text style={styles.replaceBtnText}>{headerUri ? "Replace Image" : "Pick from Library"}</Text>
             </TouchableOpacity>
 
             {headerUri && (
@@ -819,6 +820,15 @@ const styles = StyleSheet.create({
   saveBtnDisabled: { opacity: 0.4, shadowOpacity: 0 },
   saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   savedRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+
+  replaceBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 11,
+    borderRadius: 12, borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.cardBgElevated,
+  },
+  replaceBtnText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_500Medium" },
 
   clearBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",

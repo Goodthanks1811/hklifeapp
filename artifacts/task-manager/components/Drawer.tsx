@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import {
   Animated,
   Easing,
@@ -113,7 +114,22 @@ export function Drawer() {
     DRAWER_WIDTH, isTablet,
   } = useDrawer();
   const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
-  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY } = useHeaderImage();
+  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
+
+  const pickBannerImage = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.9,
+      allowsEditing: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      bannerUpdate({ uri: result.assets[0].uri, offsetX: 0, offsetY: 0 });
+    }
+  }, [bannerUpdate]);
+
   const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
   const insets = useSafeAreaInsets();
 
@@ -160,11 +176,16 @@ export function Drawer() {
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: 32 }}>
-        <Image
-          source={{ uri: bannerUri ?? FALLBACK_BANNER }}
-          style={[styles.headerImage, bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined]}
-          resizeMode={bannerUri ? bannerResizeMode : "cover"}
-        />
+        <Pressable onPress={pickBannerImage} style={{ borderRadius: 14, overflow: "hidden" }}>
+          <Image
+            source={{ uri: bannerUri ?? FALLBACK_BANNER }}
+            style={[styles.headerImage, bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined]}
+            resizeMode={bannerUri ? bannerResizeMode : "cover"}
+          />
+          <View style={styles.bannerReplaceBadge}>
+            <Feather name="camera" size={12} color="rgba(255,255,255,0.85)" />
+          </View>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -307,6 +328,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: "hidden",
     alignSelf: "flex-start",
+  },
+  bannerReplaceBadge: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: "rgba(0,0,0,0.52)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   scrollArea: { flex: 1 },
   section: { paddingHorizontal: 12, marginBottom: 2 },
