@@ -232,10 +232,11 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   epicOptions?:   string[] | null;
   isTablet:       boolean;
 }) {
-  const slideAnim = useRef(new Animated.Value(600)).current;
+  const scaleAnim = useRef(new Animated.Value(0.93)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const [title,     setTitle]    = useState("");
   const [notes,     setNotes]    = useState("");
   const [localEpic, setLocalEpic] = useState<string | null>(null);
@@ -277,14 +278,15 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   useEffect(() => {
     if (visible) {
       setTitle(task!.title);
+      scaleAnim.setValue(0.93);
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 90, friction: 13 }),
-        Animated.timing(bgAnim,    { toValue: 1, duration: 220, useNativeDriver: false }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: false, tension: 120, friction: 14 }),
+        Animated.timing(bgAnim,    { toValue: 1, duration: 200, useNativeDriver: false }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 600, duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim,    { toValue: 0,   duration: 190, useNativeDriver: false }),
+        Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(bgAnim,    { toValue: 0,    duration: 160, useNativeDriver: false }),
       ]).start();
     }
   }, [visible]);
@@ -346,39 +348,42 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     runLoader(onSave(task.id, title.trim(), notes.trim()));
   }, [task, title, notes, onSave, runLoader]);
 
-  const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"] });
-
-  const tabletSheetStyle = isTablet ? {
-    width: 560, maxWidth: "90%" as any, borderRadius: 20,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    alignSelf: "center" as const,
-    transform: [{ scale: slideAnim.interpolate({ inputRange: [0, 600], outputRange: [1, 0.92] }) }],
-  } : { transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] };
+  const bg      = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] });
+  const cardW   = isTablet ? Math.min(600, screenW * 0.88) : screenW * 0.93;
+  const maxCardH = screenH * 0.82;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
-      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
+      <Animated.View style={[s.overlay, s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-        <Animated.View style={[isTablet ? s.sheetBase : s.sheet, { paddingBottom: isTablet ? 24 : insets.bottom + 20 }, tabletSheetStyle]}>
-          <View style={s.handle} />
 
-          {/* Title input — full width, no icon */}
-          <TextInput
-            style={s.dsTitleInput}
-            value={title}
-            onChangeText={setTitle}
-            multiline
-            placeholder="Task name…"
-            placeholderTextColor={Colors.textMuted}
-            selectionColor={Colors.primary}
-            keyboardAppearance="dark"
-          />
+        <Animated.View style={[
+          s.dsCard,
+          {
+            width: cardW,
+            maxHeight: maxCardH,
+            marginBottom: kbAnim,
+            transform: [{ scale: scaleAnim }],
+            opacity: bgAnim,
+          },
+        ]}>
 
-          {/* Emoji section */}
-          {catEmojis.length > 0 && (
-            <>
-              <Text style={s.dsSectionLabel}>EMOJI</Text>
-              <View style={s.dsEmojiRow}>
+          {/* ── Top: title + meta chips ──────────────────────────────── */}
+          <View style={s.dsCardTop}>
+            <TextInput
+              style={s.dsTitleInput}
+              value={title}
+              onChangeText={setTitle}
+              multiline
+              placeholder="Task name…"
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
+              keyboardAppearance="dark"
+            />
+
+            {/* Emoji + Epic chips in one row */}
+            {(catEmojis.length > 0 || (epicOptions && epicOptions.length > 0)) && (
+              <View style={s.dsMetaRow}>
                 {catEmojis.map(e => {
                   const selected = norm(task?.emoji ?? "") === norm(e);
                   return (
@@ -391,16 +396,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
                     </Pressable>
                   );
                 })}
-              </View>
-            </>
-          )}
-
-          {/* Epic section */}
-          {epicOptions && epicOptions.length > 0 && (
-            <>
-              <Text style={s.dsSectionLabel}>EPIC</Text>
-              <View style={s.dsEmojiRow}>
-                {epicOptions.map(ep => {
+                {epicOptions && epicOptions.map(ep => {
                   const selected = ep === localEpic;
                   const ec = epicColor(ep);
                   return (
@@ -412,63 +408,64 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
                         setLocalEpic(ep);
                         onEpicChange?.(task.id, ep);
                       }}
-                      style={[
-                        s.dsEpicChip,
-                        { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border },
-                      ]}
+                      style={[s.dsEpicChip, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border }]}
                     >
-                      <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>
-                        {ep}
-                      </Text>
+                      <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
                     </Pressable>
                   );
                 })}
               </View>
-            </>
-          )}
+            )}
+          </View>
 
-          {/* Notes */}
-          <Text style={s.dsSectionLabel}>NOTES</Text>
-          {bodyLoading
-            ? <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: "flex-start", marginBottom: 12 }} />
-            : (
-              <TextInput
-                style={s.dsNotesInput}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={4}
-                placeholder="Add notes…"
-                placeholderTextColor={Colors.textMuted}
-                selectionColor={Colors.primary}
-                keyboardAppearance="dark"
-                textAlignVertical="top"
-              />
-            )
-          }
+          <View style={s.dsDivider} />
 
-          {/* Reference URL */}
-          {task?.url ? (
-            <>
-              <Text style={[s.dsSectionLabel, { marginTop: 12 }]}>REFERENCE</Text>
-              <Pressable onPress={() => task.url && Linking.openURL(task.url)}>
-                <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
-              </Pressable>
-            </>
-          ) : null}
+          {/* ── Body: scrollable notes + url ─────────────────────────── */}
+          <ScrollView
+            style={s.dsBodyScroll}
+            bounces
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={s.dsBodyInner}>
+              {bodyLoading
+                ? <ActivityIndicator size="small" color={Colors.primary} />
+                : (
+                  <TextInput
+                    style={s.dsNotesInput}
+                    value={notes}
+                    onChangeText={setNotes}
+                    multiline
+                    placeholder="Add notes…"
+                    placeholderTextColor={Colors.textMuted}
+                    selectionColor={Colors.primary}
+                    keyboardAppearance="dark"
+                    textAlignVertical="top"
+                  />
+                )
+              }
+              {task?.url ? (
+                <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={{ marginTop: 8 }}>
+                  <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </ScrollView>
 
-          {/* Action buttons */}
+          <View style={s.dsDivider} />
+
+          {/* ── Buttons ──────────────────────────────────────────────── */}
           <View style={s.dsActions}>
             <Pressable style={s.dsCancelBtn} onPress={dismiss}>
-              <Text style={s.dsCancelTx}>Cancel</Text>
+              <Text style={s.dsCancelTx}>Close</Text>
             </Pressable>
             <TouchableOpacity activeOpacity={0.8} style={s.dsUpdateBtn} onPress={handleSave}>
               <Feather name="check" size={15} color="#fff" />
-              <Text style={s.dsUpdateTx}>Update</Text>
+              <Text style={s.dsUpdateTx}>Save</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Loader overlay (inside sheet) */}
+          {/* ── Loader overlay ───────────────────────────────────────── */}
           {loaderVisible && (
             <Animated.View style={[s.dsLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
               <Animated.View style={[s.dsSpinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
@@ -1439,46 +1436,53 @@ const s = StyleSheet.create({
   emojiPopCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
   emojiPopText: { fontSize: 24 },
 
-  // ── Detail sheet (bottom sheet) ─────────────────────────────────────────
-  dsTitleInput: {
-    color: Colors.textPrimary, fontSize: 17, fontFamily: "Inter_600SemiBold",
-    lineHeight: 26, marginBottom: 20, paddingVertical: 0,
-    backgroundColor: Colors.cardBgElevated, borderRadius: 12, borderWidth: 1,
-    borderColor: Colors.borderLight, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
+  // ── Detail card (centered modal) ─────────────────────────────────────────
+  dsCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 22, borderWidth: 1, borderColor: Colors.border,
+    overflow: "hidden",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.55, shadowRadius: 44, elevation: 24,
   },
-  dsSectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 10 },
-  dsEmojiRow: { flexDirection: "row", gap: 10, marginBottom: 20, flexWrap: "wrap" },
+  dsCardTop: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
+  dsTitleInput: {
+    color: Colors.textPrimary, fontSize: 19, fontFamily: "Inter_700Bold",
+    lineHeight: 28, paddingVertical: 0, marginBottom: 0,
+  },
+  dsMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   dsEmojiChip: {
-    width: 50, height: 50, borderRadius: 12, backgroundColor: Colors.cardBgElevated,
+    width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.cardBgElevated,
     alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border,
   },
   dsEmojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
-  dsEmojiText: { fontSize: 24 },
+  dsEmojiText: { fontSize: 22 },
   dsEpicChip: {
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
     borderWidth: 1, borderColor: Colors.border,
   },
-  dsEpicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
+  dsEpicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  dsDivider: { height: 1, backgroundColor: Colors.border },
+  dsBodyScroll: { flexShrink: 1 },
+  dsBodyInner: { paddingHorizontal: 20, paddingVertical: 18 },
+  dsSectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 10 },
   dsNotesInput: {
-    backgroundColor: Colors.cardBgElevated, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight,
-    color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
-    paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12,
-    minHeight: 90, marginBottom: 4, lineHeight: 21,
+    color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_400Regular",
+    lineHeight: 24, paddingVertical: 0, minHeight: 80,
   },
   dsBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginBottom: 4 },
   dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
-  dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline", marginBottom: 4 },
-  dsActions: { flexDirection: "row", gap: 10, marginTop: 20 },
-  dsCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
+  dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline" },
+  dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   dsCancelTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  dsUpdateBtn: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
+  dsUpdateBtn: { flex: 2, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   dsUpdateTx: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 
-  // ── Detail sheet loader ──────────────────────────────────────────────────
+  // ── Detail card loader ───────────────────────────────────────────────────
   dsLoader: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.75)",
-    alignItems: "center", justifyContent: "center", borderTopLeftRadius: 24, borderTopRightRadius: 24, zIndex: 999,
+    alignItems: "center", justifyContent: "center", borderRadius: 22, zIndex: 999,
   },
   dsSpinnerWrap: {
     width: DS_SPINNER_SIZE, height: DS_SPINNER_SIZE,
