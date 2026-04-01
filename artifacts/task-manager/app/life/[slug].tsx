@@ -5,6 +5,7 @@ import { useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -257,6 +258,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const circleOpacity   = useRef(new Animated.Value(0)).current;
   const tickScale       = useRef(new Animated.Value(0)).current;
   const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
+  const openCloseRef    = useRef<Animated.CompositeAnimation | null>(null);
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   // ── Keyboard avoidance ────────────────────────────────────────────────────
@@ -285,25 +287,33 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   }, [visible, catValue]);
 
   // ── Open / close animation ────────────────────────────────────────────────
-  useEffect(() => {
+  // useLayoutEffect runs before the first paint so animated values are at
+  // their correct starting position the moment the Modal becomes visible —
+  // eliminates the one-frame flicker when quickly re-opening after close.
+  // openCloseRef lets us stop any in-flight close animation before resetting.
+  useLayoutEffect(() => {
+    openCloseRef.current?.stop();
     if (visible) {
       setTitle(task!.title);
+      // Hard-reset to closed position before animating open
       scaleAnim.setValue(0.92);
       slideAnim.setValue(500);
       bgAnim.setValue(0);
-      Animated.parallel([
+      openCloseRef.current = Animated.parallel([
         isTablet
           ? Animated.timing(scaleAnim, { toValue: 1,   duration: 220, useNativeDriver: false, easing: Easing.out(Easing.back(1.2)) })
           : Animated.timing(slideAnim, { toValue: 0,   duration: 280, useNativeDriver: false, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
         Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false }),
-      ]).start();
+      ]);
+      openCloseRef.current.start();
     } else {
-      Animated.parallel([
+      openCloseRef.current = Animated.parallel([
         isTablet
           ? Animated.timing(scaleAnim, { toValue: 0.92, duration: 160, useNativeDriver: false, easing: Easing.in(Easing.quad) })
           : Animated.timing(slideAnim, { toValue: 500,  duration: 200, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
         Animated.timing(bgAnim,    { toValue: 0,   duration: 160, useNativeDriver: false }),
-      ]).start();
+      ]);
+      openCloseRef.current.start();
     }
   }, [visible]);
 
