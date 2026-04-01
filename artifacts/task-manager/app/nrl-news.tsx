@@ -155,15 +155,15 @@ const tb = StyleSheet.create({
 
 // ── Article card ───────────────────────────────────────────────────────────────
 function ArticleCard({ item, onPress, isTablet }: { item: NewsItem; onPress: () => void; isTablet: boolean }) {
-  const titleSize = isTablet ? 24 : 18;
-  const padV      = isTablet ? 28 : 22;
-  const padH      = isTablet ? 22 : 16;
+  const titleSize = isTablet ? 14 : 18;
+  const padV      = isTablet ? 13 : 22;
+  const padH      = isTablet ? 16 : 16;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [ac.shell, pressed && { opacity: 0.8 }]}>
       <View style={[ac.glow, { opacity: isTablet ? 0.18 : 0.22 }]} />
       <View style={[ac.card, { paddingVertical: padV, paddingHorizontal: padH }]}>
-        <Text style={[ac.title, { fontSize: titleSize, lineHeight: titleSize * 1.38 }]}>{item.title}</Text>
-        <Text style={ac.chevron}>›</Text>
+        <Text style={[ac.title, { fontSize: titleSize, lineHeight: titleSize * 1.38, fontWeight: isTablet ? "500" : "700" }]}>{item.title}</Text>
+        <Text style={[ac.chevron, { fontSize: isTablet ? 16 : 22, lineHeight: isTablet ? 16 : 22 }]}>›</Text>
       </View>
     </Pressable>
   );
@@ -183,12 +183,12 @@ const ac = StyleSheet.create({
     borderWidth: 1, borderColor: C.cardBorder,
     borderRadius: 16,
     flexDirection: "row", alignItems: "center", gap: 12,
-    minHeight: 72, zIndex: 1,
+    zIndex: 1,
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.32, shadowRadius: 20, elevation: 6,
   },
-  title:   { flex: 1, color: C.text, fontWeight: "700", textAlign: "center", letterSpacing: -0.2 },
-  chevron: { color: C.muted, fontSize: 22, lineHeight: 22 },
+  title:   { flex: 1, color: C.text, textAlign: "center", letterSpacing: -0.2 },
+  chevron: { color: C.muted },
 });
 
 // ── Article body ───────────────────────────────────────────────────────────────
@@ -388,7 +388,7 @@ export default function NrlNewsScreen() {
           )}
 
           {!loading && !error && (
-            <View style={{ gap: isTablet ? 22 : 18, maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
+            <View style={{ gap: isTablet ? 10 : 18, maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
               {visibleNews.length === 0 ? (
                 <View style={styles.center}>
                   <Text style={styles.errorText}>No articles found.</Text>
