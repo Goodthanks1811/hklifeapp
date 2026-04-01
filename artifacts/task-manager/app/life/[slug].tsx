@@ -284,7 +284,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     if (visible) setLocalCat(catValue);
   }, [visible, catValue]);
 
-  // ── Open / close animation (native driver — runs off JS thread) ──────────
+  // ── Open / close animation ────────────────────────────────────────────────
   useEffect(() => {
     if (visible) {
       setTitle(task!.title);
@@ -293,16 +293,16 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
       bgAnim.setValue(0);
       Animated.parallel([
         isTablet
-          ? Animated.timing(scaleAnim, { toValue: 1, duration: 240, useNativeDriver: true, easing: Easing.out(Easing.back(1.3)) })
-          : Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
-        Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+          ? Animated.timing(scaleAnim, { toValue: 1,   duration: 220, useNativeDriver: false, easing: Easing.out(Easing.back(1.2)) })
+          : Animated.timing(slideAnim, { toValue: 0,   duration: 280, useNativeDriver: false, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
+        Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false }),
       ]).start();
     } else {
       Animated.parallel([
         isTablet
-          ? Animated.timing(scaleAnim, { toValue: 0.92, duration: 160, useNativeDriver: true, easing: Easing.in(Easing.quad) })
-          : Animated.timing(slideAnim, { toValue: 500, duration: 220, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
+          ? Animated.timing(scaleAnim, { toValue: 0.92, duration: 160, useNativeDriver: false, easing: Easing.in(Easing.quad) })
+          : Animated.timing(slideAnim, { toValue: 500,  duration: 200, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(bgAnim,    { toValue: 0,   duration: 160, useNativeDriver: false }),
       ]).start();
     }
   }, [visible]);
@@ -365,7 +365,8 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     runLoader(onSave(task.id, title.trim(), notes.trim(), changedCat));
   }, [task, title, notes, localCat, catValue, onSave, runLoader]);
 
-  const cardW    = Math.min(600, screenW * 0.88);
+  const bg    = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.72)"] });
+  const cardW = Math.min(600, screenW * 0.88);
   const maxCardH = screenH * 0.82;
 
   // ── Shared inner content ────────────────────────────────────────────────
@@ -465,20 +466,19 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
       <View style={s.dsDivider} />
       <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={s.dsBodyInner}>
-          {bodyLoading
-            ? <ActivityIndicator size="small" color={Colors.primary} />
-            : <TextInput
-                style={s.dsNotesInput}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                placeholder="Add notes…"
-                placeholderTextColor={Colors.textMuted}
-                selectionColor={Colors.primary}
-                keyboardAppearance="dark"
-                textAlignVertical="top"
-              />
-          }
+          {/* Always render TextInput — no layout shift when notes arrive */}
+          <TextInput
+            style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            editable={!bodyLoading}
+            placeholder={bodyLoading ? "Loading…" : "Add notes…"}
+            placeholderTextColor={Colors.textMuted}
+            selectionColor={Colors.primary}
+            keyboardAppearance="dark"
+            textAlignVertical="top"
+          />
           {task?.url ? (
             <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={{ marginTop: 8 }}>
               <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
@@ -501,9 +501,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
-      {/* Backdrop — opacity on native driver, no JS colour interpolation */}
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.72)", opacity: bgAnim }]} pointerEvents="none" />
-      <View style={[s.overlay, isTablet && s.overlayCenter]}>
+      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
 
         {isTablet ? (
@@ -516,15 +514,15 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
             {loaderOverlay}
           </Animated.View>
         ) : (
-          // ── Phone: bottom sheet — translateY on native driver, bottom for keyboard on JS ──
-          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, bottom: kbAnim, transform: [{ translateY: slideAnim }] }]}>
+          // ── Phone: bottom sheet ───────────────────────────────────
+          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
             <View style={s.handle} />
             {sheetContent}
             {bodySection}
             {loaderOverlay}
           </Animated.View>
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
