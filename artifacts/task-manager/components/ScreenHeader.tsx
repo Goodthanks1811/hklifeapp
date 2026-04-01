@@ -8,9 +8,9 @@ import { useDrawer } from "@/context/DrawerContext";
 interface Props { title: string; right?: React.ReactNode; }
 
 export function ScreenHeader({ title, right }: Props) {
-  const { openDrawer } = useDrawer();
+  const { openDrawer, isTablet } = useDrawer();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, isTablet && { paddingTop: 40 }]}>
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
         style={styles.btn}
