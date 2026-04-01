@@ -67,11 +67,12 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Coming soon", icon: "clock", route: null, description: "In development" },
   ],
   uikit: [
-    { label: "Buttons",        icon: "square",  route: "/ui-kit/buttons", description: "Styles & states"   },
-    { label: "Sliders",        icon: "sliders", route: "/ui-kit/sliders", description: "Custom controls"   },
-    { label: "Drag & Reorder", icon: "list",    route: "/ui-kit/reorder", description: "Hold to drag"      },
-    { label: "Loaders",        icon: "loader",  route: "/ui-kit/loaders", description: "Save states"       },
-    { label: "Modals",         icon: "layers",  route: "/ui-kit/modals",  description: "Overlays & alerts" },
+    { label: "Buttons",        icon: "square",  route: "/ui-kit/buttons",       description: "Styles & states"    },
+    { label: "Sliders",        icon: "sliders", route: "/ui-kit/sliders",       description: "Custom controls"    },
+    { label: "Drag & Reorder", icon: "list",    route: "/ui-kit/reorder",       description: "Hold to drag"       },
+    { label: "Delete Styles",  icon: "trash-2", route: "/ui-kit/delete-styles", description: "5 delete patterns"  },
+    { label: "Loaders",        icon: "loader",  route: "/ui-kit/loaders",       description: "Save states"        },
+    { label: "Modals",         icon: "layers",  route: "/ui-kit/modals",        description: "Overlays & alerts"  },
   ],
 };
 
