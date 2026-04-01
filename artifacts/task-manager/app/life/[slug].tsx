@@ -284,24 +284,25 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     if (visible) setLocalCat(catValue);
   }, [visible, catValue]);
 
-  // ── Open / close animation ────────────────────────────────────────────────
+  // ── Open / close animation (native driver — runs off JS thread) ──────────
   useEffect(() => {
     if (visible) {
       setTitle(task!.title);
-      scaleAnim.setValue(0.93);
-      slideAnim.setValue(600);
+      scaleAnim.setValue(0.92);
+      slideAnim.setValue(500);
+      bgAnim.setValue(0);
       Animated.parallel([
         isTablet
-          ? Animated.spring(scaleAnim, { toValue: 1,   useNativeDriver: false, tension: 120, friction: 14 })
-          : Animated.spring(slideAnim, { toValue: 0,   useNativeDriver: false, tension: 90,  friction: 13 }),
-        Animated.timing(bgAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
+          ? Animated.timing(scaleAnim, { toValue: 1, duration: 240, useNativeDriver: true, easing: Easing.out(Easing.back(1.3)) })
+          : Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
+        Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
         isTablet
-          ? Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) })
-          : Animated.timing(slideAnim, { toValue: 600,  duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim, { toValue: 0, duration: 160, useNativeDriver: false }),
+          ? Animated.timing(scaleAnim, { toValue: 0.92, duration: 160, useNativeDriver: true, easing: Easing.in(Easing.quad) })
+          : Animated.timing(slideAnim, { toValue: 500, duration: 220, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+        Animated.timing(bgAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
       ]).start();
     }
   }, [visible]);
@@ -364,7 +365,6 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     runLoader(onSave(task.id, title.trim(), notes.trim(), changedCat));
   }, [task, title, notes, localCat, catValue, onSave, runLoader]);
 
-  const bg       = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] });
   const cardW    = Math.min(600, screenW * 0.88);
   const maxCardH = screenH * 0.82;
 
@@ -501,7 +501,9 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
-      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
+      {/* Backdrop — opacity on native driver, no JS colour interpolation */}
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.72)", opacity: bgAnim }]} pointerEvents="none" />
+      <View style={[s.overlay, isTablet && s.overlayCenter]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
 
         {isTablet ? (
@@ -514,15 +516,15 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
             {loaderOverlay}
           </Animated.View>
         ) : (
-          // ── Phone: bottom sheet ───────────────────────────────────
-          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
+          // ── Phone: bottom sheet — translateY on native driver, bottom for keyboard on JS ──
+          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, bottom: kbAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={s.handle} />
             {sheetContent}
             {bodySection}
             {loaderOverlay}
           </Animated.View>
         )}
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
