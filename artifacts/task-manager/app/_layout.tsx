@@ -18,7 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Drawer } from "@/components/Drawer";
 import { LockScreen } from "@/components/LockScreen";
 import { StartupScan } from "@/components/StartupScan";
-import { DrawerProvider, useDrawer } from "@/context/DrawerContext";
+import { DrawerProvider, isTablet, useDrawer } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
@@ -99,7 +99,7 @@ export default function RootLayout() {
                 <DrawerProvider>
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <RootLayoutNav />
-                    {showStartup && (
+                    {showStartup && !isTablet && (
                       <StartupScan onDone={() => setShowStartup(false)} />
                     )}
                   </GestureHandlerRootView>

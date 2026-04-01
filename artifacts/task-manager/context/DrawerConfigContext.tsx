@@ -28,7 +28,7 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
 };
 
 export const SECTION_ORDER: SectionKey[] = [
-  "reports", "life", "apps", "footy", "tools", "knowledge", "uikit",
+  "life", "reports", "apps", "footy", "tools", "knowledge", "uikit",
 ];
 
 export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
