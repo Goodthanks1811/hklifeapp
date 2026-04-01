@@ -47,7 +47,7 @@ function TabletShell({ children }: { children: React.ReactNode }) {
   if (!isTablet) return <>{children}</>;
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
-      <View style={{ width: tabletSidebarVisible ? SIDEBAR_WIDTH : 0 }} />
+      <View style={{ width: tabletSidebarVisible ? SIDEBAR_WIDTH : 0, backgroundColor: "#111111" }} />
       <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
