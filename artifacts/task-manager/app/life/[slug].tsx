@@ -160,10 +160,10 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
   const { width: sw, height: sh } = useWindowDimensions();
   if (!anchor || !epicOptions.length) return null;
 
-  const rowH  = 36;
+  const rowH  = 34;
   const pad   = 6;
-  const gap   = 4;
-  const popW  = 164;
+  const gap   = 5;
+  const popW  = 170;
   const popH  = epicOptions.length * rowH + (epicOptions.length - 1) * gap + pad * 2;
 
   // Sit to the LEFT of the tapped pill
@@ -180,15 +180,22 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
           return (
             <Pressable
               key={ep}
-              style={[s.epicPopRow, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : "transparent" }]}
+              style={[
+                s.epicPopRow,
+                {
+                  backgroundColor: ec.bg,
+                  borderColor:     ec.border,
+                  opacity:         selected ? 1 : 0.72,
+                },
+              ]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onSelect(anchor.taskId, ep);
                 onClose();
               }}
             >
-              <View style={[s.epicPopDot, { backgroundColor: ec.text }]} />
-              <Text style={[s.epicPopText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
+              <Text style={[s.epicPopText, { color: ec.text, fontFamily: selected ? "Inter_600SemiBold" : "Inter_400Regular" }]}>{ep}</Text>
+              {selected && <Feather name="check" size={12} color={ec.text} />}
             </Pressable>
           );
         })}
