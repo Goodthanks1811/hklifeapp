@@ -27,10 +27,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
-const STORAGE_KEY = "mi_nena_folders_v2";
-const GRID_COLS   = 3;
-const FOLD_COLS   = 2;
-const GAP         = 2;
+const STORAGE_KEY   = "mi_nena_folders_v2";
+const FOLD_COLS     = 2;
+const GAP           = 2;
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
 
 type MediaItem = { uri: string; name: string; isVideo: boolean };
@@ -100,9 +99,18 @@ function Viewer({
           getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
           keyExtractor={(item) => item.uri}
           onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / width))}
-          renderItem={({ item, index }) =>
-            item.isVideo ? (
-              <View style={{ width, height, alignItems: "center", justifyContent: "center" }}>
+          renderItem={({ item, index }) => (
+            <ScrollView
+              style={{ width, height }}
+              contentContainerStyle={{ width, height, alignItems: "center", justifyContent: "center" }}
+              minimumZoomScale={1}
+              maximumZoomScale={item.isVideo ? 3 : 6}
+              centerContent
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              bouncesZoom
+            >
+              {item.isVideo ? (
                 <Video
                   source={{ uri: item.uri }}
                   style={{ width, height }}
@@ -112,22 +120,11 @@ function Viewer({
                   isLooping
                   volume={1}
                 />
-              </View>
-            ) : (
-              <ScrollView
-                style={{ width, height }}
-                contentContainerStyle={{ width, height, alignItems: "center", justifyContent: "center" }}
-                minimumZoomScale={1}
-                maximumZoomScale={6}
-                centerContent
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-                bouncesZoom
-              >
+              ) : (
                 <Image source={{ uri: item.uri }} style={{ width, height }} resizeMode="contain" />
-              </ScrollView>
-            )
-          }
+              )}
+            </ScrollView>
+          )}
         />
         <TouchableOpacity style={s.viewerClose} onPress={onClose} activeOpacity={0.8}>
           <Feather name="x" size={22} color="#fff" />
@@ -470,8 +467,9 @@ export default function MiNenaScreen() {
     );
   }, [folders, setCoverImage, deleteFolder]);
 
+  const gridCols       = width >= 768 ? 4 : 3;
   const folderCardSize = (width - GAP * (FOLD_COLS + 1)) / FOLD_COLS;
-  const thumbSize      = (width - GAP * (GRID_COLS + 1)) / GRID_COLS;
+  const thumbSize      = (width - GAP * (gridCols + 1)) / gridCols;
 
   // ── Root folder grid ───────────────────────────────────────────────────────
   if (!currentFolder) {
@@ -607,9 +605,9 @@ export default function MiNenaScreen() {
         </View>
       ) : (
         <FlatList
-          key={`file-grid-${currentFolderId}`}
+          key={`file-grid-${currentFolderId}-${gridCols}`}
           data={currentFolder.items}
-          numColumns={GRID_COLS}
+          numColumns={gridCols}
           keyExtractor={(item) => item.uri}
           contentContainerStyle={{
             paddingTop: 8,
