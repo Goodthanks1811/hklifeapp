@@ -160,7 +160,6 @@ function ArticleCard({ item, onPress, isTablet }: { item: NewsItem; onPress: () 
   const padH      = isTablet ? 16 : 16;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [ac.shell, pressed && { opacity: 0.8 }]}>
-      <View style={[ac.glow, { opacity: isTablet ? 0.18 : 0.22 }]} />
       <View style={[ac.card, { paddingVertical: padV, paddingHorizontal: padH }]}>
         <Text style={[ac.title, { fontSize: titleSize, lineHeight: titleSize * 1.38, fontWeight: isTablet ? "500" : "700" }]}>{item.title}</Text>
         <Text style={[ac.chevron, { fontSize: isTablet ? 16 : 22, lineHeight: isTablet ? 16 : 22 }]}>›</Text>
@@ -170,14 +169,6 @@ function ArticleCard({ item, onPress, isTablet }: { item: NewsItem; onPress: () 
 }
 const ac = StyleSheet.create({
   shell:   { position: "relative", marginBottom: 0 },
-  glow:    {
-    position: "absolute", left: "5%", right: "5%",
-    bottom: -8, height: 64,
-    borderRadius: 999,
-    backgroundColor: C.green,
-    shadowColor: C.green, shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6, shadowRadius: 18, elevation: 10,
-  },
   card: {
     backgroundColor: C.card,
     borderWidth: 1, borderColor: C.cardBorder,
@@ -262,7 +253,7 @@ export default function NrlNewsScreen() {
 
   const topPad  = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const sidePad = isTablet ? 20 : 14;
-  const maxW    = isTablet ? 850 : 760;
+  const maxW    = isTablet ? 680 : 760;
 
   // ── Filtered list ─────────────────────────────────────────────────────────
   const visibleNews = activeTab === "teamlists"

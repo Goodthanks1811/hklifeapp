@@ -98,6 +98,11 @@ const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(ma
 // A static zero-value used for the dragged row so it never dims itself
 const ZERO_ANIM = new Animated.Value(0);
 
+// ── Epics that exist in Notion but should not appear in the picker ────────────
+const BLOCKED_EPICS = new Set(["Redesign", "Spike", "Redesign / Rebuild"]);
+const filterEpics = (opts: string[] | null | undefined): string[] =>
+  (opts ?? []).filter(e => !BLOCKED_EPICS.has(e));
+
 // ── Inline popovers (emoji + epic) ────────────────────────────────────────────
 type EmojiAnchor = { taskId: string; x: number; y: number; w: number; h: number };
 type EpicAnchor  = { taskId: string; x: number; y: number; w: number; h: number };
@@ -191,7 +196,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
                 {
                   backgroundColor: ec.bg,
                   borderColor:     ec.border,
-                  opacity:         selected ? 1 : 0.72,
+                  opacity:         selected ? 1 : 0.95,
                 },
               ]}
               onPress={() => {
@@ -200,7 +205,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
                 onClose();
               }}
             >
-              <Text style={[s.epicPopText, { color: ec.text, fontFamily: selected ? "Inter_600SemiBold" : "Inter_400Regular" }]}>{ep}</Text>
+              <Text style={[s.epicPopText, { color: ec.text, fontFamily: selected ? "Inter_700Bold" : "Inter_500Medium" }]}>{ep}</Text>
               {selected && <Feather name="check" size={12} color={ec.text} />}
             </Pressable>
           );
@@ -1325,7 +1330,7 @@ export default function LifeTaskScreen() {
                       onDelete={() => handleDelete(task.id)}
                       onSwipeOpen={handleSwipeOpen}
                       showEpic={config?.showEpic}
-                      epicOptions={config?.showEpic ? (schema?.epicOptions ?? null) : null}
+                      epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
                     />
                   </View>
                 ))}
@@ -1373,7 +1378,7 @@ export default function LifeTaskScreen() {
                       onDelete={() => handleDelete(task.id)}
                       onSwipeOpen={handleSwipeOpen}
                       showEpic={config?.showEpic}
-                      epicOptions={config?.showEpic ? (schema?.epicOptions ?? null) : null}
+                      epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
                     />
                   </Animated.View>
                 );
@@ -1401,7 +1406,7 @@ export default function LifeTaskScreen() {
         onSave={handleSaveTitle}
         onEmojiChange={handleEmojiChange}
         onEpicChange={config?.showEpic ? handleEpicChange : undefined}
-        epicOptions={config?.showEpic ? (schema?.epicOptions ?? null) : null}
+        epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
         isTablet={isTablet}
       />
 
@@ -1415,7 +1420,7 @@ export default function LifeTaskScreen() {
 
       <InlineEpicPicker
         anchor={epicAnchor}
-        epicOptions={schema?.epicOptions ?? []}
+        epicOptions={filterEpics(schema?.epicOptions)}
         currentEpic={epicAnchor ? (tasks.find(t => t.id === epicAnchor.taskId)?.epic ?? null) : null}
         onSelect={handleEpicChange}
         onClose={() => setEpicAnchor(null)}
