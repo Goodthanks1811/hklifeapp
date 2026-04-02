@@ -68,6 +68,11 @@ const SLUG_MAP: Record<string, SlugConfig> = {
 };
 const ALL_CATS = Object.values(SLUG_MAP).map(c => c.catValue);
 
+// Map from catValue → the emojis that belong to that section
+const CAT_EMOJI_MAP: Record<string, string[]> = Object.fromEntries(
+  Object.values(SLUG_MAP).map(c => [c.catValue, c.emojis])
+);
+
 // ── Epic pill colours — dark-tinted bg + coloured text ────────────────────────
 // Each slot: [bg, border, text]
 const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string }> = {
@@ -356,9 +361,10 @@ const DS_SPINNER_SIZE   = 72;
 const DS_SPINNER_STROKE = 8;
 const DS_CIRCLE_SIZE    = 74;
 
-function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, epicOptions, catValue, allCategories, categoryType, isTablet }: {
+function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, epicOptions, catValue, allCategories, categoryType, isTablet }: {
   task:           LifeTask | null;
   catEmojis:      string[];
+  catEmojiMap:    Record<string, string[]>;
   body:           string | null;
   bodyLoading:    boolean;
   onClose:        () => void;
@@ -388,6 +394,17 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 
   const handleFormat = useCallback((type: string) => {
     setNotes(prev => applyFormat(type, prev, selRef.current));
+  }, []);
+
+  // Emojis for the currently-selected category (HIDDEN_EMOJI always appended)
+  const displayEmojis = useMemo(() => {
+    const base = catEmojiMap[localCat] ?? catEmojis;
+    const withoutHidden = base.filter(e => norm(e) !== norm(HIDDEN_EMOJI));
+    return [...withoutHidden, HIDDEN_EMOJI];
+  }, [catEmojiMap, localCat, catEmojis]);
+
+  const handleCatChange = useCallback((cat: string) => {
+    setLocalCat(cat);
   }, []);
 
   // ── Loader anims ──────────────────────────────────────────────────────────
@@ -541,10 +558,10 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
         keyboardAppearance="dark"
       />
 
-      {/* Emoji row */}
-      {catEmojis.length > 0 && (
+      {/* Emoji row — updates when category chip is tapped */}
+      {displayEmojis.length > 0 && (
         <View style={s.dsMetaRow}>
-          {catEmojis.map((e, i) => {
+          {displayEmojis.map((e, i) => {
             const selected = norm(task?.emoji ?? "") === norm(e);
             return (
               <Pressable
@@ -591,7 +608,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
             return (
               <Pressable
                 key={`cat-${cat}`}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLocalCat(cat); }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChange(cat); }}
                 style={[s.dsCatChip, selected && s.dsCatChipActive]}
               >
                 <Text style={[s.dsCatText, selected && s.dsCatTextActive]}>{cat}</Text>
@@ -736,8 +753,8 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 }
 
 // ── Quick-add sheet ────────────────────────────────────────────────────────────
-function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, epicOptions, schema, apiKey, onAdded, onClose, isTablet }: {
-  visible: boolean; catEmojis: string[]; catValue: string;
+function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategories, showEpic, epicOptions, schema, apiKey, onAdded, onClose, isTablet }: {
+  visible: boolean; catEmojis: string[]; catEmojiMap: Record<string, string[]>; catValue: string;
   allCategories: string[];
   showEpic?: boolean; epicOptions?: string[];
   schema: Schema | null; apiKey: string | null;
@@ -763,6 +780,21 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, 
   const handleFormatQA = useCallback((type: string) => {
     setNotes(prev => applyFormat(type, prev, qaSelRef.current));
   }, []);
+
+  // Emojis for the currently-selected category
+  const displayEmojis = useMemo(() => {
+    return catEmojiMap[localCat] ?? catEmojis;
+  }, [catEmojiMap, localCat, catEmojis]);
+
+  const handleCatChangeQA = useCallback((cat: string) => {
+    setLocalCat(cat);
+    // If the currently-selected emoji doesn't belong to the new category, clear it
+    setSelEmoji(prev => {
+      if (!prev) return null;
+      const newEmojis = catEmojiMap[cat] ?? [];
+      return newEmojis.some(e => norm(e) === norm(prev)) ? prev : null;
+    });
+  }, [catEmojiMap]);
 
   // Loader animation refs — identical to DetailSheet
   const overlayOpacity  = useRef(new Animated.Value(0)).current;
@@ -939,10 +971,10 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, 
         />
       </Animated.View>
 
-      {/* Emoji row */}
-      {catEmojis.length > 0 && (
+      {/* Emoji row — reacts to category chip taps */}
+      {displayEmojis.length > 0 && (
         <View style={[s.dsMetaRow, { marginTop: 12 }]}>
-          {catEmojis.map((e, i) => {
+          {displayEmojis.map((e, i) => {
             const selected = norm(selEmoji ?? "") === norm(e);
             return (
               <Pressable
@@ -981,7 +1013,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, 
             return (
               <Pressable
                 key={`qa-cat-${cat}`}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLocalCat(cat); }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChangeQA(cat); }}
                 style={[s.dsCatChip, selected && s.dsCatChipActive]}
               >
                 <Text style={[s.dsCatText, selected && s.dsCatTextActive]}>{cat}</Text>
@@ -1763,6 +1795,7 @@ export default function LifeTaskScreen() {
       <DetailSheet
         task={detailTask}
         catEmojis={[...(config?.emojis ?? []).filter(e => norm(e) !== norm(HIDDEN_EMOJI)), HIDDEN_EMOJI]}
+        catEmojiMap={CAT_EMOJI_MAP}
         body={pageBody}
         bodyLoading={bodyLoading}
         onClose={() => setDetailTask(null)}
@@ -1795,6 +1828,7 @@ export default function LifeTaskScreen() {
       <QuickAddSheet
         visible={showQuickAdd}
         catEmojis={FULL_PICKER}
+        catEmojiMap={CAT_EMOJI_MAP}
         catValue={config.catValue}
         allCategories={ALL_CATS}
         showEpic={!!config?.showEpic}
