@@ -86,9 +86,14 @@ function Viewer({
 
   const panResponder = useRef(
     PanResponder.create({
-      // Only claim the gesture when the user is clearly dragging downward
+      // Bubble phase: claim when clearly dragging downward (catches gestures
+      // not already consumed by a child)
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
         dy > 8 && Math.abs(dy) > Math.abs(dx) * 1.5,
+      // Capture phase: steal from inner FlatList / ScrollView when the drag
+      // is unambiguously vertical — this is what makes dismiss reliable
+      onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
+        dy > 18 && Math.abs(dy) > Math.abs(dx) * 2.8,
       onPanResponderMove: (_, { dy }) => {
         if (dy > 0) dragY.setValue(dy);
       },
@@ -173,12 +178,6 @@ function Viewer({
             </ScrollView>
           )}
         />
-        <TouchableOpacity style={s.viewerClose} onPress={onClose} activeOpacity={0.8}>
-          <Feather name="x" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={s.viewerCounter}>
-          <Text style={s.viewerCounterTxt}>{idx + 1} / {items.length}</Text>
-        </View>
       </Animated.View>
     </Modal>
   );
@@ -843,29 +842,6 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.6)",
   },
-
-  // Viewer
-  viewerClose: {
-    position: "absolute",
-    top: 52,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  viewerCounter: {
-    position: "absolute",
-    bottom: 48,
-    alignSelf: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  viewerCounterTxt: { color: "#fff", fontSize: 13, fontFamily: "Inter_400Regular" },
 
   // Empty state
   emptyWrap:     { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 16 },
