@@ -388,8 +388,43 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
   const [localEpic,   setLocalEpic]  = useState<string | null>(null);
   const [localCat,    setLocalCat]   = useState<string>(catValue);
   const [editingBody, setEditingBody] = useState(false);
-  const selRef   = useRef({ start: 0, end: 0 });
-  const notesRef = useRef<TextInput>(null);
+  const selRef       = useRef({ start: 0, end: 0 });
+  const notesRef     = useRef<TextInput>(null);
+  const prevNotesRef = useRef(notes);
+
+  // Smart body change handler — auto-continues bullet lists on Enter,
+  // and removes an empty bullet when Enter is pressed a second time.
+  const handleBodyChange = useCallback((newText: string) => {
+    const prev = prevNotesRef.current;
+    prevNotesRef.current = newText;
+
+    if (newText.length === prev.length + 1) {
+      const insertIdx = selRef.current.start; // cursor pos before the keystroke
+      if (insertIdx >= 0 && insertIdx < newText.length && newText[insertIdx] === "\n") {
+        // Find the start of the line the cursor was on (in the previous text)
+        let lineStart = insertIdx;
+        while (lineStart > 0 && prev[lineStart - 1] !== "\n") lineStart--;
+        const currentLine = prev.slice(lineStart, insertIdx);
+
+        if (currentLine === "- ") {
+          // Empty bullet → exit list: strip "- " + swallow the new \n
+          const result = prev.slice(0, lineStart) + newText.slice(insertIdx + 1);
+          prevNotesRef.current = result;
+          setNotes(result);
+          return;
+        }
+        if (currentLine.startsWith("- ")) {
+          // Filled bullet → continue with new bullet
+          const result = newText.slice(0, insertIdx + 1) + "- " + newText.slice(insertIdx + 1);
+          prevNotesRef.current = result;
+          setNotes(result);
+          return;
+        }
+      }
+    }
+
+    setNotes(newText);
+  }, []);
   const visible = !!task;
 
   const handleFormat = useCallback((type: string) => {
@@ -432,7 +467,11 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   // Sync notes from body prop whenever sheet opens or body loads
   useEffect(() => {
-    if (visible) setNotes(body ?? "");
+    if (visible) {
+      const val = body ?? "";
+      prevNotesRef.current = val;
+      setNotes(val);
+    }
   }, [visible, body]);
 
   // Sync localEpic when sheet opens
@@ -683,7 +722,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
                 ref={notesRef}
                 style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
                 value={notes}
-                onChangeText={setNotes}
+                onChangeText={handleBodyChange}
                 onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
                 multiline
                 editable={!bodyLoading}
@@ -774,11 +813,41 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const [localCat,     setLocalCat]    = useState<string>(catValue);
   const [selEpic,      setSelEpic]     = useState<string | null>(null);
   const [loaderVisible, setLoaderVisible] = useState(false);
-  const qaSelRef   = useRef({ start: 0, end: 0 });
-  const qaNotesRef = useRef<TextInput>(null);
+  const qaSelRef      = useRef({ start: 0, end: 0 });
+  const qaNotesRef    = useRef<TextInput>(null);
+  const prevQANotesRef = useRef("");
 
   const handleFormatQA = useCallback((type: string) => {
     setNotes(prev => applyFormat(type, prev, qaSelRef.current));
+  }, []);
+
+  const handleQABodyChange = useCallback((newText: string) => {
+    const prev = prevQANotesRef.current;
+    prevQANotesRef.current = newText;
+
+    if (newText.length === prev.length + 1) {
+      const insertIdx = qaSelRef.current.start;
+      if (insertIdx >= 0 && insertIdx < newText.length && newText[insertIdx] === "\n") {
+        let lineStart = insertIdx;
+        while (lineStart > 0 && prev[lineStart - 1] !== "\n") lineStart--;
+        const currentLine = prev.slice(lineStart, insertIdx);
+
+        if (currentLine === "- ") {
+          const result = prev.slice(0, lineStart) + newText.slice(insertIdx + 1);
+          prevQANotesRef.current = result;
+          setNotes(result);
+          return;
+        }
+        if (currentLine.startsWith("- ")) {
+          const result = newText.slice(0, insertIdx + 1) + "- " + newText.slice(insertIdx + 1);
+          prevQANotesRef.current = result;
+          setNotes(result);
+          return;
+        }
+      }
+    }
+
+    setNotes(newText);
   }, []);
 
   // Emojis for the currently-selected category
@@ -1031,7 +1100,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         ref={qaNotesRef}
         style={[s.dsNotesInput, { minHeight: 80, paddingHorizontal: 20, paddingVertical: 14 }]}
         value={notes}
-        onChangeText={setNotes}
+        onChangeText={handleQABodyChange}
         onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
         multiline
         placeholder="Add notes…"
