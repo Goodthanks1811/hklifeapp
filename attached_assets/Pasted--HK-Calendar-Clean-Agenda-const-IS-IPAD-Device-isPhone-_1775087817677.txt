@@ -1,0 +1,280 @@
+// HK Calendar — Clean Agenda
+const IS_IPAD = Device.isPhone() === false;
+
+const ALLOWED_CALENDARS = ['hk', 'birthday', 'sticky', 'ele'];
+
+async function fetchEvents() {
+  const now = new Date();
+  const end = new Date(now);
+  end.setDate(end.getDate() + 60);
+
+  const allCals = await Calendar.forEvents();
+  const cals = allCals.filter(c =>
+    ALLOWED_CALENDARS.some(name => c.title.toLowerCase() === name)
+  );
+
+  const events = await CalendarEvent.between(now, end, cals);
+
+  const groups = {};
+  for (const ev of events) {
+    const d = ev.startDate;
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (!groups[key]) groups[key] = [];
+    const isBirthday = ev.calendar?.title.toLowerCase() === 'birthday';
+    groups[key].push({
+      title: isBirthday ? `🎂 ${ev.title}` : ev.title,
+      allDay: ev.isAllDay,
+      time: ev.isAllDay ? null : formatTime(ev.startDate),
+    });
+  }
+  return groups;
+}
+
+function formatTime(d) {
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'pm' : 'am';
+  return `${h % 12 || 12}${m > 0 ? ':' + String(m).padStart(2,'0') : ''}${ampm}`;
+}
+
+function ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+function getDayInfo(dateStr) {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, mo - 1, d);
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today = new Date();
+  const isToday = dt.toDateString() === today.toDateString();
+  const tom = new Date(today); tom.setDate(today.getDate() + 1);
+  const isTomorrow = dt.toDateString() === tom.toDateString();
+  return { dayName: DAYS[dt.getDay()], ord: ordinal(d), month: MONTHS[mo-1], isToday, isTomorrow };
+}
+
+function buildHTML(groups) {
+  const dates = Object.keys(groups).sort();
+
+  if (dates.length === 0) {
+    return `<!DOCTYPE html><html><head>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <style>
+      body { background:#0b0b0c; color:#555; font-family:sans-serif;
+             display:flex; align-items:center; justify-content:center; height:100vh; }
+    </style></head><body>No upcoming events</body></html>`;
+  }
+
+  const rows = dates.map(dateStr => {
+    const { dayName, ord, month, isToday, isTomorrow } = getDayInfo(dateStr);
+    const events = groups[dateStr];
+    const dayLabel = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dayName;
+
+    const evHTML = events.map(ev => `
+      <div class="ev-row">
+        <div class="ev-time">
+          ${ev.allDay ? `` : `<span class="t-start">${ev.time}</span>`}
+        </div>
+        <div class="ev-center">
+          <span class="ev-title">${ev.title}</span>
+        </div>
+        <div class="ev-spacer"></div>
+      </div>`).join('');
+
+    return `
+      <div class="day-block ${isToday ? 'is-today' : ''}">
+        <div class="day-hdr">
+          <span class="dl-day">${dayLabel}</span>
+          <span class="dl-sep">·</span>
+          <span class="dl-date">${ord} ${month}</span>
+        </div>
+        <div class="ev-list">${evHTML}</div>
+      </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0b0b0c;
+    --border: rgba(255,255,255,0.07);
+    --red: rgb(255,30,30);
+    --text: #efefef;
+    --sub: #999;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    height: 100%;
+  }
+
+  body {
+    position: fixed; left:0; right:0; top:0; height:100vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hamburger { display:flex; flex-direction:column; gap:5px; cursor:pointer; }
+  .hamburger span { display:block; height:1.5px; background:var(--text); border-radius:2px; }
+  .hamburger span:nth-child(1) { width:22px; }
+  .hamburger span:nth-child(2) { width:15px; }
+  .hamburger span:nth-child(3) { width:22px; }
+
+  .hdr-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .hdr-title .hk { color: #ffffff; }
+  .hdr-title .cal { color: var(--red); }
+
+  .hdr-month {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--sub); letter-spacing: 0.06em;
+  }
+
+  /* SCROLL */
+  .scroll { flex:1; overflow-y:auto; }
+  .scroll::-webkit-scrollbar { display:none; }
+
+  /* DAY BLOCK */
+  .day-block { border-bottom: 1px solid var(--border); }
+
+  .day-hdr {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
+    padding: 13px 22px 4px;
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg);
+  }
+  .is-today .day-hdr { background: #0d0d0f; }
+
+  .dl-day, .dl-date {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--red);
+    letter-spacing: -0.01em;
+  }
+  .dl-sep {
+    font-size: 14px;
+    color: rgba(255,30,30,0.35);
+    font-weight: 300;
+  }
+
+  /* EVENT LIST */
+  .ev-list { padding: 2px 0 10px; }
+
+  .ev-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 7px 22px;
+    position: relative;
+  }
+  .ev-row + .ev-row::before {
+    content: '';
+    position: absolute; top: 0; left: 22px; right: 22px;
+    height: 1px; background: var(--border);
+  }
+
+  .ev-time {
+    width: 56px;
+    flex-shrink: 0;
+    text-align: left;
+  }
+  .t-start {
+    font-size: 13px;
+    font-weight: 500;
+    color: #ffffff;
+  }
+
+  .ev-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .ev-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  .ev-spacer {
+    width: 56px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hamburger"><span></span><span></span><span></span></div>
+  <div class="hdr-title"><span class="hk">HK </span><span class="cal">Calendar</span></div>
+  <span class="hdr-month" id="monthPill">APR</span>
+</div>
+
+<div class="scroll" id="scroll">
+  ${rows}
+</div>
+
+<script>
+  function onVP() {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    document.body.style.top = vp.offsetTop + 'px';
+    document.body.style.height = vp.height + 'px';
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onVP);
+    window.visualViewport.addEventListener('scroll', onVP);
+  }
+  onVP();
+
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pill = document.getElementById('monthPill');
+  document.getElementById('scroll').addEventListener('scroll', () => {
+    const hdrs = document.querySelectorAll('.day-hdr');
+    for (const h of hdrs) {
+      if (h.getBoundingClientRect().top >= 55) {
+        const txt = h.querySelector('.dl-date')?.textContent || '';
+        for (let i = 0; i < MO_SHORT.length; i++) {
+          if (txt.includes(MO_SHORT[i])) { pill.textContent = MONTHS[i]; break; }
+        }
+        break;
+      }
+    }
+  }, { passive: true });
+</script>
+</body>
+</html>`;
+}
+
+// MAIN
+const groups = await fetchEvents();
+const wv = new WebView();
+wv.loadHTML(buildHTML(groups));
+await wv.present(IS_IPAD);
