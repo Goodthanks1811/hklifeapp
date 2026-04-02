@@ -478,7 +478,18 @@ router.get("/life-tasks", async (req, res) => {
       if (epicProp2?.type === "select" && epicProp2?.select?.name)       epic = epicProp2.select.name;
       else if (epicProp2?.type === "status" && epicProp2?.status?.name)  epic = epicProp2.status.name;
 
-      return { id: page.id, title, emoji, sortOrder, url, epic };
+      // Files & media property — collect all file/external links
+      const fileLinks: Array<{ name: string; url: string }> = [];
+      for (const key of Object.keys(props)) {
+        if (props[key].type === "files") {
+          for (const file of (props[key].files || [])) {
+            const fileUrl = file.type === "external" ? file.external?.url : file.file?.url;
+            if (fileUrl) fileLinks.push({ name: file.name || fileUrl, url: fileUrl });
+          }
+        }
+      }
+
+      return { id: page.id, title, emoji, sortOrder, url, epic, fileLinks: fileLinks.length > 0 ? fileLinks : null };
     });
 
     res.json({ tasks });

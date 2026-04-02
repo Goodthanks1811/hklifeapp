@@ -91,7 +91,7 @@ const T_TICK       = 400;
 const T_HOLD       = 700;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; epic?: string | null; }
+interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; epic?: string | null; fileLinks?: Array<{ name: string; url: string }> | null; }
 interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; epicOptions?: string[] | null; epicType?: string; }
 
 const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
@@ -103,6 +103,141 @@ const ZERO_ANIM = new Animated.Value(0);
 const BLOCKED_EPICS = new Set(["Redesign", "Spike", "Redesign / Rebuild"]);
 const filterEpics = (opts: string[] | null | undefined): string[] =>
   (opts ?? []).filter(e => !BLOCKED_EPICS.has(e));
+
+// ── Inline markdown helpers ───────────────────────────────────────────────────
+type MdSeg = { text: string; bold?: boolean; italic?: boolean; underline?: boolean; code?: boolean };
+function parseInline(raw: string): MdSeg[] {
+  const segs: MdSeg[] = [];
+  const re = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(__(.+?)__)|(`(.+?)`)|([^*_`]+)/gs;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw)) !== null) {
+    if      (m[1]) segs.push({ text: m[2],  bold: true });
+    else if (m[3]) segs.push({ text: m[4],  italic: true });
+    else if (m[5]) segs.push({ text: m[6],  underline: true });
+    else if (m[7]) segs.push({ text: m[8],  code: true });
+    else if (m[9]) segs.push({ text: m[9] });
+  }
+  return segs.length > 0 ? segs : [{ text: raw }];
+}
+
+function RichLine({ text, style, flex }: { text: string; style: any; flex?: number }) {
+  const segs = parseInline(text);
+  return (
+    <Text style={flex != null ? [style, { flex }] : style}>
+      {segs.map((seg, i) => (
+        <Text key={i} style={{
+          fontFamily: seg.bold ? "Inter_700Bold" : undefined,
+          fontStyle:  seg.italic ? "italic" : "normal",
+          textDecorationLine: seg.underline ? "underline" : "none",
+          backgroundColor: seg.code ? "rgba(255,255,255,0.09)" : undefined,
+        }}>{seg.text}</Text>
+      ))}
+    </Text>
+  );
+}
+
+function RichBodyView({ markdown }: { markdown: string }) {
+  const lines = markdown.split("\n");
+  return (
+    <View style={{ gap: 1 }}>
+      {lines.map((line, i) => {
+        if (!line.trim())
+          return <View key={i} style={{ height: 6 }} />;
+        if (/^---+$/.test(line.trim()))
+          return <View key={i} style={{ height: 1, backgroundColor: Colors.border, marginVertical: 6 }} />;
+        if (/^# /.test(line))
+          return <RichLine key={i} text={line.slice(2)} style={{ fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", lineHeight: 28, marginTop: 10, marginBottom: 2 }} />;
+        if (/^## /.test(line))
+          return <RichLine key={i} text={line.slice(3)} style={{ fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", lineHeight: 24, marginTop: 8, marginBottom: 2 }} />;
+        if (/^### /.test(line))
+          return <RichLine key={i} text={line.slice(4)} style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: "rgba(255,255,255,0.82)", lineHeight: 22, marginTop: 6, marginBottom: 1 }} />;
+        if (/^- /.test(line))
+          return (
+            <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start", paddingLeft: 2 }}>
+              <Text style={{ color: Colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: 1 }}>•</Text>
+              <RichLine text={line.slice(2)} style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 22 }} flex={1} />
+            </View>
+          );
+        if (/^\d+\. /.test(line)) {
+          const mm = line.match(/^(\d+)\. (.*)/);
+          const num = mm?.[1] ?? "1"; const rest = mm?.[2] ?? line;
+          return (
+            <View key={i} style={{ flexDirection: "row", gap: 6, alignItems: "flex-start", paddingLeft: 2 }}>
+              <Text style={{ color: Colors.textMuted, fontSize: 15, lineHeight: 22, minWidth: 18 }}>{num}.</Text>
+              <RichLine text={rest} style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 22 }} flex={1} />
+            </View>
+          );
+        }
+        return <RichLine key={i} text={line} style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 22 }} />;
+      })}
+    </View>
+  );
+}
+
+// ── Formatting toolbar ────────────────────────────────────────────────────────
+function FormattingToolbar({ onFormat }: { onFormat: (id: string) => void }) {
+  const btns: Array<{ id: string; label: string; isBold?: boolean; isUnder?: boolean }> = [
+    { id: "h1",        label: "H1", isBold: true },
+    { id: "h2",        label: "H2", isBold: true },
+    { id: "h3",        label: "H3" },
+    { id: "bold",      label: "B",  isBold: true },
+    { id: "underline", label: "U",  isUnder: true },
+    { id: "bullet",    label: "•" },
+  ];
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+      style={{ borderTopWidth: 1, borderTopColor: Colors.border, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 10, paddingVertical: 7 }}>
+        {btns.map(btn => (
+          <Pressable
+            key={btn.id}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onFormat(btn.id); }}
+            style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.07)", minWidth: 36, alignItems: "center" }}
+          >
+            <Text style={{ color: Colors.textPrimary, fontSize: 13, fontFamily: btn.isBold ? "Inter_700Bold" : "Inter_500Medium", textDecorationLine: btn.isUnder ? "underline" : "none" }}>
+              {btn.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+// ── Shared formatting logic ───────────────────────────────────────────────────
+function applyFormat(type: string, notes: string, sel: { start: number; end: number }): string {
+  const { start, end } = sel;
+  let lineStart = start;
+  while (lineStart > 0 && notes[lineStart - 1] !== "\n") lineStart--;
+
+  const wrapSel = (pre: string, suf: string, ph: string) => {
+    const selected = start !== end ? notes.slice(start, end) : ph;
+    return notes.slice(0, start) + pre + selected + suf + notes.slice(end);
+  };
+
+  const togglePrefix = (prefix: string) => {
+    const lineText = notes.slice(lineStart);
+    const m = lineText.match(/^(#{1,3} |- |\d+\. )/);
+    if (m?.[1] === prefix) return notes.slice(0, lineStart) + notes.slice(lineStart + m[1].length);
+    if (m) return notes.slice(0, lineStart) + prefix + notes.slice(lineStart + m[1].length);
+    return notes.slice(0, lineStart) + prefix + notes.slice(lineStart);
+  };
+
+  switch (type) {
+    case "h1": return togglePrefix("# ");
+    case "h2": return togglePrefix("## ");
+    case "h3": return togglePrefix("### ");
+    case "bold": return wrapSel("**", "**", "bold");
+    case "underline": return wrapSel("__", "__", "underline");
+    case "bullet": {
+      const lineText = notes.slice(lineStart);
+      if (lineText.startsWith("- ")) return notes.slice(0, lineStart) + notes.slice(lineStart + 2);
+      const prefix = (end > 0 && notes[end - 1] !== "\n") ? "\n- " : "- ";
+      return notes.slice(0, end) + prefix + notes.slice(end);
+    }
+    default: return notes;
+  }
+}
 
 // ── Inline popovers (emoji + epic) ────────────────────────────────────────────
 type EmojiAnchor = { taskId: string; x: number; y: number; w: number; h: number };
@@ -242,11 +377,18 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
-  const [title,     setTitle]    = useState("");
-  const [notes,     setNotes]    = useState("");
-  const [localEpic, setLocalEpic] = useState<string | null>(null);
-  const [localCat,  setLocalCat]  = useState<string>(catValue);
+  const [title,       setTitle]      = useState("");
+  const [notes,       setNotes]      = useState("");
+  const [localEpic,   setLocalEpic]  = useState<string | null>(null);
+  const [localCat,    setLocalCat]   = useState<string>(catValue);
+  const [editingBody, setEditingBody] = useState(false);
+  const selRef   = useRef({ start: 0, end: 0 });
+  const notesRef = useRef<TextInput>(null);
   const visible = !!task;
+
+  const handleFormat = useCallback((type: string) => {
+    setNotes(prev => applyFormat(type, prev, selRef.current));
+  }, []);
 
   // ── Loader anims ──────────────────────────────────────────────────────────
   const [loaderVisible,   setLoaderVisible]   = useState(false);
@@ -294,6 +436,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     openCloseRef.current?.stop();
     if (visible) {
       setTitle(task!.title);
+      setEditingBody(false);
       // Hard-reset to closed position before animating open
       scaleAnim.setValue(0.92);
       slideAnim.setValue(500);
@@ -478,28 +621,79 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
   const bodySection = (
     <>
       <View style={s.dsDivider} />
-      <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={s.dsBodyInner}>
-          {/* Always render TextInput — no layout shift when notes arrive */}
-          <TextInput
-            style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            editable={!bodyLoading}
-            placeholder={bodyLoading ? "Loading…" : "Add notes…"}
-            placeholderTextColor={Colors.textMuted}
-            selectionColor={Colors.primary}
-            keyboardAppearance="dark"
-            textAlignVertical="top"
-          />
-          {task?.url ? (
-            <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={{ marginTop: 8 }}>
-              <Text style={s.dsUrlText} numberOfLines={2}>{task.url}</Text>
+
+      {/* ── Notes header ──────────────────────────────────────────────── */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>
+        <Text style={s.dsSectionLabel}>NOTES</Text>
+        {!bodyLoading && (
+          <Pressable onPress={() => setEditingBody(e => !e)} hitSlop={12}
+            style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Feather name={editingBody ? "eye" : "edit-2"} size={14} color={editingBody ? Colors.primary : Colors.textMuted} />
+            <Text style={{ color: editingBody ? Colors.primary : Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" }}>
+              {editingBody ? "Preview" : "Edit"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      {editingBody ? (
+        // ── Edit mode ────────────────────────────────────────────────────
+        <>
+          <FormattingToolbar onFormat={handleFormat} />
+          <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
+              <TextInput
+                ref={notesRef}
+                style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
+                value={notes}
+                onChangeText={setNotes}
+                onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
+                multiline
+                editable={!bodyLoading}
+                placeholder="Start typing…"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+                keyboardAppearance="dark"
+                textAlignVertical="top"
+              />
+            </View>
+          </ScrollView>
+        </>
+      ) : (
+        // ── Read mode ────────────────────────────────────────────────────
+        <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Pressable style={[s.dsBodyInner, { paddingTop: 6 }]} onPress={() => setEditingBody(true)}>
+            {bodyLoading ? (
+              <Text style={{ color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic" }}>Loading…</Text>
+            ) : notes.trim() ? (
+              <RichBodyView markdown={notes} />
+            ) : (
+              <Text style={{ color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic" }}>Tap to add notes…</Text>
+            )}
+          </Pressable>
+        </ScrollView>
+      )}
+
+      {/* ── File / reference links ────────────────────────────────────── */}
+      {(task?.url || (task?.fileLinks && task.fileLinks.length > 0)) && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 10, gap: 6 }}>
+          {task?.url && (
+            <Pressable onPress={() => task.url && Linking.openURL(task.url)}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Feather name="link" size={13} color={Colors.primary} />
+              <Text style={[s.dsUrlText, { fontSize: 13, flex: 1 }]} numberOfLines={1}>{task.url}</Text>
             </Pressable>
-          ) : null}
+          )}
+          {task?.fileLinks?.map((fl, i) => (
+            <Pressable key={i} onPress={() => Linking.openURL(fl.url)}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Feather name="paperclip" size={13} color={Colors.primary} />
+              <Text style={[s.dsUrlText, { fontSize: 13, flex: 1 }]} numberOfLines={1}>{fl.name}</Text>
+            </Pressable>
+          ))}
         </View>
-      </ScrollView>
+      )}
+
       <View style={s.dsDivider} />
       <View style={s.dsActions}>
         <Pressable style={s.dsCancelBtn} onPress={dismiss}>
@@ -563,6 +757,12 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, 
   const [localCat,     setLocalCat]    = useState<string>(catValue);
   const [selEpic,      setSelEpic]     = useState<string | null>(null);
   const [loaderVisible, setLoaderVisible] = useState(false);
+  const qaSelRef   = useRef({ start: 0, end: 0 });
+  const qaNotesRef = useRef<TextInput>(null);
+
+  const handleFormatQA = useCallback((type: string) => {
+    setNotes(prev => applyFormat(type, prev, qaSelRef.current));
+  }, []);
 
   // Loader animation refs — identical to DetailSheet
   const overlayOpacity  = useRef(new Animated.Value(0)).current;
@@ -792,12 +992,15 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, 
       ) : null}
 
       <View style={s.dsDivider} />
+      <FormattingToolbar onFormat={handleFormatQA} />
 
       {/* Notes body */}
       <TextInput
+        ref={qaNotesRef}
         style={[s.dsNotesInput, { minHeight: 80, paddingHorizontal: 20, paddingVertical: 14 }]}
         value={notes}
         onChangeText={setNotes}
+        onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
         multiline
         placeholder="Add notes…"
         placeholderTextColor={Colors.textMuted}
