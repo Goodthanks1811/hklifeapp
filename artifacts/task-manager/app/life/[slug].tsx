@@ -11,7 +11,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -1177,6 +1176,31 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   );
 }
 
+// ── List loader ───────────────────────────────────────────────────────────────
+function ListLoader() {
+  const rot = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.timing(rot, { toValue: 1, duration: 700, easing: Easing.linear, useNativeDriver: true })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+  const spin = rot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  return (
+    <View style={sc.center}>
+      <Animated.View style={{ transform: [{ rotate: spin }] }}>
+        <View style={{
+          width: 48, height: 48, borderRadius: 24,
+          borderWidth: 5,
+          borderColor: Colors.primary,
+          borderTopColor: "rgba(224,49,49,0.15)",
+        }} />
+      </Animated.View>
+    </View>
+  );
+}
+
 // ── Task row ──────────────────────────────────────────────────────────────────
 function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic, epicOptions }: {
   task:          LifeTask;
@@ -1841,9 +1865,7 @@ export default function LifeTaskScreen() {
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       {loading ? (
-        <View style={sc.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
+        <ListLoader />
       ) : error ? (
         <View style={sc.center}>
           <Text style={sc.errorText}>{error}</Text>
