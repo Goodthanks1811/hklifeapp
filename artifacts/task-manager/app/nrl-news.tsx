@@ -138,7 +138,7 @@ const tb = StyleSheet.create({
     backgroundColor: C.tabActiveBg,
   },
   label: {
-    color: C.muted,
+    color: C.text,
     fontWeight: "600",
     letterSpacing: -0.1,
   },
