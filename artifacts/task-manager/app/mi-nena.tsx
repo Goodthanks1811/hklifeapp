@@ -6,12 +6,14 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Animated,
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
   Keyboard,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -58,6 +60,9 @@ async function saveFolders(folders: Folder[]) {
 }
 
 // ── Full-screen viewer ────────────────────────────────────────────────────────
+const SWIPE_DISMISS_VY = 1.2;   // velocity threshold
+const SWIPE_DISMISS_DY = 120;   // distance threshold (px)
+
 function Viewer({
   items,
   startIndex,
@@ -71,6 +76,37 @@ function Viewer({
   const [idx, setIdx]     = useState(startIndex);
   const listRef           = useRef<FlatList>(null);
 
+  // Swipe-to-dismiss state
+  const dragY       = useRef(new Animated.Value(0)).current;
+  const bgOpacity   = dragY.interpolate({ inputRange: [0, height * 0.45], outputRange: [1, 0.25], extrapolate: "clamp" });
+  const onCloseRef  = useRef(onClose);
+  const heightRef   = useRef(height);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { heightRef.current = height; }, [height]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // Only claim the gesture when the user is clearly dragging downward
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        dy > 8 && Math.abs(dy) > Math.abs(dx) * 1.5,
+      onPanResponderMove: (_, { dy }) => {
+        if (dy > 0) dragY.setValue(dy);
+      },
+      onPanResponderRelease: (_, { dy, vy }) => {
+        if (dy > SWIPE_DISMISS_DY || vy > SWIPE_DISMISS_VY) {
+          Animated.timing(dragY, { toValue: heightRef.current, duration: 220, useNativeDriver: true }).start(
+            () => onCloseRef.current()
+          );
+        } else {
+          Animated.spring(dragY, { toValue: 0, useNativeDriver: true, tension: 160, friction: 22 }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+      },
+    })
+  ).current;
+
   useEffect(() => {
     Audio.setAudioModeAsync({
       allowsRecordingIOS:        false,
@@ -82,13 +118,24 @@ function Viewer({
   }, []);
 
   useEffect(() => {
+    dragY.setValue(0);
     setTimeout(() => listRef.current?.scrollToIndex({ index: startIndex, animated: false }), 50);
   }, [startIndex]);
 
   return (
     <Modal visible animationType="fade" statusBarTranslucent>
       <StatusBar hidden />
-      <View style={{ flex: 1, backgroundColor: "#000" }}>
+      {/* Static black background — stays visible even as content slides away */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View style={{ flex: 1, backgroundColor: "#000" }} />
+      </View>
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { transform: [{ translateY: dragY }], opacity: bgOpacity },
+        ]}
+        {...panResponder.panHandlers}
+      >
         <FlatList
           ref={listRef}
           data={items}
@@ -132,7 +179,7 @@ function Viewer({
         <View style={s.viewerCounter}>
           <Text style={s.viewerCounterTxt}>{idx + 1} / {items.length}</Text>
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
