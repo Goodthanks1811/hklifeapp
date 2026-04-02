@@ -85,7 +85,7 @@ function fmtTimeLbl(hIdx: number, mIdx: number, apIdx: number) {
 }
 
 // ── DrumPicker — exact match to ui-kit ────────────────────────────────────────
-const ITEM_H  = 46;
+const ITEM_H  = 38;
 const VISIBLE = 3;
 const DRUM_H  = ITEM_H * VISIBLE;
 const PADDING = Math.floor(VISIBLE / 2); // 1
