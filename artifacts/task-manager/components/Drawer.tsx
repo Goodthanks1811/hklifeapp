@@ -398,7 +398,6 @@ function DrawerMenuItem({
         <Text style={[styles.menuLabel, dimmed && styles.menuLabelDimmed, isActive && styles.menuLabelActive]}>
           {item.label}
         </Text>
-        <Text style={styles.menuDesc}>{item.description}</Text>
       </View>
       {!dimmed && (
         <Feather name="chevron-right" size={13} color={isActive ? Colors.primary : Colors.textMuted} />
