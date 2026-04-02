@@ -65,7 +65,7 @@ function RootLayoutNav() {
     <BiometricProvider>
       <AppGate>
         <TabletShell>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "none" : "default" }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "slide_from_right" : "default" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />
