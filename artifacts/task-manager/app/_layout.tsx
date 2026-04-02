@@ -43,14 +43,15 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function TabletShell({ children }: { children: React.ReactNode }) {
-  const { isTablet, SIDEBAR_WIDTH } = useDrawer();
+  const { isTablet, SIDEBAR_WIDTH, tabletSidebarVisible } = useDrawer();
 
   if (!isTablet) return <>{children}</>;
 
-  // Sidebar is always docked on iPad — spacer is permanent, no show/hide logic needed.
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
-      <View style={{ width: SIDEBAR_WIDTH, backgroundColor: "#111111" }} />
+      {tabletSidebarVisible && (
+        <View style={{ width: SIDEBAR_WIDTH, backgroundColor: "#111111" }} />
+      )}
       <View style={{ flex: 1, backgroundColor: "#000000" }}>
         {children}
       </View>
@@ -63,7 +64,7 @@ function RootLayoutNav() {
     <BiometricProvider>
       <AppGate>
         <TabletShell>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "fade" : "default" }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "none" : "default" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />

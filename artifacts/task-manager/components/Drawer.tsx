@@ -2,8 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import React, { useCallback, useRef } from "react";
+import { router, usePathname } from "expo-router";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
@@ -118,11 +118,22 @@ function AccordionSection({
 export function Drawer() {
   const {
     isOpen, drawerAnim, overlayAnim, sidebarSlide,
-    closeDrawer,
-    DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
+    closeDrawer, showTabletSidebar, hideTabletSidebar,
+    DRAWER_WIDTH, isTablet,
   } = useDrawer();
 
-  const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
+  const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
+
+  const pathname    = usePathname();
+  const onLifeScreen = pathname.startsWith("/life/");
+
+  // Sync sidebar visibility with current route on iPad
+  useEffect(() => {
+    if (!isTablet) return;
+    if (sidebarAlwaysOpen || onLifeScreen) showTabletSidebar();
+    else hideTabletSidebar();
+  }, [isTablet, onLifeScreen, sidebarAlwaysOpen, showTabletSidebar, hideTabletSidebar]);
+
   const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
 
   const pickBannerImage = useCallback(async () => {
@@ -166,8 +177,14 @@ export function Drawer() {
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isTablet) {
-      // On iPad the sidebar is always docked — it never hides.
-      // Use replace so content swaps in-place with no stack buildup.
+      // On iPad: life screens keep the sidebar docked; all others go full-screen.
+      // sidebarAlwaysOpen overrides this to keep the sidebar on every screen.
+      if (sidebarAlwaysOpen || route.startsWith("/life/")) {
+        showTabletSidebar();
+      } else {
+        hideTabletSidebar();
+      }
+      // replace() keeps navigation stack flat (no push animation competing with drawer slide)
       router.replace(route as any);
     } else {
       closeDrawer();

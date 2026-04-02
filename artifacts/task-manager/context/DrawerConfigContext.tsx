@@ -99,44 +99,49 @@ type SectionConfig = {
 };
 
 type DrawerConfig = Partial<Record<SectionKey, SectionConfig>> & {
-  sectionOrder?:   SectionKey[];
-  hiddenSections?: SectionKey[];
-  movedItems?:     Record<string, SectionKey>; // label → destination section (override)
+  sectionOrder?:      SectionKey[];
+  hiddenSections?:    SectionKey[];
+  movedItems?:        Record<string, SectionKey>; // label → destination section (override)
+  sidebarAlwaysOpen?: boolean;
 };
 
 const STORAGE_KEY = "drawer_config_v1";
 
 // ── Context ───────────────────────────────────────────────────────────────────
 interface DrawerConfigCtx {
-  ready:              boolean;
-  getSectionOrder:    () => SectionKey[];
-  isSectionHidden:    (key: SectionKey) => boolean;
-  toggleSectionHidden:(key: SectionKey) => void;
-  getAllItems:         (key: SectionKey) => MenuItem[];
-  getVisible:         (key: SectionKey) => MenuItem[];
-  isHidden:           (key: SectionKey, label: string) => boolean;
-  toggleHidden:       (key: SectionKey, label: string) => void;
-  moveUp:             (key: SectionKey, label: string) => void;
-  moveDown:           (key: SectionKey, label: string) => void;
-  moveSectionUp:      (key: SectionKey) => void;
-  moveSectionDown:    (key: SectionKey) => void;
-  moveItemToSection:  (fromSection: SectionKey, label: string, toSection: SectionKey) => void;
+  ready:               boolean;
+  getSectionOrder:     () => SectionKey[];
+  isSectionHidden:     (key: SectionKey) => boolean;
+  toggleSectionHidden: (key: SectionKey) => void;
+  getAllItems:          (key: SectionKey) => MenuItem[];
+  getVisible:          (key: SectionKey) => MenuItem[];
+  isHidden:            (key: SectionKey, label: string) => boolean;
+  toggleHidden:        (key: SectionKey, label: string) => void;
+  moveUp:              (key: SectionKey, label: string) => void;
+  moveDown:            (key: SectionKey, label: string) => void;
+  moveSectionUp:       (key: SectionKey) => void;
+  moveSectionDown:     (key: SectionKey) => void;
+  moveItemToSection:   (fromSection: SectionKey, label: string, toSection: SectionKey) => void;
+  sidebarAlwaysOpen:     boolean;
+  setSidebarAlwaysOpen:  (v: boolean) => void;
 }
 
 const DrawerConfigContext = createContext<DrawerConfigCtx>({
-  ready:               false,
-  getSectionOrder:     () => SECTION_ORDER,
-  isSectionHidden:     () => false,
-  toggleSectionHidden: () => {},
-  getAllItems:          (k) => ALL_ITEMS[k],
-  getVisible:          (k) => ALL_ITEMS[k],
-  isHidden:            () => false,
-  toggleHidden:        () => {},
-  moveUp:              () => {},
-  moveDown:            () => {},
-  moveSectionUp:       () => {},
-  moveSectionDown:     () => {},
-  moveItemToSection:   () => {},
+  ready:                false,
+  getSectionOrder:      () => SECTION_ORDER,
+  isSectionHidden:      () => false,
+  toggleSectionHidden:  () => {},
+  getAllItems:           (k) => ALL_ITEMS[k],
+  getVisible:           (k) => ALL_ITEMS[k],
+  isHidden:             () => false,
+  toggleHidden:         () => {},
+  moveUp:               () => {},
+  moveDown:             () => {},
+  moveSectionUp:        () => {},
+  moveSectionDown:      () => {},
+  moveItemToSection:    () => {},
+  sidebarAlwaysOpen:    false,
+  setSidebarAlwaysOpen: () => {},
 });
 
 // ── Helper: apply saved order, appending unseen items at end ──────────────────
@@ -278,6 +283,12 @@ export function DrawerConfigProvider({ children }: { children: React.ReactNode }
     persist({ ...config, sectionOrder: next });
   }, [config, getSectionOrderFn, persist]);
 
+  // ── Sidebar always-open preference (iPad) ───────────────────────────────────
+  const sidebarAlwaysOpen = config.sidebarAlwaysOpen ?? false;
+  const setSidebarAlwaysOpen = useCallback((v: boolean) => {
+    persist({ ...config, sidebarAlwaysOpen: v });
+  }, [config, persist]);
+
   // ── Move item to a different section ────────────────────────────────────────
   const moveItemToSection = useCallback(
     (fromSection: SectionKey, label: string, toSection: SectionKey) => {
@@ -332,6 +343,8 @@ export function DrawerConfigProvider({ children }: { children: React.ReactNode }
       moveSectionUp,
       moveSectionDown,
       moveItemToSection,
+      sidebarAlwaysOpen,
+      setSidebarAlwaysOpen,
     }}>
       {children}
     </DrawerConfigContext.Provider>

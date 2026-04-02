@@ -35,6 +35,7 @@ import {
   useDrawerConfig,
   type SectionKey,
 } from "@/context/DrawerConfigContext";
+import { isTablet } from "@/context/DrawerContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ActiveMove = { section: SectionKey; label: string };
@@ -285,7 +286,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey, setApiKey, clearConfig } = useNotion();
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
-  const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection } = useDrawerConfig();
+  const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection, sidebarAlwaysOpen, setSidebarAlwaysOpen } = useDrawerConfig();
 
   const { uri: headerUri, resizeMode: headerResizeMode, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
@@ -572,6 +573,39 @@ export default function SettingsScreen() {
 
           </View>
         </Accordion>
+
+        {/* ══ IPAD DISPLAY ════════════════════════════════════════════════════ */}
+        {isTablet && (
+          <Accordion title="iPad Display" icon="tablet" defaultOpen={false}>
+            <View style={styles.accordionBody}>
+
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleIcon}>
+                  <Feather name="sidebar" size={16} color={Colors.primary} />
+                </View>
+                <View style={styles.toggleText}>
+                  <Text style={styles.toggleLabel}>Sidebar always visible</Text>
+                  <Text style={styles.toggleDesc}>
+                    {sidebarAlwaysOpen
+                      ? "Sidebar stays docked on every screen"
+                      : "Sidebar auto-hides on non-Life screens (default)"}
+                  </Text>
+                </View>
+                <Switch
+                  value={sidebarAlwaysOpen}
+                  onValueChange={(v) => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setSidebarAlwaysOpen(v);
+                  }}
+                  trackColor={{ false: "#2a2a2a", true: "#E03131" }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor="#2a2a2a"
+                />
+              </View>
+
+            </View>
+          </Accordion>
+        )}
 
         {/* ══ SECURITY ════════════════════════════════════════════════════════ */}
         <Accordion title="Security" icon="shield" defaultOpen={false}>
