@@ -143,7 +143,7 @@ const tb = StyleSheet.create({
     letterSpacing: -0.1,
   },
   labelActive: {
-    color: C.green,
+    color: C.text,
   },
   underline: {
     position: "absolute",
