@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, usePathname } from "expo-router";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef } from "react";
 import {
   Animated,
@@ -123,22 +123,13 @@ export function Drawer() {
     DRAWER_WIDTH, isTablet,
   } = useDrawer();
 
-  const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
-
-  const pathname     = usePathname();
-  const onLifeScreen = pathname.startsWith("/life/");
+  const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
 
   // Keep a ref so gesture handlers can read isOpen without stale closure
   const isOpenRef = useRef(isOpen);
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
-  // On iPad: auto-open on life screens, auto-close on others (unless sidebarAlwaysOpen)
-  useEffect(() => {
-    if (!isTablet) return;
-    if (sidebarAlwaysOpen || onLifeScreen) openDrawer();
-    else closeDrawer();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
+  // Drawer is purely gesture/tap driven — no auto-open or auto-close based on route.
 
   // ── Drawer panel: swipe left to close ─────────────────────────────────────
   const drawerPan = useRef(PanResponder.create({
@@ -228,17 +219,11 @@ export function Drawer() {
 
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    closeDrawer();
     if (isTablet) {
-      // On iPad: life screens keep the drawer open; others close it for full-screen.
-      // sidebarAlwaysOpen overrides this to keep the drawer open on every screen.
-      if (sidebarAlwaysOpen || route.startsWith("/life/")) {
-        openDrawer();
-      } else {
-        closeDrawer();
-      }
-      router.replace(route as any);
+      // On iPad: replace keeps the stack flat, no slide animation competing with drawer close
+      setTimeout(() => router.replace(route as any), 30);
     } else {
-      closeDrawer();
       setTimeout(() => router.push(route as any), 30);
     }
   };
