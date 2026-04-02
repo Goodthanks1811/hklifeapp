@@ -64,6 +64,9 @@ async function saveFolders(folders: Folder[]) {
 const SWIPE_DISMISS_VY = 1.2;   // velocity threshold
 const SWIPE_DISMISS_DY = 120;   // distance threshold (px)
 
+// How far to lift the video bottom above the screen edge (home-indicator area + breathing room)
+const VIDEO_BOTTOM_LIFT = 90;
+
 function Viewer({
   items,
   startIndex,
@@ -74,6 +77,10 @@ function Viewer({
   onClose:    () => void;
 }) {
   const { width, height } = useWindowDimensions();
+  const insets             = useSafeAreaInsets();
+  // Height available for video: full height minus the lift so native controls
+  // (scrubber, time labels) render above the home-indicator zone
+  const videoH             = height - insets.bottom - VIDEO_BOTTOM_LIFT;
   const [idx, setIdx]     = useState(startIndex);
   const listRef           = useRef<FlatList>(null);
 
@@ -166,7 +173,7 @@ function Viewer({
               {item.isVideo ? (
                 <Video
                   source={{ uri: item.uri }}
-                  style={{ width, height }}
+                  style={{ width, height: videoH }}
                   useNativeControls
                   resizeMode={ResizeMode.CONTAIN}
                   shouldPlay={index === idx}
