@@ -8,8 +8,8 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef, useState } from "react";
-import { Animated, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -47,25 +47,14 @@ function TabletShell({ children }: { children: React.ReactNode }) {
   const { isTablet, spacerWidth } = useDrawer();
   const spacerStyle = useAnimatedStyle(() => ({ width: spacerWidth.value }));
 
-  // Fade the whole shell in on first mount so drawer + content appear together,
-  // not the disjoint "sidebar pops in, screen slides in separately" effect.
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 280,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
   if (!isTablet) return <>{children}</>;
   return (
-    <Animated.View style={{ flex: 1, flexDirection: "row", backgroundColor: "#000000", opacity: fadeAnim }}>
+    <View style={{ flex: 1, flexDirection: "row", backgroundColor: "#000000" }}>
       <ReAnimated.View style={spacerStyle} />
       <View style={{ flex: 1 }}>
         {children}
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -75,7 +64,7 @@ function RootLayoutNav() {
       <AppGate>
         <TabletShell>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "slide_from_right" : "default" }}>
-            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />
             <Stack.Screen name="ir-quick-add" />
