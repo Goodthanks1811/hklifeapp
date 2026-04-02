@@ -37,15 +37,16 @@ interface DrawerContextType {
 const DrawerContext = createContext<DrawerContextType | null>(null);
 
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   // Core Animated values — only used for native-driver animations (transform, opacity)
-  const drawerAnim  = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const overlayAnim = useRef(new Animated.Value(0)).current;
+  // Start open: drawerAnim = 0 (fully visible), overlayAnim = 1 on phone (scrim shown)
+  const drawerAnim  = useRef(new Animated.Value(0)).current;
+  const overlayAnim = useRef(new Animated.Value(isTablet ? 0 : 1)).current;
 
   // Reanimated shared value for the spacer width — runs entirely on the UI thread,
   // no JS-bridge involvement, perfectly in sync with the drawer.
-  const spacerWidth = useSharedValue(0);
+  const spacerWidth = useSharedValue(isTablet ? SIDEBAR_WIDTH : 0);
 
   const openDrawer = useCallback(() => {
     setIsOpen(true);
