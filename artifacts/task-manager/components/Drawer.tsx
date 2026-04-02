@@ -248,7 +248,7 @@ export function Drawer() {
       }
     } else {
       closeDrawer();
-      setTimeout(() => router.push(route as any), 30);
+      router.replace(route as any);
     }
   };
 
