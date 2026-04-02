@@ -8,11 +8,11 @@ import { useDrawer } from "@/context/DrawerContext";
 interface Props { title: string; right?: React.ReactNode; }
 
 export function ScreenHeader({ title, right }: Props) {
-  const { openDrawer } = useDrawer();
+  const { toggleDrawer } = useDrawer();
   return (
     <View style={styles.header}>
       <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }}
         style={styles.btn}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
