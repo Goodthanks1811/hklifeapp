@@ -79,66 +79,47 @@ function Viewer({
   const [idx, setIdx]      = useState(startIndex);
   const listRef            = useRef<FlatList>(null);
 
-  // ── Dismiss gesture (iOS Photos-style) ──────────────────────────────────────
-  // dragY drives both translation AND scale so the image visibly shrinks the
-  // moment your finger moves — identical feel to the native Photos app.
+  // ── Dismiss gesture ──────────────────────────────────────────────────────────
   const dragY      = useRef(new Animated.Value(0)).current;
   const onCloseRef = useRef(onClose);
   const heightRef  = useRef(height);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   useEffect(() => { heightRef.current = height;  }, [height]);
 
-  // Scale from 1.0 → 0.82 as dragY goes from 0 → height*0.35
-  const dragScale = dragY.interpolate({
-    inputRange:  [0, height * 0.35],
-    outputRange: [1, 0.82],
-    extrapolate: "clamp",
-  });
-  // Background fades to near-transparent by 30% of drag
-  const bgOpacity = dragY.interpolate({
-    inputRange:  [0, height * 0.30],
-    outputRange: [1, 0.15],
-    extrapolate: "clamp",
-  });
-
-  const dismiss = () =>
+  // All decision logic lives in refs so panResponder closures are never stale
+  const dismissRef  = useRef(() => {
     Animated.timing(dragY, {
       toValue: heightRef.current,
       duration: 180,
       useNativeDriver: true,
     }).start(() => onCloseRef.current());
-
-  const snapBack = () =>
+  });
+  const snapBackRef = useRef(() => {
     Animated.spring(dragY, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 180,
-      friction: 24,
+      toValue: 0, useNativeDriver: true, tension: 180, friction: 24,
     }).start();
+  });
 
   const panResponder = useRef(
     PanResponder.create({
-      // Bubble: claim on any mostly-downward movement
+      // Bubble: grab any downward drag
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
         dy > 2 && Math.abs(dy) >= Math.abs(dx),
-      // Capture: steal from child ScrollView/FlatList immediately —
-      // fires top-down so children never see the event once we claim
+      // Capture: steal from inner ScrollView/FlatList before they see the event
       onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
         dy > 4 && Math.abs(dy) > Math.abs(dx) * 0.8,
       onPanResponderMove: (_, { dy }) => {
         if (dy > 0) dragY.setValue(dy);
       },
       onPanResponderRelease: (_, { dy, vy }) => {
-        // Commit to dismiss if dragged > 15% of screen height OR any real flick
         if (dy > heightRef.current * 0.15 || vy > 0.25) {
-          dismiss();
+          dismissRef.current();
         } else {
-          snapBack();
+          snapBackRef.current();
         }
       },
-      // Never yield the gesture once claimed
       onPanResponderTerminationRequest: () => false,
-      onPanResponderTerminate: snapBack,
+      onPanResponderTerminate: () => snapBackRef.current(),
     })
   ).current;
 
@@ -160,17 +141,11 @@ function Viewer({
   return (
     <Modal visible animationType="fade" statusBarTranslucent>
       <StatusBar hidden />
-      {/* Fading black background — opacity driven by how far you've dragged */}
+      {/* Solid black background — always present so nothing bleeds through */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000" }]} pointerEvents="none" />
+      {/* Content slides down on dismiss */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, { backgroundColor: "#000", opacity: bgOpacity }]}
-        pointerEvents="none"
-      />
-      {/* Content: slides down + shrinks together, exactly like iOS Photos */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { transform: [{ translateY: dragY }, { scale: dragScale }] },
-        ]}
+        style={[StyleSheet.absoluteFill, { transform: [{ translateY: dragY }] }]}
         {...panResponder.panHandlers}
       >
         <FlatList
