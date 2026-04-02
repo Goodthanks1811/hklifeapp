@@ -42,6 +42,7 @@
     },
     "plugins": [
       "./withExpoDevMenuFix",
+      "./withDeferSystemGestures",
       [
         "expo-router",
         {
