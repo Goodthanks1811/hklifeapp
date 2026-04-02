@@ -283,10 +283,11 @@ const s = StyleSheet.create({
   inlineTitle: {
     paddingHorizontal: 22,
     paddingTop: 18,
-    paddingBottom: 14,
+    paddingBottom: 22,
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
     backgroundColor: BG,
+    alignItems: "center",
   },
 
   // Day header (sticky)
