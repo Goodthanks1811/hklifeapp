@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   },
   menuItemPressed:  { backgroundColor: Colors.cardBg },
   menuItemDimmed:   { opacity: 0.45 },
-  menuItemActive:   { backgroundColor: "rgba(224,49,49,0.13)" },
+  menuItemActive:   {},
   menuIcon: {
     width: 30, height: 30,
     backgroundColor: "rgba(224,49,49,0.1)",
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   menuIconDimmed:  { backgroundColor: "rgba(255,255,255,0.05)" },
-  menuIconActive:  { backgroundColor: "rgba(224,49,49,0.22)" },
+  menuIconActive:  {},
   menuText:        { flex: 1 },
   menuLabel:       { color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   menuLabelDimmed: { color: Colors.textMuted },
