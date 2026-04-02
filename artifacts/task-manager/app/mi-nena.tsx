@@ -61,8 +61,8 @@ async function saveFolders(folders: Folder[]) {
 }
 
 // ── Full-screen viewer ────────────────────────────────────────────────────────
-const SWIPE_DISMISS_VY = 0.5;   // velocity threshold — lower = quicker flick triggers dismiss
-const SWIPE_DISMISS_DY = 70;    // distance threshold (px) — shorter drag is enough
+const SWIPE_DISMISS_VY = 0.3;   // velocity threshold
+const SWIPE_DISMISS_DY = 40;    // distance threshold (px)
 
 // How far to lift the video bottom above the screen edge (home-indicator area + breathing room)
 const VIDEO_BOTTOM_LIFT = 90;
@@ -113,6 +113,9 @@ function Viewer({
           Animated.spring(dragY, { toValue: 0, useNativeDriver: true, tension: 160, friction: 22 }).start();
         }
       },
+      // Refuse to give up the gesture once claimed — prevents iOS system
+      // gesture recognizers from stealing it and causing a snap-back
+      onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => {
         Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
       },
