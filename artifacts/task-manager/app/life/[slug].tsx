@@ -496,25 +496,35 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
     if (visible) {
       setTitle(task!.title);
       setEditingBody(false);
-      // Hard-reset to closed position before animating open
       scaleAnim.setValue(0.92);
       slideAnim.setValue(500);
       bgAnim.setValue(0);
-      openCloseRef.current = Animated.parallel([
-        isTablet
-          ? Animated.timing(scaleAnim, { toValue: 1,   duration: 220, useNativeDriver: false, easing: Easing.out(Easing.back(1.2)) })
-          : Animated.timing(slideAnim, { toValue: 0,   duration: 280, useNativeDriver: false, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
-        Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false }),
-      ]);
-      openCloseRef.current.start();
+      if (isTablet) {
+        openCloseRef.current = Animated.parallel([
+          Animated.timing(scaleAnim, { toValue: 1,   duration: 220, useNativeDriver: false, easing: Easing.out(Easing.back(1.2)) }),
+          Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false }),
+        ]);
+        openCloseRef.current.start();
+      } else {
+        // Phone: run separately so slideAnim can use native driver (no JS-thread competition)
+        const slide = Animated.timing(slideAnim, { toValue: 0,   duration: 280, useNativeDriver: true,  easing: Easing.bezier(0.25, 1, 0.5, 1) });
+        const bg    = Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false });
+        openCloseRef.current = { stop: () => { slide.stop(); bg.stop(); } } as any;
+        slide.start(); bg.start();
+      }
     } else {
-      openCloseRef.current = Animated.parallel([
-        isTablet
-          ? Animated.timing(scaleAnim, { toValue: 0.92, duration: 160, useNativeDriver: false, easing: Easing.in(Easing.quad) })
-          : Animated.timing(slideAnim, { toValue: 500,  duration: 200, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim,    { toValue: 0,   duration: 160, useNativeDriver: false }),
-      ]);
-      openCloseRef.current.start();
+      if (isTablet) {
+        openCloseRef.current = Animated.parallel([
+          Animated.timing(scaleAnim, { toValue: 0.92, duration: 160, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+          Animated.timing(bgAnim,    { toValue: 0,    duration: 160, useNativeDriver: false }),
+        ]);
+        openCloseRef.current.start();
+      } else {
+        const slide = Animated.timing(slideAnim, { toValue: 500,  duration: 200, useNativeDriver: true,  easing: Easing.in(Easing.quad) });
+        const bg    = Animated.timing(bgAnim,    { toValue: 0,    duration: 160, useNativeDriver: false });
+        openCloseRef.current = { stop: () => { slide.stop(); bg.stop(); } } as any;
+        slide.start(); bg.start();
+      }
     }
   }, [visible]);
 
@@ -553,17 +563,18 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
               ]).start(() => {
                 Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
                   setTimeout(() => {
-                    Animated.parallel([
-                      Animated.timing(bgAnim,    { toValue: 0,   duration: 500, useNativeDriver: false }),
-                      isTablet
-                        ? Animated.timing(scaleAnim, { toValue: 0.94, duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) })
-                        : Animated.timing(slideAnim, { toValue: 500,  duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-                    ]).start(() => {
-                      setLoaderVisible(false);
-                      resetLoader();
-                      dismiss();
-                      resolve();
-                    });
+                    const afterClose = () => { setLoaderVisible(false); resetLoader(); dismiss(); resolve(); };
+                    if (isTablet) {
+                      Animated.parallel([
+                        Animated.timing(bgAnim,    { toValue: 0,    duration: 500, useNativeDriver: false }),
+                        Animated.timing(scaleAnim, { toValue: 0.94, duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+                      ]).start(afterClose);
+                    } else {
+                      let done = 0;
+                      const check = () => { if (++done === 2) afterClose(); };
+                      Animated.timing(bgAnim,    { toValue: 0,   duration: 500, useNativeDriver: false }).start(check);
+                      Animated.timing(slideAnim, { toValue: 500, duration: 480, useNativeDriver: true,  easing: Easing.in(Easing.quad) }).start(check);
+                    }
                   }, T_HOLD);
                 });
               });
@@ -782,11 +793,14 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
           </Animated.View>
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
-          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
-            <View style={s.handle} />
-            {sheetContent}
-            {bodySection}
-            {loaderOverlay}
+          // Two nested views: outer on native driver (slide), inner on JS (keyboard offset)
+          <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
+            <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
+              <View style={s.handle} />
+              {sheetContent}
+              {bodySection}
+              {loaderOverlay}
+            </Animated.View>
           </Animated.View>
         )}
       </Animated.View>
@@ -906,19 +920,25 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
-      Animated.parallel([
-        isTablet
-          ? Animated.spring(scaleAnim, { toValue: 1,   useNativeDriver: false, tension: 120, friction: 14 })
-          : Animated.spring(slideAnim, { toValue: 0,   useNativeDriver: false, tension: 90,  friction: 13 }),
-        Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
-      ]).start();
+      if (isTablet) {
+        Animated.parallel([
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: false, tension: 120, friction: 14 }),
+          Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
+        ]).start();
+      } else {
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 90, friction: 13 }).start();
+        Animated.timing(bgAnim,   { toValue: 1, duration: 220, useNativeDriver: false }).start();
+      }
     } else {
-      Animated.parallel([
-        isTablet
-          ? Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) })
-          : Animated.timing(slideAnim, { toValue: 500,  duration: 240, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-        Animated.timing(bgAnim, { toValue: 0, duration: 190, useNativeDriver: false }),
-      ]).start();
+      if (isTablet) {
+        Animated.parallel([
+          Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+          Animated.timing(bgAnim,    { toValue: 0,    duration: 190, useNativeDriver: false }),
+        ]).start();
+      } else {
+        Animated.timing(slideAnim, { toValue: 500, duration: 240, useNativeDriver: true,  easing: Easing.in(Easing.quad) }).start();
+        Animated.timing(bgAnim,    { toValue: 0,   duration: 190, useNativeDriver: false }).start();
+      }
     }
   }, [visible]);
 
@@ -952,17 +972,18 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
               ]).start(() => {
                 Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
                   setTimeout(() => {
-                    Animated.parallel([
-                      Animated.timing(bgAnim,    { toValue: 0,   duration: 500, useNativeDriver: false }),
-                      isTablet
-                        ? Animated.timing(scaleAnim, { toValue: 0.94, duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) })
-                        : Animated.timing(slideAnim, { toValue: 500,  duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-                    ]).start(() => {
-                      setLoaderVisible(false);
-                      resetLoader();
-                      dismiss();
-                      resolve();
-                    });
+                    const afterClose = () => { setLoaderVisible(false); resetLoader(); dismiss(); resolve(); };
+                    if (isTablet) {
+                      Animated.parallel([
+                        Animated.timing(bgAnim,    { toValue: 0,    duration: 500, useNativeDriver: false }),
+                        Animated.timing(scaleAnim, { toValue: 0.94, duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+                      ]).start(afterClose);
+                    } else {
+                      let done = 0;
+                      const check = () => { if (++done === 2) afterClose(); };
+                      Animated.timing(bgAnim,    { toValue: 0,   duration: 500, useNativeDriver: false }).start(check);
+                      Animated.timing(slideAnim, { toValue: 500, duration: 480, useNativeDriver: true,  easing: Easing.in(Easing.quad) }).start(check);
+                    }
                   }, T_HOLD);
                 });
               });
@@ -1143,10 +1164,12 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
           </Animated.View>
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
-          <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.subtract(slideAnim, kbAnim) }] }]}>
-            <View style={s.handle} />
-            {innerContent}
-            {qaLoaderOverlay}
+          <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
+            <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
+              <View style={s.handle} />
+              {innerContent}
+              {qaLoaderOverlay}
+            </Animated.View>
           </Animated.View>
         )}
       </Animated.View>

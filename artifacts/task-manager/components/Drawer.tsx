@@ -248,10 +248,9 @@ export function Drawer() {
         setTimeout(() => router.replace(route as any), 210);
       }
     } else {
-      // Phone: drawer is an overlay (no layout changes), small delay gives native
-      // animation a head-start before React mounts the new screen.
+      // Phone: small head-start before React mounts the new screen.
       closeDrawer();
-      setTimeout(() => router.replace(route as any), 80);
+      setTimeout(() => router.replace(route as any), 20);
     }
   };
 
