@@ -171,7 +171,7 @@ export default function CalendarScreen() {
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
 
-      {/* ── Header ── */}
+      {/* ── Top bar — hamburger only, black ── */}
       <View style={s.header}>
         <Pressable onPress={toggleDrawer} hitSlop={12} style={s.hamburger}>
           <View style={[s.hLine, { width: 22 }]} />
@@ -179,30 +179,41 @@ export default function CalendarScreen() {
           <View style={[s.hLine, { width: 22 }]} />
         </Pressable>
 
-        <Text style={s.hdrTitle}>
-          <Text style={{ color: "#fff" }}>HK </Text>
-          <Text style={{ color: RED }}>Calendar</Text>
-        </Text>
-
         <Text style={s.hdrMonth}>{monthLabel}</Text>
       </View>
 
       {/* ── Loading ── */}
       {status === "loading" && !refreshing && (
-        <View style={s.center}>
-          <Spinner />
-        </View>
+        <>
+          <View style={s.inlineTitle}>
+            <Text style={s.hdrTitle}>
+              <Text style={{ color: "#fff" }}>HK </Text>
+              <Text style={{ color: RED }}>Calendar</Text>
+            </Text>
+          </View>
+          <View style={s.center}>
+            <Spinner />
+          </View>
+        </>
       )}
 
       {/* ── Error ── */}
       {status === "error" && (
-        <View style={s.center}>
-          <Feather name="alert-circle" size={28} color={RED} style={{ marginBottom: 8 }} />
-          <Text style={s.errorText}>{errorMsg}</Text>
-          <Pressable style={s.retryBtn} onPress={() => { setStatus("loading"); fetchEvents(); }}>
-            <Text style={s.retryText}>Try Again</Text>
-          </Pressable>
-        </View>
+        <>
+          <View style={s.inlineTitle}>
+            <Text style={s.hdrTitle}>
+              <Text style={{ color: "#fff" }}>HK </Text>
+              <Text style={{ color: RED }}>Calendar</Text>
+            </Text>
+          </View>
+          <View style={s.center}>
+            <Feather name="alert-circle" size={28} color={RED} style={{ marginBottom: 8 }} />
+            <Text style={s.errorText}>{errorMsg}</Text>
+            <Pressable style={s.retryBtn} onPress={() => { setStatus("loading"); fetchEvents(); }}>
+              <Text style={s.retryText}>Try Again</Text>
+            </Pressable>
+          </View>
+        </>
       )}
 
       {/* ── List ── */}
@@ -215,6 +226,14 @@ export default function CalendarScreen() {
           renderItem={renderItem}
           stickySectionHeadersEnabled
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={RED} />}
+          ListHeaderComponent={
+            <View style={s.inlineTitle}>
+              <Text style={s.hdrTitle}>
+                <Text style={{ color: "#fff" }}>HK </Text>
+                <Text style={{ color: RED }}>Calendar</Text>
+              </Text>
+            </View>
+          }
           ListEmptyComponent={
             <View style={s.empty}>
               <Feather name="calendar" size={32} color="rgba(255,255,255,0.22)" />
@@ -255,13 +274,20 @@ const s = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 14,
     paddingBottom: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+    backgroundColor: BG,
   },
   hamburger: { gap: 5 },
   hLine:     { height: 1.5, backgroundColor: TEXT, borderRadius: 2 },
   hdrTitle:  { fontSize: 26, fontWeight: "800", fontFamily: "Inter_700Bold", letterSpacing: -0.8, lineHeight: 32 },
   hdrMonth:  { fontSize: 11, color: SUB, fontFamily: "Inter_400Regular", letterSpacing: 1.2, minWidth: 32, textAlign: "right" },
+  inlineTitle: {
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+    backgroundColor: BG,
+  },
 
   // Day header (sticky)
   dayHdr: {
