@@ -61,8 +61,8 @@ async function saveFolders(folders: Folder[]) {
 }
 
 // ── Full-screen viewer ────────────────────────────────────────────────────────
-const SWIPE_DISMISS_VY = 1.2;   // velocity threshold
-const SWIPE_DISMISS_DY = 120;   // distance threshold (px)
+const SWIPE_DISMISS_VY = 0.5;   // velocity threshold — lower = quicker flick triggers dismiss
+const SWIPE_DISMISS_DY = 70;    // distance threshold (px) — shorter drag is enough
 
 // How far to lift the video bottom above the screen edge (home-indicator area + breathing room)
 const VIDEO_BOTTOM_LIFT = 90;
@@ -94,14 +94,13 @@ function Viewer({
 
   const panResponder = useRef(
     PanResponder.create({
-      // Bubble phase: claim when clearly dragging downward (catches gestures
-      // not already consumed by a child)
+      // Bubble phase: claim once any downward movement detected
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-        dy > 8 && Math.abs(dy) > Math.abs(dx) * 1.5,
-      // Capture phase: steal from inner FlatList / ScrollView when the drag
-      // is unambiguously vertical — this is what makes dismiss reliable
+        dy > 4 && Math.abs(dy) > Math.abs(dx) * 1.2,
+      // Capture phase: steal from child FlatList/ScrollView — relaxed ratio
+      // so slightly diagonal downward swipes still trigger dismiss
       onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
-        dy > 18 && Math.abs(dy) > Math.abs(dx) * 2.8,
+        dy > 10 && Math.abs(dy) > Math.abs(dx) * 1.8,
       onPanResponderMove: (_, { dy }) => {
         if (dy > 0) dragY.setValue(dy);
       },
