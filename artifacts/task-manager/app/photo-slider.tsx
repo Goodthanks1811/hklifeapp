@@ -198,6 +198,8 @@ input[type=file] { display:none; }
 
 <script>
 var img1=null,img2=null,tx1=null,tx2=null;
+var di1=null,di2=null; // prescaled display copies
+var DISP_MAX=2048;     // max side for display copy — keeps drawing fast on large canvases
 var name1='Image 1',name2='Image 2';
 var active=0,zoomMode=false,sliderMode=false,sliderVert=true,sliderPos=0.5,opacity2=1.0;
 var gTx=null;
@@ -212,6 +214,18 @@ var brushMode=false,brushErase=true,brushSize=20,brushSoft=0,brushOpacity=1.0;
 var maskCanvas=null,offCanvas=null,offCtx=null;
 var rafPending=false;
 function drawRaf(){if(rafPending)return;rafPending=true;requestAnimationFrame(function(){rafPending=false;draw();});}
+
+// ── Prescale ───────────────────────────────────────────
+// Creates a downsampled canvas copy for fast per-frame drawing.
+// Full-res image is kept for mask coordinate maths.
+function prescale(img){
+  var s=Math.min(1,DISP_MAX/Math.max(img.naturalWidth,img.naturalHeight));
+  if(s>=0.98)return img; // already small — use original
+  var w=Math.round(img.naturalWidth*s),h=Math.round(img.naturalHeight*s);
+  var c=document.createElement('canvas');c.width=w;c.height=h;
+  c.getContext('2d').drawImage(img,0,0,w,h);
+  return c;
+}
 
 var stage=document.getElementById('stage');
 var cv=document.getElementById('cv');
@@ -266,9 +280,9 @@ function filesChosen(e){
   if(!files||files.length===0){e.target.value='';return;}
   var f1=files[0],f2=files[1]||null;
   loadFile(f1,function(imgA){
-    img1=imgA;tx1=defaultTx(img1,W(),H());
+    img1=imgA;di1=prescale(imgA);tx1=defaultTx(img1,W(),H());
     if(f2){
-      loadFile(f2,function(imgB){img2=imgB;tx2=defaultTx(img2,W(),H());initMask();active=2;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
+      loadFile(f2,function(imgB){img2=imgB;di2=prescale(imgB);tx2=defaultTx(img2,W(),H());initMask();active=2;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
     } else {
       active=1;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
     }
@@ -367,24 +381,26 @@ function getOff(w,h){
     offCanvas=document.createElement('canvas');offCanvas.width=w;offCanvas.height=h;offCtx=offCanvas.getContext('2d');
   }return{c:offCanvas,x:offCtx};
 }
-function drawImg(img,tx,alpha,useMask){
+// img  — original Image (natural dimensions, mask coords)
+// disp — prescaled display copy (canvas or image) for fast rasterisation
+function drawImg(img,disp,tx,alpha,useMask){
   if(!tx)return;
-  var hw=img.naturalWidth*tx.scale/2,hh=img.naturalHeight*tx.scale/2;
+  var nw=img.naturalWidth,nh=img.naturalHeight;
+  var hw=nw*tx.scale/2,hh=nh*tx.scale/2;
+  var dx=tx.cx-hw,dy=tx.cy-hh,dw=nw*tx.scale,dh=nh*tx.scale;
   ctx.save();ctx.globalAlpha=alpha;
   if(useMask&&maskCanvas){
-    // Composite at screen resolution — avoids allocating a full-res offscreen canvas
-    // for every frame (was 4032×3024 per frame on a 12MP photo).
     var sw=W(),sh=H();
     var off=getOff(sw,sh);
     off.x.clearRect(0,0,sw,sh);
     off.x.globalCompositeOperation='source-over';
-    off.x.drawImage(img,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+    off.x.drawImage(disp,dx,dy,dw,dh);
     off.x.globalCompositeOperation='destination-in';
-    off.x.drawImage(maskCanvas,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+    off.x.drawImage(maskCanvas,dx,dy,dw,dh);
     off.x.globalCompositeOperation='source-over';
     ctx.drawImage(off.c,0,0);
   } else {
-    ctx.drawImage(img,tx.cx-hw,tx.cy-hh,img.naturalWidth*tx.scale,img.naturalHeight*tx.scale);
+    ctx.drawImage(disp,dx,dy,dw,dh);
   }
   ctx.restore();
 }
@@ -395,15 +411,15 @@ function draw(){
   var etx1=gTx?applyGTx(tx1):tx1,etx2=gTx?applyGTx(tx2):tx2;
   if(sliderMode){drawWithSlider(w,h,etx1,etx2);}
   else{
-    if(img1&&etx1)drawImg(img1,etx1,1,false);
-    if(img2&&etx2)drawImg(img2,etx2,opacity2,!!maskCanvas);
+    if(img1&&etx1)drawImg(img1,di1||img1,etx1,1,false);
+    if(img2&&etx2)drawImg(img2,di2||img2,etx2,opacity2,!!maskCanvas);
   }
   updateSliderOverlay(w,h);
 }
 function drawWithSlider(w,h,etx1,etx2){
   var sp=sliderVert?sliderPos*w:sliderPos*h;
-  if(img1&&etx1){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(0,0,sp,h);else ctx.rect(0,0,w,sp);ctx.clip();drawImg(img1,etx1,1,false);ctx.restore();}
-  if(img2&&etx2){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(sp,0,w-sp,h);else ctx.rect(0,sp,w,h-sp);ctx.clip();drawImg(img2,etx2,1,!!maskCanvas);ctx.restore();}
+  if(img1&&etx1){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(0,0,sp,h);else ctx.rect(0,0,w,sp);ctx.clip();drawImg(img1,di1||img1,etx1,1,false);ctx.restore();}
+  if(img2&&etx2){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(sp,0,w-sp,h);else ctx.rect(0,sp,w,h-sp);ctx.clip();drawImg(img2,di2||img2,etx2,1,!!maskCanvas);ctx.restore();}
 }
 function updateSliderOverlay(w,h){
   if(!sliderMode||(!img1&&!img2)){dividerEl.style.display='none';return;}
@@ -440,10 +456,10 @@ stage.addEventListener('touchmove',function(e){
     paintMaskLine(panLast.x,panLast.y,p.x,p.y);
     panLast=p;drawRaf();return;
   }
-  if(tMode==='slider'&&t.length>=1){var p=stXY(t[0]);sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));draw();return;}
+  if(tMode==='slider'&&t.length>=1){var p=stXY(t[0]);sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));drawRaf();return;}
   var ax=zoomMode?gTx:(brushMode?tx2:activeTx());if(!ax)return;
-  if(tMode==='pan'&&t.length===1){var p=stXY(t[0]);ax.cx+=p.x-panLast.x;ax.cy+=p.y-panLast.y;panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);draw();}
-  else if(tMode==='pinch'&&t.length>=2){var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));var cm=tMid(t[0],t[1]);var imgX=(psMidX-psCx)/psScale,imgY=(psMidY-psCy)/psScale;ax.cx=cm.x-imgX*ns;ax.cy=cm.y-imgY*ns;ax.scale=ns;if(zoomMode)gTx=ax;else setActiveTx(ax);draw();}
+  if(tMode==='pan'&&t.length===1){var p=stXY(t[0]);ax.cx+=p.x-panLast.x;ax.cy+=p.y-panLast.y;panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
+  else if(tMode==='pinch'&&t.length>=2){var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));var cm=tMid(t[0],t[1]);var imgX=(psMidX-psCx)/psScale,imgY=(psMidY-psCy)/psScale;ax.cx=cm.x-imgX*ns;ax.cy=cm.y-imgY*ns;ax.scale=ns;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
 },{passive:false});
 stage.addEventListener('touchend',function(e){
   e.preventDefault();
