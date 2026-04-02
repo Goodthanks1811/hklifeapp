@@ -245,7 +245,7 @@ export function Drawer() {
         // Non-life route: let the sidebar animation finish cleanly, then swap screen.
         // Navigating immediately causes layout thrash while spacer animates every frame.
         closeDrawer();
-        setTimeout(() => router.replace(route as any), 210);
+        setTimeout(() => router.replace(route as any), 310);
       }
     } else {
       // Phone: small head-start before React mounts the new screen.
