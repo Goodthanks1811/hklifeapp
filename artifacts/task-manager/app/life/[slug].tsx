@@ -89,7 +89,6 @@ const T_MIN_SPIN   = 2000;
 const T_POP        = 420;
 const T_TICK       = 400;
 const T_HOLD       = 700;
-const T_FADE_OUT   = 450;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; epic?: string | null; }
@@ -352,7 +351,12 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
               ]).start(() => {
                 Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
                   setTimeout(() => {
-                    Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+                    Animated.parallel([
+                      Animated.timing(bgAnim,    { toValue: 0,   duration: 500, useNativeDriver: false }),
+                      isTablet
+                        ? Animated.timing(scaleAnim, { toValue: 0.94, duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) })
+                        : Animated.timing(slideAnim, { toValue: 500,  duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+                    ]).start(() => {
                       setLoaderVisible(false);
                       resetLoader();
                       dismiss();
@@ -365,7 +369,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
           });
         });
       }),
-    [resetLoader, dismiss]
+    [resetLoader, dismiss, isTablet]
   );
 
   const handleSave = useCallback(() => {
@@ -375,7 +379,7 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
     runLoader(onSave(task.id, title.trim(), notes.trim(), changedCat));
   }, [task, title, notes, localCat, catValue, onSave, runLoader]);
 
-  const bg    = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.72)"] });
+  const bg    = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.88)"] });
   const cardW = Math.min(600, screenW * 0.88);
   const maxCardH = screenH * 0.82;
 
@@ -642,7 +646,12 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
               ]).start(() => {
                 Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
                   setTimeout(() => {
-                    Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+                    Animated.parallel([
+                      Animated.timing(bgAnim,    { toValue: 0,   duration: 500, useNativeDriver: false }),
+                      isTablet
+                        ? Animated.timing(scaleAnim, { toValue: 0.94, duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) })
+                        : Animated.timing(slideAnim, { toValue: 500,  duration: 480, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+                    ]).start(() => {
                       setLoaderVisible(false);
                       resetLoader();
                       dismiss();
@@ -655,7 +664,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
           });
         });
       }),
-    [resetLoader, dismiss]
+    [resetLoader, dismiss, isTablet]
   );
 
   const handleSave = useCallback(() => {
@@ -691,7 +700,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
     runLoader(apiPromise);
   }, [title, notes, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
 
-  const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.7)"] });
+  const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.88)"] });
   const cardW   = Math.min(600, screenW * 0.88);
 
   const qaLoaderOverlay = loaderVisible ? (
@@ -1756,7 +1765,7 @@ const sc = StyleSheet.create({
   },
   emojiBtn:  { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   rowEmoji:  { fontSize: 24 },
-  rowTitle:  { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21 },
+  rowTitle:  { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
   checkBtn:  { padding: 10, margin: -6 },
   checkBox: {
     width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",
