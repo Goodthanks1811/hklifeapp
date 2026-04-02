@@ -155,14 +155,14 @@ const tb = StyleSheet.create({
 
 // ── Article card ───────────────────────────────────────────────────────────────
 function ArticleCard({ item, onPress, isTablet }: { item: NewsItem; onPress: () => void; isTablet: boolean }) {
-  const titleSize = isTablet ? 14 : 18;
-  const padV      = isTablet ? 13 : 22;
-  const padH      = isTablet ? 16 : 16;
+  const titleSize = isTablet ? 14 : 13;
+  const padV      = isTablet ? 13 : 12;
+  const padH      = 16;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [ac.shell, pressed && { opacity: 0.8 }]}>
       <View style={[ac.card, { paddingVertical: padV, paddingHorizontal: padH }]}>
-        <Text style={[ac.title, { fontSize: titleSize, lineHeight: titleSize * 1.38, fontWeight: isTablet ? "500" : "700" }]}>{item.title}</Text>
-        <Text style={[ac.chevron, { fontSize: isTablet ? 16 : 22, lineHeight: isTablet ? 16 : 22 }]}>›</Text>
+        <Text style={[ac.title, { fontSize: titleSize, lineHeight: titleSize * 1.38, fontWeight: "500" }]}>{item.title}</Text>
+        <Text style={[ac.chevron, { fontSize: 16, lineHeight: 16 }]}>›</Text>
       </View>
     </Pressable>
   );
@@ -184,9 +184,9 @@ const ac = StyleSheet.create({
 
 // ── Article body ───────────────────────────────────────────────────────────────
 function ArticleBody({ blocks, isTablet }: { blocks: ArticleBlock[]; isTablet: boolean }) {
-  const textSize    = isTablet ? 24 : 18;
-  const headingSize = isTablet ? 24 : 20;
-  const divH        = isTablet ? 4 : 3;
+  const textSize    = isTablet ? 16 : 15;
+  const headingSize = isTablet ? 19 : 17;
+  const divH        = 3;
 
   return (
     <View style={[ab.body, { borderRadius: isTablet ? 18 : 16, padding: isTablet ? 24 : 18 }]}>
@@ -381,7 +381,7 @@ export default function NrlNewsScreen() {
           )}
 
           {!loading && !error && (
-            <View style={{ gap: isTablet ? 10 : 18, maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
+            <View style={{ gap: 10, maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
               {visibleNews.length === 0 ? (
                 <View style={styles.center}>
                   <Text style={styles.errorText}>No articles found.</Text>
