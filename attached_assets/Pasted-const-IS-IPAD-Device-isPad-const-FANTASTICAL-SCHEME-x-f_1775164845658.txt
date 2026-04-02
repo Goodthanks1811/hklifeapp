@@ -1,0 +1,505 @@
+const IS_IPAD = Device.isPad();
+const FANTASTICAL_SCHEME = "x-fantastical3://parse?sentence=";
+const CALENDARS = [
+  { id: "HK",     label: "HK",     color: "rgba(30,120,255,0.25)", border: "rgba(30,120,255,0.7)" },
+  { id: "Sticky", label: "Sticky", color: "rgba(255,30,30,0.25)",  border: "rgba(255,30,30,0.7)"  },
+];
+
+const C = {
+  bg: "#0b0b0c", card: "#141415", border: "#2a2a2e",
+  accent: "rgb(255,30,30)",
+  accentSubtle: "rgba(255,30,30,0.18)",
+  accentBorder: "rgba(255,30,30,0.6)",
+  fontBase: IS_IPAD ? 17 : 15, fontSm: IS_IPAD ? 14 : 12,
+  fontLg: IS_IPAD ? 22 : 19, radius: 12, pad: IS_IPAD ? 28 : 20,
+};
+
+const DURATIONS = [
+  { id: "dur-30",  mins: 30,  label: "30m" },
+  { id: "dur-60",  mins: 60,  label: "1hr" },
+  { id: "dur-120", mins: 120, label: "2hr" },
+  { id: "dur-180", mins: 180, label: "3hr" },
+  { id: "dur-240", mins: 240, label: "4hr" },
+];
+
+const CALENDARS_JS = JSON.stringify(CALENDARS);
+const DURATIONS_JS = JSON.stringify(DURATIONS);
+
+const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: ${C.bg}; color: #fff;
+  font-family: -apple-system, sans-serif; font-size: ${C.fontBase}px;
+  position: fixed; left: 0; right: 0; top: 0; height: 100vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px ${C.pad}px 14px; border-bottom: 1px solid ${C.border}; flex-shrink: 0;
+}
+.header-icon { font-size: 28px; flex: 1; text-align: center; }
+.btn-close { background: none; border: none; color: #888; font-size: 22px; padding: 4px 8px; cursor: pointer; width: 44px; }
+.header-spacer { width: 44px; }
+.scroll {
+  flex: 1; overflow-y: auto; padding: ${C.pad}px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.sec { display: flex; flex-direction: column; gap: 18px; }
+.sec.hidden { display: none; }
+.fg { display: flex; flex-direction: column; gap: 8px; }
+.lbl { font-size: ${C.fontBase}px; color: #fff; font-weight: 600; padding-left: 2px; }
+.field-input {
+  background: ${C.card}; border: 1.5px solid ${C.border};
+  border-radius: ${C.radius}px; color: #fff;
+  font-size: ${C.fontBase}px; padding: 14px 16px; width: 100%;
+  outline: none; -webkit-appearance: none; appearance: none;
+}
+.field-input:focus { border-color: ${C.accent}; }
+.field-input::placeholder { color: #444; }
+input[type="date"] {
+  background: ${C.card}; border: 1.5px solid ${C.border};
+  border-radius: ${C.radius}px; color: #fff;
+  font-size: ${C.fontBase}px; padding: 14px 16px; width: 100%;
+  outline: none; -webkit-appearance: none; appearance: none;
+  color-scheme: dark; font-family: -apple-system, sans-serif;
+}
+.pill-row { display: flex; gap: 8px; }
+.kind-pill {
+  flex: 1; background: ${C.card}; border: 1.5px solid ${C.border};
+  border-radius: ${C.radius}px; color: #fff;
+  font-size: ${C.fontBase}px;
+  padding: 13px 6px; cursor: pointer; text-align: center;
+}
+.kind-pill.active { background: ${C.accentSubtle}; border-color: ${C.accentBorder}; }
+.cal-pill {
+  flex: 1; background: ${C.card}; border: 1.5px solid ${C.border};
+  border-radius: ${C.radius}px; color: #fff;
+  font-size: ${C.fontBase}px; font-weight: 600;
+  padding: 14px 6px; cursor: pointer; text-align: center;
+}
+.time-dur-row { display: flex; gap: 10px; align-items: flex-start; }
+.time-fg { flex: 0 0 ${IS_IPAD ? 160 : 130}px; display: flex; flex-direction: column; gap: 8px; }
+.time-btn {
+  background: ${C.card}; border: 1.5px solid ${C.border};
+  border-radius: ${C.radius}px; color: #fff;
+  font-size: ${C.fontBase}px; font-weight: 500;
+  padding: 13px 14px; cursor: pointer; width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.time-btn .chev { color: #888; font-size: 12px; margin-left: 6px; }
+.time-btn.open { border-color: ${C.accentBorder}; background: ${C.accentSubtle}; }
+.placeholder { color: #444; }
+.dur-fg { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.dur-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.dur-pill {
+  flex: 1; min-width: 0;
+  background: ${C.card}; border: 1.5px solid ${C.border};
+  border-radius: ${C.radius}px; color: #fff;
+  font-size: ${C.fontSm}px; font-weight: 600;
+  padding: 10px 4px; cursor: pointer; text-align: center;
+}
+.dur-pill.active { background: ${C.accentSubtle}; border-color: ${C.accentBorder}; }
+.footer { padding: ${C.pad}px; padding-top: 0; flex-shrink: 0; }
+.btn-create {
+  background: ${C.accent}; color: #fff;
+  font-size: ${C.fontBase}px; font-weight: 700;
+  border: none; border-radius: ${C.radius}px;
+  padding: 15px; width: 100%; cursor: pointer;
+}
+.modal-overlay {
+  position: fixed; left: 0; right: 0; z-index: 200;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: #1c1c1e; border-radius: 16px;
+  width: ${IS_IPAD ? 280 : 220}px; overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 10px; border-bottom: 1px solid #2c2c2e;
+}
+.modal-title { font-size: 15px; font-weight: 700; color: #fff; }
+.modal-cancel { background: none; border: none; color: #888; font-size: 13px; cursor: pointer; }
+.modal-done { background: none; border: none; color: ${C.accent}; font-size: 14px; font-weight: 700; cursor: pointer; }
+.picker-col-headers { display: flex; padding: 6px 8px 0; border-bottom: 1px solid #2c2c2e; }
+.picker-col-header {
+  flex: 1; text-align: center;
+  font-size: 10px; font-weight: 700; color: #666;
+  text-transform: uppercase; letter-spacing: 0.4px; padding-bottom: 5px;
+}
+.picker-col-header.sep-spacer { flex: 0 0 12px; }
+.picker-wheels {
+  display: flex; align-items: stretch;
+  height: 180px; position: relative; padding: 0 8px;
+}
+.picker-wheels::before {
+  content: '';
+  position: absolute; left: 8px; right: 8px;
+  top: 50%; transform: translateY(-50%);
+  height: 40px;
+  border-top: 1px solid #3a3a3c;
+  border-bottom: 1px solid #3a3a3c;
+  pointer-events: none; z-index: 1;
+}
+.picker-col {
+  flex: 1; overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; position: relative;
+}
+.picker-col::-webkit-scrollbar { display: none; }
+.picker-col::before, .picker-col::after {
+  content: ''; position: sticky; display: block;
+  left: 0; right: 0; height: 70px; z-index: 2; pointer-events: none;
+}
+.picker-col::before { top: 0; background: linear-gradient(to bottom, #1c1c1e 30%, transparent); }
+.picker-col::after  { bottom: 0; background: linear-gradient(to top, #1c1c1e 30%, transparent); }
+.picker-spacer { height: 70px; flex-shrink: 0; }
+.picker-item {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  scroll-snap-align: center;
+  font-size: 19px; color: #fff; user-select: none; cursor: pointer;
+}
+.picker-sep {
+  flex: 0 0 12px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 600; color: #fff;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-spacer"></div>
+  <div class="header-icon">📅</div>
+  <button class="btn-close" id="btn-close">✕</button>
+</div>
+
+<div class="scroll">
+  <div class="fg">
+    <div class="lbl">Title</div>
+    <input class="field-input" id="title" type="text" placeholder="Event title..." />
+  </div>
+  <div class="fg">
+    <div class="lbl">Date</div>
+    <input type="date" id="date" />
+  </div>
+  <div class="fg">
+    <div class="lbl">Type</div>
+    <div class="pill-row" id="kind-row"></div>
+  </div>
+  <div class="sec hidden" id="sec-timedur">
+    <div class="time-dur-row">
+      <div class="time-fg">
+        <div class="lbl">Time</div>
+        <button class="time-btn" id="trig-time">
+          <span id="lbl-time" class="placeholder">--:--</span>
+          <span class="chev">▼</span>
+        </button>
+      </div>
+      <div class="dur-fg">
+        <div class="lbl">Duration</div>
+        <div class="dur-pills" id="dur-row"></div>
+      </div>
+    </div>
+  </div>
+  <div class="sec hidden" id="sec-cal">
+    <div class="fg">
+      <div class="lbl">Calendar</div>
+      <div class="pill-row" id="cal-row"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <button class="btn-create" id="btn-create">Save Event</button>
+</div>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <button class="modal-cancel" id="modal-cancel">Cancel</button>
+      <div class="modal-title">Start Time</div>
+      <button class="modal-done" id="modal-done">Done</button>
+    </div>
+    <div class="picker-col-headers">
+      <div class="picker-col-header">Hour</div>
+      <div class="picker-col-header sep-spacer"></div>
+      <div class="picker-col-header">Min</div>
+      <div class="picker-col-header">AM/PM</div>
+    </div>
+    <div class="picker-wheels" id="picker-wheels"></div>
+  </div>
+</div>
+
+<script>
+var __msgs = [];
+var CALENDARS = ${CALENDARS_JS};
+var DURATIONS = ${DURATIONS_JS};
+var kind = null, durMins = -1, cal = CALENDARS[0].id;
+var timeH = 9, timeMin = 0, timeAmpm = 'am';
+var dH = 9, dMin = 0, dAmpm = 'am';
+var timeSet = false;
+
+var now = new Date();
+document.getElementById('date').value =
+  now.getFullYear() + '-' + pad2(now.getMonth()+1) + '-' + pad2(now.getDate());
+
+document.getElementById('date').addEventListener('change', function() { this.blur(); });
+
+var kindDefs = [
+  { id: 'appointment', icon: '\uD83D\uDD52' },
+  { id: 'allday',      icon: '\uD83D\uDCC6' },
+  { id: 'birthday',    icon: '\uD83C\uDF82' }
+];
+
+var kindRow = document.getElementById('kind-row');
+kindDefs.forEach(function(k) {
+  var b = document.createElement('button');
+  b.className = 'kind-pill';
+  b.id = 'opt-' + k.id;
+  b.textContent = k.icon;
+  b.addEventListener('click', function() { setKind(k.id); });
+  kindRow.appendChild(b);
+});
+
+var durRow = document.getElementById('dur-row');
+DURATIONS.forEach(function(d) {
+  var b = document.createElement('button');
+  b.className = 'dur-pill';
+  b.id = d.id;
+  b.textContent = d.label;
+  b.addEventListener('click', function() { setDur(d.id, d.mins); });
+  durRow.appendChild(b);
+});
+
+var calRow = document.getElementById('cal-row');
+CALENDARS.forEach(function(c, i) {
+  var b = document.createElement('button');
+  b.className = 'cal-pill';
+  b.id = 'cal-' + c.id;
+  b.textContent = c.label;
+  if (i === 0) {
+    b.style.background = c.color;
+    b.style.borderColor = c.border;
+  }
+  b.addEventListener('click', function() { setCal(c.id); });
+  calRow.appendChild(b);
+});
+
+document.getElementById('btn-close').addEventListener('click', function() { __msgs.push({ type: 'close', payload: '' }); });
+document.getElementById('btn-create').addEventListener('click', function() {
+  var nl = buildNL();
+  if (nl) __msgs.push({ type: 'open', payload: nl });
+});
+document.getElementById('trig-time').addEventListener('click', openModal);
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-done').addEventListener('click', commitModal);
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+function setKind(k) {
+  kind = k;
+  kindDefs.forEach(function(kd) {
+    document.getElementById('opt-' + kd.id).classList.toggle('active', kd.id === k);
+  });
+  document.getElementById('sec-timedur').classList.toggle('hidden', k !== 'appointment');
+  document.getElementById('sec-cal').classList.toggle('hidden', k === 'birthday');
+}
+
+function setDur(id, mins) {
+  durMins = mins;
+  document.querySelectorAll('.dur-pill').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+
+function setCal(id) {
+  cal = id;
+  CALENDARS.forEach(function(c) {
+    var b = document.getElementById('cal-' + c.id);
+    if (c.id === id) {
+      b.style.background = c.color;
+      b.style.borderColor = c.border;
+    } else {
+      b.style.background = '${C.card}';
+      b.style.borderColor = '${C.border}';
+    }
+  });
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function timeLbl(h, min, ampm) { return h + ':' + pad2(min) + ' ' + ampm; }
+
+function calcEnd() {
+  var h24 = timeAmpm === 'pm' && timeH !== 12 ? timeH + 12 : (timeAmpm === 'am' && timeH === 12 ? 0 : timeH);
+  var total = (h24 * 60 + timeMin + durMins) % 1440;
+  var eh = Math.floor(total / 60), em = total % 60;
+  var eap = eh >= 12 ? 'pm' : 'am';
+  var eh12 = eh % 12 || 12;
+  return eh12 + ':' + pad2(em) + eap;
+}
+
+function fmtDate(v) {
+  if (!v) return '';
+  var p = v.split('-');
+  return p[1] + '/' + p[2] + '/' + p[0];
+}
+
+function buildNL() {
+  var title = document.getElementById('title').value.trim();
+  var date = document.getElementById('date').value;
+  if (!title || !date || !kind) return '';
+  var fd = fmtDate(date);
+  if (kind === 'birthday') return title + ' ' + fd + ' alerts 5:30am repeats every year /B';
+  if (kind === 'allday') return title + ' ' + fd + ' /' + cal;
+  if (!timeSet || durMins < 0) return '';
+  var st = timeH + ':' + pad2(timeMin) + timeAmpm;
+  return title + ' ' + fd + ' at ' + st + ' - ' + calcEnd() + ' /' + cal;
+}
+
+function openModal() {
+  dH = timeSet ? timeH : 9;
+  dMin = timeSet ? timeMin : 0;
+  dAmpm = timeSet ? timeAmpm : 'am';
+  buildPicker();
+  var vp = window.visualViewport;
+  var overlay = document.getElementById('modal-overlay');
+  overlay.style.top = vp.offsetTop + 'px';
+  overlay.style.height = vp.height + 'px';
+  overlay.classList.remove('hidden');
+  document.getElementById('trig-time').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('trig-time').classList.remove('open');
+}
+
+function commitModal() {
+  timeH = dH; timeMin = dMin; timeAmpm = dAmpm;
+  timeSet = true;
+  var lbl = document.getElementById('lbl-time');
+  lbl.textContent = timeLbl(timeH, timeMin, timeAmpm);
+  lbl.classList.remove('placeholder');
+  closeModal();
+}
+
+function buildPicker() {
+  var wheels = document.getElementById('picker-wheels');
+  wheels.querySelectorAll('.picker-col, .picker-sep').forEach(function(e) { e.remove(); });
+
+  var hours = [1,2,3,4,5,6,7,8,9,10,11,12];
+  var mins  = Array.from({ length: 60 }, function(_, i) { return i; });
+
+  var hCol = makePickerCol(hours.map(String), dH - 1, function(i) { dH = hours[i]; });
+  var sep  = document.createElement('div'); sep.className = 'picker-sep'; sep.textContent = ':';
+  var mCol = makePickerCol(mins.map(pad2), dMin, function(i) { dMin = i; });
+
+  // am/pm — use dedicated function so both options are always reachable
+  var aCol = makeAmPmCol(dAmpm === 'am' ? 0 : 1, function(i) { dAmpm = i === 0 ? 'am' : 'pm'; });
+
+  wheels.appendChild(hCol);
+  wheels.appendChild(sep);
+  wheels.appendChild(mCol);
+  wheels.appendChild(aCol);
+}
+
+function makePickerCol(items, selIdx, onChange) {
+  var col = document.createElement('div');
+  col.className = 'picker-col';
+  var top = document.createElement('div'); top.className = 'picker-spacer'; col.appendChild(top);
+  items.forEach(function(item) {
+    var el = document.createElement('div'); el.className = 'picker-item'; el.textContent = item; col.appendChild(el);
+  });
+  var bot = document.createElement('div'); bot.className = 'picker-spacer'; col.appendChild(bot);
+  requestAnimationFrame(function() { col.scrollTop = selIdx * 40; });
+  var t;
+  col.addEventListener('scroll', function() {
+    clearTimeout(t);
+    t = setTimeout(function() {
+      var idx = Math.max(0, Math.min(Math.round(col.scrollTop / 40), items.length - 1));
+      onChange(idx);
+      col.scrollTo({ top: idx * 40, behavior: 'smooth' });
+    }, 80);
+  });
+  return col;
+}
+
+// Dedicated am/pm col — pads with extra blank rows so both snap reliably
+function makeAmPmCol(selIdx, onChange) {
+  var col = document.createElement('div');
+  col.className = 'picker-col';
+
+  // top spacer
+  var top = document.createElement('div'); top.className = 'picker-spacer'; col.appendChild(top);
+
+  // am
+  var am = document.createElement('div'); am.className = 'picker-item'; am.textContent = 'am'; col.appendChild(am);
+  // pm
+  var pm = document.createElement('div'); pm.className = 'picker-item'; pm.textContent = 'pm'; col.appendChild(pm);
+  // extra blank row so pm can scroll fully into centre
+  var blank = document.createElement('div'); blank.className = 'picker-item'; blank.textContent = ''; col.appendChild(blank);
+
+  // bottom spacer
+  var bot = document.createElement('div'); bot.className = 'picker-spacer'; col.appendChild(bot);
+
+  requestAnimationFrame(function() { col.scrollTop = selIdx * 40; });
+
+  var t;
+  col.addEventListener('scroll', function() {
+    clearTimeout(t);
+    t = setTimeout(function() {
+      var idx = Math.max(0, Math.min(Math.round(col.scrollTop / 40), 1));
+      onChange(idx);
+      col.scrollTo({ top: idx * 40, behavior: 'smooth' });
+    }, 80);
+  });
+  return col;
+}
+
+function onVP() {
+  var vp = window.visualViewport;
+  document.body.style.top = vp.offsetTop + 'px';
+  document.body.style.height = vp.height + 'px';
+  var overlay = document.getElementById('modal-overlay');
+  if (!overlay.classList.contains('hidden')) {
+    overlay.style.top = vp.offsetTop + 'px';
+    overlay.style.height = vp.height + 'px';
+  }
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onVP);
+  window.visualViewport.addEventListener('scroll', onVP);
+  onVP();
+}
+</script>
+</body>
+</html>`;
+
+const wv = new WebView();
+await wv.loadHTML(html);
+await wv.evaluateJavaScript("window.__msgs = [];");
+wv.present(IS_IPAD);
+
+while (true) {
+  await new Promise(r => Timer.schedule(300, false, r));
+  const raw = await wv.evaluateJavaScript(
+    "(function(){ var m = window.__msgs.splice(0); return JSON.stringify(m); })()"
+  );
+  let msgs = [];
+  try { msgs = JSON.parse(raw || "[]"); } catch(e) {}
+  for (const msg of msgs) {
+    if (msg.type === "close") { Script.complete(); return; }
+    if (msg.type === "open") {
+      Safari.open(FANTASTICAL_SCHEME + encodeURIComponent(msg.payload) + "&add=1");
+      Script.complete(); return;
+    }
+  }
+}
