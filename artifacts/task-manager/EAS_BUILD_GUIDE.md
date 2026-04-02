@@ -208,22 +208,35 @@ You can restart them from the Replit interface or by running `wake up` (which tr
 
 ---
 
+### 9. App crashes on launch after adding `useAnimatedStyle` — missing worklets babel plugin
+
+**Symptom**: App built successfully but crashes on launch (splash screen shows briefly then exits). No change to native packages — only added Reanimated hooks to a component.
+
+**Cause**: `useAnimatedStyle` (and other Reanimated hooks that run on the UI thread) require Babel to transform the callback function into a **worklet** at build time. Reanimated 4 with `react-native-worklets` requires `react-native-worklets/plugin` in `babel.config.js`. Without it, the worklet function is bundled as plain JS, which crashes when Reanimated tries to execute it on the UI thread.
+
+**Fix**: Add `react-native-worklets/plugin` to `babel.config.js` plugins:
+```js
+plugins: [expoRouterCtxInlinePlugin, 'react-native-worklets/plugin'],
+```
+
+**Rule**: Any time `useAnimatedStyle`, `useAnimatedScrollHandler`, or any Reanimated hook that creates a worklet is added to a component, `react-native-worklets/plugin` must be present in `babel.config.js`. This is already in place — do not remove it.
+
+---
+
 ## Dependency Version Reference
 
-These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 **on iOS 26 beta**:
+These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
 
 | Package | Required Version | Notes |
 |---|---|---|
 | `react-native` | `0.81.5` | |
 | `expo` | `~54.0.27` | |
-| `react-native-reanimated` | `~3.16.1` | v4 crashes on iOS 26 with new arch |
-| `react-native-worklets` | **REMOVED** | Only needed for Reanimated 4 |
+| `react-native-reanimated` | `~4.1.1` | |
+| `react-native-worklets` | `0.5.1` | Required by Reanimated 4; needs `react-native-worklets/plugin` in babel |
 | `react-native-keyboard-controller` | **REMOVED** | Crashes on iOS 26 (use-after-free in JSI bindings) |
 
-`newArchEnabled: false` is required in `app.config.js` for iOS 26 beta compatibility.
-`react-native-reanimated/plugin` must be listed in `babel.config.js` plugins when using Reanimated 3.
-
-**When iOS 26 ships stable / RN 0.82+ adds official iOS 26 support**: restore `newArchEnabled: true`, upgrade to `react-native-reanimated: ~4.1.1`, add `react-native-worklets: 0.5.1`, and remove `react-native-reanimated/plugin` from `babel.config.js`.
+`newArchEnabled: true` in `app.config.js`.
+`react-native-worklets/plugin` must be in `babel.config.js` plugins whenever any Reanimated worklet hooks are used.
 
 ---
 
