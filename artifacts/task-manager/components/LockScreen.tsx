@@ -86,23 +86,20 @@ export function LockScreen() {
             color={isLockedOut ? "#F59F00" : Colors.primary}
           />
         </View>
-        <Text style={styles.title}>{isLockedOut ? "Locked Out" : "App Locked"}</Text>
+        <Text style={styles.title}>{isLockedOut ? "Locked Out" : "Face ID Required"}</Text>
         <Text style={[styles.subtitle, isLockedOut && styles.subtitleWarning]}>
           {subtitle}
         </Text>
       </Animated.View>
 
-      {/* Unlock button — hidden when locked out */}
-      {!isLockedOut && (
+      {/* Unlock button — only shown when idle and not locked out (i.e. tap to retry) */}
+      {!isLockedOut && !prompting && (
         <Pressable
           style={({ pressed }) => [styles.unlockBtn, pressed && { opacity: 0.82 }]}
           onPress={handleUnlock}
-          disabled={prompting}
         >
           <Feather name="cpu" size={18} color="#fff" />
-          <Text style={styles.unlockBtnText}>
-            {prompting ? "Authenticating…" : "Unlock with Face ID"}
-          </Text>
+          <Text style={styles.unlockBtnText}>Unlock with Face ID</Text>
         </Pressable>
       )}
     </Animated.View>
