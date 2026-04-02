@@ -9,7 +9,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { Animated } from "react-native";
+import { View } from "react-native";
+import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@/utils/apiClient";
@@ -43,16 +44,19 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function TabletShell({ children }: { children: React.ReactNode }) {
-  const { isTablet, spacerAnim } = useDrawer();
+  const { isTablet, spacerWidth } = useDrawer();
+  // Spacer width animates on the UI thread (Reanimated) — no JS bridge, no jank.
+  const spacerStyle = useAnimatedStyle(() => ({ width: spacerWidth.value }));
+
   if (!isTablet) return <>{children}</>;
   return (
-    <Animated.View style={{ flex: 1, flexDirection: "row" }}>
-      {/* Spacer that grows/shrinks in perfect sync with the drawer sliding in/out */}
-      <Animated.View style={{ width: spacerAnim, backgroundColor: "#111111" }} />
-      <Animated.View style={{ flex: 1, backgroundColor: "#000000" }}>
+    <View style={{ flex: 1, flexDirection: "row" }}>
+      {/* Spacer driven by Reanimated SharedValue — runs on UI thread in perfect sync */}
+      <ReAnimated.View style={[{ backgroundColor: "#111111" }, spacerStyle]} />
+      <View style={{ flex: 1, backgroundColor: "#000000" }}>
         {children}
-      </Animated.View>
-    </Animated.View>
+      </View>
+    </View>
   );
 }
 

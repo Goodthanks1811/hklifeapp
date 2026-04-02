@@ -118,7 +118,7 @@ function AccordionSection({
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
   const {
-    isOpen, drawerAnim, overlayAnim, spacerAnim,
+    isOpen, drawerAnim, overlayAnim, spacerWidth,
     openDrawer, closeDrawer,
     DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
@@ -144,13 +144,14 @@ export function Drawer() {
   }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
 
   // Track animated values in sync during gesture.
-  // On iPad: drawerAnim (native, translateX) + spacerAnim (non-native, width).
-  // On iPhone: drawerAnim (native, translateX) + overlayAnim (native, opacity).
+  // On iPad: drawerAnim (native thread, translateX) + spacerWidth (UI thread via Reanimated, width).
+  // On iPhone: drawerAnim (native thread, translateX) + overlayAnim (native thread, opacity).
   const syncGesture = (newX: number) => {
     drawerAnim.setValue(newX);
     if (isTablet) {
-      // spacer width = SIDEBAR_WIDTH + newX (0 when closed, SIDEBAR_WIDTH when open)
-      spacerAnim.setValue(Math.max(0, SIDEBAR_WIDTH + newX));
+      // Setting spacerWidth.value from JS thread — Reanimated picks it up on UI thread next frame.
+      // This is far smoother than core Animated non-native (no JS layout recalc).
+      spacerWidth.value = Math.max(0, SIDEBAR_WIDTH + newX);
     } else {
       overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
     }
@@ -164,7 +165,8 @@ export function Drawer() {
     onPanResponderGrant: () => {
       drawerAnim.stopAnimation();
       overlayAnim.stopAnimation();
-      spacerAnim.stopAnimation();
+      // Note: no stopAnimation for spacerWidth — Reanimated SharedValue,
+      // just override by setting .value directly in syncGesture
     },
     onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, dx))),
     // Released: if dragged far enough or fast enough → close; else snap back open
@@ -182,7 +184,7 @@ export function Drawer() {
     onPanResponderGrant: () => {
       drawerAnim.stopAnimation();
       overlayAnim.stopAnimation();
-      spacerAnim.stopAnimation();
+      // spacerWidth is a Reanimated SharedValue — cancelled implicitly when we set .value
     },
     onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx))),
     // Released: if dragged far enough or fast enough → open; else snap back closed

@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
 import { Animated, Dimensions, Easing } from "react-native";
+import {
+  useSharedValue,
+  withSpring,
+  withTiming,
+  Easing as REasing,
+} from "react-native-reanimated";
+import type { SharedValue } from "react-native-reanimated";
 
 const SCREEN_WIDTH  = Dimensions.get("window").width;
 export const isTablet      = SCREEN_WIDTH >= 768;
@@ -8,20 +15,21 @@ export const SIDEBAR_WIDTH = isTablet ? Math.min(300, Math.round(SCREEN_WIDTH * 
 const DRAWER_WIDTH_PHONE = Math.min(SCREEN_WIDTH * 0.78, 320);
 export const DRAWER_WIDTH = isTablet ? SIDEBAR_WIDTH : DRAWER_WIDTH_PHONE;
 
-// Shared spring config for open and gesture snap-back
-const SPRING = { damping: 24, stiffness: 240, overshootClamping: true } as const;
+// Spring config — identical for drawer (native) and spacer (UI thread) so they move as one
+const RSPRING = { damping: 24, stiffness: 240, overshootClamping: true } as const;
+const CLOSE_DUR = 240;
 
 interface DrawerContextType {
-  isOpen:      boolean;
-  drawerAnim:  Animated.Value; // translateX: -DRAWER_WIDTH (hidden) → 0 (visible)
-  overlayAnim: Animated.Value; // iPhone scrim opacity 0→1
-  spacerAnim:  Animated.Value; // iPad spacer width 0 → SIDEBAR_WIDTH
-  openDrawer:  () => void;
-  closeDrawer: () => void;
-  toggleDrawer:() => void;
-  DRAWER_WIDTH: number;
-  isTablet:     boolean;
-  SIDEBAR_WIDTH:number;
+  isOpen:       boolean;
+  drawerAnim:   Animated.Value;    // native driver translateX: -DRAWER_WIDTH → 0
+  overlayAnim:  Animated.Value;    // native driver opacity 0→1 (iPhone scrim)
+  spacerWidth:  SharedValue<number>; // UI-thread spacer: 0 → SIDEBAR_WIDTH (iPad only)
+  openDrawer:   () => void;
+  closeDrawer:  () => void;
+  toggleDrawer: () => void;
+  DRAWER_WIDTH:  number;
+  isTablet:      boolean;
+  SIDEBAR_WIDTH: number;
 }
 
 const DrawerContext = createContext<DrawerContextType | null>(null);
@@ -29,36 +37,39 @@ const DrawerContext = createContext<DrawerContextType | null>(null);
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // drawerAnim: native driver ok (transform)
+  // Core Animated values — only used for native-driver animations (transform, opacity)
   const drawerAnim  = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  // overlayAnim: native driver ok (opacity) — iPhone only
   const overlayAnim = useRef(new Animated.Value(0)).current;
-  // spacerAnim: non-native driver required (width) — iPad only
-  const spacerAnim  = useRef(new Animated.Value(0)).current;
+
+  // Reanimated shared value for the spacer width — runs entirely on the UI thread,
+  // no JS-bridge involvement, perfectly in sync with the drawer.
+  const spacerWidth = useSharedValue(0);
 
   const openDrawer = useCallback(() => {
     setIsOpen(true);
-    // Drawer slides in (native driver)
-    Animated.spring(drawerAnim, { toValue: 0, useNativeDriver: true, ...SPRING }).start();
+    // Drawer translateX → native thread
+    Animated.spring(drawerAnim, { toValue: 0, useNativeDriver: true, ...RSPRING }).start();
     if (isTablet) {
-      // iPad: spacer grows to push content right (non-native, width not supported on native driver)
-      Animated.spring(spacerAnim, { toValue: SIDEBAR_WIDTH, useNativeDriver: false, ...SPRING }).start();
+      // Spacer width → UI thread (Reanimated). Same spring config = stays in sync.
+      spacerWidth.value = withSpring(SIDEBAR_WIDTH, RSPRING);
     } else {
-      // iPhone: scrim fades in
+      // iPhone: scrim → native thread
       Animated.timing(overlayAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }
-  }, [drawerAnim, overlayAnim, spacerAnim]);
+  }, [drawerAnim, overlayAnim, spacerWidth]);
 
   const closeDrawer = useCallback(() => {
-    Animated.timing(drawerAnim, { toValue: -DRAWER_WIDTH, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => setIsOpen(false));
+    Animated.timing(drawerAnim, {
+      toValue: -DRAWER_WIDTH, duration: CLOSE_DUR,
+      easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    }).start(() => setIsOpen(false));
     if (isTablet) {
-      // iPad: spacer collapses
-      Animated.timing(spacerAnim, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+      // Spacer width → UI thread. Same duration = stays in sync with drawer slide.
+      spacerWidth.value = withTiming(0, { duration: CLOSE_DUR, easing: REasing.out(REasing.cubic) });
     } else {
-      // iPhone: scrim fades out
-      Animated.timing(overlayAnim, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      Animated.timing(overlayAnim, { toValue: 0, duration: CLOSE_DUR, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }
-  }, [drawerAnim, overlayAnim, spacerAnim]);
+  }, [drawerAnim, overlayAnim, spacerWidth]);
 
   const toggleDrawer = useCallback(() => {
     if (isOpen) closeDrawer();
@@ -67,7 +78,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DrawerContext.Provider value={{
-      isOpen, drawerAnim, overlayAnim, spacerAnim,
+      isOpen, drawerAnim, overlayAnim, spacerWidth,
       openDrawer, closeDrawer, toggleDrawer,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
     }}>
