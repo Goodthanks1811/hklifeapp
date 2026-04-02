@@ -1618,13 +1618,51 @@ export default function LifeTaskScreen() {
     ]).then(() => {}).catch(() => {});
   }, [apiKey, schema?.categoryType]);
 
+  // Re-sort tasks and animate each row to its new slot — shared by emoji + cat changes
+  const resortAndAnimate = useCallback((next: LifeTask[]) => {
+    next.sort((a, b) => {
+      const ei = emojiIdxFn(a.emoji) - emojiIdxFn(b.emoji);
+      if (ei !== 0) return ei;
+      const aOrd = a.sortOrder ?? 9999;
+      const bOrd = b.sortOrder ?? 9999;
+      if (aOrd !== bOrd) return aOrd - bOrd;
+      return a.title.localeCompare(b.title);
+    });
+    next.forEach((t, i) => {
+      const anim = posAnims.current[t.id];
+      if (anim) {
+        anim.stopAnimation();
+        Animated.spring(anim, {
+          toValue: i * SLOT_H,
+          useNativeDriver: true,
+          tension: 150,
+          friction: 16,
+        }).start();
+      }
+    });
+    return next;
+  }, [emojiIdxFn]);
+
   const handleCatOptimistic = useCallback((id: string, category: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, category } : t));
-  }, []);
+    // Task moved to a different slug — remove it from this list with animation
+    if (config && category !== config.catValue) {
+      setTasks(prev => {
+        const next = prev.filter(t => t.id !== id);
+        next.forEach((t, i) => {
+          const anim = posAnims.current[t.id];
+          if (anim) {
+            anim.stopAnimation();
+            Animated.spring(anim, { toValue: i * SLOT_H, useNativeDriver: true, tension: 150, friction: 16 }).start();
+          }
+        });
+        return next;
+      });
+    }
+  }, [config]);
 
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
     if (!apiKey) return;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, emoji } : t));
+    setTasks(prev => resortAndAnimate(prev.map(t => t.id === id ? { ...t, emoji } : t)));
     setDetailTask(prev => prev?.id === id ? { ...prev, emoji } : prev);
     fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
       method: "PATCH",
@@ -1632,7 +1670,7 @@ export default function LifeTaskScreen() {
       body: JSON.stringify({ emoji }),
     }).catch(() => {});
     setEmojiAnchor(null);
-  }, [apiKey]);
+  }, [apiKey, resortAndAnimate]);
 
   const handleEpicChange = useCallback((id: string, epic: string) => {
     if (!apiKey) return;
