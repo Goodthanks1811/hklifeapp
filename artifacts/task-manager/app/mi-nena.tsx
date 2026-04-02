@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { Audio, ResizeMode, Video } from "expo-av";
+import * as VideoThumbnails from "expo-video-thumbnails";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
@@ -245,9 +246,15 @@ function FolderCard({
   onPress:     () => void;
   onLongPress: () => void;
 }) {
-  const autoCover = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
-  const coverUri  = folder.coverUri ?? autoCover?.uri;
-  const hasCustom = !!folder.coverUri;
+  const autoCover    = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
+  const coverUri     = folder.coverUri ?? autoCover?.uri;
+  const hasCustom    = !!folder.coverUri;
+  // Cover is a video when it's the auto-picked item and that item is a video,
+  // or when it's a custom cover with a video extension.
+  const isCoverVideo = coverUri
+    ? (!folder.coverUri && !!autoCover?.isVideo) ||
+      VIDEO_EXTS.some((e) => coverUri.toLowerCase().endsWith(e))
+    : false;
 
   const countParts: string[] = [];
   if (folder.items.length > 0)
@@ -265,7 +272,11 @@ function FolderCard({
     >
       <View style={[s.folderCover, { height: cardSize * 0.75 }]}>
         {coverUri ? (
-          <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          isCoverVideo ? (
+            <VideoThumb uri={coverUri} style={StyleSheet.absoluteFill} />
+          ) : (
+            <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          )
         ) : (
           <View style={s.folderEmpty}>
             <Feather name={subCount > 0 ? "folder" : "image"} size={28} color="#333" />
@@ -286,11 +297,47 @@ function FolderCard({
   );
 }
 
+// ── Video thumbnail ───────────────────────────────────────────────────────────
+// Module-level cache so the frame is only extracted once per video URI
+// across renders and navigation.
+const _thumbCache = new Map<string, string>();
+
+function VideoThumb({
+  uri,
+  style,
+  resizeMode = "cover",
+}: {
+  uri:        string;
+  style:      any;
+  resizeMode?: "cover" | "contain";
+}) {
+  const [thumb, setThumb] = useState<string | null>(_thumbCache.get(uri) ?? null);
+
+  useEffect(() => {
+    if (thumb) return;
+    let dead = false;
+    // Seek 500 ms in — more likely to land on a real frame than t=0
+    VideoThumbnails.getThumbnailAsync(uri, { time: 500 })
+      .then(({ uri: tu }) => {
+        if (!dead) { _thumbCache.set(uri, tu); setThumb(tu); }
+      })
+      .catch(() => {}); // silently stay black on any error
+    return () => { dead = true; };
+  }, [uri]);
+
+  if (!thumb) return <View style={[style, { backgroundColor: "#111" }]} />;
+  return <Image source={{ uri: thumb }} style={style} resizeMode={resizeMode} />;
+}
+
 // ── Thumbnail ─────────────────────────────────────────────────────────────────
 function Thumbnail({ item, size, onPress }: { item: MediaItem; size: number; onPress: () => void }) {
   return (
     <TouchableOpacity style={[s.thumb, { width: size, height: size }]} onPress={onPress} activeOpacity={0.85}>
-      <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      {item.isVideo ? (
+        <VideoThumb uri={item.uri} style={StyleSheet.absoluteFill} />
+      ) : (
+        <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      )}
       {item.isVideo && (
         <View style={s.playOverlay}>
           <View style={s.playBadge}>
