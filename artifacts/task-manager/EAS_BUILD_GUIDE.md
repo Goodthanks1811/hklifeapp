@@ -223,6 +223,31 @@ plugins: [expoRouterCtxInlinePlugin, 'react-native-worklets/plugin'],
 
 ---
 
+### 10. Xcode build error — `type 'FileSystemUtilities' has no member 'isReadableFile'`
+
+**Error message** (in Xcode / EAS build):
+```
+type 'FileSystemUtilities' has no member 'isReadableFile'
+```
+
+**Cause**: `expo-video-thumbnails 55.x` is for **Expo SDK 55** and calls `FileSystemUtilities.isReadableFile(appContext, url)` — a static method added to `expo-modules-core 4.x` (SDK 55). On Expo SDK 54 (`expo-modules-core 3.0.x`), that method doesn't exist, so Xcode fails to compile.
+
+**Fix**: Pin `expo-video-thumbnails` to `10.0.8` (the SDK 54-compatible release, despite the non-obvious version number):
+```json
+"expo-video-thumbnails": "10.0.8"
+```
+Then update both lockfiles:
+```bash
+# From workspace root
+pnpm install --no-frozen-lockfile
+# From artifacts/task-manager
+npm install --package-lock-only
+```
+
+**Note**: The npm dist-tags show `sdk-50: 7.9.0`, `sdk-51: 8.0.0`, then a jump to `55.0.x` for SDK 55. Versions `10.x` cover SDK 52-54 without a dedicated dist-tag.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
