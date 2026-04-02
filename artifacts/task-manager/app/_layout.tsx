@@ -8,8 +8,8 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef, useState } from "react";
-import { PanResponder, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@/utils/apiClient";
@@ -43,33 +43,15 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function TabletShell({ children }: { children: React.ReactNode }) {
-  const { isTablet, SIDEBAR_WIDTH, tabletSidebarVisible, showTabletSidebar } = useDrawer();
-  // Keep mutable refs so the PanResponder (created once) always has current values
-  const visibleRef = useRef(tabletSidebarVisible);
-  const showRef    = useRef(showTabletSidebar);
-  useEffect(() => { visibleRef.current = tabletSidebarVisible; }, [tabletSidebarVisible]);
-  useEffect(() => { showRef.current    = showTabletSidebar;    }, [showTabletSidebar]);
-
-  // Swipe-in from left edge → reveal sidebar (only when sidebar is hidden)
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gs) =>
-        !visibleRef.current &&
-        evt.nativeEvent.pageX < 32 &&
-        gs.dx > 8 &&
-        Math.abs(gs.dx) > Math.abs(gs.dy),
-      onPanResponderRelease: (_evt, gs) => {
-        if (gs.dx > 40) showRef.current();
-      },
-    })
-  ).current;
+  const { isTablet, SIDEBAR_WIDTH } = useDrawer();
 
   if (!isTablet) return <>{children}</>;
 
+  // Sidebar is always docked on iPad — spacer is permanent, no show/hide logic needed.
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
-      <View style={{ width: tabletSidebarVisible ? SIDEBAR_WIDTH : 0, backgroundColor: "#111111" }} />
-      <View style={{ flex: 1, backgroundColor: "#000000" }} {...panResponder.panHandlers}>
+      <View style={{ width: SIDEBAR_WIDTH, backgroundColor: "#111111" }} />
+      <View style={{ flex: 1, backgroundColor: "#000000" }}>
         {children}
       </View>
     </View>
@@ -81,7 +63,7 @@ function RootLayoutNav() {
     <BiometricProvider>
       <AppGate>
         <TabletShell>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "fade" : "default" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />
