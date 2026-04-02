@@ -1,36 +1,25 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type React from "react";
 import Colors from "@/constants/colors";
 import { useDrawer } from "@/context/DrawerContext";
 
 interface Props { title: string; right?: React.ReactNode; }
 
-// Drawer header on iPad = insets.top + 74 (extra pad) + 64 (banner) + 20 (bottom pad) = insets.top + 158
-// ScreenHeader content = 38px, paddingBottom = 12 → paddingTop = insets.top + 158 − 38 − 12 = insets.top + 108
-const DRAWER_HEADER_BELOW_INSETS = 158; // 74 + 64 + 20
-const HEADER_CONTENT_H           = 38;
-const HEADER_PB                  = 12;
-
 export function ScreenHeader({ title, right }: Props) {
-  const { openDrawer, isTablet } = useDrawer();
-  const insets = useSafeAreaInsets();
-  const tabletPT = insets.top + DRAWER_HEADER_BELOW_INSETS - HEADER_CONTENT_H - HEADER_PB;
+  const { openDrawer } = useDrawer();
   return (
-    <View style={[styles.header, isTablet && { paddingTop: tabletPT, paddingBottom: HEADER_PB }]}>
-      {!isTablet && (
-        <Pressable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
-          style={styles.btn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Feather name="menu" size={20} color={Colors.textPrimary} />
-        </Pressable>
-      )}
+    <View style={styles.header}>
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+        style={styles.btn}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Feather name="menu" size={20} color={Colors.textPrimary} />
+      </Pressable>
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      {right ? <View style={styles.rightSlot}>{right}</View> : (!isTablet && <View style={styles.spacer} />)}
+      {right ? <View style={styles.rightSlot}>{right}</View> : <View style={styles.spacer} />}
     </View>
   );
 }

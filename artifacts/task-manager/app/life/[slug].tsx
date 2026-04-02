@@ -930,7 +930,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
           {/* Name — fills full row height so tap target = entire row, not just text */}
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
-            onPress={() => handleRowTap(onPress)}
+            onPress={() => { onPressOut(); handleRowTap(onPress); }}
             onLongPress={onLongPress}
             delayLongPress={200}
             onPressIn={onPressIn}

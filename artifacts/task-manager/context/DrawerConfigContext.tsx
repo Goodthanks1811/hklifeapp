@@ -58,10 +58,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "News",     icon: "rss",      route: "/nrl-news",     description: "NRL headlines from Fox Sports" },
   ],
   tools: [
-    { label: "IR Quick Add",   icon: "zap",         route: "/ir-quick-add",   description: "Add to Notion DB"        },
-    { label: "HK Quick Add",   icon: "plus-circle", route: "/hk-quick-add",   description: "HK Automation task add"  },
-    { label: "Life Quick Add", icon: "sun",         route: "/life-quick-add", description: "Life tasks to Notion"    },
-    { label: "Photo Slider",   icon: "image",       route: "/photo-slider",   description: "Compare & export photos" },
+    { label: "Photo Slider", icon: "image", route: "/photo-slider", description: "Compare & export photos" },
   ],
   knowledge: [
     { label: "Coming soon", icon: "clock", route: null, description: "In development" },
