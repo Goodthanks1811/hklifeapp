@@ -617,6 +617,26 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
           })}
         </View>
       )}
+
+      {/* File / reference links */}
+      {(task?.url || (task?.fileLinks && task.fileLinks.length > 0)) && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 10, gap: 7 }}>
+          {task?.url && (
+            <Pressable onPress={() => task.url && Linking.openURL(task.url)}
+              style={s.dsLinkRow}>
+              <Text style={s.dsLinkEmoji}>🔗</Text>
+              <Text style={s.dsLinkLabel} numberOfLines={1}>{task.url}</Text>
+            </Pressable>
+          )}
+          {task?.fileLinks?.map((fl, i) => (
+            <Pressable key={i} onPress={() => Linking.openURL(fl.url)}
+              style={s.dsLinkRow}>
+              <Text style={s.dsLinkEmoji}>🔗</Text>
+              <Text style={s.dsLinkLabel} numberOfLines={1}>{fl.name}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
     </>
   );
 
@@ -689,26 +709,6 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
             )}
           </Pressable>
         </ScrollView>
-      )}
-
-      {/* ── File / reference links ────────────────────────────────────── */}
-      {(task?.url || (task?.fileLinks && task.fileLinks.length > 0)) && (
-        <View style={{ paddingHorizontal: 20, paddingBottom: 10, gap: 6 }}>
-          {task?.url && (
-            <Pressable onPress={() => task.url && Linking.openURL(task.url)}
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Feather name="link" size={13} color={Colors.primary} />
-              <Text style={[s.dsUrlText, { fontSize: 13, flex: 1 }]} numberOfLines={1}>{task.url}</Text>
-            </Pressable>
-          )}
-          {task?.fileLinks?.map((fl, i) => (
-            <Pressable key={i} onPress={() => Linking.openURL(fl.url)}
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Feather name="paperclip" size={13} color={Colors.primary} />
-              <Text style={[s.dsUrlText, { fontSize: 13, flex: 1 }]} numberOfLines={1}>{fl.name}</Text>
-            </Pressable>
-          ))}
-        </View>
       )}
 
       <View style={s.dsDivider} />
@@ -1940,6 +1940,9 @@ const s = StyleSheet.create({
   dsBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginBottom: 4 },
   dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
   dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline" },
+  dsLinkRow:   { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
+  dsLinkEmoji: { fontSize: 15, lineHeight: 20 },
+  dsLinkLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.primary, textDecorationLine: "underline", lineHeight: 18 },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   dsCancelTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
