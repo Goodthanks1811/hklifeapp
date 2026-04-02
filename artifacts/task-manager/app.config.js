@@ -9,7 +9,7 @@ module.exports = {
     icon: './assets/images/icon.png',
     scheme: IS_DEV ? 'hk-life-app-dev' : 'hk-life-app',
     userInterfaceStyle: 'dark',
-    newArchEnabled: true,
+    newArchEnabled: false,
     splash: {
       image: './assets/images/splash-icon.png',
       resizeMode: 'contain',

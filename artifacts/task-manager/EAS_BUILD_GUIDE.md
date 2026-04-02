@@ -210,17 +210,20 @@ You can restart them from the Replit interface or by running `wake up` (which tr
 
 ## Dependency Version Reference
 
-These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81:
+These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 **on iOS 26 beta**:
 
 | Package | Required Version | Notes |
 |---|---|---|
 | `react-native` | `0.81.5` | |
 | `expo` | `~54.0.27` | |
-| `react-native-reanimated` | `~4.1.1` | |
-| `react-native-worklets` | `0.5.1` | Required by Reanimated 4 |
+| `react-native-reanimated` | `~3.16.1` | v4 crashes on iOS 26 with new arch |
+| `react-native-worklets` | **REMOVED** | Only needed for Reanimated 4 |
 | `react-native-keyboard-controller` | **REMOVED** | Crashes on iOS 26 (use-after-free in JSI bindings) |
 
-`newArchEnabled: true` is required in `app.config.js` for Reanimated 4.x.
+`newArchEnabled: false` is required in `app.config.js` for iOS 26 beta compatibility.
+`react-native-reanimated/plugin` must be listed in `babel.config.js` plugins when using Reanimated 3.
+
+**When iOS 26 ships stable / RN 0.82+ adds official iOS 26 support**: restore `newArchEnabled: true`, upgrade to `react-native-reanimated: ~4.1.1`, add `react-native-worklets: 0.5.1`, and remove `react-native-reanimated/plugin` from `babel.config.js`.
 
 ---
 
