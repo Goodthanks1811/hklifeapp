@@ -1574,7 +1574,7 @@ export default function LifeTaskScreen() {
 
       <InlineEmojiPicker
         anchor={emojiAnchor}
-        emojis={[...config.emojis, HIDDEN_EMOJI]}
+        emojis={[...config.emojis.filter(e => norm(e) !== norm(HIDDEN_EMOJI)), HIDDEN_EMOJI]}
         currentEmoji={pickerTask?.emoji ?? null}
         onSelect={(e) => { if (pickerTask) handleEmojiChange(pickerTask.id, e); }}
         onClose={() => setEmojiAnchor(null)}
