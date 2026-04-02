@@ -100,7 +100,7 @@ export function StartupScan({ onDone }: Props) {
       <Image
         source={{ uri: PHOTO }}
         style={s.photo}
-        resizeMode={isTablet ? "contain" : "cover"}
+        resizeMode="cover"
       />
 
       {/* ── Dark/red tint ── */}
