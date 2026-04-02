@@ -122,7 +122,7 @@ function AccordionSection({
 export function Drawer() {
   const {
     isOpen, drawerAnim, overlayAnim, spacerWidth,
-    openDrawer, closeDrawer, instantClose,
+    openDrawer, closeDrawer,
     DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
 
@@ -242,8 +242,8 @@ export function Drawer() {
         // Life route: keep/open drawer alongside content. Route useEffect will ensure it's open.
         router.replace(route as any);
       } else {
-        // Non-life route: snap drawer shut instantly so no animation competes with screen transition.
-        instantClose();
+        // Non-life route: slide sidebar away smoothly — the collapse IS the transition.
+        closeDrawer();
         router.replace(route as any);
       }
     } else {
