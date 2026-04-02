@@ -30,7 +30,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
 const STORAGE_KEY   = "mi_nena_folders_v2";
-const FOLD_COLS     = 2;
+// FOLD_COLS is now dynamic — see folderCols below
 const GAP           = 2;
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
 
@@ -515,7 +515,8 @@ export default function MiNenaScreen() {
   }, [folders, setCoverImage, deleteFolder]);
 
   const gridCols       = width >= 768 ? 4 : 3;
-  const folderCardSize = (width - GAP * (FOLD_COLS + 1)) / FOLD_COLS;
+  const folderCols     = width >= 768 ? 4 : 2;  // 4-across on iPad, 2 on iPhone
+  const folderCardSize = (width - GAP * (folderCols + 1)) / folderCols;
   const thumbSize      = (width - GAP * (gridCols + 1)) / gridCols;
 
   // ── Root folder grid ───────────────────────────────────────────────────────
@@ -530,9 +531,9 @@ export default function MiNenaScreen() {
           </View>
         ) : (
           <FlatList
-            key="folder-grid"
+            key={`folder-grid-${folderCols}`}
             data={visibleFolders}
-            numColumns={FOLD_COLS}
+            numColumns={folderCols}
             keyExtractor={(f) => f.id}
             contentContainerStyle={{
               paddingTop: 8,

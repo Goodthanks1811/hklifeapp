@@ -4,6 +4,7 @@ import {
   useSharedValue,
   withSpring,
   withTiming,
+  cancelAnimation,
   Easing as REasing,
 } from "react-native-reanimated";
 import type { SharedValue } from "react-native-reanimated";
@@ -20,16 +21,17 @@ const RSPRING = { damping: 24, stiffness: 240, overshootClamping: true } as cons
 const CLOSE_DUR = 240;
 
 interface DrawerContextType {
-  isOpen:       boolean;
-  drawerAnim:   Animated.Value;    // native driver translateX: -DRAWER_WIDTH → 0
-  overlayAnim:  Animated.Value;    // native driver opacity 0→1 (iPhone scrim)
-  spacerWidth:  SharedValue<number>; // UI-thread spacer: 0 → SIDEBAR_WIDTH (iPad only)
-  openDrawer:   () => void;
-  closeDrawer:  () => void;
-  toggleDrawer: () => void;
-  DRAWER_WIDTH:  number;
-  isTablet:      boolean;
-  SIDEBAR_WIDTH: number;
+  isOpen:         boolean;
+  drawerAnim:     Animated.Value;    // native driver translateX: -DRAWER_WIDTH → 0
+  overlayAnim:    Animated.Value;    // native driver opacity 0→1 (iPhone scrim)
+  spacerWidth:    SharedValue<number>; // UI-thread spacer: 0 → SIDEBAR_WIDTH (iPad only)
+  openDrawer:     () => void;
+  closeDrawer:    () => void;
+  instantClose:   () => void;        // snap shut instantly — no animation, no transition conflict
+  toggleDrawer:   () => void;
+  DRAWER_WIDTH:   number;
+  isTablet:       boolean;
+  SIDEBAR_WIDTH:  number;
 }
 
 const DrawerContext = createContext<DrawerContextType | null>(null);
@@ -71,6 +73,18 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [drawerAnim, overlayAnim, spacerWidth]);
 
+  // Instantly snaps the drawer shut — no animation.
+  // Use this before navigating to non-life screens so no animation fights the screen transition.
+  const instantClose = useCallback(() => {
+    drawerAnim.stopAnimation();
+    drawerAnim.setValue(-DRAWER_WIDTH);
+    overlayAnim.stopAnimation();
+    overlayAnim.setValue(0);
+    cancelAnimation(spacerWidth);
+    spacerWidth.value = 0;
+    setIsOpen(false);
+  }, [drawerAnim, overlayAnim, spacerWidth]);
+
   const toggleDrawer = useCallback(() => {
     if (isOpen) closeDrawer();
     else openDrawer();
@@ -79,7 +93,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
   return (
     <DrawerContext.Provider value={{
       isOpen, drawerAnim, overlayAnim, spacerWidth,
-      openDrawer, closeDrawer, toggleDrawer,
+      openDrawer, closeDrawer, instantClose, toggleDrawer,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
     }}>
       {children}

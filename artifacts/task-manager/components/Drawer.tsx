@@ -119,7 +119,7 @@ function AccordionSection({
 export function Drawer() {
   const {
     isOpen, drawerAnim, overlayAnim, spacerWidth,
-    openDrawer, closeDrawer,
+    openDrawer, closeDrawer, instantClose,
     DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
 
@@ -235,10 +235,14 @@ export function Drawer() {
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isTablet) {
-      // iPad: keep drawer open for life routes; close for others (unless sidebarAlwaysOpen)
-      if (isLifeRoute(route) || sidebarAlwaysOpen) openDrawer();
-      else closeDrawer();
-      router.replace(route as any);
+      if (isLifeRoute(route) || sidebarAlwaysOpen) {
+        // Life route: keep/open drawer alongside content. Route useEffect will ensure it's open.
+        router.replace(route as any);
+      } else {
+        // Non-life route: snap drawer shut instantly so no animation competes with screen transition.
+        instantClose();
+        router.replace(route as any);
+      }
     } else {
       closeDrawer();
       setTimeout(() => router.push(route as any), 30);
