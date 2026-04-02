@@ -48,12 +48,16 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
   const hideTabletSidebar = useCallback(() => {
     if (!isTablet) return;
+    // Collapse spacer immediately so content fills full width right away.
+    // The drawer slides off independently (it's absolute-positioned), so
+    // there's no layout dependency on the animation completing first.
+    setTabletSidebarVisible(false);
     Animated.timing(sidebarSlide, {
       toValue: -SIDEBAR_WIDTH,
       duration: 180,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
-    }).start(() => setTabletSidebarVisible(false));
+    }).start();
   }, [sidebarSlide]);
 
   // ── Phone drawer open/close ───────────────────────────────────────────────
