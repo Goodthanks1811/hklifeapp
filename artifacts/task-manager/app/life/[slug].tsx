@@ -361,7 +361,7 @@ const DS_SPINNER_SIZE   = 72;
 const DS_SPINNER_STROKE = 8;
 const DS_CIRCLE_SIZE    = 74;
 
-function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, epicOptions, catValue, allCategories, categoryType, isTablet }: {
+function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose, onSave, onEmojiChange, onEpicChange, onCatChange, epicOptions, catValue, allCategories, categoryType, isTablet }: {
   task:           LifeTask | null;
   catEmojis:      string[];
   catEmojiMap:    Record<string, string[]>;
@@ -371,6 +371,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
   onSave:         (id: string, title: string, notes: string, newCat: string | null) => Promise<void>;
   onEmojiChange:  (id: string, emoji: string) => void;
   onEpicChange?:  (id: string, epic: string) => void;
+  onCatChange?:   (id: string, cat: string) => void;
   epicOptions?:   string[] | null;
   catValue:       string;
   allCategories:  string[];
@@ -440,7 +441,9 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   const handleCatChange = useCallback((cat: string) => {
     setLocalCat(cat);
-  }, []);
+    // Optimistically update the list immediately — same pattern as emoji/epic
+    if (task) onCatChange?.(task.id, cat);
+  }, [task, onCatChange]);
 
   // ── Loader anims ──────────────────────────────────────────────────────────
   const [loaderVisible,   setLoaderVisible]   = useState(false);
@@ -1598,7 +1601,7 @@ export default function LifeTaskScreen() {
 
   const handleSaveTitle = useCallback((id: string, title: string, notes: string, newCat: string | null): Promise<void> => {
     if (!apiKey) return Promise.resolve();
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, title } : t));
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, title, ...(newCat ? { category: newCat } : {}) } : t));
     const taskPatch: any = { title };
     if (newCat) { taskPatch.category = newCat; taskPatch.categoryType = schema?.categoryType ?? "select"; }
     return Promise.all([
@@ -1614,6 +1617,10 @@ export default function LifeTaskScreen() {
       }),
     ]).then(() => {}).catch(() => {});
   }, [apiKey, schema?.categoryType]);
+
+  const handleCatOptimistic = useCallback((id: string, category: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, category } : t));
+  }, []);
 
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
     if (!apiKey) return;
@@ -1871,6 +1878,7 @@ export default function LifeTaskScreen() {
         onSave={handleSaveTitle}
         onEmojiChange={handleEmojiChange}
         onEpicChange={config?.showEpic ? handleEpicChange : undefined}
+        onCatChange={handleCatOptimistic}
         epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
         catValue={config?.catValue ?? ""}
         allCategories={ALL_CATS}
