@@ -65,6 +65,7 @@ function RootLayoutNav() {
         <TabletShell>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "slide_from_right" : "default" }}>
             <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
+            <Stack.Screen name="life" options={{ animation: "none" }} />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />
             <Stack.Screen name="ir-quick-add" />
