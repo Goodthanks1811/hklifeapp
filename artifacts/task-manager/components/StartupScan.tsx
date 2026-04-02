@@ -17,11 +17,11 @@ const SF = isTablet ? 0.72 : 1;
 const PHOTO = "https://i.postimg.cc/gc3sgzzV/IMG-5286.jpg";
 
 const PHASES = [
-  ["Reading facial geometry",    "Contour depth analysis"      ],
-  ["Tracking profile structure", "Passive biometric pass"      ],
-  ["Resolving facial topology",  "Landmark stability check"    ],
-  ["Refining identity model",    "Surface map alignment"       ],
-  ["Verification complete",      "Profile lock confirmed"      ],
+  ["Good Thanks",        ""],
+  ["Thanks For Asking",  ""],
+  ["Don't Mind If You Do", ""],
+  ["Nah You're Right",   ""],
+  ["Almost There",       ""],
 ] as const;
 
 function phaseFor(p: number) {
@@ -187,7 +187,6 @@ export function StartupScan({ onDone }: Props) {
       {/* ── Center status ── */}
       <View style={s.centerStatus}>
         <Text style={s.statusMain}>{PHASES[phaseIdx][0]}</Text>
-        <Text style={s.statusSub}>{PHASES[phaseIdx][1]}</Text>
         <Text style={s.percentNum}>{pad(percent)}</Text>
         <Text style={s.percentLabel}>SCAN COMPLETE</Text>
       </View>
