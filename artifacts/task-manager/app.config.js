@@ -57,7 +57,7 @@ module.exports = {
       [
         'expo-media-library',
         {
-          photosPermission: 'Allow Mi Nena to access your photos and videos.',
+          photosPermission: 'Allow Mi Corazon to access your photos and videos.',
         },
       ],
       [
@@ -69,7 +69,7 @@ module.exports = {
       [
         'expo-image-picker',
         {
-          photosPermission: 'Allow Mi Nena to access your photos and videos.',
+          photosPermission: 'Allow Mi Corazon to access your photos and videos.',
         },
       ],
     ],

@@ -575,7 +575,7 @@ export default function MiNenaScreen() {
   if (!currentFolder) {
     return (
       <View style={[s.screen, { paddingTop: topPad }]}>
-        <ScreenHeader title="Mi Nena" />
+        <ScreenHeader title="Mi Corazon" />
 
         {loading ? (
           <View style={s.centred}>
@@ -655,14 +655,14 @@ export default function MiNenaScreen() {
           contentContainerStyle={s.breadcrumbContent}
         >
           <TouchableOpacity onPress={() => setFolderStack([])} activeOpacity={0.7}>
-            <Text style={s.breadcrumbRoot}>Mi Nena</Text>
+            <Text style={s.breadcrumbRoot}>Mi Corazon</Text>
           </TouchableOpacity>
           {folderStack.map((id, idx) => {
             const f      = folders.find((f) => f.id === id);
             const isLast = idx === folderStack.length - 1;
             return (
               <React.Fragment key={id}>
-                <Feather name="chevron-right" size={11} color="#444" style={{ marginHorizontal: 3, marginTop: 1 }} />
+                <Feather name="chevron-right" size={11} color="rgba(255,255,255,0.5)" style={{ marginHorizontal: 3, marginTop: 1 }} />
                 <TouchableOpacity
                   onPress={() => navigateTo(idx)}
                   activeOpacity={isLast ? 1 : 0.7}
@@ -806,12 +806,12 @@ const s = StyleSheet.create({
   breadcrumbContent: { alignItems: "center", paddingRight: 8 },
   breadcrumbRoot: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.4)",
+    color: "#fff",
     fontFamily: "Inter_400Regular",
   },
   breadcrumbItem: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.4)",
+    color: "#fff",
     fontFamily: "Inter_400Regular",
     maxWidth: 120,
   },
