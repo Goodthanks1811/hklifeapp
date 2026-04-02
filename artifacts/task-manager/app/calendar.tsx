@@ -86,9 +86,9 @@ function fmtTimeLbl(hIdx: number, mIdx: number, apIdx: number) {
 
 // ── DrumPicker — exact match to ui-kit ────────────────────────────────────────
 const ITEM_H  = 46;
-const VISIBLE = 5;
+const VISIBLE = 3;
 const DRUM_H  = ITEM_H * VISIBLE;
-const PADDING = Math.floor(VISIBLE / 2); // 2
+const PADDING = Math.floor(VISIBLE / 2); // 1
 
 function DrumPicker({
   items, selectedIndex, onChange, width = 90,
@@ -158,7 +158,7 @@ const dp = StyleSheet.create({
     backgroundColor: CARD2, borderWidth: 1, borderColor: BORD,
   },
   highlight: {
-    position: "absolute", top: ITEM_H * 2, left: 0, right: 0, height: ITEM_H,
+    position: "absolute", top: ITEM_H * PADDING, left: 0, right: 0, height: ITEM_H,
     backgroundColor: `${RED}18`,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: `${RED}44`, zIndex: 1,
   },
@@ -166,11 +166,11 @@ const dp = StyleSheet.create({
   itemTxt:    { color: MUT,  fontSize: 16, fontFamily: "Inter_400Regular" },
   itemTxtSel: { color: TEXT, fontSize: 17, fontFamily: "Inter_700Bold" },
   fadeT: {
-    position: "absolute", top: 0, left: 0, right: 0, height: ITEM_H * 2,
+    position: "absolute", top: 0, left: 0, right: 0, height: ITEM_H * PADDING,
     backgroundColor: CARD2, opacity: 0.75, zIndex: 2, pointerEvents: "none",
   },
   fadeB: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: ITEM_H * 2,
+    position: "absolute", bottom: 0, left: 0, right: 0, height: ITEM_H * PADDING,
     backgroundColor: CARD2, opacity: 0.75, zIndex: 2, pointerEvents: "none",
   },
 });
@@ -434,14 +434,7 @@ function EventDetailScreen({
           <Feather name="arrow-left" size={20} color={SUB} />
         </Pressable>
         <Text style={ed.navTitle} numberOfLines={1}>{eventTitle}</Text>
-        <Pressable
-          onPress={save}
-          disabled={!canSave || saving}
-          hitSlop={14}
-          style={[ed.navSave, (!canSave || saving) && { opacity: 0.3 }]}
-        >
-          <Text style={ed.navSaveTxt}>{saving ? "Saving…" : "Save"}</Text>
-        </Pressable>
+        <View style={ed.navSpacer} />
       </View>
 
       {/* ── Content ── */}
@@ -536,6 +529,17 @@ function EventDetailScreen({
           </View>
         )}
       </ScrollView>
+
+      {/* ── Bottom Save button ── */}
+      <View style={ed.saveWrap}>
+        <Pressable
+          onPress={save}
+          disabled={!canSave || saving}
+          style={[ed.saveBtn, (!canSave || saving) && { opacity: 0.4 }]}
+        >
+          <Text style={ed.saveBtnTxt}>{saving ? "Saving…" : "Save"}</Text>
+        </Pressable>
+      </View>
     </Animated.View>
   );
 }
@@ -552,10 +556,13 @@ const ed = StyleSheet.create({
   },
   navBack:    { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   navTitle:   { flex: 1, textAlign: "center", color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", paddingHorizontal: 8 },
-  navSave:    { width: 56, alignItems: "flex-end", justifyContent: "center", height: 36 },
-  navSaveTxt: { color: RED, fontSize: 16, fontFamily: "Inter_700Bold" },
+  navSpacer:  { width: 36 },
 
-  scroll:  { padding: HPAD, paddingBottom: 60, gap: 18 },
+  scroll:  { padding: HPAD, paddingBottom: 16, gap: 18 },
+
+  saveWrap: { paddingHorizontal: HPAD, paddingVertical: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)" },
+  saveBtn:  { backgroundColor: RED, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
+  saveBtnTxt: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
   section: {},
 
   // Type pills — horizontal icon + label
