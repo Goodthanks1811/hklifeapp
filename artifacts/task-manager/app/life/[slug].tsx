@@ -92,7 +92,7 @@ const T_HOLD       = 700;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; epic?: string | null; }
-interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; epicOptions?: string[] | null; }
+interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; epicOptions?: string[] | null; epicType?: string; }
 
 const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
@@ -542,9 +542,10 @@ function DetailSheet({ task, catEmojis, body, bodyLoading, onClose, onSave, onEm
 }
 
 // ── Quick-add sheet ────────────────────────────────────────────────────────────
-function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, apiKey, onAdded, onClose, isTablet }: {
+function QuickAddSheet({ visible, catEmojis, catValue, allCategories, showEpic, epicOptions, schema, apiKey, onAdded, onClose, isTablet }: {
   visible: boolean; catEmojis: string[]; catValue: string;
   allCategories: string[];
+  showEpic?: boolean; epicOptions?: string[];
   schema: Schema | null; apiKey: string | null;
   onAdded: (task: LifeTask) => void; onClose: () => void;
   isTablet: boolean;
@@ -560,6 +561,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
   const [notes,        setNotes]       = useState("");
   const [selEmoji,     setSelEmoji]    = useState<string | null>(null);
   const [localCat,     setLocalCat]    = useState<string>(catValue);
+  const [selEpic,      setSelEpic]     = useState<string | null>(null);
   const [loaderVisible, setLoaderVisible] = useState(false);
 
   // Loader animation refs — identical to DetailSheet
@@ -597,7 +599,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
 
   useEffect(() => {
     if (visible) {
-      setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setLoaderVisible(false);
+      setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
       Animated.parallel([
@@ -677,6 +679,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
       emoji, priType: schema?.priType ?? "select",
       priOptions: schema?.priOptions ?? null,
       categoryType: schema?.categoryType ?? "select",
+      ...(showEpic && selEpic ? { epic: selEpic, epicType: schema?.epicType ?? "select" } : {}),
     };
     const apiPromise = fetch(`${BASE_URL}/api/notion/pages`, {
       method: "POST",
@@ -754,8 +757,24 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
         </View>
       )}
 
-      {/* Category row */}
-      {allCategories.length > 0 && (
+      {/* Epic row (Automation) OR Category row (all other screens) */}
+      {showEpic && epicOptions && epicOptions.length > 0 ? (
+        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+          {epicOptions.map(ep => {
+            const selected = ep === selEpic;
+            const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
+            return (
+              <Pressable
+                key={`qa-ep-${ep}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
+                style={[s.dsEpicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }]}
+              >
+                <Text style={[s.dsEpicText, { color: selected ? colours.text : Colors.textMuted }]}>{ep}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : !showEpic && allCategories.length > 0 ? (
         <View style={[s.dsMetaRow, { marginTop: 8 }]}>
           {allCategories.map(cat => {
             const selected = cat === localCat;
@@ -770,7 +789,7 @@ function QuickAddSheet({ visible, catEmojis, catValue, allCategories, schema, ap
             );
           })}
         </View>
-      )}
+      ) : null}
 
       <View style={s.dsDivider} />
 
@@ -1076,8 +1095,8 @@ export default function LifeTaskScreen() {
     if (!apiKey) return;
     fetch(`${BASE_URL}/api/notion/schema/${LIFE_DB_ID}`, { headers: { "x-notion-key": apiKey } })
       .then(r => r.json())
-      .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType, epicOptions: d.epicOptions ?? null }))
-      .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select", epicOptions: null }));
+      .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType, epicOptions: d.epicOptions ?? null, epicType: d.epicType ?? "select" }))
+      .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select", epicOptions: null, epicType: "select" }));
   }, [fetchTasks]);
 
   const onRefresh = useCallback(async () => {
@@ -1574,6 +1593,8 @@ export default function LifeTaskScreen() {
         catEmojis={FULL_PICKER}
         catValue={config.catValue}
         allCategories={ALL_CATS}
+        showEpic={!!config?.showEpic}
+        epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : undefined}
         schema={schema}
         apiKey={apiKey}
         onAdded={handleQuickAdded}
