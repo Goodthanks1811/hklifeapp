@@ -929,9 +929,10 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
       <Swipeable
         ref={swipeableRef}
         renderRightActions={renderRightActions}
+        overshootLeft={false}
         overshootRight={false}
         rightThreshold={40}
-        friction={2}
+        friction={3}
         enabled={!isDragging && !deletingRef.current}
         onSwipeableOpen={() => {
           isRevealedRef.current = true;
@@ -940,7 +941,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateY: pressY }] }]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
           {/* Emoji */}
           <Pressable
             ref={emojiBtnRef}

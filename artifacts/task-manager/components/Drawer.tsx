@@ -44,8 +44,8 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
     openRef.current = !openRef.current;
     const toValue = openRef.current ? 1 : 0;
     Animated.parallel([
-      Animated.timing(anim,    { toValue, duration: 250, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-      Animated.timing(chevron, { toValue, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(anim,    { toValue, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(chevron, { toValue, duration: 220, easing: Easing.out(Easing.quad),  useNativeDriver: true }),
     ]).start(() => { locked.current = false; });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -55,12 +55,20 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
     outputRange: [0, itemCount * ITEM_HEIGHT],
   });
 
+  // Content fades in after height is mostly open, fades out before height collapses
+  // This prevents the "partially rendered clipped items" look
+  const contentOpacity = anim.interpolate({
+    inputRange:  [0, 0.3, 1],
+    outputRange: [0, 0,   1],
+    extrapolate: "clamp",
+  });
+
   const chevronRotate = chevron.interpolate({
     inputRange:  [0, 1],
     outputRange: ["0deg", "90deg"],
   });
 
-  return { toggle, listHeight, chevronRotate };
+  return { toggle, listHeight, contentOpacity, chevronRotate };
 }
 
 // ── Accordion section ─────────────────────────────────────────────────────────
@@ -92,14 +100,16 @@ function AccordionSection({
         )}
       </TouchableOpacity>
       <Animated.View style={{ height: accordion.listHeight, overflow: "hidden", backgroundColor: "#111111" }}>
-        {items.map((item, i) => (
-          <DrawerMenuItem
-            key={`${item.label}-${i}`}
-            item={item}
-            onPress={item.route ? () => navigate(item.route!) : undefined}
-            dimmed={!item.route}
-          />
-        ))}
+        <Animated.View style={{ opacity: accordion.contentOpacity }}>
+          {items.map((item, i) => (
+            <DrawerMenuItem
+              key={`${item.label}-${i}`}
+              item={item}
+              onPress={item.route ? () => navigate(item.route!) : undefined}
+              dimmed={!item.route}
+            />
+          ))}
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -197,7 +207,7 @@ export function Drawer() {
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + (isTablet ? 74 : 12), paddingBottom: isTablet ? 20 : 24 }}>
-        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 64 : 100 }]}>
+        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 150 : 100 }]}>
           <Image
             source={{ uri: bannerUri ?? FALLBACK_BANNER }}
             style={[
