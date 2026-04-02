@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -22,27 +23,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDrawer } from "@/context/DrawerContext";
+import { Colors } from "@/constants/colors";
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
-const BG       = "#0b0b0c";
-const SHEET_BG = "#141416";
-const CARD     = "#1e1e20";
-const CARD2    = "#252528";
-const BORDER   = "rgba(255,255,255,0.07)";
-const BORD2    = "rgba(255,255,255,0.11)";
-const RED      = "#ff2020";
-const RED_DIM  = "rgba(255,32,32,0.16)";
-const RED_BORD = "rgba(255,32,32,0.5)";
-const TEXT     = "#f0f0f0";
-const TEXT2    = "#888";
-const TEXT3    = "#444";
+const BG   = "#0b0b0c";
+const RED  = Colors.primary;       // #E03131
+const TEXT = Colors.textPrimary;   // #fff
+const SUB  = Colors.textSecondary; // #A0A0A0
+const MUT  = Colors.textMuted;     // #666
+const CARD = Colors.cardBg;        // #1A1A1A
+const CARD2 = Colors.cardBgElevated; // #222
+const BORD = Colors.border;        // #2A2A2A
 
-const HK_BG    = "rgba(30,120,255,0.18)";
-const HK_BR    = "rgba(30,120,255,0.65)";
-const HK_TX    = "#5aa5ff";
-const ST_BG    = "rgba(255,30,30,0.18)";
-const ST_BR    = "rgba(255,30,30,0.65)";
-const ST_TX    = "#ff5555";
+const HK_BG  = "rgba(30,120,255,0.18)"; const HK_BR = "rgba(30,120,255,0.65)"; const HK_TX = "#5aa5ff";
+const ST_BG  = "rgba(255,30,30,0.18)";  const ST_BR = "rgba(255,30,30,0.65)";  const ST_TX = "#ff5555";
 
 // ── Calendar data ─────────────────────────────────────────────────────────────
 const DAYS_AHEAD = 60;
@@ -51,9 +45,9 @@ const DAYS_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday",
 const MONTHS_S   = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTHS_L   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_U   = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-const DOW_H      = ["S","M","T","W","T","F","S"];
+const DOW_HEADS  = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
-// ── Pickers ───────────────────────────────────────────────────────────────────
+// ── Drum data ─────────────────────────────────────────────────────────────────
 const HOURS_W   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const MINUTES_W = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 const AMPM_W    = ["AM", "PM"];
@@ -71,6 +65,7 @@ interface CalEvent   { id: string; title: string; timeStr: string | null; }
 interface DaySection { dateKey: string; dayLabel: string; ordStr: string; isToday: boolean; data: CalEvent[]; }
 type EventType = "appointment" | "allday" | "birthday";
 type CalKey    = "HK" | "Sticky";
+type Step      = "idle" | "title" | "detail";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function pad(n: number) { return String(n).padStart(2, "0"); }
@@ -82,23 +77,21 @@ function fmt12(d: Date) {
   const h = d.getHours(), m = d.getMinutes();
   return `${h % 12 || 12}${m > 0 ? ":" + pad(m) : ""}${h >= 12 ? "pm" : "am"}`;
 }
-function isoDay(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-function keepCal(title: string) {
-  const t = title.trim().toLowerCase();
-  return ALLOWED.some(a => t === a);
-}
-function normalDay(d: Date): Date {
-  const n = new Date(d); n.setHours(0, 0, 0, 0); return n;
+function isoDay(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function normalDay(d: Date): Date { const n = new Date(d); n.setHours(0, 0, 0, 0); return n; }
+function keepCal(t: string) { const l = t.trim().toLowerCase(); return ALLOWED.some(a => l === a); }
+function fmtTimeLbl(hIdx: number, mIdx: number, apIdx: number) {
+  return `${HOURS_W[hIdx]}:${MINUTES_W[mIdx]} ${AMPM_W[apIdx]}`;
 }
 
-// ── DrumWheel ─────────────────────────────────────────────────────────────────
-const DW_ITEM = 44;
-const DW_VIS  = 3;
+// ── DrumPicker — exact match to ui-kit ────────────────────────────────────────
+const ITEM_H  = 46;
+const VISIBLE = 5;
+const DRUM_H  = ITEM_H * VISIBLE;
+const PADDING = Math.floor(VISIBLE / 2); // 2
 
-function DrumWheel({
-  items, selectedIndex, onChange, width = 68,
+function DrumPicker({
+  items, selectedIndex, onChange, width = 90,
 }: {
   items: string[]; selectedIndex: number; onChange: (i: number) => void; width?: number;
 }) {
@@ -106,7 +99,7 @@ function DrumWheel({
   const dragging = useRef(false);
 
   const scrollTo = useCallback((i: number, animated = true) => {
-    ref.current?.scrollTo({ y: i * DW_ITEM, animated });
+    ref.current?.scrollTo({ y: i * ITEM_H, animated });
   }, []);
 
   const mounted = useRef(false);
@@ -115,22 +108,23 @@ function DrumWheel({
   }, [selectedIndex, scrollTo]);
 
   const snap = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const idx = Math.max(0, Math.min(
-      items.length - 1,
-      Math.round(e.nativeEvent.contentOffset.y / DW_ITEM),
-    ));
+    const y  = e.nativeEvent.contentOffset.y;
+    const idx = Math.max(0, Math.min(items.length - 1, Math.round(y / ITEM_H)));
     onChange(idx);
     scrollTo(idx);
     Haptics.selectionAsync();
   }, [items.length, onChange, scrollTo]);
 
+  const padItems = Array(PADDING).fill("");
+
   return (
-    <View style={[dw.wrap, { width }]}>
-      <View style={dw.highlight} pointerEvents="none" />
+    <View style={[dp.wrap, { width }]}>
+      <View style={dp.highlight} pointerEvents="none" />
       <ScrollView
         ref={ref}
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        snapToInterval={DW_ITEM}
+        snapToInterval={ITEM_H}
         decelerationRate="fast"
         onLayout={onLayout}
         onScrollBeginDrag={() => { dragging.current = true; }}
@@ -138,51 +132,55 @@ function DrumWheel({
         onScrollEndDrag={e => { if (!dragging.current) snap(e); }}
         scrollEventThrottle={16}
       >
-        {[...[""], ...items, ...[""]].map((item, i) => {
-          const real = i - 1;
+        {[...padItems, ...items, ...padItems].map((item, i) => {
+          const real = i - PADDING;
           const sel  = real === selectedIndex && item !== "";
           return (
-            <Pressable key={i}
-              style={{ height: DW_ITEM, alignItems: "center", justifyContent: "center" }}
+            <Pressable key={i} style={dp.item}
               onPress={() => { if (!item) return; onChange(real); scrollTo(real); Haptics.selectionAsync(); }}
             >
-              <Text style={[dw.txt, sel && dw.txtSel, !item && { opacity: 0 }]}>{item || "·"}</Text>
+              <Text style={[dp.itemTxt, sel && dp.itemTxtSel, item === "" && { opacity: 0 }]}>
+                {item || "·"}
+              </Text>
             </Pressable>
           );
         })}
       </ScrollView>
-      <View style={dw.fadeT} pointerEvents="none" />
-      <View style={dw.fadeB} pointerEvents="none" />
+      <View style={dp.fadeT} pointerEvents="none" />
+      <View style={dp.fadeB} pointerEvents="none" />
     </View>
   );
 }
 
-const dw = StyleSheet.create({
+const dp = StyleSheet.create({
   wrap: {
-    height: DW_ITEM * DW_VIS, borderRadius: 10, overflow: "hidden",
-    backgroundColor: CARD2, borderWidth: 1, borderColor: BORD2,
+    height: DRUM_H, borderRadius: 14, overflow: "hidden",
+    backgroundColor: CARD2, borderWidth: 1, borderColor: BORD,
   },
   highlight: {
-    position: "absolute", left: 0, right: 0,
-    top: DW_ITEM, height: DW_ITEM,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderTopWidth: 1, borderBottomWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)", zIndex: 1,
+    position: "absolute", top: ITEM_H * 2, left: 0, right: 0, height: ITEM_H,
+    backgroundColor: `${RED}18`,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: `${RED}44`, zIndex: 1,
   },
-  txt:   { color: "#4a4a4e", fontSize: 18, fontFamily: "Inter_400Regular" },
-  txtSel:{ color: "#fff",    fontSize: 20, fontFamily: "Inter_700Bold" },
+  item:       { height: ITEM_H, alignItems: "center", justifyContent: "center" },
+  itemTxt:    { color: MUT,  fontSize: 16, fontFamily: "Inter_400Regular" },
+  itemTxtSel: { color: TEXT, fontSize: 17, fontFamily: "Inter_700Bold" },
   fadeT: {
-    position: "absolute", top: 0, left: 0, right: 0, height: DW_ITEM,
-    backgroundColor: CARD2, opacity: 0.85, zIndex: 2, pointerEvents: "none",
+    position: "absolute", top: 0, left: 0, right: 0, height: ITEM_H * 2,
+    backgroundColor: CARD2, opacity: 0.75, zIndex: 2, pointerEvents: "none",
   },
   fadeB: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: DW_ITEM,
-    backgroundColor: CARD2, opacity: 0.85, zIndex: 2, pointerEvents: "none",
+    position: "absolute", bottom: 0, left: 0, right: 0, height: ITEM_H * 2,
+    backgroundColor: CARD2, opacity: 0.75, zIndex: 2, pointerEvents: "none",
   },
 });
 
-// ── MonthCalendar ─────────────────────────────────────────────────────────────
-function MonthCalendar({
+// ── MonthCalendarGrid ─────────────────────────────────────────────────────────
+const SW    = Dimensions.get("window").width;
+const HPAD  = 24;
+const DAY_W = Math.floor((SW - HPAD * 2) / 7);
+
+function MonthCalendarGrid({
   selected, onChange,
 }: {
   selected: Date; onChange: (d: Date) => void;
@@ -191,26 +189,24 @@ function MonthCalendar({
   const [vy, setVy] = useState(selected.getFullYear());
   const [vm, setVm] = useState(selected.getMonth());
 
-  const prevMonth = () => {
+  const prevM = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (vm === 0) { setVy(y => y - 1); setVm(11); } else setVm(m => m - 1);
   };
-  const nextMonth = () => {
+  const nextM = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (vm === 11) { setVy(y => y + 1); setVm(0); } else setVm(m => m + 1);
   };
 
-  const firstDow   = new Date(vy, vm, 1).getDay();
-  const daysInMon  = new Date(vy, vm + 1, 0).getDate();
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMon; d++) cells.push(d);
+  const firstDow  = new Date(vy, vm, 1).getDay();
+  const daysInMon = new Date(vy, vm + 1, 0).getDate();
+  const cells: (number | null)[] = Array(firstDow).fill(null).concat(
+    Array.from({ length: daysInMon }, (_, i) => i + 1)
+  );
   while (cells.length % 7 !== 0) cells.push(null);
-  const rows = Math.ceil(cells.length / 7);
 
-  const isSel  = (d: number) => selected.getFullYear() === vy && selected.getMonth() === vm && selected.getDate() === d;
+  const isSel   = (d: number) => selected.getFullYear() === vy && selected.getMonth() === vm && selected.getDate() === d;
   const isToday = (d: number) => today.getFullYear() === vy && today.getMonth() === vm && today.getDate() === d;
-  const isPast  = (d: number) => normalDay(new Date(vy, vm, d)) < today;
 
   const pick = (d: number) => {
     const n = new Date(vy, vm, d); n.setHours(0, 0, 0, 0);
@@ -219,120 +215,175 @@ function MonthCalendar({
   };
 
   return (
-    <View style={mc.wrap}>
+    <View>
       {/* Month nav */}
-      <View style={mc.nav}>
-        <Pressable onPress={prevMonth} hitSlop={14} style={mc.navBtn}>
-          <Feather name="chevron-left" size={16} color={TEXT2} />
+      <View style={cg.nav}>
+        <Pressable onPress={prevM} hitSlop={14} style={cg.navBtn}>
+          <Feather name="chevron-left" size={18} color={SUB} />
         </Pressable>
-        <Text style={mc.navLabel}>{MONTHS_L[vm]} {vy}</Text>
-        <Pressable onPress={nextMonth} hitSlop={14} style={mc.navBtn}>
-          <Feather name="chevron-right" size={16} color={TEXT2} />
+        <Text style={cg.navLabel}>{MONTHS_L[vm]} {vy}</Text>
+        <Pressable onPress={nextM} hitSlop={14} style={cg.navBtn}>
+          <Feather name="chevron-right" size={18} color={SUB} />
         </Pressable>
       </View>
 
       {/* Day-of-week headers */}
-      <View style={mc.dowRow}>
-        {DOW_H.map((d, i) => <Text key={i} style={mc.dow}>{d}</Text>)}
+      <View style={cg.dowRow}>
+        {DOW_HEADS.map((d, i) => <Text key={i} style={cg.dow}>{d}</Text>)}
       </View>
 
-      {/* Day grid */}
-      {Array.from({ length: rows }).map((_, row) => (
-        <View key={row} style={mc.week}>
-          {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
-            if (!day) return <View key={col} style={mc.cell} />;
-            const sel  = isSel(day);
-            const tod  = isToday(day);
-            const past = isPast(day);
-            return (
-              <Pressable key={col} onPress={() => pick(day)}
-                style={[mc.cell, sel && mc.cellSel, tod && !sel && mc.cellToday]}
-              >
-                <Text style={[
-                  mc.dayTxt,
-                  sel  && mc.dayTxtSel,
-                  tod  && !sel && mc.dayTxtToday,
-                  past && !sel && mc.dayTxtPast,
-                ]}>
-                  {day}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ))}
+      {/* Grid */}
+      <View style={cg.grid}>
+        {cells.map((day, i) => {
+          const sel = day !== null && isSel(day);
+          const tod = day !== null && isToday(day);
+          return (
+            <Pressable key={i}
+              style={[cg.cell, sel && cg.cellSel, !day && { opacity: 0 }]}
+              onPress={() => { if (day) pick(day); }}
+              disabled={!day}
+            >
+              <Text style={[cg.cellTxt, sel && cg.cellTxtSel, tod && !sel && cg.cellTxtToday]}>
+                {day ?? ""}
+              </Text>
+              {tod && !sel && <View style={cg.todayDot} />}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
-const CELL_SIZE = Math.floor((Dimensions.get("window").width - 40 - 32) / 7); // sheet padding 20 + inner 16
-
-const mc = StyleSheet.create({
-  wrap: {
-    backgroundColor: CARD, borderRadius: 14,
-    borderWidth: 1, borderColor: BORD2,
-    paddingHorizontal: 16, paddingBottom: 12, paddingTop: 0,
-  },
-  nav: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingTop: 14, paddingBottom: 8,
-  },
-  navBtn:   { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+const cg = StyleSheet.create({
+  nav:      { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  navBtn:   { width: 36, height: 36, borderRadius: 10, backgroundColor: CARD2, borderWidth: 1, borderColor: BORD, alignItems: "center", justifyContent: "center" },
   navLabel: { color: TEXT, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   dowRow:   { flexDirection: "row", marginBottom: 4 },
-  dow:      { width: CELL_SIZE, textAlign: "center", color: TEXT3, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
-  week:     { flexDirection: "row" },
-  cell:     { width: CELL_SIZE, height: CELL_SIZE, alignItems: "center", justifyContent: "center" },
-  cellSel:  { backgroundColor: RED, borderRadius: CELL_SIZE / 2 },
-  cellToday:{ borderWidth: 1.5, borderColor: RED, borderRadius: CELL_SIZE / 2 },
-  dayTxt:      { color: TEXT, fontSize: 14, fontFamily: "Inter_400Regular" },
-  dayTxtSel:   { color: "#fff", fontFamily: "Inter_700Bold" },
-  dayTxtToday: { color: RED },
-  dayTxtPast:  { color: TEXT3 },
+  dow:      { width: DAY_W, textAlign: "center", color: MUT, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
+  grid:     { flexDirection: "row", flexWrap: "wrap" },
+  cell:     { width: DAY_W, height: DAY_W, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  cellSel:  { backgroundColor: RED },
+  cellTxt:      { color: SUB, fontSize: 15, fontFamily: "Inter_400Regular" },
+  cellTxtSel:   { color: "#fff", fontFamily: "Inter_700Bold" },
+  cellTxtToday: { color: RED, fontFamily: "Inter_600SemiBold" },
+  todayDot: { position: "absolute", bottom: 5, width: 4, height: 4, borderRadius: 2, backgroundColor: RED },
 });
 
-// ── AddEventSheet ─────────────────────────────────────────────────────────────
-function AddEventSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+// ── TitleModal (Step 1) ────────────────────────────────────────────────────────
+function TitleModal({
+  visible, initialValue, onCancel, onNext,
+}: {
+  visible: boolean; initialValue: string;
+  onCancel: () => void; onNext: (title: string) => void;
+}) {
+  const [val, setVal] = useState(initialValue);
+  useEffect(() => { if (visible) setVal(initialValue); }, [visible, initialValue]);
+
+  const canNext = val.trim().length > 0;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={tm.overlay}>
+        <View style={tm.card}>
+          <Text style={tm.cardTitle}>New Event</Text>
+          <TextInput
+            style={tm.input}
+            placeholder="Event name…"
+            placeholderTextColor={MUT}
+            value={val}
+            onChangeText={setVal}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={() => { if (canNext) onNext(val.trim()); }}
+            selectionColor={RED}
+          />
+          <View style={tm.btnRow}>
+            <Pressable onPress={onCancel} style={tm.btnCancel} hitSlop={8}>
+              <Text style={tm.btnCancelTxt}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { if (canNext) onNext(val.trim()); }}
+              style={[tm.btnNext, !canNext && { opacity: 0.3 }]}
+              disabled={!canNext}
+              hitSlop={8}
+            >
+              <Text style={tm.btnNextTxt}>Next</Text>
+              <Feather name="arrow-right" size={15} color={RED} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const tm = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.72)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 28,
+  },
+  card: {
+    width: "100%", backgroundColor: CARD,
+    borderRadius: 18, borderWidth: 1, borderColor: BORD,
+    padding: 22, gap: 16,
+  },
+  cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  input: {
+    backgroundColor: CARD2, borderWidth: 1.5, borderColor: BORD,
+    borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
+  btnCancel: { paddingVertical: 6, paddingRight: 12 },
+  btnCancelTxt: { color: MUT, fontSize: 15, fontFamily: "Inter_500Medium" },
+  btnNext: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 6, paddingLeft: 12 },
+  btnNextTxt: { color: RED, fontSize: 16, fontFamily: "Inter_700Bold" },
+});
+
+// ── EventDetailScreen (Step 2) ────────────────────────────────────────────────
+function EventDetailScreen({
+  eventTitle, onBack, onSaved,
+}: {
+  eventTitle: string; onBack: () => void; onSaved: () => void;
+}) {
   const insets = useSafeAreaInsets();
 
-  const [title,   setTitle]   = useState("");
   const [date,    setDate]    = useState(() => normalDay(new Date()));
   const [evType,  setEvType]  = useState<EventType | null>(null);
-  const [hourIdx, setHourIdx] = useState(8);
+  const [hourIdx, setHourIdx] = useState(8);  // "09"
   const [minIdx,  setMinIdx]  = useState(0);
-  const [ampmIdx, setAmpmIdx] = useState(0);
+  const [ampmIdx, setAmpmIdx] = useState(0);  // AM
   const [durMins, setDurMins] = useState(-1);
   const [calKey,  setCalKey]  = useState<CalKey>("HK");
   const [saving,  setSaving]  = useState(false);
   const [errMsg,  setErrMsg]  = useState("");
 
-  const slideY = useRef(new Animated.Value(700)).current;
-  const scrimO = useRef(new Animated.Value(0)).current;
+  const slideY = useRef(new Animated.Value(Dimensions.get("window").height)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 30, stiffness: 300, overshootClamping: true }),
-      Animated.timing(scrimO, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-    ]).start();
-  }, [slideY, scrimO]);
+    Animated.spring(slideY, {
+      toValue: 0, useNativeDriver: true, damping: 32, stiffness: 300, overshootClamping: true,
+    }).start();
+  }, [slideY]);
 
-  const close = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(slideY, { toValue: 750, duration: 260, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(scrimO, { toValue: 0,   duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-    ]).start(() => onClose());
-  }, [slideY, scrimO, onClose]);
+  const back = useCallback(() => {
+    Animated.timing(slideY, {
+      toValue: Dimensions.get("window").height, duration: 280,
+      easing: Easing.in(Easing.cubic), useNativeDriver: true,
+    }).start(() => onBack());
+  }, [slideY, onBack]);
+
+  const canSave = evType !== null && (evType !== "appointment" || durMins >= 0);
 
   const save = async () => {
-    if (!title.trim() || !evType) return;
-    if (evType === "appointment" && durMins < 0) return;
+    if (!canSave || saving) return;
     setSaving(true); setErrMsg("");
     try {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
-      if (status !== "granted") throw new Error("Calendar access required — enable it in Settings.");
+      if (status !== "granted") throw new Error("Calendar access required — enable in Settings.");
 
       const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-
       let targetId: string | null = null;
       if (evType === "birthday") {
         targetId = allCals.find(c => c.title.toLowerCase() === "birthday")?.id
@@ -346,32 +397,28 @@ function AddEventSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       const dayEnd   = new Date(date); dayEnd.setHours(23, 59, 59, 0);
 
       if (evType === "allday") {
-        await Calendar.createEventAsync(targetId, { title: title.trim(), startDate: dayStart, endDate: dayEnd, allDay: true });
+        await Calendar.createEventAsync(targetId, { title: eventTitle, startDate: dayStart, endDate: dayEnd, allDay: true });
       } else if (evType === "birthday") {
         await Calendar.createEventAsync(targetId, {
-          title: title.trim(), startDate: dayStart, endDate: dayEnd, allDay: true,
+          title: eventTitle, startDate: dayStart, endDate: dayEnd, allDay: true,
           recurrenceRule: { frequency: Calendar.Frequency.YEARLY, interval: 1 },
           alarms: [{ relativeOffset: 330 }],
         });
       } else {
-        const h = parseInt(HOURS_W[hourIdx], 10);
-        const h24 = ampmIdx === 1 ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
+        const h    = parseInt(HOURS_W[hourIdx], 10);
+        const h24  = ampmIdx === 1 ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
         const startDate = new Date(date); startDate.setHours(h24, parseInt(MINUTES_W[minIdx], 10), 0, 0);
         const endDate   = new Date(startDate.getTime() + durMins * 60000);
-        await Calendar.createEventAsync(targetId, { title: title.trim(), startDate, endDate, allDay: false });
+        await Calendar.createEventAsync(targetId, { title: eventTitle, startDate, endDate, allDay: false });
       }
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSaved();
     } catch (e: any) {
-      setErrMsg(e?.message ?? "Failed to create event.");
+      setErrMsg(e?.message ?? "Failed to save event.");
     } finally {
       setSaving(false);
     }
   };
-
-  const canSave = title.trim().length > 0 && evType !== null
-    && (evType !== "appointment" || durMins >= 0);
 
   const TYPE_PILLS: { key: EventType; icon: string; label: string }[] = [
     { key: "appointment", icon: "🕒", label: "Appointment" },
@@ -380,222 +427,180 @@ function AddEventSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   ];
 
   return (
-    <>
-      <Animated.View style={[sh.scrim, { opacity: scrimO }]} pointerEvents="auto">
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-      </Animated.View>
+    <Animated.View style={[ed.root, { paddingTop: insets.top, paddingBottom: insets.bottom, transform: [{ translateY: slideY }] }]}>
+      {/* ── Nav bar ── */}
+      <View style={ed.nav}>
+        <Pressable onPress={back} hitSlop={14} style={ed.navBack}>
+          <Feather name="arrow-left" size={20} color={SUB} />
+        </Pressable>
+        <Text style={ed.navTitle} numberOfLines={1}>{eventTitle}</Text>
+        <Pressable
+          onPress={save}
+          disabled={!canSave || saving}
+          hitSlop={14}
+          style={[ed.navSave, (!canSave || saving) && { opacity: 0.3 }]}
+        >
+          <Text style={ed.navSaveTxt}>{saving ? "Saving…" : "Save"}</Text>
+        </Pressable>
+      </View>
 
-      <Animated.View style={[sh.sheet, { paddingBottom: insets.bottom + 12, transform: [{ translateY: slideY }] }]}>
-        {/* Handle */}
-        <View style={sh.handle} />
-
-        {/* Header */}
-        <View style={sh.header}>
-          <Text style={sh.headerTitle}>New Event</Text>
-          <Pressable onPress={close} hitSlop={14} style={sh.closeBtn}>
-            <Feather name="x" size={17} color={TEXT2} />
-          </Pressable>
+      {/* ── Content ── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={ed.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Calendar grid */}
+        <View style={ed.section}>
+          <MonthCalendarGrid selected={date} onChange={setDate} />
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={sh.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* ── Title ─────────────────────────────────────────────────────── */}
-          <TextInput
-            style={sh.titleInput}
-            placeholder="Event title…"
-            placeholderTextColor={TEXT3}
-            value={title}
-            onChangeText={setTitle}
-            returnKeyType="done"
-            selectionColor={RED}
-            autoFocus
-          />
+        {/* Type pills */}
+        <View style={ed.pillRow}>
+          {TYPE_PILLS.map(tp => {
+            const active = evType === tp.key;
+            return (
+              <Pressable key={tp.key}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEvType(tp.key); }}
+                style={[ed.typePill, active && ed.typePillActive]}
+              >
+                <Text style={ed.typePillIcon}>{tp.icon}</Text>
+                <Text style={[ed.typePillTxt, active && ed.typePillTxtActive]}>{tp.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-          {/* ── Date calendar ─────────────────────────────────────────────── */}
-          <MonthCalendar selected={date} onChange={setDate} />
-
-          {/* ── Type ──────────────────────────────────────────────────────── */}
-          <View style={sh.row}>
-            {TYPE_PILLS.map(tp => {
-              const active = evType === tp.key;
-              return (
-                <Pressable key={tp.key}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEvType(tp.key); }}
-                  style={[sh.typePill, active && sh.typePillActive]}
-                >
-                  <Text style={sh.typePillIcon}>{tp.icon}</Text>
-                  <Text style={[sh.typePillLabel, active && sh.typePillLabelActive]}>{tp.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* ── Appointment card: time + duration ─────────────────────────── */}
-          {evType === "appointment" && (
-            <View style={sh.apptCard}>
-              {/* Time */}
-              <View style={sh.apptSection}>
-                <Text style={sh.apptSub}>Start Time</Text>
-                <View style={sh.drumRow}>
-                  <DrumWheel items={HOURS_W}   selectedIndex={hourIdx}  onChange={setHourIdx}  width={68} />
-                  <Text style={sh.drumColon}>:</Text>
-                  <DrumWheel items={MINUTES_W} selectedIndex={minIdx}   onChange={setMinIdx}   width={68} />
-                  <DrumWheel items={AMPM_W}    selectedIndex={ampmIdx}  onChange={setAmpmIdx}  width={60} />
-                </View>
+        {/* Appointment: time card + duration */}
+        {evType === "appointment" && (
+          <>
+            {/* Time — ui-kit card style */}
+            <View style={ed.card}>
+              <View style={ed.drumRow}>
+                <DrumPicker items={HOURS_W}   selectedIndex={hourIdx}  onChange={setHourIdx}  width={72} />
+                <Text style={ed.colon}>:</Text>
+                <DrumPicker items={MINUTES_W} selectedIndex={minIdx}   onChange={setMinIdx}   width={72} />
+                <DrumPicker items={AMPM_W}    selectedIndex={ampmIdx}  onChange={setAmpmIdx}  width={66} />
               </View>
-
-              <View style={sh.apptDivider} />
-
-              {/* Duration */}
-              <View style={sh.apptSection}>
-                <Text style={sh.apptSub}>Duration</Text>
-                <View style={sh.durRow}>
-                  {DURATIONS.map(d => {
-                    const active = durMins === d.mins;
-                    return (
-                      <Pressable key={d.label}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDurMins(d.mins); }}
-                        style={[sh.durPill, active && sh.durPillActive]}
-                      >
-                        <Text style={[sh.durPillTxt, active && sh.durPillTxtActive]}>{d.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+              <View style={ed.displayRow}>
+                <Feather name="clock" size={14} color={RED} />
+                <Text style={ed.displayTxt}>{fmtTimeLbl(hourIdx, minIdx, ampmIdx)}</Text>
               </View>
             </View>
-          )}
 
-          {/* ── Calendar pills ─────────────────────────────────────────────── */}
-          {evType !== null && evType !== "birthday" && (
-            <View style={sh.row}>
-              {(["HK", "Sticky"] as CalKey[]).map(k => {
-                const active = calKey === k;
-                const isHK   = k === "HK";
+            {/* Duration */}
+            <View style={ed.durRow}>
+              {DURATIONS.map(d => {
+                const active = durMins === d.mins;
                 return (
-                  <Pressable key={k}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCalKey(k); }}
-                    style={[
-                      sh.calPill,
-                      { backgroundColor: active ? (isHK ? HK_BG : ST_BG) : CARD,
-                        borderColor:      active ? (isHK ? HK_BR : ST_BR) : BORD2 },
-                    ]}
+                  <Pressable key={d.label}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDurMins(d.mins); }}
+                    style={[ed.durPill, active && ed.durPillActive]}
                   >
-                    <View style={[sh.calDot, { backgroundColor: isHK ? HK_TX : ST_TX }]} />
-                    <Text style={[sh.calPillTxt, { color: active ? (isHK ? HK_TX : ST_TX) : TEXT2 }]}>{k}</Text>
+                    <Text style={[ed.durPillTxt, active && ed.durPillTxtActive]}>{d.label}</Text>
                   </Pressable>
                 );
               })}
             </View>
-          )}
+          </>
+        )}
 
-          {/* ── Error ─────────────────────────────────────────────────────── */}
-          {errMsg !== "" && (
-            <View style={sh.errRow}>
-              <Feather name="alert-circle" size={13} color={RED} />
-              <Text style={sh.errTxt}>{errMsg}</Text>
-            </View>
-          )}
-        </ScrollView>
+        {/* Calendar: HK / Sticky (not birthday) */}
+        {evType !== null && evType !== "birthday" && (
+          <View style={ed.pillRow}>
+            {(["HK", "Sticky"] as CalKey[]).map(k => {
+              const active = calKey === k;
+              const isHK   = k === "HK";
+              return (
+                <Pressable key={k}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCalKey(k); }}
+                  style={[ed.calPill, {
+                    backgroundColor: active ? (isHK ? HK_BG : ST_BG) : CARD,
+                    borderColor:      active ? (isHK ? HK_BR : ST_BR) : BORD,
+                  }]}
+                >
+                  <View style={[ed.calDot, { backgroundColor: isHK ? HK_TX : ST_TX }]} />
+                  <Text style={[ed.calPillTxt, { color: active ? (isHK ? HK_TX : ST_TX) : MUT }]}>{k}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
-        {/* ── Save ──────────────────────────────────────────────────────────── */}
-        <Pressable
-          onPress={save}
-          disabled={!canSave || saving}
-          style={({ pressed }) => [sh.saveBtn, (!canSave || saving) && sh.saveBtnDim, pressed && canSave && { opacity: 0.8 }]}
-        >
-          <Text style={sh.saveBtnTxt}>{saving ? "Saving…" : "Save Event"}</Text>
-        </Pressable>
-      </Animated.View>
-    </>
+        {/* Error */}
+        {errMsg !== "" && (
+          <View style={ed.errRow}>
+            <Feather name="alert-circle" size={13} color={RED} />
+            <Text style={ed.errTxt}>{errMsg}</Text>
+          </View>
+        )}
+      </ScrollView>
+    </Animated.View>
   );
 }
 
-// ── Sheet styles ───────────────────────────────────────────────────────────────
-const sh = StyleSheet.create({
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 200 },
-  sheet: {
-    position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 201,
-    backgroundColor: SHEET_BG,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderTopWidth: 1, borderColor: "rgba(255,255,255,0.09)",
-    maxHeight: "90%",
+const ed = StyleSheet.create({
+  root: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: BG, zIndex: 100,
   },
-  handle: {
-    alignSelf: "center", width: 36, height: 4, borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.15)", marginTop: 10, marginBottom: 0,
+  nav: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 18, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)",
   },
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)",
-  },
-  headerTitle: { color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold" },
-  closeBtn: { position: "absolute", right: 20, width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  navBack:    { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  navTitle:   { flex: 1, textAlign: "center", color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", paddingHorizontal: 8 },
+  navSave:    { width: 56, alignItems: "flex-end", justifyContent: "center", height: 36 },
+  navSaveTxt: { color: RED, fontSize: 16, fontFamily: "Inter_700Bold" },
 
-  scroll:     { padding: 20, gap: 14 },
+  scroll:  { padding: HPAD, paddingBottom: 60, gap: 18 },
+  section: {},
 
-  titleInput: {
-    backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD2,
-    borderRadius: 13, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
-    paddingHorizontal: 16, paddingVertical: 14,
-  },
-
-  // Type pills
-  row: { flexDirection: "row", gap: 8 },
+  // Type pills — horizontal icon + label
+  pillRow: { flexDirection: "row", gap: 9 },
   typePill: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 7, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD2,
+    gap: 6, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD,
     borderRadius: 12, paddingVertical: 13,
   },
-  typePillActive: { backgroundColor: RED_DIM, borderColor: RED_BORD },
-  typePillIcon:   { fontSize: 16 },
-  typePillLabel:  { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT2 },
-  typePillLabelActive: { color: "#ff8080" },
+  typePillActive:     { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
+  typePillIcon:       { fontSize: 15 },
+  typePillTxt:        { fontSize: 13, fontFamily: "Inter_600SemiBold", color: MUT },
+  typePillTxtActive:  { color: "#e07070" },
 
-  // Appointment card
-  apptCard: {
-    backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD2, borderRadius: 14, overflow: "hidden",
+  // Time card — exact ui-kit card style
+  card: {
+    backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORD,
+    padding: 14, gap: 12,
   },
-  apptSection: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
-  apptDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginHorizontal: 0 },
-  apptSub: { color: TEXT2, fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 10 },
-  drumRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  drumColon: { color: "#4a4a4e", fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 2, lineHeight: 28 },
-  durRow: { flexDirection: "row", gap: 6 },
+  drumRow:    { flexDirection: "row", gap: 8, justifyContent: "center", alignItems: "center" },
+  colon:      { color: SUB, fontSize: 24, fontFamily: "Inter_700Bold", marginHorizontal: -2 },
+  displayRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 4, borderTopWidth: 1, borderTopColor: BORD },
+  displayTxt: { color: TEXT, fontSize: 13, fontFamily: "Inter_500Medium" },
+
+  // Duration pills
+  durRow: { flexDirection: "row", gap: 8 },
   durPill: {
-    flex: 1, backgroundColor: CARD2, borderWidth: 1.5, borderColor: BORD2,
-    borderRadius: 9, paddingVertical: 9, alignItems: "center",
+    flex: 1, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD,
+    borderRadius: 10, paddingVertical: 11, alignItems: "center",
   },
-  durPillActive: { backgroundColor: RED_DIM, borderColor: RED_BORD },
-  durPillTxt:    { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT2 },
-  durPillTxtActive: { color: "#ff8080" },
+  durPillActive:    { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
+  durPillTxt:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: MUT },
+  durPillTxtActive: { color: "#e07070" },
 
   // Calendar pills
   calPill: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, borderWidth: 1.5, borderRadius: 12, paddingVertical: 14,
+    gap: 8, borderWidth: 1.5, borderRadius: 12, paddingVertical: 15,
   },
-  calDot:    { width: 8, height: 8, borderRadius: 4 },
+  calDot:    { width: 9, height: 9, borderRadius: 5 },
   calPillTxt:{ fontSize: 15, fontFamily: "Inter_700Bold" },
 
   // Error
   errRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   errTxt: { color: RED, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
-
-  // Save
-  saveBtn: {
-    marginHorizontal: 20, marginTop: 10,
-    backgroundColor: RED, borderRadius: 14, paddingVertical: 15,
-    alignItems: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
-  },
-  saveBtnDim: { opacity: 0.35, shadowOpacity: 0 },
-  saveBtnTxt: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
 
 // ── CalendarScreen ─────────────────────────────────────────────────────────────
@@ -610,20 +615,24 @@ export default function CalendarScreen() {
   const [sections,   setSections]   = useState<DaySection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [monthLabel, setMonthLabel] = useState(() => MONTHS_U[new Date().getMonth()]);
-  const [showSheet,  setShowSheet]  = useState(false);
+
+  // Two-step create flow
+  const [step,         setStep]         = useState<Step>("idle");
+  const [pendingTitle, setPendingTitle] = useState("");
+  const [eventTitle,   setEventTitle]   = useState("");
 
   const fetchEvents = useCallback(async () => {
     try {
       const { status: perm } = await Calendar.requestCalendarPermissionsAsync();
       if (perm !== "granted") { setErrorMsg("Calendar access required. Enable in Settings."); setStatus("error"); return; }
 
-      const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      const hkCals  = allCals.filter(c => keepCal(c.title));
+      const allCals  = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+      const hkCals   = allCals.filter(c => keepCal(c.title));
       if (!hkCals.length) { setSections([]); setStatus("done"); return; }
 
-      const today   = new Date(); today.setHours(0, 0, 0, 0);
-      const endDate = new Date(today); endDate.setDate(today.getDate() + DAYS_AHEAD);
+      const today    = new Date(); today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+      const endDate  = new Date(today); endDate.setDate(today.getDate() + DAYS_AHEAD);
 
       const raw = await Calendar.getEventsAsync(hkCals.map(c => c.id), today, endDate);
       raw.sort((a, b) => new Date(a.startDate as any).getTime() - new Date(b.startDate as any).getTime());
@@ -635,7 +644,6 @@ export default function CalendarScreen() {
         const key        = isoDay(start);
         const isBirthday = hkCals.find(c => c.id === ev.calendarId)?.title.toLowerCase() === "birthday";
         const title      = isBirthday ? `🎂 ${ev.title}` : ev.title;
-        const timeStr    = ev.allDay ? null : fmt12(start);
 
         if (!dayMap.has(key)) {
           const isToday    = start.toDateString() === today.toDateString();
@@ -645,10 +653,10 @@ export default function CalendarScreen() {
             dayLabel: isToday ? "Today" : isTomorrow ? "Tomorrow" : DAYS_FULL[start.getDay()],
             ordStr:   `${ordinal(start.getDate())} ${MONTHS_S[start.getMonth()]}`,
             isToday,
-            data: [],
+            data:     [],
           });
         }
-        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr });
+        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? null : fmt12(start) });
       }
       setSections(Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey)));
       setStatus("done");
@@ -683,12 +691,8 @@ export default function CalendarScreen() {
 
   const renderItem = useCallback(({ item, index }: { item: CalEvent; index: number }) => (
     <View style={[s.evRow, index > 0 && s.evRowBorder]}>
-      <View style={s.evTime}>
-        {item.timeStr ? <Text style={s.tStart}>{item.timeStr}</Text> : null}
-      </View>
-      <View style={s.evCenter}>
-        <Text style={s.evTitle}>{item.title}</Text>
-      </View>
+      <View style={s.evTime}>{item.timeStr ? <Text style={s.tStart}>{item.timeStr}</Text> : null}</View>
+      <View style={s.evCenter}><Text style={s.evTitle}>{item.title}</Text></View>
       <View style={s.evSpacer} />
     </View>
   ), []);
@@ -697,7 +701,7 @@ export default function CalendarScreen() {
 
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
-      {/* Header */}
+      {/* Top bar */}
       <View style={s.topBar}>
         <Pressable onPress={toggleDrawer} hitSlop={12} style={s.hamburger}>
           <View style={[s.hLine, { width: 22 }]} />
@@ -708,18 +712,14 @@ export default function CalendarScreen() {
       </View>
 
       {status === "loading" && !refreshing && (
-        <>
-          <View style={s.inlineTitle}><TitleText /></View>
-          <View style={s.center}><Spinner /></View>
-        </>
+        <><View style={s.inlineTitle}><TitleTxt /></View><View style={s.center}><Spinner /></View></>
       )}
 
       {status === "error" && (
-        <>
-          <View style={s.inlineTitle}><TitleText /></View>
+        <><View style={s.inlineTitle}><TitleTxt /></View>
           <View style={s.center}>
             <Feather name="alert-circle" size={28} color={RED} style={{ marginBottom: 8 }} />
-            <Text style={s.errorText}>{errorMsg}</Text>
+            <Text style={s.errorTxt}>{errorMsg}</Text>
             <Pressable style={s.retryBtn} onPress={() => { setStatus("loading"); fetchEvents(); }}>
               <Text style={s.retryTxt}>Try Again</Text>
             </Pressable>
@@ -736,11 +736,11 @@ export default function CalendarScreen() {
           renderItem={renderItem}
           stickySectionHeadersEnabled
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={RED} />}
-          ListHeaderComponent={<View style={s.inlineTitle}><TitleText /></View>}
+          ListHeaderComponent={<View style={s.inlineTitle}><TitleTxt /></View>}
           ListEmptyComponent={
             <View style={s.empty}>
               <Feather name="calendar" size={32} color="rgba(255,255,255,0.22)" />
-              <Text style={s.emptyText}>No upcoming events</Text>
+              <Text style={s.emptyTxt}>No upcoming events</Text>
             </View>
           }
           contentContainerStyle={{ paddingBottom: botPad + 80 }}
@@ -750,29 +750,37 @@ export default function CalendarScreen() {
         />
       )}
 
-      {/* FAB */}
-      {!showSheet && (
+      {/* FAB — hidden during create flow */}
+      {step === "idle" && (
         <Pressable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSheet(true); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStep("title"); setPendingTitle(""); }}
           style={({ pressed }) => [s.fab, pressed && { opacity: 0.82 }]}
         >
           <Feather name="plus" size={22} color="#fff" />
         </Pressable>
       )}
 
-      {/* Sheet */}
-      {showSheet && (
-        <AddEventSheet
-          onClose={() => setShowSheet(false)}
-          onSaved={() => { setShowSheet(false); setStatus("loading"); fetchEvents(); }}
+      {/* Step 1: title modal */}
+      <TitleModal
+        visible={step === "title"}
+        initialValue={pendingTitle}
+        onCancel={() => { setStep("idle"); setPendingTitle(""); }}
+        onNext={title => { setEventTitle(title); setStep("detail"); }}
+      />
+
+      {/* Step 2: full screen detail */}
+      {step === "detail" && (
+        <EventDetailScreen
+          eventTitle={eventTitle}
+          onBack={() => { setStep("title"); setPendingTitle(eventTitle); }}
+          onSaved={() => { setStep("idle"); setStatus("loading"); fetchEvents(); }}
         />
       )}
     </View>
   );
 }
 
-// ── Small helpers ─────────────────────────────────────────────────────────────
-function TitleText() {
+function TitleTxt() {
   return (
     <Text style={s.hdrTitle}>
       <Text style={{ color: "#fff" }}>HK </Text>
@@ -784,64 +792,40 @@ function TitleText() {
 function Spinner() {
   const rot = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(rot, { toValue: 1, duration: 850, easing: Easing.linear, useNativeDriver: true })
-    ).start();
+    Animated.loop(Animated.timing(rot, { toValue: 1, duration: 850, easing: Easing.linear, useNativeDriver: true })).start();
   }, [rot]);
   const spin = rot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   return <Animated.View style={[s.spinner, { transform: [{ rotate: spin }] }]} />;
 }
 
-// ── Screen styles ─────────────────────────────────────────────────────────────
+const BORD_LINE = "rgba(255,255,255,0.07)";
 const s = StyleSheet.create({
   root:       { flex: 1, backgroundColor: BG },
-  topBar: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 22, paddingTop: 14, paddingBottom: 13, backgroundColor: BG,
-  },
-  hamburger: { gap: 5 },
-  hLine:     { height: 1.5, backgroundColor: TEXT, borderRadius: 2 },
-  hdrTitle:  { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.8, lineHeight: 32 },
-  hdrMonth:  { fontSize: 11, color: TEXT2, fontFamily: "Inter_400Regular", letterSpacing: 1.2 },
-  inlineTitle: {
-    paddingHorizontal: 22, paddingTop: 18, paddingBottom: 22,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-    backgroundColor: BG, alignItems: "center",
-  },
-  dayHdr: {
-    flexDirection: "row", alignItems: "baseline", justifyContent: "center",
-    gap: 6, paddingTop: 14, paddingBottom: 5, paddingHorizontal: 22,
-    backgroundColor: BG, borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  dayHdrToday: { backgroundColor: "#0d0d0f" },
-  dlDay:  { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
-  dlSep:  { fontSize: 14, color: "rgba(255,32,32,0.3)" },
-  dlDate: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
-  dayFooter: { height: 10, backgroundColor: BG },
-  evRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG,
-  },
-  evRowBorder: { borderTopWidth: 1, borderTopColor: BORDER },
-  evTime:   { width: 56, flexShrink: 0 },
-  tStart:   { fontSize: 13, fontFamily: "Inter_500Medium", color: "#fff" },
-  evCenter: { flex: 1, alignItems: "center" },
-  evTitle:  { fontSize: 15, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 20, textAlign: "center" },
-  evSpacer: { width: 56, flexShrink: 0 },
-  center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingHorizontal: 32 },
-  errorText:{ color: TEXT2, fontSize: 14, textAlign: "center", fontFamily: "Inter_400Regular", lineHeight: 20 },
-  retryBtn: { backgroundColor: RED, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 32, marginTop: 4 },
-  retryTxt: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 15 },
-  empty:    { alignItems: "center", marginTop: 64, gap: 12 },
-  emptyText:{ color: TEXT2, fontSize: 14, fontFamily: "Inter_400Regular" },
-  spinner: {
-    width: 48, height: 48, borderRadius: 24,
-    borderWidth: 5, borderColor: "rgba(255,32,32,0.14)", borderTopColor: RED,
-  },
-  fab: {
-    position: "absolute", bottom: 32, right: 20,
-    width: 48, height: 48, borderRadius: 14,
-    backgroundColor: RED, alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 8,
-  },
+  topBar:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 14, paddingBottom: 13, backgroundColor: BG },
+  hamburger:  { gap: 5 },
+  hLine:      { height: 1.5, backgroundColor: TEXT, borderRadius: 2 },
+  hdrTitle:   { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.8, lineHeight: 32 },
+  hdrMonth:   { fontSize: 11, color: MUT, fontFamily: "Inter_400Regular", letterSpacing: 1.2 },
+  inlineTitle:{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 22, borderBottomWidth: 1, borderBottomColor: BORD_LINE, backgroundColor: BG, alignItems: "center" },
+  dayHdr:     { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 6, paddingTop: 14, paddingBottom: 5, paddingHorizontal: 22, backgroundColor: BG, borderBottomWidth: 1, borderBottomColor: BORD_LINE },
+  dayHdrToday:{ backgroundColor: "#0d0d0f" },
+  dlDay:      { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
+  dlSep:      { fontSize: 14, color: `${RED}44` },
+  dlDate:     { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
+  dayFooter:  { height: 10, backgroundColor: BG },
+  evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG },
+  evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
+  evTime:     { width: 56, flexShrink: 0 },
+  tStart:     { fontSize: 13, fontFamily: "Inter_500Medium", color: "#fff" },
+  evCenter:   { flex: 1, alignItems: "center" },
+  evTitle:    { fontSize: 15, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 20, textAlign: "center" },
+  evSpacer:   { width: 56, flexShrink: 0 },
+  center:     { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingHorizontal: 32 },
+  errorTxt:   { color: SUB, fontSize: 14, textAlign: "center", fontFamily: "Inter_400Regular", lineHeight: 20 },
+  retryBtn:   { backgroundColor: RED, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 32, marginTop: 4 },
+  retryTxt:   { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 15 },
+  empty:      { alignItems: "center", marginTop: 64, gap: 12 },
+  emptyTxt:   { color: MUT, fontSize: 14, fontFamily: "Inter_400Regular" },
+  spinner:    { width: 48, height: 48, borderRadius: 24, borderWidth: 5, borderColor: `${RED}22`, borderTopColor: RED },
+  fab:        { position: "absolute", bottom: 32, right: 20, width: 48, height: 48, borderRadius: 14, backgroundColor: RED, alignItems: "center", justifyContent: "center", shadowColor: RED, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 8 },
 });
