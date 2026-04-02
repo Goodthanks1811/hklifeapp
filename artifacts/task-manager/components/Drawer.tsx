@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import React, { useCallback, useEffect, useRef } from "react";
 import {
   Animated,
@@ -118,18 +118,43 @@ function AccordionSection({
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
   const {
-    isOpen, drawerAnim, overlayAnim,
+    isOpen, drawerAnim, overlayAnim, spacerAnim,
     openDrawer, closeDrawer,
-    DRAWER_WIDTH, isTablet,
+    DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
 
-  const { getVisible, getSectionOrder, isSectionHidden } = useDrawerConfig();
+  const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
+
+  const pathname     = usePathname();
+  // Life routes: /life/* and /calendar (calendar is in the Life section)
+  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/");
+  const onLifeScreen = isLifeRoute(pathname);
 
   // Keep a ref so gesture handlers can read isOpen without stale closure
   const isOpenRef = useRef(isOpen);
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
-  // Drawer is purely gesture/tap driven — no auto-open or auto-close based on route.
+  // iPad: auto-open on life screens (default), close on others.
+  // sidebarAlwaysOpen (Settings toggle) makes ALL screens start open.
+  useEffect(() => {
+    if (!isTablet) return;
+    if (onLifeScreen || sidebarAlwaysOpen) openDrawer();
+    else closeDrawer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
+
+  // Track animated values in sync during gesture.
+  // On iPad: drawerAnim (native, translateX) + spacerAnim (non-native, width).
+  // On iPhone: drawerAnim (native, translateX) + overlayAnim (native, opacity).
+  const syncGesture = (newX: number) => {
+    drawerAnim.setValue(newX);
+    if (isTablet) {
+      // spacer width = SIDEBAR_WIDTH + newX (0 when closed, SIDEBAR_WIDTH when open)
+      spacerAnim.setValue(Math.max(0, SIDEBAR_WIDTH + newX));
+    } else {
+      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
+    }
+  };
 
   // ── Drawer panel: swipe left to close ─────────────────────────────────────
   const drawerPan = useRef(PanResponder.create({
@@ -139,19 +164,13 @@ export function Drawer() {
     onPanResponderGrant: () => {
       drawerAnim.stopAnimation();
       overlayAnim.stopAnimation();
+      spacerAnim.stopAnimation();
     },
-    onPanResponderMove: (_, { dx }) => {
-      const newX = Math.max(-DRAWER_WIDTH, Math.min(0, dx));
-      drawerAnim.setValue(newX);
-      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
-    },
+    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, dx))),
+    // Released: if dragged far enough or fast enough → close; else snap back open
     onPanResponderRelease: (_, { dx, vx }) => {
-      if (dx < -(DRAWER_WIDTH * 0.3) || vx < -0.4) {
-        closeDrawer();
-      } else {
-        Animated.spring(drawerAnim, { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 220, overshootClamping: true }).start();
-        Animated.timing(overlayAnim, { toValue: 1, duration: 120, useNativeDriver: true }).start();
-      }
+      if (dx < -(DRAWER_WIDTH * 0.3) || vx < -0.4) closeDrawer();
+      else openDrawer();
     },
   })).current;
 
@@ -163,19 +182,13 @@ export function Drawer() {
     onPanResponderGrant: () => {
       drawerAnim.stopAnimation();
       overlayAnim.stopAnimation();
+      spacerAnim.stopAnimation();
     },
-    onPanResponderMove: (_, { dx }) => {
-      const newX = Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx));
-      drawerAnim.setValue(newX);
-      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
-    },
+    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx))),
+    // Released: if dragged far enough or fast enough → open; else snap back closed
     onPanResponderRelease: (_, { dx, vx }) => {
-      if (dx > DRAWER_WIDTH * 0.3 || vx > 0.4) {
-        openDrawer();
-      } else {
-        Animated.spring(drawerAnim, { toValue: -DRAWER_WIDTH, useNativeDriver: true, damping: 22, stiffness: 220, overshootClamping: true }).start();
-        Animated.timing(overlayAnim, { toValue: 0, duration: 120, useNativeDriver: true }).start();
-      }
+      if (dx > DRAWER_WIDTH * 0.3 || vx > 0.4) openDrawer();
+      else closeDrawer();
     },
   })).current;
 
@@ -219,11 +232,13 @@ export function Drawer() {
 
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    closeDrawer();
     if (isTablet) {
-      // On iPad: replace keeps the stack flat, no slide animation competing with drawer close
-      setTimeout(() => router.replace(route as any), 30);
+      // iPad: keep drawer open for life routes; close for others (unless sidebarAlwaysOpen)
+      if (isLifeRoute(route) || sidebarAlwaysOpen) openDrawer();
+      else closeDrawer();
+      router.replace(route as any);
     } else {
+      closeDrawer();
       setTimeout(() => router.push(route as any), 30);
     }
   };
@@ -310,10 +325,10 @@ export function Drawer() {
     </View>
   );
 
-  // Scrim opacity: subtle on iPad (drawer is a sidebar), fuller on iPhone
+  // iPhone scrim opacity only — on iPad the drawer is beside content, no overlay needed
   const overlayOpacity = overlayAnim.interpolate({
     inputRange:  [0, 1],
-    outputRange: [0, isTablet ? 0.4 : 0.6],
+    outputRange: [0, 0.6],
   });
 
   return (
@@ -321,13 +336,15 @@ export function Drawer() {
       {/* Invisible left-edge zone — captures right-swipe to open */}
       <View style={styles.edgeZone} {...edgePan.panHandlers} />
 
-      {/* Scrim — tap to close, transparent when drawer is closed */}
-      <Animated.View
-        style={[styles.overlay, { opacity: overlayOpacity }]}
-        pointerEvents={isOpen ? "auto" : "none"}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
-      </Animated.View>
+      {/* iPhone only: scrim dims the content behind the drawer */}
+      {!isTablet && (
+        <Animated.View
+          style={[styles.overlay, { opacity: overlayOpacity }]}
+          pointerEvents={isOpen ? "auto" : "none"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
+        </Animated.View>
+      )}
 
       {/* Drawer panel — always mounted, slides off-screen when closed */}
       <Animated.View

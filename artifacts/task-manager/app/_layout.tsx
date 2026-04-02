@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
+import { Animated } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@/utils/apiClient";
@@ -17,7 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Drawer } from "@/components/Drawer";
 import { LockScreen } from "@/components/LockScreen";
 import { StartupScan } from "@/components/StartupScan";
-import { DrawerProvider, isTablet } from "@/context/DrawerContext";
+import { DrawerProvider, isTablet, useDrawer } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
@@ -42,7 +43,17 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function TabletShell({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  const { isTablet, spacerAnim } = useDrawer();
+  if (!isTablet) return <>{children}</>;
+  return (
+    <Animated.View style={{ flex: 1, flexDirection: "row" }}>
+      {/* Spacer that grows/shrinks in perfect sync with the drawer sliding in/out */}
+      <Animated.View style={{ width: spacerAnim, backgroundColor: "#111111" }} />
+      <Animated.View style={{ flex: 1, backgroundColor: "#000000" }}>
+        {children}
+      </Animated.View>
+    </Animated.View>
+  );
 }
 
 function RootLayoutNav() {
