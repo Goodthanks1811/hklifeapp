@@ -242,13 +242,16 @@ export function Drawer() {
         // Life route: keep/open drawer alongside content. Route useEffect will ensure it's open.
         router.replace(route as any);
       } else {
-        // Non-life route: slide sidebar away smoothly — the collapse IS the transition.
+        // Non-life route: let the sidebar animation finish cleanly, then swap screen.
+        // Navigating immediately causes layout thrash while spacer animates every frame.
         closeDrawer();
-        router.replace(route as any);
+        setTimeout(() => router.replace(route as any), 210);
       }
     } else {
+      // Phone: drawer is an overlay (no layout changes), small delay gives native
+      // animation a head-start before React mounts the new screen.
       closeDrawer();
-      router.replace(route as any);
+      setTimeout(() => router.replace(route as any), 80);
     }
   };
 
