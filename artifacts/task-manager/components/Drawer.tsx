@@ -123,6 +123,7 @@ export function Drawer() {
   const {
     isOpen, drawerAnim, overlayAnim, spacerWidth,
     openDrawer, closeDrawer,
+    drawerMode, drawerModeRef, setDrawerMode,
     DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
 
@@ -137,23 +138,27 @@ export function Drawer() {
   const isOpenRef = useRef(isOpen);
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
-  // iPad: auto-open on life screens (default), close on others.
-  // sidebarAlwaysOpen (Settings toggle) makes ALL screens start open.
+  // iPad: set mode then auto-open/close based on screen type.
+  // Life screens → sidebar mode (pushes content right).
+  // All others   → overlay mode (floats over content, scrim dims behind).
   useEffect(() => {
     if (!isTablet) return;
-    if (onLifeScreen || sidebarAlwaysOpen) openDrawer();
-    else closeDrawer();
+    if (onLifeScreen || sidebarAlwaysOpen) {
+      setDrawerMode("sidebar");
+      openDrawer();
+    } else {
+      setDrawerMode("overlay");
+      closeDrawer();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
 
   // Track animated values in sync during gesture.
-  // On iPad: drawerAnim (native thread, translateX) + spacerWidth (UI thread via Reanimated, width).
-  // On iPhone: drawerAnim (native thread, translateX) + overlayAnim (native thread, opacity).
+  // Sidebar mode on iPad: sync spacerWidth (pushes content).
+  // Overlay mode on iPad + iPhone: sync overlayAnim (scrim opacity).
   const syncGesture = (newX: number) => {
     drawerAnim.setValue(newX);
-    if (isTablet) {
-      // Setting spacerWidth.value from JS thread — Reanimated picks it up on UI thread next frame.
-      // This is far smoother than core Animated non-native (no JS layout recalc).
+    if (isTablet && drawerModeRef.current === "sidebar") {
       spacerWidth.value = Math.max(0, SIDEBAR_WIDTH + newX);
     } else {
       overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
@@ -348,8 +353,8 @@ export function Drawer() {
       {/* Invisible left-edge zone — captures right-swipe to open */}
       <View style={styles.edgeZone} {...edgePan.panHandlers} />
 
-      {/* iPhone only: scrim dims the content behind the drawer */}
-      {!isTablet && (
+      {/* Scrim — iPhone always; iPad only in overlay mode (not sidebar) */}
+      {(!isTablet || drawerMode === "overlay") && (
         <Animated.View
           style={[styles.overlay, { opacity: overlayOpacity }]}
           pointerEvents={isOpen ? "auto" : "none"}
