@@ -78,12 +78,14 @@ function AccordionSection({
   accordion,
   navigate,
   permanentlyOpen,
+  pathname,
 }: {
   label:           string;
   items:           MenuItem[];
   accordion:       ReturnType<typeof useAccordion>;
   navigate:        (route: string) => void;
   permanentlyOpen?: boolean;
+  pathname:        string;
 }) {
   return (
     <View style={styles.section}>
@@ -107,6 +109,7 @@ function AccordionSection({
               item={item}
               onPress={item.route ? () => navigate(item.route!) : undefined}
               dimmed={!item.route}
+              isActive={!!item.route && pathname === item.route}
             />
           ))}
         </Animated.View>
@@ -300,6 +303,7 @@ export function Drawer() {
               accordion={accordions[key]}
               navigate={navigate}
               permanentlyOpen={false}
+              pathname={pathname}
             />
             <View style={styles.divider} />
           </React.Fragment>
@@ -368,30 +372,37 @@ function DrawerMenuItem({
   item,
   onPress,
   dimmed,
+  isActive,
 }: {
-  item:     MenuItem;
-  onPress?: () => void;
-  dimmed?:  boolean;
+  item:      MenuItem;
+  onPress?:  () => void;
+  dimmed?:   boolean;
+  isActive?: boolean;
 }) {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && onPress && styles.menuItemPressed,
+        isActive && styles.menuItemActive,
+        pressed && onPress && !isActive && styles.menuItemPressed,
         pressed && onPress && { transform: [{ translateY: 2 }] },
         dimmed && styles.menuItemDimmed,
       ]}
       onPress={onPress}
       disabled={!onPress}
     >
-      <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed]}>
+      <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed, isActive && styles.menuIconActive]}>
         <Feather name={item.icon as any} size={16} color={dimmed ? Colors.textMuted : Colors.primary} />
       </View>
       <View style={styles.menuText}>
-        <Text style={[styles.menuLabel, dimmed && styles.menuLabelDimmed]}>{item.label}</Text>
+        <Text style={[styles.menuLabel, dimmed && styles.menuLabelDimmed, isActive && styles.menuLabelActive]}>
+          {item.label}
+        </Text>
         <Text style={styles.menuDesc}>{item.description}</Text>
       </View>
-      {!dimmed && <Feather name="chevron-right" size={13} color={Colors.textMuted} />}
+      {!dimmed && (
+        <Feather name="chevron-right" size={13} color={isActive ? Colors.primary : Colors.textMuted} />
+      )}
     </Pressable>
   );
 }
@@ -462,6 +473,7 @@ const styles = StyleSheet.create({
   },
   menuItemPressed:  { backgroundColor: Colors.cardBg },
   menuItemDimmed:   { opacity: 0.45 },
+  menuItemActive:   { backgroundColor: "rgba(224,49,49,0.13)" },
   menuIcon: {
     width: 30, height: 30,
     backgroundColor: "rgba(224,49,49,0.1)",
@@ -469,9 +481,11 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   menuIconDimmed:  { backgroundColor: "rgba(255,255,255,0.05)" },
+  menuIconActive:  { backgroundColor: "rgba(224,49,49,0.22)" },
   menuText:        { flex: 1 },
   menuLabel:       { color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   menuLabelDimmed: { color: Colors.textMuted },
+  menuLabelActive: { color: Colors.primary },
   menuDesc:        { color: Colors.textMuted,   fontSize: 12, fontFamily: "Inter_400Regular" },
   settingsSection: { paddingHorizontal: 20, paddingTop: 8 },
   settingsRow: {
