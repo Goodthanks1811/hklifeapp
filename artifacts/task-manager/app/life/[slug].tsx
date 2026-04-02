@@ -11,6 +11,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -1176,53 +1177,6 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   );
 }
 
-// ── Skeleton loader ───────────────────────────────────────────────────────────
-const SKELETON_WIDTHS = ["68%", "52%", "80%", "58%", "74%", "44%", "63%", "71%"];
-
-function TaskSkeleton() {
-  const shimmer = useRef(new Animated.Value(0.35)).current;
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 0.75, duration: 750, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0.35, duration: 750, useNativeDriver: true }),
-      ])
-    );
-    anim.start();
-    return () => anim.stop();
-  }, []);
-
-  return (
-    <View style={{ marginHorizontal: 16, marginTop: 8 }}>
-      {SKELETON_WIDTHS.map((w, i) => (
-        <Animated.View
-          key={i}
-          style={{
-            opacity: shimmer,
-            height: ITEM_H,
-            marginBottom: ITEM_GAP,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            backgroundColor: Colors.cardBg,
-            borderWidth: 1,
-            borderColor: Colors.border,
-            borderRadius: 14,
-            paddingHorizontal: 14,
-          }}
-        >
-          {/* Emoji slot */}
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border }} />
-          {/* Title bar */}
-          <View style={{ height: 12, borderRadius: 6, backgroundColor: Colors.border, width: w as any }} />
-          {/* Checkbox */}
-          <View style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: Colors.border, marginLeft: "auto" as any }} />
-        </Animated.View>
-      ))}
-    </View>
-  );
-}
-
 // ── Task row ──────────────────────────────────────────────────────────────────
 function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic, epicOptions }: {
   task:          LifeTask;
@@ -1887,7 +1841,9 @@ export default function LifeTaskScreen() {
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       {loading ? (
-        <TaskSkeleton />
+        <View style={sc.center}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
       ) : error ? (
         <View style={sc.center}>
           <Text style={sc.errorText}>{error}</Text>
