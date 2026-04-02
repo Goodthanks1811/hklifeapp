@@ -262,7 +262,7 @@ const cg = StyleSheet.create({
   dowRow:   { flexDirection: "row", marginBottom: 4 },
   dow:      { width: DAY_W, textAlign: "center", color: MUT, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
   grid:     { flexDirection: "row", flexWrap: "wrap" },
-  cell:     { width: DAY_W, height: DAY_W, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  cell:     { width: DAY_W, height: Math.round(DAY_W * 0.78), borderRadius: 10, alignItems: "center", justifyContent: "center" },
   cellSel:  { backgroundColor: RED },
   cellTxt:      { color: SUB, fontSize: 15, fontFamily: "Inter_400Regular" },
   cellTxtSel:   { color: "#fff", fontFamily: "Inter_700Bold" },
@@ -574,7 +574,7 @@ const ed = StyleSheet.create({
   },
   typePillActive:     { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
   typePillIcon:       { fontSize: 15 },
-  typePillTxt:        { fontSize: 13, fontFamily: "Inter_600SemiBold", color: MUT },
+  typePillTxt:        { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT },
   typePillTxtActive:  { color: "#e07070" },
 
   // Time card — exact ui-kit card style
@@ -594,7 +594,7 @@ const ed = StyleSheet.create({
     borderRadius: 10, paddingVertical: 11, alignItems: "center",
   },
   durPillActive:    { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
-  durPillTxt:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: MUT },
+  durPillTxt:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT },
   durPillTxtActive: { color: "#e07070" },
 
   // Calendar pills
