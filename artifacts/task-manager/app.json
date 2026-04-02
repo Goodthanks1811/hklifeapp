@@ -15,7 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hklife.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "HK Life uses Face ID to lock the app."
       }
     },
     "android": {
