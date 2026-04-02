@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -45,17 +45,18 @@ function AppGate({ children }: { children: React.ReactNode }) {
 
 function TabletShell({ children }: { children: React.ReactNode }) {
   const { isTablet, spacerWidth } = useDrawer();
-  // Spacer width animates on the UI thread (Reanimated) — no JS bridge, no jank.
-  const spacerStyle = useAnimatedStyle(() => ({ width: spacerWidth.value }));
+  // translateX instead of spacer width — pure GPU transform, zero layout cost.
+  // This allows sidebar close + screen slide-in to run simultaneously with no jank.
+  const contentStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: spacerWidth.value }],
+  }));
 
   if (!isTablet) return <>{children}</>;
   return (
-    <View style={{ flex: 1, flexDirection: "row" }}>
-      {/* Spacer driven by Reanimated SharedValue — runs on UI thread in perfect sync */}
-      <ReAnimated.View style={[{ backgroundColor: "#111111" }, spacerStyle]} />
-      <View style={{ flex: 1, backgroundColor: "#000000" }}>
+    <View style={{ flex: 1, overflow: "hidden", backgroundColor: "#000000" }}>
+      <ReAnimated.View style={[StyleSheet.absoluteFill, contentStyle]}>
         {children}
-      </View>
+      </ReAnimated.View>
     </View>
   );
 }

@@ -242,10 +242,10 @@ export function Drawer() {
         // Life route: keep/open drawer alongside content. Route useEffect will ensure it's open.
         router.replace(route as any);
       } else {
-        // Non-life route: let the sidebar animation finish cleanly, then swap screen.
-        // Navigating immediately causes layout thrash while spacer animates every frame.
+        // Non-life route: navigate immediately — translateX approach means zero layout
+        // cost, so sidebar slide + screen slide-in run together without jank.
         closeDrawer();
-        setTimeout(() => router.replace(route as any), 310);
+        router.replace(route as any);
       }
     } else {
       // Phone: small head-start before React mounts the new screen.
