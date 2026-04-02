@@ -8,6 +8,7 @@ import {
   Animated,
   Easing,
   Image,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -117,22 +118,75 @@ function AccordionSection({
 // ── Drawer ────────────────────────────────────────────────────────────────────
 export function Drawer() {
   const {
-    isOpen, drawerAnim, overlayAnim, sidebarSlide,
-    closeDrawer, showTabletSidebar, hideTabletSidebar,
+    isOpen, drawerAnim, overlayAnim,
+    openDrawer, closeDrawer,
     DRAWER_WIDTH, isTablet,
   } = useDrawer();
 
   const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
 
-  const pathname    = usePathname();
+  const pathname     = usePathname();
   const onLifeScreen = pathname.startsWith("/life/");
 
-  // Sync sidebar visibility with current route on iPad
+  // Keep a ref so gesture handlers can read isOpen without stale closure
+  const isOpenRef = useRef(isOpen);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+
+  // On iPad: auto-open on life screens, auto-close on others (unless sidebarAlwaysOpen)
   useEffect(() => {
     if (!isTablet) return;
-    if (sidebarAlwaysOpen || onLifeScreen) showTabletSidebar();
-    else hideTabletSidebar();
-  }, [isTablet, onLifeScreen, sidebarAlwaysOpen, showTabletSidebar, hideTabletSidebar]);
+    if (sidebarAlwaysOpen || onLifeScreen) openDrawer();
+    else closeDrawer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
+
+  // ── Drawer panel: swipe left to close ─────────────────────────────────────
+  const drawerPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+      isOpenRef.current && dx < -6 && Math.abs(dx) > Math.abs(dy) * 1.5,
+    onPanResponderGrant: () => {
+      drawerAnim.stopAnimation();
+      overlayAnim.stopAnimation();
+    },
+    onPanResponderMove: (_, { dx }) => {
+      const newX = Math.max(-DRAWER_WIDTH, Math.min(0, dx));
+      drawerAnim.setValue(newX);
+      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
+    },
+    onPanResponderRelease: (_, { dx, vx }) => {
+      if (dx < -(DRAWER_WIDTH * 0.3) || vx < -0.4) {
+        closeDrawer();
+      } else {
+        Animated.spring(drawerAnim, { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 220, overshootClamping: true }).start();
+        Animated.timing(overlayAnim, { toValue: 1, duration: 120, useNativeDriver: true }).start();
+      }
+    },
+  })).current;
+
+  // ── Left-edge zone: swipe right to open ───────────────────────────────────
+  const edgePan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+      !isOpenRef.current && dx > 6 && Math.abs(dx) > Math.abs(dy) * 1.5,
+    onPanResponderGrant: () => {
+      drawerAnim.stopAnimation();
+      overlayAnim.stopAnimation();
+    },
+    onPanResponderMove: (_, { dx }) => {
+      const newX = Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx));
+      drawerAnim.setValue(newX);
+      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
+    },
+    onPanResponderRelease: (_, { dx, vx }) => {
+      if (dx > DRAWER_WIDTH * 0.3 || vx > 0.4) {
+        openDrawer();
+      } else {
+        Animated.spring(drawerAnim, { toValue: -DRAWER_WIDTH, useNativeDriver: true, damping: 22, stiffness: 220, overshootClamping: true }).start();
+        Animated.timing(overlayAnim, { toValue: 0, duration: 120, useNativeDriver: true }).start();
+      }
+    },
+  })).current;
 
   const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
 
@@ -172,19 +226,16 @@ export function Drawer() {
     reports, life, apps, footy, tools, knowledge, uikit: uiKit,
   };
 
-  if (!isTablet && !isOpen) return null;
-
   const navigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isTablet) {
-      // On iPad: life screens keep the sidebar docked; all others go full-screen.
-      // sidebarAlwaysOpen overrides this to keep the sidebar on every screen.
+      // On iPad: life screens keep the drawer open; others close it for full-screen.
+      // sidebarAlwaysOpen overrides this to keep the drawer open on every screen.
       if (sidebarAlwaysOpen || route.startsWith("/life/")) {
-        showTabletSidebar();
+        openDrawer();
       } else {
-        hideTabletSidebar();
+        closeDrawer();
       }
-      // replace() keeps navigation stack flat (no push animation competing with drawer slide)
       router.replace(route as any);
     } else {
       closeDrawer();
@@ -274,25 +325,29 @@ export function Drawer() {
     </View>
   );
 
-  if (isTablet) {
-    return (
-      <Animated.View style={[styles.sidebarContainer, { transform: [{ translateX: sidebarSlide }] }]}>
-        {drawerContent}
-      </Animated.View>
-    );
-  }
+  // Scrim opacity: subtle on iPad (drawer is a sidebar), fuller on iPhone
+  const overlayOpacity = overlayAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [0, isTablet ? 0.4 : 0.6],
+  });
 
   return (
     <>
-      <Animated.View style={[styles.overlay, { opacity: overlayAnim }]} pointerEvents="auto">
+      {/* Invisible left-edge zone — captures right-swipe to open */}
+      <View style={styles.edgeZone} {...edgePan.panHandlers} />
+
+      {/* Scrim — tap to close, transparent when drawer is closed */}
+      <Animated.View
+        style={[styles.overlay, { opacity: overlayOpacity }]}
+        pointerEvents={isOpen ? "auto" : "none"}
+      >
         <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
       </Animated.View>
 
+      {/* Drawer panel — always mounted, slides off-screen when closed */}
       <Animated.View
-        style={[
-          styles.drawer,
-          { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] },
-        ]}
+        style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] }]}
+        {...drawerPan.panHandlers}
       >
         {drawerContent}
       </Animated.View>
@@ -335,18 +390,16 @@ function DrawerMenuItem({
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    zIndex: 100,
-  },
-  sidebarContainer: {
+  edgeZone: {
     position: "absolute",
     top: 0, left: 0, bottom: 0,
-    zIndex: 101,
-    borderRightWidth: 1,
-    borderRightColor: Colors.border,
-    backgroundColor: "#111111",
+    width: 20,
+    zIndex: 99,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000000",
+    zIndex: 100,
   },
   drawer: {
     position: "absolute",

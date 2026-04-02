@@ -9,7 +9,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@/utils/apiClient";
@@ -18,7 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Drawer } from "@/components/Drawer";
 import { LockScreen } from "@/components/LockScreen";
 import { StartupScan } from "@/components/StartupScan";
-import { DrawerProvider, isTablet, useDrawer } from "@/context/DrawerContext";
+import { DrawerProvider, isTablet } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
@@ -43,20 +42,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function TabletShell({ children }: { children: React.ReactNode }) {
-  const { isTablet, SIDEBAR_WIDTH, tabletSidebarVisible } = useDrawer();
-
-  if (!isTablet) return <>{children}</>;
-
-  return (
-    <View style={{ flex: 1, flexDirection: "row" }}>
-      {tabletSidebarVisible && (
-        <View style={{ width: SIDEBAR_WIDTH, backgroundColor: "#111111" }} />
-      )}
-      <View style={{ flex: 1, backgroundColor: "#000000" }}>
-        {children}
-      </View>
-    </View>
-  );
+  return <>{children}</>;
 }
 
 function RootLayoutNav() {
@@ -64,7 +50,7 @@ function RootLayoutNav() {
     <BiometricProvider>
       <AppGate>
         <TabletShell>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "none" : "default" }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" }, gestureEnabled: false, animation: isTablet ? "fade" : "default" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="ui-kit" />
             <Stack.Screen name="settings" />
