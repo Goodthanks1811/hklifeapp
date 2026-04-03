@@ -382,7 +382,7 @@ function drawBar() {
     i === 0 ? ctx.moveTo(x, yOf(v)) : ctx.lineTo(x, yOf(v));
   });
   ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
-  ctx.stroke();
+  ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
 
   whoopAge.forEach((v, i) => {
     const x = xOf(i);
