@@ -2161,7 +2161,7 @@ const s = StyleSheet.create({
     borderRadius: 10, color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular",
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  dsFieldLabel: { color: "#ffffff", fontSize: 12, fontFamily: "Inter_500Medium", letterSpacing: 0.2, paddingBottom: 6, paddingLeft: 14, alignSelf: "stretch", textAlign: "left" },
+  dsFieldLabel: { color: "#ffffff", fontSize: 22, fontFamily: "Inter_700Bold", paddingBottom: 10, alignSelf: "stretch", textAlign: "left" },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   dsCancelTx: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
