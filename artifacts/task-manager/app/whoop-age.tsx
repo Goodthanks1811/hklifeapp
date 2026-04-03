@@ -202,6 +202,7 @@ const whoopAge = [
 const realAge = whoopAge.map((_, i) => +(41.3 + i * 0.019).toFixed(2));
 const CROSSOVER_IDX = 33;
 const PERIOD_TEXT = 'MAR 23, 2024 — MAR 29, 2025  ·  55 WEEKS';
+let selectedBarIdx = null;
 
 window.addEventListener('resize', () => requestAnimationFrame(redrawActive));
 
@@ -396,12 +397,24 @@ function drawBar() {
     }
     ctx.fillStyle = bg;
     ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
-    if (i % 3 === 0) {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = "500 7px 'DM Mono', monospace"; ctx.textAlign = 'center';
-      ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
-    }
   });
+
+  if (selectedBarIdx !== null) {
+    const si = selectedBarIdx;
+    const sv = whoopAge[si];
+    const sx = xOf(si) + barW / 2;
+    const sy = yOf(sv) - 6;
+    const label = sv.toFixed(1);
+    ctx.font = "700 11px 'DM Mono', monospace"; ctx.textAlign = 'center';
+    const tw = ctx.measureText(label).width;
+    const pw = tw + 14, ph = 18;
+    const px = Math.min(Math.max(sx - pw / 2, PAD.left), PAD.left + cW - pw);
+    const py = sy - ph - 2;
+    ctx.fillStyle = 'rgba(30,30,30,0.92)';
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 5); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, px + pw / 2, py + ph - 5);
+  }
 
   labels.forEach((l, i) => {
     if (i % 4 !== 0) return;
@@ -424,6 +437,29 @@ function drawBar() {
   ctx.font = "600 10px 'DM Mono', monospace";
   const nowPW = ctx.measureText('NOW 48.0').width + 14;
   drawTagPill(ctx, 'NOW 48.0', Math.min(PAD.left + cW - nowPW, endBarCx - nowPW + 4), PAD.top - 22, 'rgb(255,68,68)');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const barCanvas = document.getElementById('barChart');
+  barCanvas.addEventListener('touchstart', handleBarTouch, { passive: true });
+  barCanvas.addEventListener('click', handleBarTouch);
+});
+
+function handleBarTouch(e) {
+  const barCanvas = document.getElementById('barChart');
+  const rect = barCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const canvasX = (clientX - rect.left) * (barCanvas.width / rect.width);
+  const PAD_LEFT = 44, PAD_RIGHT = 16;
+  const cW = barCanvas.width - PAD_LEFT - PAD_RIGHT;
+  const n = whoopAge.length;
+  const slotW = cW / n;
+  const idx = Math.floor((canvasX - PAD_LEFT) / slotW);
+  if (idx >= 0 && idx < n) {
+    selectedBarIdx = selectedBarIdx === idx ? null : idx;
+    drawBar();
+  }
 }
 
 document.fonts.ready.then(() => {
