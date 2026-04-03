@@ -713,14 +713,14 @@ export default function CalendarScreen() {
   }).current;
 
   const renderSectionHeader = useCallback(({ section }: { section: DaySection }) => (
-    <>
+    <View style={{ backgroundColor: BG }}>
       {section.weekStart && <View style={s.weekDivider} />}
       <View style={[s.dayHdr, section.isToday && s.dayHdrToday]}>
         <Text style={s.dlDay}>{section.dayLabel}</Text>
         <Text style={s.dlSep}>·</Text>
         <Text style={s.dlDate}>{section.ordStr}</Text>
       </View>
-    </>
+    </View>
   ), []);
 
   const renderItem = useCallback(({ item, index }: { item: CalEvent; index: number }) => (
@@ -849,7 +849,7 @@ const s = StyleSheet.create({
   dlSep:      { fontSize: 14, color: `${RED}44` },
   dlDate:     { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dayFooter:  { height: 10, backgroundColor: BG },
-  weekDivider:{ height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginTop: 6 },
+  weekDivider:{ height: 1, backgroundColor: "rgba(255,255,255,0.18)", marginHorizontal: 22, marginTop: 4, marginBottom: 2 },
   evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG, gap: 12 },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
   tStart:     { width: 58, flexShrink: 0, fontSize: 12, fontFamily: "Inter_500Medium", color: SUB },
