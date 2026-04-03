@@ -1213,19 +1213,20 @@ function ListLoader() {
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onSwipeOpen, showEpic, epicOptions }: {
-  task:          LifeTask;
-  isDragging:    boolean;
-  dimValue:      Animated.Value;
-  onEmojiPress:  (pageX: number, pageY: number, w: number, h: number) => void;
-  onPress:       () => void;
-  onLongPress:   () => void;
-  onChecked:     () => void;
-  onDelete:      () => void;
-  onSwipeOpen?:  (close: () => void) => void;
-  showEpic?:     boolean;
-  epicOptions?:  string[] | null;
-  onEpicPress?:  (pageX: number, pageY: number, w: number, h: number) => void;
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onStartDelete, onSwipeOpen, showEpic, epicOptions }: {
+  task:            LifeTask;
+  isDragging:      boolean;
+  dimValue:        Animated.Value;
+  onEmojiPress:    (pageX: number, pageY: number, w: number, h: number) => void;
+  onPress:         () => void;
+  onLongPress:     () => void;
+  onChecked:       () => void;
+  onDelete:        () => void;
+  onStartDelete?:  (collapseDuration: number) => void;
+  onSwipeOpen?:    (close: () => void) => void;
+  showEpic?:       boolean;
+  epicOptions?:    string[] | null;
+  onEpicPress?:    (pageX: number, pageY: number, w: number, h: number) => void;
 }) {
   const swipeableRef  = useRef<Swipeable>(null);
   const emojiBtnRef   = useRef<View>(null);
@@ -1251,18 +1252,22 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
     deletingRef.current = true;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     swipeableRef.current?.close();
+    // Notify parent immediately so it can slide sibling rows simultaneously
+    onStartDelete?.(260);
     Animated.parallel([
       Animated.timing(opacityAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
       Animated.timing(rowHeight,   { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
     ]).start(() => onDelete());
-  }, [onDelete, rowHeight]);
+  }, [onDelete, onStartDelete, rowHeight]);
 
   const handleCheck = () => {
     if (checked) return;
     setChecked(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.spring(checkScale, { toValue: 1, useNativeDriver: false, tension: 240, friction: 8 }).start();
+    // Notify parent after the tick pause so siblings slide in sync with the collapse
     setTimeout(() => {
+      onStartDelete?.(340);
       Animated.parallel([
         Animated.timing(opacityAnim, { toValue: 0, duration: 380, useNativeDriver: false }),
         Animated.timing(rowHeight,   { toValue: 0, duration: 340, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
@@ -1747,7 +1752,7 @@ export default function LifeTaskScreen() {
     if (!apiKey) return;
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
-      // Row already invisible — snap instantly
+      // Snap to exact positions (animation already ran via handleStartDelete)
       next.forEach((t, i) => {
         posAnims.current[t.id]?.stopAnimation();
         posAnims.current[t.id]?.setValue(i * SLOT_H);
@@ -1761,10 +1766,30 @@ export default function LifeTaskScreen() {
     }).catch(() => {});
   }, [apiKey]);
 
+  // Called the moment the row starts its delete/checkoff animation —
+  // slides rows below up in sync so there's no jump when state is updated.
+  const handleStartDelete = useCallback((id: string, collapseDuration: number) => {
+    const cur = tasksRef.current;
+    const deletedIdx = cur.findIndex(t => t.id === id);
+    if (deletedIdx === -1) return;
+    cur.forEach((t, i) => {
+      if (i <= deletedIdx) return;
+      const anim = posAnims.current[t.id];
+      if (!anim) return;
+      anim.stopAnimation();
+      Animated.timing(anim, {
+        toValue: (i - 1) * SLOT_H,
+        duration: collapseDuration,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.quad),
+      }).start();
+    });
+  }, []);
+
   const handleDelete = useCallback((id: string) => {
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
-      // Row is already invisible — snap positions instantly so nothing visibly moves
+      // Snap to exact final positions (animation already ran via handleStartDelete)
       next.forEach((t, i) => {
         posAnims.current[t.id]?.stopAnimation();
         posAnims.current[t.id]?.setValue(i * SLOT_H);
@@ -1934,6 +1959,7 @@ export default function LifeTaskScreen() {
                       onLongPress={() => startDrag(idx)}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
+                      onStartDelete={(d) => handleStartDelete(task.id, d)}
                       onSwipeOpen={handleSwipeOpen}
                       showEpic={config?.showEpic}
                       epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
