@@ -138,6 +138,12 @@ export function Drawer() {
   const isOpenRef = useRef(isOpen);
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
+  // Scroll drawer back to top each time it opens
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (isOpen) scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [isOpen]);
+
   // iPad: set mode then auto-open/close based on screen type.
   // Life screens → sidebar mode (pushes content right).
   // All others   → overlay mode (floats over content, scrim dims behind).
@@ -298,6 +304,7 @@ export function Drawer() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollArea}
         contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
         showsVerticalScrollIndicator={false}
