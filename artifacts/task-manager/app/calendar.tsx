@@ -904,6 +904,7 @@ function EventActionsModal({
   event: CalEvent; onReschedule: () => void; onDelete: () => void; onCancel: () => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -918,7 +919,7 @@ function EventActionsModal({
     <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
       <View style={am.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <View style={am.sheet}>
+        <View style={[am.sheet, { paddingBottom: Math.max(32, insets.bottom + 16) }]}>
           <View style={am.handle} />
           <View style={am.infoRow}>
             <View style={[am.dot, { backgroundColor: event.dotColor }]} />

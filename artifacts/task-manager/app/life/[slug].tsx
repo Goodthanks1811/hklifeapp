@@ -179,7 +179,11 @@ function RichBodyView({ markdown }: { markdown: string }) {
 }
 
 // ── Formatting toolbar ────────────────────────────────────────────────────────
-function FormattingToolbar({ onFormat }: { onFormat: (id: string) => void }) {
+function FormattingToolbar({ onFormat, link, onLinkChange }: {
+  onFormat: (id: string) => void;
+  link?: string;
+  onLinkChange?: (v: string) => void;
+}) {
   const btns: Array<{ id: string; label: string; isBold?: boolean; isUnder?: boolean }> = [
     { id: "h1",        label: "H1", isBold: true },
     { id: "h2",        label: "H2", isBold: true },
@@ -188,23 +192,43 @@ function FormattingToolbar({ onFormat }: { onFormat: (id: string) => void }) {
     { id: "underline", label: "U",  isUnder: true },
     { id: "bullet",    label: "•" },
   ];
+  const borderStyle = { borderTopWidth: 1, borderTopColor: Colors.border, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: "rgba(255,255,255,0.02)" };
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-      style={{ borderTopWidth: 1, borderTopColor: Colors.border, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: "rgba(255,255,255,0.02)" }}>
-      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 10, paddingVertical: 7 }}>
-        {btns.map(btn => (
-          <Pressable
-            key={btn.id}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onFormat(btn.id); }}
-            style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.07)", minWidth: 36, alignItems: "center" }}
-          >
-            <Text style={{ color: Colors.textPrimary, fontSize: 13, fontFamily: btn.isBold ? "Inter_700Bold" : "Inter_500Medium", textDecorationLine: btn.isUnder ? "underline" : "none" }}>
-              {btn.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+    <View style={[{ flexDirection: "row", alignItems: "center" }, borderStyle]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
+        <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 10, paddingVertical: 7 }}>
+          {btns.map(btn => (
+            <Pressable
+              key={btn.id}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onFormat(btn.id); }}
+              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.07)", minWidth: 36, alignItems: "center" }}
+            >
+              <Text style={{ color: Colors.textPrimary, fontSize: 13, fontFamily: btn.isBold ? "Inter_700Bold" : "Inter_500Medium", textDecorationLine: btn.isUnder ? "underline" : "none" }}>
+                {btn.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+      {onLinkChange !== undefined && (
+        <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 10, paddingLeft: 6, gap: 5, borderLeftWidth: 1, borderLeftColor: Colors.border }}>
+          <Text style={{ color: Colors.textSecondary, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 }}>LINK</Text>
+          <TextInput
+            value={link ?? ""}
+            onChangeText={onLinkChange}
+            placeholder="URL…"
+            placeholderTextColor={Colors.textMuted}
+            selectionColor={Colors.primary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            returnKeyType="done"
+            keyboardAppearance="dark"
+            style={{ width: 100, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 6, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -652,7 +676,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         </View>
       )}
 
-      {/* Category row */}
+      {/* Category row + inline URL chip */}
       {allCategories.length > 0 && (
         <View style={[s.dsMetaRow, { marginTop: 8 }]}>
           {allCategories.map(cat => {
@@ -667,22 +691,19 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
               </Pressable>
             );
           })}
+          {task?.url && (
+            <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={s.dsUrlChip}>
+              <Text style={s.dsUrlChipTxt}>🔗 Link</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
-      {/* File / reference links */}
-      {(task?.url || (task?.fileLinks && task.fileLinks.length > 0)) && (
-        <View style={{ paddingHorizontal: 20, paddingTop: 10, gap: 7 }}>
-          {task?.url && (
-            <Pressable onPress={() => task.url && Linking.openURL(task.url)}
-              style={s.dsLinkRow}>
-              <Text style={s.dsLinkEmoji}>🔗</Text>
-              <Text style={s.dsLinkLabel} numberOfLines={1}>{task.url}</Text>
-            </Pressable>
-          )}
-          {task?.fileLinks?.map((fl, i) => (
-            <Pressable key={i} onPress={() => Linking.openURL(fl.url)}
-              style={s.dsLinkRow}>
+      {/* File links (non-URL properties) */}
+      {task?.fileLinks && task.fileLinks.length > 0 && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 6 }}>
+          {task.fileLinks.map((fl, i) => (
+            <Pressable key={i} onPress={() => Linking.openURL(fl.url)} style={s.dsLinkRow}>
               <Text style={s.dsLinkEmoji}>🔗</Text>
               <Text style={s.dsLinkLabel} numberOfLines={1}>{fl.name}</Text>
             </Pressable>
@@ -1119,25 +1140,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       ) : null}
 
       <View style={s.dsDivider} />
-      <FormattingToolbar onFormat={handleFormatQA} />
-
-      {/* Link / URL field */}
-      <View style={s.dsLinkField}>
-        <Text style={s.dsLinkFieldLabel}>LINK</Text>
-        <TextInput
-          style={s.dsLinkFieldInput}
-          value={linkUrl}
-          onChangeText={setLinkUrl}
-          placeholder="Paste a URL…"
-          placeholderTextColor={Colors.textMuted}
-          selectionColor={Colors.primary}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          returnKeyType="done"
-          keyboardAppearance="dark"
-        />
-      </View>
+      <FormattingToolbar onFormat={handleFormatQA} link={linkUrl} onLinkChange={setLinkUrl} />
 
       {/* Notes body */}
       <TextInput
@@ -2121,9 +2124,11 @@ const s = StyleSheet.create({
   dsBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginBottom: 4 },
   dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
   dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline" },
-  dsLinkRow:   { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
-  dsLinkEmoji: { fontSize: 15, lineHeight: 20 },
-  dsLinkLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.primary, textDecorationLine: "underline", lineHeight: 18 },
+  dsLinkRow:    { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
+  dsLinkEmoji:  { fontSize: 15, lineHeight: 20 },
+  dsLinkLabel:  { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.primary, textDecorationLine: "underline", lineHeight: 18 },
+  dsUrlChip:    { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: "rgba(90,165,255,0.12)", borderWidth: 1, borderColor: "rgba(90,165,255,0.3)" },
+  dsUrlChipTxt: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#5aa5ff" },
   dsLinkField: { paddingHorizontal: 16, paddingTop: 6, gap: 5 },
   dsLinkFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, paddingHorizontal: 4 },
   dsLinkFieldInput: {
