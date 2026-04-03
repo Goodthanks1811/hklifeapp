@@ -396,7 +396,7 @@ const tm = StyleSheet.create({
   cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
   input: {
     backgroundColor: CARD2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.22)",
-    borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
+    borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_600SemiBold",
     paddingHorizontal: 16, paddingVertical: 14,
   },
   btnRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 4 },
