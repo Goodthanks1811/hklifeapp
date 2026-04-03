@@ -62,7 +62,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Photo Slider", icon: "image", route: "/photo-slider", description: "Compare & export photos" },
   ],
   knowledge: [
-    { label: "Coming soon", icon: "clock", route: null, description: "In development" },
+    { label: "Russian Flashcards", icon: "flag", route: "/russian-flashcards", description: "Learn the Russian alphabet" },
   ],
   uikit: [
     { label: "Buttons",        icon: "square",  route: "/ui-kit/buttons",       description: "Styles & states"    },

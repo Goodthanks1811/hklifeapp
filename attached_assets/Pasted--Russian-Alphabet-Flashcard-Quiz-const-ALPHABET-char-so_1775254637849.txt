@@ -1,0 +1,438 @@
+// Russian Alphabet Flashcard Quiz
+
+const ALPHABET = [
+  { char: "А", sound: "a" }, { char: "Б", sound: "b" },
+  { char: "В", sound: "v" }, { char: "Г", sound: "g" },
+  { char: "Д", sound: "d" }, { char: "Е", sound: "ye" },
+  { char: "Ё", sound: "yo" }, { char: "Ж", sound: "zh" },
+  { char: "З", sound: "z" }, { char: "И", sound: "i" },
+  { char: "Й", sound: "y" }, { char: "К", sound: "k" },
+  { char: "Л", sound: "l" }, { char: "М", sound: "m" },
+  { char: "Н", sound: "n" }, { char: "О", sound: "o" },
+  { char: "П", sound: "p" }, { char: "Р", sound: "r" },
+  { char: "С", sound: "s" }, { char: "Т", sound: "t" },
+  { char: "У", sound: "u" }, { char: "Ф", sound: "f" },
+  { char: "Х", sound: "kh" }, { char: "Ц", sound: "ts" },
+  { char: "Ч", sound: "ch" }, { char: "Ш", sound: "sh" },
+  { char: "Щ", sound: "shch" }, { char: "Ъ", sound: "hard sign" },
+  { char: "Ы", sound: "y" }, { char: "Ь", sound: "soft sign" },
+  { char: "Э", sound: "e" }, { char: "Ю", sound: "yu" },
+  { char: "Я", sound: "ya" }
+];
+
+// --- Ask how many cards ---
+const alert = new Alert();
+alert.title = "Russian Flashcards";
+alert.message = "How many cards in this session?";
+alert.addTextField("e.g. 10", "10");
+alert.addAction("Start");
+alert.addCancelAction("Cancel");
+const alertResult = await alert.present();
+if (alertResult === -1) return; // cancelled
+
+const rawInput = alert.textFieldValue(0);
+const SESSION_SIZE = Math.min(ALPHABET.length, Math.max(1, parseInt(rawInput) || 10));
+
+const fullAlphabetData = JSON.stringify(ALPHABET);
+const sessionSize = SESSION_SIZE;
+
+const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #1a1a2e;
+    color: #fff;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .progress-bar-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.12);
+    z-index: 100;
+  }
+  .progress-bar-fill {
+    height: 6px;
+    background: #2cb67d;
+    border-radius: 0 3px 3px 0;
+    transition: width 0.4s ease;
+  }
+
+  .content {
+    width: 100%;
+    max-width: min(480px, 90vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card {
+    width: 100%;
+    background: linear-gradient(135deg, #16213e, #0f3460);
+    border-radius: clamp(16px, 3vw, 28px);
+    padding: clamp(32px, 6vw, 64px) clamp(24px, 5vw, 48px);
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    margin-bottom: clamp(20px, 4vw, 40px);
+  }
+  .card-label {
+    font-size: clamp(11px, 1.5vw, 14px);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 16px;
+  }
+  .card-char {
+    font-size: clamp(96px, 18vw, 160px);
+    line-height: 1;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .card-counter {
+    font-size: clamp(13px, 1.8vw, 16px);
+    color: rgba(255,255,255,0.35);
+  }
+
+  .input-row {
+    width: 100%;
+    margin-bottom: clamp(12px, 2vw, 20px);
+  }
+  input[type=text] {
+    width: 100%;
+    padding: clamp(14px, 2.5vw, 20px) clamp(16px, 3vw, 24px);
+    font-size: clamp(16px, 2.5vw, 22px);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: clamp(12px, 2vw, 16px);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  input[type=text]:focus { border-color: #1a73e8; }
+  input[type=text]::placeholder { color: rgba(255,255,255,0.3); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .btn {
+    display: block;
+    padding: clamp(15px, 2.5vw, 20px) 24px;
+    font-size: clamp(15px, 2.2vw, 19px);
+    font-weight: 600;
+    border: none;
+    border-radius: clamp(12px, 2vw, 16px);
+    background: #1a73e8;
+    color: #fff;
+    width: 100%;
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    transition: opacity 0.15s;
+  }
+  .btn:active { opacity: 0.75; }
+
+  .btn-hint {
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+    width: auto;
+    padding-left: clamp(16px, 3vw, 28px);
+    padding-right: clamp(16px, 3vw, 28px);
+    white-space: nowrap;
+  }
+  .btn-hint.revealed {
+    background: rgba(255, 200, 50, 0.15);
+    border-color: rgba(255, 200, 50, 0.4);
+    color: #ffc832;
+  }
+
+  .feedback {
+    font-size: clamp(13px, 2vw, 16px);
+    font-weight: 600;
+    text-align: center;
+    height: 28px;
+    margin-top: clamp(8px, 1.5vw, 14px);
+  }
+  .feedback.correct { color: #2cb67d; }
+  .feedback.incorrect { color: #ff6b6b; }
+  .feedback.hint { color: #ffc832; }
+
+  .score-screen {
+    text-align: center;
+    width: 100%;
+  }
+  .score-emoji {
+    font-size: clamp(52px, 10vw, 80px);
+    margin-bottom: 16px;
+  }
+  .score-title {
+    font-size: clamp(22px, 4vw, 30px);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .score-sub {
+    font-size: clamp(14px, 2.2vw, 18px);
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 32px;
+  }
+  .score-big {
+    font-size: clamp(64px, 14vw, 100px);
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .score-big.good { color: #2cb67d; }
+  .score-big.bad  { color: #ff6b6b; }
+  .score-label {
+    font-size: clamp(13px, 2vw, 16px);
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 32px;
+  }
+
+  .mistakes-list {
+    text-align: left;
+    background: rgba(255,255,255,0.06);
+    border-radius: clamp(12px, 2vw, 18px);
+    padding: clamp(14px, 2.5vw, 20px) clamp(16px, 3vw, 24px);
+    margin-bottom: 32px;
+    width: 100%;
+  }
+  .mistakes-list h3 {
+    font-size: clamp(11px, 1.5vw, 13px);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 12px;
+  }
+  .mistake-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: clamp(6px, 1.2vw, 10px) 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    font-size: clamp(13px, 2vw, 16px);
+    gap: 8px;
+  }
+  .mistake-row:last-child { border-bottom: none; }
+  .m-char { font-size: clamp(18px, 3.5vw, 26px); font-weight: bold; min-width: 32px; }
+  .m-right { color: #2cb67d; }
+  .m-wrong { color: #ff6b6b; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar-bg">
+  <div class="progress-bar-fill" id="progress" style="width:0%"></div>
+</div>
+
+<div class="content" id="quiz-view">
+  <div class="card">
+    <div class="card-label">What sound does this make?</div>
+    <div class="card-char" id="char"></div>
+    <div class="card-counter" id="counter"></div>
+  </div>
+  <div class="input-row">
+    <input type="text" id="answer" placeholder="Type the sound…"
+      autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+  </div>
+  <div class="btn-row">
+    <div class="btn" id="submit-btn" onclick="checkAnswer()">Check</div>
+    <div class="btn btn-hint" id="hint-btn" onclick="showHint()">Hint</div>
+  </div>
+  <div class="feedback" id="feedback"></div>
+</div>
+
+<div class="content" id="score-view" style="display:none">
+  <div class="score-screen">
+    <div class="score-emoji">🏆</div>
+    <div class="score-title">Session Complete!</div>
+    <div class="score-sub" id="score-sub"></div>
+    <div class="score-big" id="score-big"></div>
+    <div class="score-label" id="score-label"></div>
+    <div class="mistakes-list" id="mistakes-list" style="display:none">
+      <h3>Review These</h3>
+      <div id="mistakes-rows"></div>
+    </div>
+    <div class="btn" onclick="restart()">Play Again</div>
+  </div>
+</div>
+
+<script>
+const FULL_ALPHABET = ${fullAlphabetData};
+const SESSION_SIZE  = ${sessionSize};
+
+let SESSION   = [];
+let index     = 0;
+let score     = 0;
+let mistakes  = [];
+let answered  = false;
+let hintUsed  = false;
+
+function $(id) { return document.getElementById(id); }
+
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function initSession() {
+  SESSION  = shuffleArr(FULL_ALPHABET).slice(0, SESSION_SIZE);
+  index    = 0;
+  score    = 0;
+  mistakes = [];
+  answered = false;
+  hintUsed = false;
+}
+
+function focusInput() {
+  setTimeout(function() { $('answer').focus(); }, 150);
+}
+
+function showCard() {
+  const card = SESSION[index];
+  $('char').textContent       = card.char;
+  $('counter').textContent    = (index + 1) + ' / ' + SESSION_SIZE;
+  $('progress').style.width   = (index / SESSION_SIZE * 100) + '%';
+  $('answer').value           = '';
+  $('feedback').textContent   = '';
+  $('feedback').className     = 'feedback';
+  $('submit-btn').textContent = 'Check';
+  const hintBtn = $('hint-btn');
+  hintBtn.textContent         = 'Hint';
+  hintBtn.className           = 'btn btn-hint';
+  hintBtn.style.pointerEvents = '';
+  answered = false;
+  hintUsed = false;
+  focusInput();
+}
+
+function showHint() {
+  if (answered) return;
+  const card = SESSION[index];
+  hintUsed = true;
+  $('feedback').textContent = '💡 "' + card.sound + '"';
+  $('feedback').className   = 'feedback hint';
+  const hintBtn = $('hint-btn');
+  hintBtn.textContent         = '✓ Shown';
+  hintBtn.className           = 'btn btn-hint revealed';
+  hintBtn.style.pointerEvents = 'none';
+}
+
+function normalise(s) {
+  return s.trim().toLowerCase().replace(/[^a-z ]/g, '');
+}
+
+function checkAnswer() {
+  if (answered) {
+    index++;
+    if (index >= SESSION_SIZE) {
+      showScore();
+    } else {
+      showCard();
+    }
+    return;
+  }
+
+  const userRaw = $('answer').value;
+  const user    = normalise(userRaw);
+  if (!user) return;
+
+  const card    = SESSION[index];
+  const correct = normalise(card.sound);
+  answered = true;
+  $('submit-btn').textContent = 'Next →';
+  // disable hint once answered
+  $('hint-btn').style.pointerEvents = 'none';
+
+  if (user === correct) {
+    // Only count as correct if hint wasn't used
+    if (!hintUsed) {
+      score++;
+      $('feedback').textContent = '✓ Correct! "' + card.sound + '"';
+      $('feedback').className   = 'feedback correct';
+    } else {
+      $('feedback').textContent = '✓ Correct — but hint was used';
+      $('feedback').className   = 'feedback hint';
+      mistakes.push({ char: card.char, correct: card.sound, given: '(hint used)' });
+    }
+  } else {
+    $('feedback').textContent = '✗ It\\'s "' + card.sound + '"';
+    $('feedback').className   = 'feedback incorrect';
+    mistakes.push({ char: card.char, correct: card.sound, given: userRaw.trim() });
+  }
+}
+
+function showScore() {
+  $('quiz-view').style.display  = 'none';
+  $('score-view').style.display = 'flex';
+  $('progress').style.width     = '100%';
+
+  const pct = score / SESSION_SIZE;
+  $('score-big').textContent = score;
+  $('score-big').className   = 'score-big ' + (pct >= 0.8 ? 'good' : 'bad');
+  $('score-sub').textContent = pct >= 0.8 ? 'Great work! Хорошо!' : 'Keep practising!';
+  $('score-label').textContent = 'out of ' + SESSION_SIZE + ' correct';
+
+  const mistakesList = $('mistakes-list');
+  if (mistakes.length > 0) {
+    mistakesList.style.display   = 'block';
+    $('mistakes-rows').innerHTML = mistakes.map(m =>
+      '<div class="mistake-row">' +
+        '<span class="m-char">' + m.char + '</span>' +
+        '<span class="m-right">✓ ' + m.correct + '</span>' +
+        '<span class="m-wrong">✗ ' + m.given + '</span>' +
+      '</div>'
+    ).join('');
+  } else {
+    mistakesList.style.display = 'none';
+  }
+}
+
+function restart() {
+  $('score-view').style.display    = 'none';
+  $('quiz-view').style.display     = 'flex';
+  $('mistakes-list').style.display = 'none';
+  $('mistakes-rows').innerHTML     = '';
+  initSession();
+  showCard();
+}
+
+document.getElementById('answer').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkAnswer();
+});
+
+initSession();
+showCard();
+</script>
+</body>
+</html>
+`;
+
+const wv = new WebView();
+await wv.loadHTML(html);
+await wv.present(true);
