@@ -2056,7 +2056,7 @@ const s = StyleSheet.create({
 
   // ── Detail card (centered modal) ─────────────────────────────────────────
   dsCard: {
-    backgroundColor: Colors.cardBg,
+    backgroundColor: "#111111",
     borderRadius: 22, borderWidth: 1, borderColor: Colors.border,
     overflow: "hidden",
     shadowColor: "#000", shadowOffset: { width: 0, height: 24 },
@@ -2065,7 +2065,8 @@ const s = StyleSheet.create({
   dsCardTop: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
   dsTitleInput: {
     color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_400Regular",
-    lineHeight: 24, paddingVertical: 0, marginBottom: 0,
+    lineHeight: 24, paddingVertical: 10, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
   },
   dsMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   dsEmojiChip: {
@@ -2109,10 +2110,10 @@ const s = StyleSheet.create({
     borderRadius: 10, color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular",
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  dsFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 20, paddingBottom: 6, alignSelf: "stretch", textAlign: "left" },
+  dsFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", paddingBottom: 6, alignSelf: "stretch", textAlign: "left" },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
-  dsCancelTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  dsCancelTx: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   dsUpdateBtn: { flex: 2, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   dsUpdateTx: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 
