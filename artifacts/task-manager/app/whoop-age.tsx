@@ -151,7 +151,7 @@ const HTML = `<!DOCTYPE html>
           <div class="legend-item"><div class="legend-dot" style="background:#ff1e1e"></div>Older</div>
         </div>
       </div>
-      <div class="chart-wrap-scroll"><canvas id="barChart"></canvas></div>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
     </div>
   </div>
 
@@ -347,7 +347,7 @@ function drawLine() {
 }
 
 function drawBar() {
-  const c = setupCanvas('barChart', 1500);
+  const c = setupCanvas('barChart');
   if (!c) return;
   const { ctx, W, H } = c;
   const PAD = { top: 52, right: 16, bottom: 46, left: 44 };
@@ -355,7 +355,7 @@ function drawBar() {
   const cH = H - PAD.top - PAD.bottom;
   const n = whoopAge.length;
   const minY = 38, maxY = 49;
-  const barGap = 2;
+  const barGap = 1;
   const barW = (cW / n) - barGap;
   const xOf = i => PAD.left + i * (cW / n) + barGap / 2;
   const yOf = v => PAD.top + cH - ((v - minY) / (maxY - minY)) * cH;
@@ -396,9 +396,6 @@ function drawBar() {
     }
     ctx.fillStyle = bg;
     ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
-    ctx.fillStyle = isOlder ? '#ff8888' : '#26c97a';
-    ctx.font = "500 7px 'DM Mono', monospace"; ctx.textAlign = 'center';
-    ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
   });
 
   labels.forEach((l, i) => {
