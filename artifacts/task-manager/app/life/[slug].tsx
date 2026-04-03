@@ -707,17 +707,6 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         </View>
       )}
 
-      {/* File links (non-URL properties) */}
-      {task?.fileLinks && task.fileLinks.length > 0 && (
-        <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 6 }}>
-          {task.fileLinks.map((fl, i) => (
-            <Pressable key={i} onPress={() => Linking.openURL(fl.url)} style={s.dsLinkRow}>
-              <Text style={s.dsLinkEmoji}>🔗</Text>
-              <Text style={s.dsLinkLabel} numberOfLines={1}>{fl.name}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
     </>
   );
 
@@ -747,7 +736,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
       <FormattingToolbar
         onFormat={handleFormat}
-        viewLink={task?.url ?? undefined}
+        viewLink={task?.url ?? task?.fileLinks?.[0]?.url ?? undefined}
       />
       <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
