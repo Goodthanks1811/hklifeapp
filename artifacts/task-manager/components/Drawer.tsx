@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: Colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "Inter_700Bold",
   },
   divider: {
