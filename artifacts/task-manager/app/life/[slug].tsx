@@ -460,6 +460,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
   const visible = !!task;
 
   const handleFormat = useCallback((type: string) => {
+    setEditingBody(true);
     setNotes(prev => applyFormat(type, prev, selRef.current));
   }, []);
 
@@ -505,8 +506,16 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
       const val = body ?? "";
       prevNotesRef.current = val;
       setNotes(val);
+      setEditingBody(false);
     }
   }, [visible, body]);
+
+  // Auto-focus TextInput when switching to edit mode
+  useEffect(() => {
+    if (editingBody) {
+      setTimeout(() => notesRef.current?.focus(), 80);
+    }
+  }, [editingBody]);
 
   // Sync localEpic when sheet opens
   useEffect(() => {
@@ -645,7 +654,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
       {/* Emoji row — updates when category chip is tapped */}
       {displayEmojis.length > 0 && (
-        <View style={s.dsMetaRow}>
+        <View style={[s.dsMetaRow, { marginBottom: 6 }]}>
           {displayEmojis.map((e, i) => {
             const selected = norm(task?.emoji ?? "") === norm(e);
             return (
@@ -687,7 +696,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
       {/* Category row + inline URL chip */}
       {allCategories.length > 0 && (
-        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+        <View style={[s.dsMetaRow, { marginTop: 8, marginBottom: 10 }]}>
           {allCategories.map(cat => {
             const selected = cat === localCat;
             return (
@@ -729,20 +738,36 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
       />
       <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
-          <TextInput
-            ref={notesRef}
-            style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
-            value={notes}
-            onChangeText={handleBodyChange}
-            onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
-            multiline
-            editable={!bodyLoading}
-            placeholder="Tap to add notes…"
-            placeholderTextColor={Colors.textMuted}
-            selectionColor={Colors.primary}
-            keyboardAppearance="dark"
-            textAlignVertical="top"
-          />
+          {editingBody ? (
+            <TextInput
+              ref={notesRef}
+              style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
+              value={notes}
+              onChangeText={handleBodyChange}
+              onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
+              onBlur={() => setEditingBody(false)}
+              multiline
+              editable={!bodyLoading}
+              placeholder="Tap to add notes…"
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
+              keyboardAppearance="dark"
+              textAlignVertical="top"
+            />
+          ) : (
+            <Pressable
+              onPress={() => !bodyLoading && setEditingBody(true)}
+              style={{ minHeight: 80, opacity: bodyLoading ? 0.35 : 1 }}
+            >
+              {notes.trim() ? (
+                <RichBodyView markdown={notes} />
+              ) : (
+                <Text style={{ color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular" }}>
+                  Tap to add notes…
+                </Text>
+              )}
+            </Pressable>
+          )}
         </View>
       </ScrollView>
 
@@ -1207,6 +1232,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const epicPillRef   = useRef<View>(null);
   const checkScale    = useRef(new Animated.Value(0)).current;
   const opacityAnim   = useRef(new Animated.Value(1)).current;
+  const rowHeight     = useRef(new Animated.Value(ITEM_H)).current;
   const rowScale      = useRef(new Animated.Value(1)).current;
   const pressY        = useRef(new Animated.Value(0)).current;
   const deletingRef   = useRef(false);
@@ -1226,10 +1252,10 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     swipeableRef.current?.close();
     Animated.parallel([
-      Animated.timing(opacityAnim, { toValue: 0,    duration: 280, useNativeDriver: false }),
-      Animated.timing(rowScale,    { toValue: 0.85, duration: 280, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
+      Animated.timing(rowHeight,   { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
     ]).start(() => onDelete());
-  }, [onDelete]);
+  }, [onDelete, rowHeight]);
 
   const handleCheck = () => {
     if (checked) return;
@@ -1238,8 +1264,8 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
     Animated.spring(checkScale, { toValue: 1, useNativeDriver: false, tension: 240, friction: 8 }).start();
     setTimeout(() => {
       Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 0,    duration: 420, useNativeDriver: false }),
-        Animated.timing(rowScale,    { toValue: 0.88, duration: 360, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(opacityAnim, { toValue: 0, duration: 380, useNativeDriver: false }),
+        Animated.timing(rowHeight,   { toValue: 0, duration: 340, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
       ]).start(() => onChecked());
     }, 320);
   };
@@ -1265,7 +1291,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   ), [triggerDelete]);
 
   return (
-    <Animated.View style={[sc.rowOuter, { opacity: combinedOpacity, transform: [{ scale: rowScale }] }]}>
+    <Animated.View style={[sc.rowOuter, { height: rowHeight, opacity: combinedOpacity }]}>
       <Swipeable
         ref={swipeableRef}
         renderRightActions={renderRightActions}
@@ -2165,7 +2191,7 @@ const sc = StyleSheet.create({
 
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
 
-  rowOuter: { height: ITEM_H },
+  rowOuter: { height: ITEM_H, overflow: "hidden" },
   deleteAction: {
     width: 110, height: ITEM_H,
     backgroundColor: Colors.primary,
