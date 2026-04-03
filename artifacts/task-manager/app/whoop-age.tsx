@@ -381,7 +381,7 @@ function drawBar() {
     const x = xOf(i) + barW / 2;
     i === 0 ? ctx.moveTo(x, yOf(v)) : ctx.lineTo(x, yOf(v));
   });
-  ctx.strokeStyle = 'rgba(79,195,247,0.4)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
   ctx.stroke();
 
   whoopAge.forEach((v, i) => {
