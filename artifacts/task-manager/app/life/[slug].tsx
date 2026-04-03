@@ -179,10 +179,11 @@ function RichBodyView({ markdown }: { markdown: string }) {
 }
 
 // ── Formatting toolbar ────────────────────────────────────────────────────────
-function FormattingToolbar({ onFormat, link, onLinkChange }: {
+function FormattingToolbar({ onFormat, link, onLinkChange, rightSlot }: {
   onFormat: (id: string) => void;
   link?: string;
   onLinkChange?: (v: string) => void;
+  rightSlot?: React.ReactNode;
 }) {
   const btns: Array<{ id: string; label: string; isBold?: boolean; isUnder?: boolean }> = [
     { id: "h1",        label: "H1", isBold: true },
@@ -226,6 +227,11 @@ function FormattingToolbar({ onFormat, link, onLinkChange }: {
             keyboardAppearance="dark"
             style={{ width: 100, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 6, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
           />
+        </View>
+      )}
+      {rightSlot !== undefined && (
+        <View style={{ borderLeftWidth: 1, borderLeftColor: Colors.border, paddingHorizontal: 10, justifyContent: "center" }}>
+          {rightSlot}
         </View>
       )}
     </View>
@@ -691,11 +697,6 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
               </Pressable>
             );
           })}
-          {task?.url && (
-            <Pressable onPress={() => task.url && Linking.openURL(task.url)} style={s.dsUrlChip}>
-              <Text style={s.dsUrlChipTxt}>🔗 Link</Text>
-            </Pressable>
-          )}
         </View>
       )}
 
@@ -737,7 +738,14 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         <Text style={s.dsSectionLabel}>NOTES</Text>
       </View>
 
-      <FormattingToolbar onFormat={handleFormat} />
+      <FormattingToolbar
+        onFormat={handleFormat}
+        rightSlot={task?.url ? (
+          <Pressable onPress={() => task.url && Linking.openURL(task.url)} hitSlop={8}>
+            <Text style={{ fontSize: 18 }}>🔗</Text>
+          </Pressable>
+        ) : undefined}
+      />
       <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
           <TextInput
