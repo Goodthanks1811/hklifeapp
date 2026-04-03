@@ -13,20 +13,18 @@ const HTML = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
+  html, body {
     background: #0b0b0c; color: #fff;
     font-family: 'DM Sans', sans-serif;
-    position: fixed; left: 0; right: 0; top: 0;
-    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    min-height: 100vh; display: flex; flex-direction: column;
+    overflow-x: hidden;
   }
-  .screens { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+  .screens { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .screen {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 20px 18px 14px;
-    overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    display: none; flex-direction: column; align-items: center;
+    padding: 20px 18px 14px; min-height: 600px; flex: 1;
   }
-  .screen.active { opacity: 1; pointer-events: all; }
+  .screen.active { display: flex; }
   .tab-bar {
     display: flex; background: #0f0f0f;
     border-top: 1px solid #222; flex-shrink: 0;
@@ -204,18 +202,7 @@ const realAge = whoopAge.map((_, i) => +(41.3 + i * 0.019).toFixed(2));
 const CROSSOVER_IDX = 33;
 const PERIOD_TEXT = 'MAR 23, 2024 — MAR 29, 2025  ·  55 WEEKS';
 
-function onVP() {
-  const vp = window.visualViewport;
-  if (!vp) return;
-  document.body.style.top = vp.offsetTop + 'px';
-  document.body.style.height = vp.height + 'px';
-  requestAnimationFrame(redrawActive);
-}
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', onVP);
-  window.visualViewport.addEventListener('scroll', onVP);
-}
-window.addEventListener('resize', onVP);
+window.addEventListener('resize', () => requestAnimationFrame(redrawActive));
 
 function redrawActive() {
   const id = document.querySelector('.screen.active').id;
@@ -457,7 +444,7 @@ export default function WhoopAgeScreen() {
       <WebView
         source={{ html: HTML }}
         style={styles.webview}
-        scrollEnabled={false}
+        scrollEnabled
         bounces={false}
         overScrollMode="never"
         originWhitelist={["*"]}
