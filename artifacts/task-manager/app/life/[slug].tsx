@@ -158,8 +158,8 @@ function RichBodyView({ markdown }: { markdown: string }) {
         if (/^- /.test(line))
           return (
             <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start", paddingLeft: 2 }}>
-              <Text style={{ color: Colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: 1 }}>•</Text>
-              <RichLine text={line.slice(2)} style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 22 }} flex={1} />
+              <Text style={{ color: "#fff", fontSize: 15, lineHeight: 22, marginTop: 1 }}>•</Text>
+              <RichLine text={line.slice(2)} style={{ fontSize: 15, color: "#fff", lineHeight: 22 }} flex={1} />
             </View>
           );
         if (/^\d+\. /.test(line)) {
@@ -168,11 +168,11 @@ function RichBodyView({ markdown }: { markdown: string }) {
           return (
             <View key={i} style={{ flexDirection: "row", gap: 6, alignItems: "flex-start", paddingLeft: 2 }}>
               <Text style={{ color: Colors.textMuted, fontSize: 15, lineHeight: 22, minWidth: 18 }}>{num}.</Text>
-              <RichLine text={rest} style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 22 }} flex={1} />
+              <RichLine text={rest} style={{ fontSize: 15, color: "#fff", lineHeight: 22 }} flex={1} />
             </View>
           );
         }
-        return <RichLine key={i} text={line} style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 22 }} />;
+        return <RichLine key={i} text={line} style={{ fontSize: 15, color: "#fff", lineHeight: 22 }} />;
       })}
     </View>
   );
@@ -2125,7 +2125,7 @@ const s = StyleSheet.create({
     borderRadius: 10, color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular",
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  dsFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", paddingBottom: 6, alignSelf: "stretch", textAlign: "left" },
+  dsFieldLabel: { color: "#ffffff", fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", paddingBottom: 6, alignSelf: "stretch", textAlign: "left" },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   dsCancelTx: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
