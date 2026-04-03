@@ -334,7 +334,7 @@ export default function MoodReportScreen() {
         >
           {/* Month cards */}
           <View style={[styles.grid, isTablet && styles.gridTablet]}>
-            {[...months].reverse().map((m) => (
+            {months.map((m) => (
               <View key={m.key} style={isTablet ? styles.gridItem : undefined}>
                 <MonthCard month={m} tab={tab} />
               </View>
