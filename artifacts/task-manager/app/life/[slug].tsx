@@ -1060,7 +1060,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
     <>
       {/* Title — extra paddingBottom ensures emojis don't crowd it */}
       <Text style={s.dsFieldLabel}>Summary</Text>
-      <Animated.View style={{ transform: [{ translateX: shakeAnim }], paddingBottom: 4 }}>
+      <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
         <TextInput
           style={s.dsTitleInput}
           value={title}
@@ -1076,7 +1076,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
       {/* Emoji row — reacts to category chip taps */}
       {displayEmojis.length > 0 && (
-        <View style={[s.dsMetaRow, { marginTop: 12 }]}>
+        <View style={[s.dsMetaRow, { marginTop: 20 }]}>
           {displayEmojis.map((e, i) => {
             const selected = norm(selEmoji ?? "") === norm(e);
             return (
@@ -1094,7 +1094,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
       {/* Epic row (Automation) OR Category row (all other screens) */}
       {showEpic && epicOptions && epicOptions.length > 0 ? (
-        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+        <View style={[s.dsMetaRow, { marginTop: 16 }]}>
           {epicOptions.map(ep => {
             const selected = ep === selEpic;
             const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
@@ -1110,7 +1110,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
           })}
         </View>
       ) : !showEpic && allCategories.length > 0 ? (
-        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+        <View style={[s.dsMetaRow, { marginTop: 16 }]}>
           {allCategories.map(cat => {
             const selected = cat === localCat;
             return (
@@ -1126,13 +1126,13 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         </View>
       ) : null}
 
-      <View style={s.dsDivider} />
+      <View style={[s.dsDivider, { marginTop: 20 }]} />
       <FormattingToolbar onFormat={handleFormatQA} link={linkUrl} onLinkChange={setLinkUrl} />
 
       {/* Notes body */}
       <TextInput
         ref={qaNotesRef}
-        style={[s.dsNotesInput, { minHeight: isTablet ? 180 : 80, paddingHorizontal: 20, paddingVertical: 14 }]}
+        style={[s.dsNotesInput, { minHeight: isTablet ? 180 : 80, paddingHorizontal: 20, paddingVertical: 14, marginTop: 4 }]}
         value={notes}
         onChangeText={handleQABodyChange}
         onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
