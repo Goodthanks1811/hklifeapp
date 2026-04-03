@@ -255,7 +255,7 @@ function drawTagPill(ctx, text, x, y, color) {
   ctx.beginPath(); ctx.roundRect(x, y, pw, ph, pr); ctx.fill();
   ctx.strokeStyle = color; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(x, y, pw, ph, pr); ctx.stroke();
-  ctx.fillStyle = color; ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left';
   ctx.fillText(text, x + 7, y + 11);
   return pw;
 }
