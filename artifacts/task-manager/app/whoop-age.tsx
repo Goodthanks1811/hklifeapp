@@ -383,10 +383,10 @@ function drawLine() {
     ctx.fillStyle = 'rgba(20,20,20,0.93)';
     ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 6); ctx.fill();
     ctx.font = "700 11px 'DM Mono', monospace"; ctx.textAlign = 'left';
-    ctx.fillStyle = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a';
-    ctx.fillText(line1, px + 9, py + 14);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillText(line2, px + 9, py + 28);
+    ctx.fillText(line2, px + 9, py + 14);
+    ctx.fillStyle = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a';
+    ctx.fillText(line1, px + 9, py + 28);
     ctx.font = "400 10px 'DM Mono', monospace";
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillText(line3, px + 9, py + 44);
