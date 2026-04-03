@@ -633,8 +633,8 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
   }, [task, title, notes, localCat, catValue, onSave, runLoader]);
 
   const bg    = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.88)"] });
-  const cardW = Math.min(600, screenW * 0.88);
-  const maxCardH = screenH * 0.82;
+  const cardW = Math.min(740, screenW * 0.90);
+  const maxCardH = screenH * 0.92;
 
   // ── Shared inner content ────────────────────────────────────────────────
   const sheetContent = (
@@ -830,7 +830,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const insets    = useSafeAreaInsets();
-  const { width: screenW } = useWindowDimensions();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const [title,        setTitle]       = useState("");
   const [notes,        setNotes]       = useState("");
   const [linkUrl,      setLinkUrl]     = useState("");
@@ -1038,7 +1038,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   }, [title, notes, linkUrl, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
 
   const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.88)"] });
-  const cardW   = Math.min(600, screenW * 0.88);
+  const cardW   = Math.min(740, screenW * 0.90);
 
   const qaLoaderOverlay = loaderVisible ? (
     <Animated.View style={[s.dsLoader, { opacity: overlayOpacity }]} pointerEvents="auto">
@@ -1166,7 +1166,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
         {isTablet ? (
           // ── iPad: centered card ───────────────────────────────────
-          <Animated.View style={[s.dsCard, { width: cardW, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
+          <Animated.View style={[s.dsCard, { width: cardW, maxHeight: screenH * 0.92, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
             <View style={s.dsCardTop}>
               {innerContent}
             </View>

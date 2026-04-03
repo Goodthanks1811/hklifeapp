@@ -76,6 +76,8 @@ const HTML = `<!DOCTYPE html>
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #fff; font-family: 'DM Mono', monospace; }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
   .chart-wrap { position: relative; flex: 1; min-height: 0; }
+  .chart-wrap-scroll { overflow-x: auto; overflow-y: hidden; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
+  .chart-wrap-scroll canvas { display: block; height: 100% !important; }
   canvas { display: block; width: 100% !important; height: 100% !important; }
 </style>
 </head>
@@ -150,7 +152,7 @@ const HTML = `<!DOCTYPE html>
           <div class="legend-item"><div class="legend-dot" style="background:#ff1e1e"></div>Older</div>
         </div>
       </div>
-      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      <div class="chart-wrap-scroll"><canvas id="barChart"></canvas></div>
     </div>
   </div>
 
@@ -218,10 +220,10 @@ function switchTab(tab) {
   requestAnimationFrame(redrawActive);
 }
 
-function setupCanvas(id) {
+function setupCanvas(id, minW) {
   const canvas = document.getElementById(id);
   const rect = canvas.parentElement.getBoundingClientRect();
-  const W = rect.width, H = rect.height;
+  const W = Math.max(rect.width, minW || 0), H = rect.height;
   if (!W || !H) return null;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -346,7 +348,7 @@ function drawLine() {
 }
 
 function drawBar() {
-  const c = setupCanvas('barChart');
+  const c = setupCanvas('barChart', 1500);
   if (!c) return;
   const { ctx, W, H } = c;
   const PAD = { top: 52, right: 16, bottom: 46, left: 44 };
@@ -395,11 +397,9 @@ function drawBar() {
     }
     ctx.fillStyle = bg;
     ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
-    if (i % 4 === 0) {
-      ctx.fillStyle = isOlder ? '#ff8888' : '#26c97a';
-      ctx.font = "500 8px 'DM Mono', monospace"; ctx.textAlign = 'center';
-      ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
-    }
+    ctx.fillStyle = isOlder ? '#ff8888' : '#26c97a';
+    ctx.font = "500 7px 'DM Mono', monospace"; ctx.textAlign = 'center';
+    ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
   });
 
   labels.forEach((l, i) => {

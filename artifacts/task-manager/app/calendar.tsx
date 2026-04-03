@@ -401,7 +401,7 @@ const tm = StyleSheet.create({
   },
   btnRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 4 },
   btnCancel: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: CARD2, alignItems: "center" },
-  btnCancelTxt: { color: "#A0A0A0", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  btnCancelTxt: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   btnNext: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: RED, borderRadius: 13, paddingVertical: 15 },
   btnNextTxt: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
