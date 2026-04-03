@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { Audio, ResizeMode, Video } from "expo-av";
 import * as VideoThumbnails from "expo-video-thumbnails";
-import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -396,18 +395,32 @@ export default function MiNenaScreen() {
               const alive: MediaItem[] = [];
               for (const item of folder.items) {
                 try {
-                  if (item.uri.includes("mi_nena_media")) {
+                  if (item.uri.startsWith("ph://")) {
+                    // Persistent photo library reference — always valid
+                    alive.push(item);
+                  } else if (item.uri.includes("mi_nena_media")) {
                     const info = await FileSystem.getInfoAsync(item.uri);
                     if (info.exists) alive.push(item);
                   }
+                  // Drop any other stale file:// cache URIs
                 } catch {
                   // skip on error
                 }
               }
-              return { ...folder, items: alive };
+              // Validate coverUri — keep ph://, check file:// existence
+              let coverUri = folder.coverUri;
+              if (coverUri && !coverUri.startsWith("ph://")) {
+                try {
+                  const info = await FileSystem.getInfoAsync(coverUri);
+                  if (!info.exists) coverUri = undefined;
+                } catch { coverUri = undefined; }
+              }
+              return { ...folder, items: alive, coverUri };
             })
           );
-          const changed = migrated.some((f, i) => f.items.length !== parsed[i].items.length);
+          const changed = migrated.some((f, i) =>
+            f.items.length !== parsed[i].items.length || f.coverUri !== parsed[i].coverUri
+          );
           setFolders(migrated);
           if (changed) await saveFolders(migrated);
         }
@@ -421,35 +434,30 @@ export default function MiNenaScreen() {
   const navigateBack = useCallback(() => setFolderStack((p) => p.slice(0, -1)), []);
   const navigateTo   = useCallback((idx: number) => setFolderStack((p) => p.slice(0, idx + 1)), []);
 
-  // Pick files into the current folder
+  // Pick files into the current folder — uses ImagePicker so ph:// URIs are stored
+  // (persistent across reinstalls; no file copy needed)
   const pickIntoFolder = useCallback(async (folderId: string) => {
     setPicking(true);
-    await new Promise((r) => setTimeout(r, 300));
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["image/*", "video/*"],
-        multiple: true,
-        copyToCacheDirectory: true,
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission needed", "Please allow photo library access in Settings.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsMultipleSelection: true,
+        quality: 1,
+        orderedSelection: true,
       });
       if (result.canceled || !result.assets.length) return;
 
-      const mediaDir = `${FileSystem.documentDirectory}mi_nena_media/`;
-      await FileSystem.makeDirectoryAsync(mediaDir, { intermediates: true }).catch(() => {});
-
-      const picked: MediaItem[] = [];
-      for (const a of result.assets) {
-        const name = a.name ?? a.uri.split("/").pop() ?? `file_${Date.now()}`;
-        const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const dest = `${mediaDir}${Date.now()}_${safe}`;
-        let finalUri = a.uri;
-        try {
-          await FileSystem.copyAsync({ from: a.uri, to: dest });
-          finalUri = dest;
-        } catch (copyErr) {
-          console.warn("[MiNena] copy failed, using cache URI:", copyErr);
-        }
-        picked.push({ uri: finalUri, name, isVideo: isVideoFile(name) });
-      }
+      const picked: MediaItem[] = result.assets.map((asset) => {
+        // ph:// identifier survives app deletion + reinstall on iOS
+        const persistentUri = asset.assetId ? `ph://${asset.assetId}` : asset.uri;
+        const name = asset.fileName ?? asset.uri.split("/").pop() ?? `photo_${Date.now()}`;
+        return { uri: persistentUri, name, isVideo: asset.type === "video" };
+      });
 
       setFolders((prev) => {
         const next = prev.map((f) => {
@@ -524,22 +532,13 @@ export default function MiNenaScreen() {
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
-    const ext   = asset.uri.split(".").pop() ?? "jpg";
-    const dest  = `${FileSystem.documentDirectory}mi_nena_media/${folderId}_cover.${ext}`;
-    try {
-      await FileSystem.makeDirectoryAsync(
-        `${FileSystem.documentDirectory}mi_nena_media/`,
-        { intermediates: true }
-      );
-      await FileSystem.copyAsync({ from: asset.uri, to: dest });
-      setFolders((prev) => {
-        const next = prev.map((f) => f.id === folderId ? { ...f, coverUri: dest } : f);
-        saveFolders(next).catch(() => {});
-        return next;
-      });
-    } catch {
-      Alert.alert("Error", "Could not set cover image.");
-    }
+    // Store persistent ph:// URI — survives reinstall, no copy needed
+    const persistentUri = asset.assetId ? `ph://${asset.assetId}` : asset.uri;
+    setFolders((prev) => {
+      const next = prev.map((f) => f.id === folderId ? { ...f, coverUri: persistentUri } : f);
+      saveFolders(next).catch(() => {});
+      return next;
+    });
   }, []);
 
   // Long-press action sheet
