@@ -426,8 +426,17 @@ function drawBar() {
 }
 
 document.fonts.ready.then(() => {
-  onVP();
-  drawLine();
+  function tryDrawLine(n) {
+    const canvas = document.getElementById('lineChart');
+    if (!canvas) return;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      if (n < 40) requestAnimationFrame(() => tryDrawLine(n + 1));
+      return;
+    }
+    drawLine();
+  }
+  tryDrawLine(0);
 });
 </script>
 </body>
