@@ -386,7 +386,7 @@ export default function IRQuickAdd() {
               <TextInput
                 ref={inputRef}
                 style={styles.textInput}
-                placeholder="Enter title"
+                placeholder="Add summary"
                 placeholderTextColor={IR.textMuted}
                 value={title}
                 onChangeText={setTitle}

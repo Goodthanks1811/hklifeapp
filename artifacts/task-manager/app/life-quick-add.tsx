@@ -338,7 +338,7 @@ export default function LifeQuickAdd() {
                 <TextInput
                   ref={inputRef}
                   style={styles.textInput}
-                  placeholder="Enter title"
+                  placeholder="Add summary"
                   placeholderTextColor={HK.textMuted}
                   value={title}
                   onChangeText={setTitle}
