@@ -1747,14 +1747,10 @@ export default function LifeTaskScreen() {
     if (!apiKey) return;
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
+      // Row already invisible — snap instantly
       next.forEach((t, i) => {
         posAnims.current[t.id]?.stopAnimation();
-        Animated.spring(posAnims.current[t.id], {
-          toValue: i * SLOT_H,
-          useNativeDriver: true,
-          tension: 140,
-          friction: 14,
-        }).start();
+        posAnims.current[t.id]?.setValue(i * SLOT_H);
       });
       return next;
     });
@@ -1768,15 +1764,10 @@ export default function LifeTaskScreen() {
   const handleDelete = useCallback((id: string) => {
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
-      // Re-position remaining items
+      // Row is already invisible — snap positions instantly so nothing visibly moves
       next.forEach((t, i) => {
         posAnims.current[t.id]?.stopAnimation();
-        Animated.spring(posAnims.current[t.id], {
-          toValue: i * SLOT_H,
-          useNativeDriver: true,
-          tension: 120,
-          friction: 14,
-        }).start();
+        posAnims.current[t.id]?.setValue(i * SLOT_H);
       });
       return next;
     });
