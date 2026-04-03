@@ -389,7 +389,7 @@ const tm = StyleSheet.create({
     alignItems: "center", justifyContent: "center", paddingHorizontal: 28,
   },
   card: {
-    width: "100%", backgroundColor: CARD,
+    width: "100%", maxWidth: 480, backgroundColor: CARD,
     borderRadius: 18, borderWidth: 1, borderColor: BORD,
     padding: 22, gap: 16,
   },

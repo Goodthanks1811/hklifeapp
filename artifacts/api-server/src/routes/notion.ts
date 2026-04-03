@@ -337,7 +337,7 @@ router.get("/schema/:dbId", async (req, res) => {
 
 router.post("/pages", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
-  const { dbId, title, epic, emoji, priType, priOptions, epicType, priorityType, category } = req.body;
+  const { dbId, title, epic, emoji, priType, priOptions, epicType, priorityType, category, url } = req.body;
   if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
   if (!dbId || !title) { res.status(400).json({ message: "Missing dbId or title" }); return; }
 
@@ -372,6 +372,10 @@ router.post("/pages", async (req, res) => {
     if (epic) {
       if (epicType === "select") body.properties.Epic = { select: { name: epic } };
       else if (epicType === "status") body.properties.Epic = { status: { name: epic } };
+    }
+
+    if (url && typeof url === "string" && url.trim()) {
+      body.properties.Reference = { url: url.trim() };
     }
 
     const emojiVal = String(emoji || "\uD83D\uDD25").replace(/\uFE0F/g, "");

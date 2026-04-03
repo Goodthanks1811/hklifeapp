@@ -825,6 +825,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const { width: screenW } = useWindowDimensions();
   const [title,        setTitle]       = useState("");
   const [notes,        setNotes]       = useState("");
+  const [linkUrl,      setLinkUrl]     = useState("");
   const [selEmoji,     setSelEmoji]    = useState<string | null>(null);
   const [localCat,     setLocalCat]    = useState<string>(catValue);
   const [selEpic,      setSelEpic]     = useState<string | null>(null);
@@ -916,7 +917,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
   useEffect(() => {
     if (visible) {
-      setTitle(""); setNotes(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
+      setTitle(""); setNotes(""); setLinkUrl(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
       if (isTablet) {
@@ -1004,6 +1005,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       priOptions: schema?.priOptions ?? null,
       categoryType: schema?.categoryType ?? "select",
       ...(showEpic && selEpic ? { epic: selEpic, epicType: schema?.epicType ?? "select" } : {}),
+      ...(linkUrl.trim() ? { url: linkUrl.trim() } : {}),
     };
     const apiPromise = fetch(`${BASE_URL}/api/notion/pages`, {
       method: "POST",
@@ -1025,7 +1027,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null });
       });
     runLoader(apiPromise);
-  }, [title, notes, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
+  }, [title, notes, linkUrl, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
 
   const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.88)"] });
   const cardW   = Math.min(600, screenW * 0.88);
@@ -1133,6 +1135,24 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         keyboardAppearance="dark"
         textAlignVertical="top"
       />
+
+      {/* Link / URL field */}
+      <View style={s.dsLinkField}>
+        <Text style={s.dsLinkFieldLabel}>LINK</Text>
+        <TextInput
+          style={s.dsLinkFieldInput}
+          value={linkUrl}
+          onChangeText={setLinkUrl}
+          placeholder="Paste a URL…"
+          placeholderTextColor={Colors.textMuted}
+          selectionColor={Colors.primary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          returnKeyType="done"
+          keyboardAppearance="dark"
+        />
+      </View>
 
       <View style={s.dsDivider} />
 
@@ -2104,6 +2124,13 @@ const s = StyleSheet.create({
   dsLinkRow:   { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
   dsLinkEmoji: { fontSize: 15, lineHeight: 20 },
   dsLinkLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.primary, textDecorationLine: "underline", lineHeight: 18 },
+  dsLinkField: { paddingHorizontal: 16, paddingTop: 6, gap: 5 },
+  dsLinkFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, paddingHorizontal: 4 },
+  dsLinkFieldInput: {
+    backgroundColor: Colors.cardBgElevated, borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 10, color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
   dsFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 20, paddingBottom: 6 },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
