@@ -399,10 +399,10 @@ const tm = StyleSheet.create({
     borderRadius: 12, color: TEXT, fontSize: 16, fontFamily: "Inter_400Regular",
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  btnRow: { flexDirection: "row", alignItems: "center", paddingTop: 2, gap: 10 },
-  btnCancel: { paddingVertical: 8, paddingRight: 10 },
+  btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 2 },
+  btnCancel: { paddingVertical: 8 },
   btnCancelTxt: { color: TEXT, fontSize: 14, fontFamily: "Inter_500Medium" },
-  btnNext: { flex: 1, backgroundColor: RED, borderRadius: 10, paddingVertical: 7, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  btnNext: { backgroundColor: RED, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 22, flexDirection: "row", alignItems: "center", gap: 6 },
   btnNextTxt: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
 
