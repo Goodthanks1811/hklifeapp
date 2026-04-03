@@ -194,7 +194,7 @@ function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
     { id: "bullet",    label: "•" },
   ];
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.02)", paddingHorizontal: 10, paddingVertical: 7, gap: 4 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.02)", paddingHorizontal: 10, paddingVertical: 9, gap: 4 }}>
       {btns.map(btn => (
         <Pressable
           key={btn.id}
@@ -210,12 +210,10 @@ function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
         <Pressable
           onPress={() => Linking.openURL(viewLink)}
           hitSlop={8}
-          style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderLeftWidth: 1, borderLeftColor: Colors.border, marginLeft: 2 }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: "rgba(224,49,49,0.12)", borderWidth: 1, borderColor: "rgba(224,49,49,0.35)", marginLeft: 8 }}
         >
-          <Text style={{ fontSize: 14 }}>🔗</Text>
-          <Text numberOfLines={1} style={{ flex: 1, color: Colors.primary, fontSize: 11, fontFamily: "Inter_500Medium" }}>
-            {viewLink.replace(/^https?:\/\//, "")}
-          </Text>
+          <Feather name="external-link" size={12} color={Colors.primary} />
+          <Text style={{ color: Colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Open</Text>
         </Pressable>
       ) : null}
       {onLinkChange !== undefined && (
@@ -232,7 +230,7 @@ function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
             keyboardType="url"
             returnKeyType="done"
             keyboardAppearance="dark"
-            style={{ flex: 1, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 6, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
+            style={{ flex: 1, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 8, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
           />
         </View>
       )}
@@ -2163,7 +2161,7 @@ const s = StyleSheet.create({
     borderRadius: 10, color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_400Regular",
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  dsFieldLabel: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontFamily: "Inter_500Medium", letterSpacing: 0.2, paddingBottom: 6, alignSelf: "stretch", textAlign: "left" },
+  dsFieldLabel: { color: "#ffffff", fontSize: 12, fontFamily: "Inter_500Medium", letterSpacing: 0.2, paddingBottom: 6, paddingLeft: 14, alignSelf: "stretch", textAlign: "left" },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   dsCancelTx: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
