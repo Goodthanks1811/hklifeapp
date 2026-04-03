@@ -1213,7 +1213,7 @@ function ListLoader() {
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onStartDelete, onSwipeOpen, showEpic, epicOptions }: {
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onStartDelete, onSwipeOpen, onSwipeClose, showEpic, epicOptions }: {
   task:            LifeTask;
   isDragging:      boolean;
   dimValue:        Animated.Value;
@@ -1224,6 +1224,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   onDelete:        () => void;
   onStartDelete?:  (collapseDuration: number) => void;
   onSwipeOpen?:    (close: () => void) => void;
+  onSwipeClose?:   () => void;
   showEpic?:       boolean;
   epicOptions?:    string[] | null;
   onEpicPress?:    (pageX: number, pageY: number, w: number, h: number) => void;
@@ -1309,7 +1310,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
           isRevealedRef.current = true;
           onSwipeOpen?.(() => swipeableRef.current?.close());
         }}
-        onSwipeableClose={() => { isRevealedRef.current = false; }}
+        onSwipeableClose={() => { isRevealedRef.current = false; onSwipeClose?.(); }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
         <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { opacity: pressOpacity }]}>
@@ -1479,15 +1480,22 @@ export default function LifeTaskScreen() {
 
   // ── Active swipe tracking — only one row open at a time ─────────────────────
   const activeSwipeClose = useRef<(() => void) | null>(null);
+  const [swipedTaskId, setSwipedTaskId] = useState<string | null>(null);
 
-  const handleSwipeOpen = useCallback((close: () => void) => {
+  const handleSwipeOpen = useCallback((id: string, close: () => void) => {
     activeSwipeClose.current?.();   // close previous open row
     activeSwipeClose.current = close;
+    setSwipedTaskId(id);
+  }, []);
+
+  const handleSwipeClose = useCallback(() => {
+    setSwipedTaskId(null);
   }, []);
 
   const closeActiveSwipe = useCallback(() => {
     activeSwipeClose.current?.();
     activeSwipeClose.current = null;
+    setSwipedTaskId(null);
   }, []);
 
   // ── Drag & drop ──────────────────────────────────────────────────────────────
@@ -1946,7 +1954,7 @@ export default function LifeTaskScreen() {
                     key={task.id}
                     style={[
                       sc.absItem,
-                      { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] },
+                      { top: 0, zIndex: isDragging ? 100 : swipedTaskId === task.id ? 10 : 1, transform: [{ translateY }] },
                     ]}
                   >
                     <TaskRow
@@ -1960,7 +1968,8 @@ export default function LifeTaskScreen() {
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onStartDelete={(d) => handleStartDelete(task.id, d)}
-                      onSwipeOpen={handleSwipeOpen}
+                      onSwipeOpen={(close) => handleSwipeOpen(task.id, close)}
+                      onSwipeClose={handleSwipeClose}
                       showEpic={config?.showEpic}
                       epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
                     />
