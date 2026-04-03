@@ -222,7 +222,6 @@ function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
           <TextInput
             value={link ?? ""}
             onChangeText={onLinkChange}
-            placeholder="URL…"
             placeholderTextColor={Colors.textMuted}
             selectionColor={Colors.primary}
             autoCapitalize="none"
