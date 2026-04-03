@@ -280,12 +280,31 @@ function TitleModal({
   const [val, setVal] = useState(initialValue);
   useEffect(() => { if (visible) setVal(initialValue); }, [visible, initialValue]);
 
-  const canNext = val.trim().length > 0;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const shake = useCallback(() => {
+    shakeAnim.setValue(0);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue:  1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:  1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:  0, duration: 45, useNativeDriver: true }),
+    ]).start();
+  }, [shakeAnim]);
+
+  const shakeX = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-10, 0, 10] });
+
+  const handleNext = useCallback(() => {
+    if (val.trim().length > 0) onNext(val.trim());
+    else shake();
+  }, [val, onNext, shake]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={tm.overlay}>
-        <View style={tm.card}>
+        <Animated.View style={[tm.card, { transform: [{ translateX: shakeX }] }]}>
           <Text style={tm.cardTitle}>New Event</Text>
           <TextInput
             style={tm.input}
@@ -295,24 +314,19 @@ function TitleModal({
             onChangeText={setVal}
             autoFocus
             returnKeyType="next"
-            onSubmitEditing={() => { if (canNext) onNext(val.trim()); }}
+            onSubmitEditing={handleNext}
             selectionColor={RED}
           />
           <View style={tm.btnRow}>
             <Pressable onPress={onCancel} style={tm.btnCancel} hitSlop={8}>
               <Text style={tm.btnCancelTxt}>Cancel</Text>
             </Pressable>
-            <Pressable
-              onPress={() => { if (canNext) onNext(val.trim()); }}
-              style={[tm.btnNext, !canNext && { opacity: 0.3 }]}
-              disabled={!canNext}
-              hitSlop={8}
-            >
+            <Pressable onPress={handleNext} style={tm.btnNext} hitSlop={8}>
               <Text style={tm.btnNextTxt}>Next</Text>
               <Feather name="arrow-right" size={15} color="#fff" />
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -822,9 +836,9 @@ const s = StyleSheet.create({
   inlineTitle:{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 22, borderBottomWidth: 1, borderBottomColor: BORD_LINE, backgroundColor: BG, alignItems: "center" },
   dayHdr:     { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 6, paddingTop: 14, paddingBottom: 5, paddingHorizontal: 22, backgroundColor: BG, borderBottomWidth: 1, borderBottomColor: BORD_LINE },
   dayHdrToday:{ backgroundColor: "#0d0d0f" },
-  dlDay:      { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
+  dlDay:      { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dlSep:      { fontSize: 14, color: `${RED}44` },
-  dlDate:     { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
+  dlDate:     { fontSize: 15, fontFamily: "Inter_500Medium", color: RED, letterSpacing: -0.2 },
   dayFooter:  { height: 10, backgroundColor: BG },
   evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG, gap: 12 },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
