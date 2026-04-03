@@ -358,11 +358,9 @@ function drawLine() {
     ctx.moveTo(sx, PAD.top); ctx.lineTo(sx, PAD.top + cH);
     ctx.stroke(); ctx.setLineDash([]);
 
-    // Highlight dots
-    [[wv, si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a'], [rv, 'rgba(255,255,255,0.85)']].forEach(([v, col]) => {
-      ctx.beginPath(); ctx.arc(sx, yOf(v), 4, 0, Math.PI * 2);
-      ctx.fillStyle = col; ctx.fill();
-    });
+    // Highlight dot on WHOOP age line only
+    ctx.beginPath(); ctx.arc(sx, yOf(wv), 4, 0, Math.PI * 2);
+    ctx.fillStyle = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a'; ctx.fill();
 
     // Tooltip pill
     const line1 = 'WHOOP ' + wv.toFixed(1);
