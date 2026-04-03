@@ -2118,7 +2118,7 @@ const s = StyleSheet.create({
   dsCardTop: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
   dsTitleInput: {
     color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold",
-    lineHeight: 24, paddingVertical: 10, paddingHorizontal: 14,
+    lineHeight: 26, paddingTop: 10, paddingBottom: 13, paddingHorizontal: 14,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
   },
   dsMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
