@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
@@ -220,7 +221,9 @@ export function Drawer() {
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
-      bannerUpdate({ uri: result.assets[0].uri, offsetX: 0, offsetY: 0 });
+      const dest = FileSystem.documentDirectory + "hk_life_banner.jpg";
+      await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+      bannerUpdate({ uri: dest, offsetX: 0, offsetY: 0 });
     }
   }, [bannerUpdate]);
 

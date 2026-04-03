@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -339,7 +340,9 @@ export default function SettingsScreen() {
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
-      headerUpdRef.current({ uri: result.assets[0].uri, offsetX: 0, offsetY: 0 });
+      const dest = FileSystem.documentDirectory + "hk_life_banner.jpg";
+      await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+      headerUpdRef.current({ uri: dest, offsetX: 0, offsetY: 0 });
       savedOffRef.current = { x: 0, y: 0 };
       setImgDisplay({ x: 0, y: 0 });
     }
