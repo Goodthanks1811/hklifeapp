@@ -210,8 +210,8 @@ const dp = StyleSheet.create({
   },
   highlight: {
     position: "absolute", top: ITEM_H * PADDING, left: 0, right: 0, height: ITEM_H,
-    backgroundColor: `${RED}18`,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: `${RED}44`, zIndex: 1,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.12)", zIndex: 1,
   },
   item:       { height: ITEM_H, alignItems: "center", justifyContent: "center" },
   itemTxt:    { color: "rgba(255,255,255,0.4)", fontSize: 16, fontFamily: "Inter_400Regular" },
