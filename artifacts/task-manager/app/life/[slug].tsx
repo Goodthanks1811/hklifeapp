@@ -2013,13 +2013,13 @@ const s = StyleSheet.create({
 
   // ── Sheet base (no absolute positioning — used for tablet-centred detail sheet)
   sheetBase: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: "#111111", borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
   },
 
   // ── Phone bottom sheet (absolute, anchored to bottom) ───────────────────
   sheet: {
-    backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: "#111111", borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
     position: "absolute", left: 0, right: 0, bottom: 0,
   },
