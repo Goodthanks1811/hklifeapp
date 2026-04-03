@@ -61,11 +61,11 @@ const DURATIONS = [
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface CalEvent   { id: string; title: string; timeStr: string; dotColor: string; }
+interface CalEvent   { id: string; title: string; timeStr: string; dotColor: string; startDate: Date; endDate: Date; allDay: boolean; }
 interface DaySection { dateKey: string; dayLabel: string; ordStr: string; isToday: boolean; weekStart: boolean; data: CalEvent[]; }
 type EventType = "appointment" | "allday" | "birthday";
 type CalKey    = "HK" | "Sticky";
-type Step      = "idle" | "title" | "detail";
+type Step      = "idle" | "title" | "detail" | "actions" | "reschedule";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function pad(n: number) { return String(n).padStart(2, "0"); }
@@ -696,9 +696,10 @@ export default function CalendarScreen() {
   const [monthLabel, setMonthLabel] = useState(() => MONTHS_U[new Date().getMonth()]);
 
   // Two-step create flow
-  const [step,         setStep]         = useState<Step>("idle");
-  const [pendingTitle, setPendingTitle] = useState("");
-  const [eventTitle,   setEventTitle]   = useState("");
+  const [step,          setStep]          = useState<Step>("idle");
+  const [pendingTitle,  setPendingTitle]  = useState("");
+  const [eventTitle,    setEventTitle]    = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -740,7 +741,7 @@ export default function CalendarScreen() {
             data:     [],
           });
         }
-        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? "All Day" : fmt12(start), dotColor });
+        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? "All Day" : fmt12(start), dotColor, startDate: start, endDate: new Date(ev.endDate as any), allDay: ev.allDay ?? false });
       }
       const sorted = Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
       sorted.forEach((sec, i) => {
@@ -782,13 +783,17 @@ export default function CalendarScreen() {
   ), []);
 
   const renderItem = useCallback(({ item, index }: { item: CalEvent; index: number }) => (
-    <View style={[s.evRow, index > 0 && s.evRowBorder]}>
+    <Pressable
+      style={({ pressed }) => [s.evRow, index > 0 && s.evRowBorder, pressed && { backgroundColor: "rgba(255,255,255,0.04)" }]}
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedEvent(item); setStep("actions"); }}
+    >
       <Text style={s.tStart}>{item.timeStr}</Text>
       <View style={s.evMain}>
         <View style={[s.evDot, { backgroundColor: item.dotColor }]} />
         <Text style={s.evTitle}>{item.title}</Text>
       </View>
-    </View>
+      <Feather name="more-horizontal" size={15} color={MUT} />
+    </Pressable>
   ), []);
 
   const renderSectionFooter = useCallback(() => <View style={s.dayFooter} />, []);
@@ -844,7 +849,7 @@ export default function CalendarScreen() {
         />
       )}
 
-      {/* FAB — hidden during create flow */}
+      {/* FAB — hidden during any flow */}
       {step === "idle" && (
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStep("title"); setPendingTitle(""); }}
@@ -870,9 +875,203 @@ export default function CalendarScreen() {
           onSaved={() => { setStep("idle"); setStatus("loading"); fetchEvents(); }}
         />
       )}
+
+      {/* Event actions sheet */}
+      {step === "actions" && selectedEvent && (
+        <EventActionsModal
+          event={selectedEvent}
+          onReschedule={() => setStep("reschedule")}
+          onDelete={() => { setStep("idle"); setSelectedEvent(null); setStatus("loading"); fetchEvents(); }}
+          onCancel={() => { setStep("idle"); setSelectedEvent(null); }}
+        />
+      )}
+
+      {/* Reschedule screen */}
+      {step === "reschedule" && selectedEvent && (
+        <RescheduleModal
+          event={selectedEvent}
+          onSaved={() => { setStep("idle"); setSelectedEvent(null); setStatus("loading"); fetchEvents(); }}
+          onCancel={() => setStep("actions")}
+        />
+      )}
     </View>
   );
 }
+
+// ── EventActionsModal ─────────────────────────────────────────────────────────
+function EventActionsModal({
+  event, onReschedule, onDelete, onCancel,
+}: {
+  event: CalEvent; onReschedule: () => void; onDelete: () => void; onCancel: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await Calendar.deleteEventAsync(event.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onDelete();
+    } catch { setDeleting(false); }
+  };
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={am.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+        <View style={am.sheet}>
+          <View style={am.handle} />
+          <View style={am.infoRow}>
+            <View style={[am.dot, { backgroundColor: event.dotColor }]} />
+            <Text style={am.infoTitle} numberOfLines={2}>{event.title}</Text>
+          </View>
+          <Text style={am.infoTime}>{event.timeStr}</Text>
+          <View style={am.btnRow}>
+            <Pressable style={am.btnReschedule} onPress={onReschedule}>
+              <Feather name="clock" size={15} color={TEXT} />
+              <Text style={am.btnRescheduleTxt}>Reschedule</Text>
+            </Pressable>
+            <Pressable style={[am.btnDelete, deleting && { opacity: 0.5 }]} onPress={handleDelete} disabled={deleting}>
+              <Feather name="trash-2" size={15} color="#fff" />
+              <Text style={am.btnDeleteTxt}>{deleting ? "Deleting…" : "Delete"}</Text>
+            </Pressable>
+          </View>
+          <Pressable style={am.cancelBtn} onPress={onCancel}>
+            <Text style={am.cancelTxt}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const am = StyleSheet.create({
+  overlay:          { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "flex-end" },
+  sheet:            { backgroundColor: CARD, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1, borderColor: BORD, paddingHorizontal: 22, paddingTop: 14, paddingBottom: 32, gap: 14 },
+  handle:           { width: 38, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.18)", alignSelf: "center", marginBottom: 6 },
+  infoRow:          { flexDirection: "row", alignItems: "center", gap: 10 },
+  dot:              { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  infoTitle:        { flex: 1, color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 22 },
+  infoTime:         { color: SUB, fontSize: 13, fontFamily: "Inter_500Medium", paddingBottom: 2 },
+  btnRow:           { flexDirection: "row", gap: 10 },
+  btnReschedule:    { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: CARD2, borderRadius: 13, paddingVertical: 15, borderWidth: 1, borderColor: BORD },
+  btnRescheduleTxt: { color: TEXT, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  btnDelete:        { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: RED, borderRadius: 13, paddingVertical: 15 },
+  btnDeleteTxt:     { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  cancelBtn:        { alignItems: "center", paddingVertical: 6 },
+  cancelTxt:        { color: SUB, fontSize: 15, fontFamily: "Inter_500Medium" },
+});
+
+// ── RescheduleModal ───────────────────────────────────────────────────────────
+function RescheduleModal({
+  event, onSaved, onCancel,
+}: {
+  event: CalEvent; onSaved: () => void; onCancel: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [selectedDate,      setSelectedDate]   = useState(() => normalDay(event.startDate));
+  const [pageScrollEnabled, setPageScroll]     = useState(true);
+  const [saving,            setSaving]         = useState(false);
+  const [errMsg,            setErrMsg]         = useState("");
+
+  const initH   = event.startDate.getHours();
+  const initH12 = initH % 12 || 12;
+  const [hourIdx, setHourIdx] = useState(initH12 - 1);
+  const [minIdx,  setMinIdx]  = useState(Math.min(11, Math.round(event.startDate.getMinutes() / 5)));
+  const [ampmIdx, setAmpmIdx] = useState(initH >= 12 ? 1 : 0);
+  const flipAmpm = useCallback(() => setAmpmIdx(p => (p + 1) % 2), []);
+
+  const slideY = useRef(new Animated.Value(Dimensions.get("window").height)).current;
+  useEffect(() => {
+    Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 32, stiffness: 300, overshootClamping: true }).start();
+  }, [slideY]);
+
+  const dismiss = useCallback(() => {
+    Animated.timing(slideY, { toValue: Dimensions.get("window").height, duration: 280, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onCancel());
+  }, [slideY, onCancel]);
+
+  const save = async () => {
+    setSaving(true); setErrMsg("");
+    try {
+      const newStart = new Date(selectedDate);
+      if (!event.allDay) {
+        let h = parseInt(HOURS_W[hourIdx], 10);
+        const m = parseInt(MINUTES_W[minIdx], 10);
+        if (ampmIdx === 1) { if (h !== 12) h += 12; } else { if (h === 12) h = 0; }
+        newStart.setHours(h, m, 0, 0);
+      }
+      const duration = event.endDate.getTime() - event.startDate.getTime();
+      const newEnd   = new Date(newStart.getTime() + Math.max(duration, 0));
+      await Calendar.updateEventAsync(event.id, { startDate: newStart, endDate: newEnd });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSaved();
+    } catch (e: any) {
+      setErrMsg(e?.message ?? "Failed to reschedule.");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Animated.View style={[rs.root, { paddingTop: insets.top, paddingBottom: insets.bottom, transform: [{ translateY: slideY }] }]}>
+      <View style={rs.nav}>
+        <Pressable onPress={dismiss} hitSlop={14} style={rs.navBack}>
+          <Feather name="arrow-left" size={20} color={SUB} />
+        </Pressable>
+        <Text style={rs.navTitle} numberOfLines={1}>{event.title}</Text>
+        <View style={rs.navSpacer} />
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={rs.scroll} showsVerticalScrollIndicator={false} scrollEnabled={pageScrollEnabled}>
+        <MonthCalendarGrid selected={selectedDate} onChange={setSelectedDate} />
+
+        {!event.allDay && (
+          <View style={rs.timeCard}>
+            <View style={ed.drumRow}>
+              <DrumPicker items={HOURS_W}   selectedIndex={hourIdx} onChange={setHourIdx} width={72}
+                looping onWrapForward={flipAmpm} onWrapBack={flipAmpm}
+                onDragStart={() => setPageScroll(false)} onDragEnd={() => setPageScroll(true)} />
+              <Text style={ed.colon}>:</Text>
+              <DrumPicker items={MINUTES_W} selectedIndex={minIdx}  onChange={setMinIdx}  width={72}
+                onDragStart={() => setPageScroll(false)} onDragEnd={() => setPageScroll(true)} />
+              <DrumPicker items={AMPM_W}    selectedIndex={ampmIdx} onChange={setAmpmIdx} width={66}
+                onDragStart={() => setPageScroll(false)} onDragEnd={() => setPageScroll(true)} />
+            </View>
+            <View style={ed.displayRow}>
+              <Feather name="clock" size={14} color={RED} />
+              <Text style={ed.displayTxt}>{fmtTimeLbl(hourIdx, minIdx, ampmIdx)}</Text>
+            </View>
+          </View>
+        )}
+
+        {errMsg !== "" && (
+          <View style={ed.errRow}>
+            <Feather name="alert-circle" size={13} color={RED} />
+            <Text style={ed.errTxt}>{errMsg}</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      <View style={rs.saveWrap}>
+        <Pressable onPress={save} disabled={saving} style={[rs.saveBtn, saving && { opacity: 0.5 }]}>
+          <Text style={rs.saveTxt}>{saving ? "Saving…" : "Save"}</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+const rs = StyleSheet.create({
+  root:     { ...StyleSheet.absoluteFillObject, backgroundColor: BG, zIndex: 100 },
+  nav:      { flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
+  navBack:  { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  navTitle: { flex: 1, textAlign: "center", color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", paddingHorizontal: 8 },
+  navSpacer:{ width: 36 },
+  scroll:   { padding: HPAD, paddingBottom: 16, gap: 10 },
+  timeCard: { backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORD, padding: 14, gap: 12 },
+  saveWrap: { paddingHorizontal: HPAD, paddingVertical: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)" },
+  saveBtn:  { backgroundColor: RED, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
+  saveTxt:  { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
+});
 
 function TitleTxt() {
   return (
