@@ -114,6 +114,7 @@ const HTML = `<!DOCTYPE html>
     font-size: clamp(14px, 2vw, 16px);
     font-weight: 600;
     cursor: pointer;
+    touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     transition: all 0.15s;
   }
@@ -336,11 +337,13 @@ function $(id) { return document.getElementById(id); }
     const pill = document.createElement('div');
     pill.className = 'session-pill' + (n === selectedSize ? ' active' : '');
     pill.textContent = n === 33 ? 'All' : String(n);
-    pill.onclick = function() {
+    function selectPill() {
       selectedSize = n;
       document.querySelectorAll('.session-pill').forEach(function(p) { p.classList.remove('active'); });
       pill.classList.add('active');
-    };
+    }
+    pill.addEventListener('touchend', function(e) { e.preventDefault(); selectPill(); });
+    pill.addEventListener('click', selectPill);
     container.appendChild(pill);
   });
 })();
