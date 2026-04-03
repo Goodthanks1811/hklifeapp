@@ -62,7 +62,7 @@ const DURATIONS = [
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CalEvent   { id: string; title: string; timeStr: string; dotColor: string; }
-interface DaySection { dateKey: string; dayLabel: string; ordStr: string; isToday: boolean; data: CalEvent[]; }
+interface DaySection { dateKey: string; dayLabel: string; ordStr: string; isToday: boolean; weekStart: boolean; data: CalEvent[]; }
 type EventType = "appointment" | "allday" | "birthday";
 type CalKey    = "HK" | "Sticky";
 type Step      = "idle" | "title" | "detail";
@@ -678,12 +678,18 @@ export default function CalendarScreen() {
             dayLabel: isToday ? "Today" : isTomorrow ? "Tomorrow" : DAYS_FULL[start.getDay()],
             ordStr:   `${ordinal(start.getDate())} ${MONTHS_S[start.getMonth()]}`,
             isToday,
+            weekStart: false,
             data:     [],
           });
         }
         dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? "All Day" : fmt12(start), dotColor });
       }
-      setSections(Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey)));
+      const sorted = Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+      sorted.forEach((sec, i) => {
+        const dow = new Date(sec.dateKey + "T00:00:00").getDay();
+        sec.weekStart = i > 0 && dow === 1; // Monday = 1
+      });
+      setSections(sorted);
       setStatus("done");
     } catch (e: any) {
       setErrorMsg(e?.message || "Failed to load events");
@@ -707,11 +713,14 @@ export default function CalendarScreen() {
   }).current;
 
   const renderSectionHeader = useCallback(({ section }: { section: DaySection }) => (
-    <View style={[s.dayHdr, section.isToday && s.dayHdrToday]}>
-      <Text style={s.dlDay}>{section.dayLabel}</Text>
-      <Text style={s.dlSep}>·</Text>
-      <Text style={s.dlDate}>{section.ordStr}</Text>
-    </View>
+    <>
+      {section.weekStart && <View style={s.weekDivider} />}
+      <View style={[s.dayHdr, section.isToday && s.dayHdrToday]}>
+        <Text style={s.dlDay}>{section.dayLabel}</Text>
+        <Text style={s.dlSep}>·</Text>
+        <Text style={s.dlDate}>{section.ordStr}</Text>
+      </View>
+    </>
   ), []);
 
   const renderItem = useCallback(({ item, index }: { item: CalEvent; index: number }) => (
@@ -838,8 +847,9 @@ const s = StyleSheet.create({
   dayHdrToday:{ backgroundColor: "#0d0d0f" },
   dlDay:      { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dlSep:      { fontSize: 14, color: `${RED}44` },
-  dlDate:     { fontSize: 15, fontFamily: "Inter_500Medium", color: RED, letterSpacing: -0.2 },
+  dlDate:     { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dayFooter:  { height: 10, backgroundColor: BG },
+  weekDivider:{ height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginTop: 6 },
   evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG, gap: 12 },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
   tStart:     { width: 58, flexShrink: 0, fontSize: 12, fontFamily: "Inter_500Medium", color: SUB },
