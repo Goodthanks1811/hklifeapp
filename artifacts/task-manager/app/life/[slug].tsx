@@ -682,9 +682,9 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
                   setLocalEpic(ep);
                   onEpicChange?.(task.id, ep);
                 }}
-                style={[s.dsEpicChip, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border }]}
+                style={[s.dsEpicChip, { backgroundColor: selected ? ec.bg : "transparent", borderColor: selected ? ec.border : Colors.border }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }]}>{ep}</Text>
+                <Text style={[s.dsEpicText, { color: selected ? ec.text : Colors.textSecondary }, isTablet && { fontSize: 14 }]}>{ep}</Text>
               </Pressable>
             );
           })}
@@ -700,9 +700,9 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
               <Pressable
                 key={`cat-${cat}`}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChange(cat); }}
-                style={[s.dsCatChip, selected && s.dsCatChipActive]}
+                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={[s.dsCatText, selected && s.dsCatTextActive]}>{cat}</Text>
+                <Text style={[s.dsCatText, selected && s.dsCatTextActive, isTablet && { fontSize: 14 }]}>{cat}</Text>
               </Pressable>
             );
           })}
@@ -1099,9 +1099,9 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
               <Pressable
                 key={`qa-ep-${ep}`}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
-                style={[s.dsEpicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }]}
+                style={[s.dsEpicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={[s.dsEpicText, { color: selected ? colours.text : Colors.textMuted }]}>{ep}</Text>
+                <Text style={[s.dsEpicText, { color: selected ? colours.text : Colors.textMuted }, isTablet && { fontSize: 14 }]}>{ep}</Text>
               </Pressable>
             );
           })}
@@ -1114,9 +1114,9 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
               <Pressable
                 key={`qa-cat-${cat}`}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChangeQA(cat); }}
-                style={[s.dsCatChip, selected && s.dsCatChipActive]}
+                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={[s.dsCatText, selected && s.dsCatTextActive]}>{cat}</Text>
+                <Text style={[s.dsCatText, selected && s.dsCatTextActive, isTablet && { fontSize: 14 }]}>{cat}</Text>
               </Pressable>
             );
           })}
