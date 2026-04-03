@@ -391,19 +391,19 @@ const tm = StyleSheet.create({
   card: {
     width: "100%", backgroundColor: CARD,
     borderRadius: 18, borderWidth: 1, borderColor: BORD,
-    padding: 22, gap: 16,
+    padding: 20, gap: 12,
   },
-  cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  cardTitle: { color: TEXT, fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center" },
   input: {
     backgroundColor: CARD2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.22)",
-    borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
-    paddingHorizontal: 16, paddingVertical: 14,
+    borderRadius: 12, color: TEXT, fontSize: 16, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 14, paddingVertical: 10,
   },
-  btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
-  btnCancel: { paddingVertical: 10, paddingRight: 8 },
-  btnCancelTxt: { color: TEXT, fontSize: 15, fontFamily: "Inter_500Medium" },
-  btnNext: { flex: 1, backgroundColor: RED, borderRadius: 10, paddingVertical: 9, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginLeft: 12 },
-  btnNextTxt: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  btnRow: { flexDirection: "row", alignItems: "center", paddingTop: 2, gap: 10 },
+  btnCancel: { paddingVertical: 8, paddingRight: 10 },
+  btnCancelTxt: { color: TEXT, fontSize: 14, fontFamily: "Inter_500Medium" },
+  btnNext: { flex: 1, backgroundColor: RED, borderRadius: 10, paddingVertical: 7, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  btnNextTxt: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
 
 // ── EventDetailScreen (Step 2) ────────────────────────────────────────────────
