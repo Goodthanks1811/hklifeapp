@@ -61,7 +61,7 @@ const DURATIONS = [
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface CalEvent   { id: string; title: string; timeStr: string | null; }
+interface CalEvent   { id: string; title: string; timeStr: string; dotColor: string; }
 interface DaySection { dateKey: string; dayLabel: string; ordStr: string; isToday: boolean; data: CalEvent[]; }
 type EventType = "appointment" | "allday" | "birthday";
 type CalKey    = "HK" | "Sticky";
@@ -309,7 +309,7 @@ function TitleModal({
               hitSlop={8}
             >
               <Text style={tm.btnNextTxt}>Next</Text>
-              <Feather name="arrow-right" size={15} color={RED} />
+              <Feather name="arrow-right" size={15} color="#fff" />
             </Pressable>
           </View>
         </View>
@@ -330,15 +330,15 @@ const tm = StyleSheet.create({
   },
   cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
   input: {
-    backgroundColor: CARD2, borderWidth: 1.5, borderColor: BORD,
+    backgroundColor: CARD2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.22)",
     borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
     paddingHorizontal: 16, paddingVertical: 14,
   },
   btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
-  btnCancel: { paddingVertical: 6, paddingRight: 12 },
+  btnCancel: { paddingVertical: 10, paddingRight: 8 },
   btnCancelTxt: { color: MUT, fontSize: 15, fontFamily: "Inter_500Medium" },
-  btnNext: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 6, paddingLeft: 12 },
-  btnNextTxt: { color: RED, fontSize: 16, fontFamily: "Inter_700Bold" },
+  btnNext: { flex: 1, backgroundColor: RED, borderRadius: 12, paddingVertical: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginLeft: 12 },
+  btnNextTxt: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
 
 // ── EventDetailScreen (Step 2) ────────────────────────────────────────────────
@@ -649,8 +649,12 @@ export default function CalendarScreen() {
         if (!ev.title) continue;
         const start      = new Date(ev.startDate as any);
         const key        = isoDay(start);
-        const isBirthday = hkCals.find(c => c.id === ev.calendarId)?.title.toLowerCase() === "birthday";
+        const calName    = hkCals.find(c => c.id === ev.calendarId)?.title.toLowerCase() ?? "";
+        const isBirthday = calName === "birthday";
+        const isSticky   = calName === "sticky";
+        const isTraining = ev.title.toLowerCase().includes("training");
         const title      = isBirthday ? `🎂 ${ev.title}` : ev.title;
+        const dotColor   = isTraining ? "#2ecc71" : isSticky ? "#ff5555" : "#5aa5ff";
 
         if (!dayMap.has(key)) {
           const isToday    = start.toDateString() === today.toDateString();
@@ -663,7 +667,7 @@ export default function CalendarScreen() {
             data:     [],
           });
         }
-        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? null : fmt12(start) });
+        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? "All Day" : fmt12(start), dotColor });
       }
       setSections(Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey)));
       setStatus("done");
@@ -698,9 +702,11 @@ export default function CalendarScreen() {
 
   const renderItem = useCallback(({ item, index }: { item: CalEvent; index: number }) => (
     <View style={[s.evRow, index > 0 && s.evRowBorder]}>
-      <View style={s.evTime}>{item.timeStr ? <Text style={s.tStart}>{item.timeStr}</Text> : null}</View>
-      <View style={s.evCenter}><Text style={s.evTitle}>{item.title}</Text></View>
-      <View style={s.evSpacer} />
+      <Text style={s.tStart}>{item.timeStr}</Text>
+      <View style={s.evMain}>
+        <View style={[s.evDot, { backgroundColor: item.dotColor }]} />
+        <Text style={s.evTitle}>{item.title}</Text>
+      </View>
     </View>
   ), []);
 
@@ -820,13 +826,12 @@ const s = StyleSheet.create({
   dlSep:      { fontSize: 14, color: `${RED}44` },
   dlDate:     { fontSize: 16, fontFamily: "Inter_600SemiBold", color: RED, letterSpacing: -0.2 },
   dayFooter:  { height: 10, backgroundColor: BG },
-  evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG },
+  evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG, gap: 12 },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
-  evTime:     { width: 56, flexShrink: 0 },
-  tStart:     { fontSize: 13, fontFamily: "Inter_500Medium", color: "#fff" },
-  evCenter:   { flex: 1, alignItems: "center" },
-  evTitle:    { fontSize: 15, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 20, textAlign: "center" },
-  evSpacer:   { width: 56, flexShrink: 0 },
+  tStart:     { width: 58, flexShrink: 0, fontSize: 12, fontFamily: "Inter_500Medium", color: SUB },
+  evMain:     { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  evDot:      { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  evTitle:    { flex: 1, fontSize: 15, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 20 },
   center:     { flex: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingHorizontal: 32 },
   errorTxt:   { color: SUB, fontSize: 14, textAlign: "center", fontFamily: "Inter_400Regular", lineHeight: 20 },
   retryBtn:   { backgroundColor: RED, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 32, marginTop: 4 },
