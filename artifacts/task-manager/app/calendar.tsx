@@ -357,7 +357,6 @@ function TitleModal({
       <View style={tm.overlay}>
         <Animated.View style={[tm.card, { transform: [{ translateX: shakeX }] }]}>
           <Text style={tm.cardTitle}>New Event</Text>
-          <Text style={tm.inputLabel}>Summary</Text>
           <TextInput
             style={tm.input}
             placeholder="Add summary"
@@ -395,16 +394,15 @@ const tm = StyleSheet.create({
     padding: 22, gap: 16,
   },
   cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
-  inputLabel: { color: TEXT, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: -8 },
   input: {
     backgroundColor: CARD2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.22)",
     borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
-  btnCancel: { paddingVertical: 10, paddingRight: 8 },
-  btnCancelTxt: { color: TEXT, fontSize: 15, fontFamily: "Inter_500Medium" },
-  btnNext: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: RED, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 },
+  btnRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 4 },
+  btnCancel: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: CARD2, alignItems: "center" },
+  btnCancelTxt: { color: "#A0A0A0", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  btnNext: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: RED, borderRadius: 13, paddingVertical: 15 },
   btnNextTxt: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
 

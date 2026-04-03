@@ -1049,12 +1049,13 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const innerContent = (
     <>
       {/* Title — extra paddingBottom ensures emojis don't crowd it */}
+      <Text style={s.dsFieldLabel}>Summary</Text>
       <Animated.View style={{ transform: [{ translateX: shakeAnim }], paddingBottom: 4 }}>
         <TextInput
           style={s.dsTitleInput}
           value={title}
           onChangeText={setTitle}
-          placeholder="Task name…"
+          placeholder="Add summary"
           placeholderTextColor={Colors.textMuted}
           selectionColor={Colors.primary}
           returnKeyType="done"
@@ -2103,6 +2104,7 @@ const s = StyleSheet.create({
   dsLinkRow:   { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
   dsLinkEmoji: { fontSize: 15, lineHeight: 20 },
   dsLinkLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.primary, textDecorationLine: "underline", lineHeight: 18 },
+  dsFieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 20, paddingBottom: 6 },
   dsActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   dsCancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
   dsCancelTx: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
