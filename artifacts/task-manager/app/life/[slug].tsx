@@ -1235,17 +1235,9 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const opacityAnim   = useRef(new Animated.Value(1)).current;
   const rowHeight     = useRef(new Animated.Value(ITEM_H)).current;
   const rowScale      = useRef(new Animated.Value(1)).current;
-  const pressY        = useRef(new Animated.Value(0)).current;
   const deletingRef   = useRef(false);
   const isRevealedRef = useRef(false);
   const [checked, setChecked] = useState(false);
-
-  const onPressIn = useCallback(() => {
-    Animated.timing(pressY, { toValue: 2, duration: 55, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
-  }, [pressY]);
-  const onPressOut = useCallback(() => {
-    Animated.spring(pressY, { toValue: 0, useNativeDriver: true, tension: 600, friction: 20 }).start();
-  }, [pressY]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
@@ -1312,7 +1304,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateY: pressY }] }]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
           {/* Emoji */}
           <Pressable
             ref={emojiBtnRef}
@@ -1330,11 +1322,9 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
           {/* Name — fills full row height so tap target = entire row, not just text */}
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
-            onPress={() => { onPressOut(); handleRowTap(onPress); }}
+            onPress={() => handleRowTap(onPress)}
             onLongPress={onLongPress}
             delayLongPress={200}
-            onPressIn={onPressIn}
-            onPressOut={onPressOut}
             hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
           >
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
