@@ -206,8 +206,8 @@ const dp = StyleSheet.create({
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: `${RED}44`, zIndex: 1,
   },
   item:       { height: ITEM_H, alignItems: "center", justifyContent: "center" },
-  itemTxt:    { color: TEXT, fontSize: 16, fontFamily: "Inter_400Regular", opacity: 0.45 },
-  itemTxtSel: { color: TEXT, fontSize: 17, fontFamily: "Inter_700Bold",   opacity: 1 },
+  itemTxt:    { color: "rgba(255,255,255,0.4)", fontSize: 16, fontFamily: "Inter_400Regular" },
+  itemTxtSel: { color: "#ffffff",              fontSize: 17, fontFamily: "Inter_700Bold" },
   fadeT: {
     position: "absolute", top: 0, left: 0, right: 0, height: ITEM_H * PADDING,
     backgroundColor: CARD2, opacity: 0.75, zIndex: 2, pointerEvents: "none",
@@ -578,7 +578,7 @@ function EventDetailScreen({
                   }]}
                 >
                   <View style={[ed.calDot, { backgroundColor: isHK ? HK_TX : ST_TX }]} />
-                  <Text style={[ed.calPillTxt, { color: active ? (isHK ? HK_TX : ST_TX) : MUT }]}>{k}</Text>
+                  <Text style={[ed.calPillTxt, { color: "#ffffff" }]}>{k}</Text>
                 </Pressable>
               );
             })}
@@ -639,7 +639,7 @@ const ed = StyleSheet.create({
   typePillActive:     { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
   typePillIcon:       { fontSize: 15 },
   typePillTxt:        { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT },
-  typePillTxtActive:  { color: "#e07070" },
+  typePillTxtActive:  { color: "#ffffff" },
 
   // Time card — exact ui-kit card style
   card: {
@@ -659,7 +659,7 @@ const ed = StyleSheet.create({
   },
   durPillActive:    { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
   durPillTxt:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT },
-  durPillTxtActive: { color: "#e07070" },
+  durPillTxtActive: { color: "#ffffff" },
 
   // Calendar pills
   calPill: {
