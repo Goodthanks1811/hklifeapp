@@ -374,7 +374,7 @@ function TitleModal({
             </Pressable>
             <Pressable onPress={handleNext} style={tm.btnNext} hitSlop={8}>
               <Text style={tm.btnNextTxt}>Next</Text>
-              <Feather name="arrow-right" size={15} color="#fff" />
+              <Feather name="arrow-right" size={15} color={RED} />
             </Pressable>
           </View>
         </Animated.View>
@@ -391,19 +391,19 @@ const tm = StyleSheet.create({
   card: {
     width: "100%", backgroundColor: CARD,
     borderRadius: 18, borderWidth: 1, borderColor: BORD,
-    padding: 20, gap: 12,
+    padding: 22, gap: 16,
   },
-  cardTitle: { color: TEXT, fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center" },
+  cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
   input: {
     backgroundColor: CARD2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.22)",
-    borderRadius: 12, color: TEXT, fontSize: 16, fontFamily: "Inter_400Regular",
-    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",
+    paddingHorizontal: 16, paddingVertical: 14,
   },
-  btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 2 },
-  btnCancel: { paddingVertical: 8 },
-  btnCancelTxt: { color: TEXT, fontSize: 14, fontFamily: "Inter_500Medium" },
-  btnNext: { backgroundColor: RED, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 22, flexDirection: "row", alignItems: "center", gap: 6 },
-  btnNextTxt: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
+  btnCancel: { paddingVertical: 10, paddingRight: 8 },
+  btnCancelTxt: { color: TEXT, fontSize: 15, fontFamily: "Inter_500Medium" },
+  btnNext: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 10, paddingLeft: 8 },
+  btnNextTxt: { color: RED, fontSize: 15, fontFamily: "Inter_700Bold" },
 });
 
 // ── EventDetailScreen (Step 2) ────────────────────────────────────────────────
