@@ -357,9 +357,10 @@ function TitleModal({
       <View style={tm.overlay}>
         <Animated.View style={[tm.card, { transform: [{ translateX: shakeX }] }]}>
           <Text style={tm.cardTitle}>New Event</Text>
+          <Text style={tm.inputLabel}>Summary</Text>
           <TextInput
             style={tm.input}
-            placeholder="Event name…"
+            placeholder="Add summary"
             placeholderTextColor={MUT}
             value={val}
             onChangeText={setVal}
@@ -394,6 +395,7 @@ const tm = StyleSheet.create({
     padding: 22, gap: 16,
   },
   cardTitle: { color: TEXT, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  inputLabel: { color: TEXT, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: -8 },
   input: {
     backgroundColor: CARD2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.22)",
     borderRadius: 12, color: TEXT, fontSize: 17, fontFamily: "Inter_400Regular",

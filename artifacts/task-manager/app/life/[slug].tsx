@@ -1295,7 +1295,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { transform: [{ translateY: pressY }] }]}>
           {/* Emoji */}
           <Pressable
             ref={emojiBtnRef}
