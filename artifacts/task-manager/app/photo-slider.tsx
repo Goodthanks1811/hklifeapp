@@ -458,7 +458,7 @@ stage.addEventListener('touchmove',function(e){
   }
   if(tMode==='slider'&&t.length>=1){var p=stXY(t[0]);sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));drawRaf();return;}
   var ax=zoomMode?gTx:(brushMode?tx2:activeTx());if(!ax)return;
-  if(tMode==='pan'&&t.length===1){var p=stXY(t[0]);ax.cx+=p.x-panLast.x;ax.cy+=p.y-panLast.y;panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
+  if(tMode==='pan'&&t.length===1){var p=stXY(t[0]);var dx=p.x-panLast.x,dy=p.y-panLast.y;if(zoomMode&&gTx&&gTx.scale!==1){var f=1/(1-gTx.scale);ax.cx+=dx*f;ax.cy+=dy*f;}else{ax.cx+=dx;ax.cy+=dy;}panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
   else if(tMode==='pinch'&&t.length>=2){var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));var cm=tMid(t[0],t[1]);var imgX=(psMidX-psCx)/psScale,imgY=(psMidY-psCy)/psScale;ax.cx=cm.x-imgX*ns;ax.cy=cm.y-imgY*ns;ax.scale=ns;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
 },{passive:false});
 stage.addEventListener('touchend',function(e){
@@ -486,7 +486,7 @@ function toggleSlider(){
   draw();
 }
 function resetActive(){snapshot();if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};draw();return;}if(active===0)return;var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}}
-function setOpacity(v){opacity2=v/100;document.getElementById('oval').textContent=v+'%';draw();}
+function setOpacity(v){opacity2=v/100;document.getElementById('oval').textContent=v+'%';drawRaf();}
 window.addEventListener('resize',function(){var w=W(),h=H();if(img1)tx1=defaultTx(img1,w,h);if(img2)tx2=defaultTx(img2,w,h);gTx=null;draw();});
 
 // ── Brush controls ─────────────────────────────────────
