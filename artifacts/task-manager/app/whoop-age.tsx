@@ -115,7 +115,7 @@ const HTML = `<!DOCTYPE html>
         <div class="legend">
           <div class="legend-item"><div class="legend-dot" style="background:#26c97a"></div>Younger</div>
           <div class="legend-item"><div class="legend-dot" style="background:#ff1e1e"></div>Older</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#4fc3f7"></div>Real Age</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.85)"></div>Real Age</div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
@@ -314,7 +314,7 @@ function drawLine() {
   // Real age dashed
   ctx.beginPath();
   realAge.forEach((v, i) => i === 0 ? ctx.moveTo(xOf(i), yOf(v)) : ctx.lineTo(xOf(i), yOf(v)));
-  ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
   ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
 
   // Green segment
