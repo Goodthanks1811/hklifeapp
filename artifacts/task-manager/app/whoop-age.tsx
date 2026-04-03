@@ -77,8 +77,7 @@ const HTML = `<!DOCTYPE html>
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
   .chart-wrap { position: relative; flex: 1; min-height: 0; }
   .chart-wrap-scroll { overflow-x: auto; overflow-y: hidden; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
-  .chart-wrap-scroll canvas { display: block; height: 100% !important; }
-  canvas { display: block; width: 100% !important; height: 100% !important; }
+  canvas { display: block; }
 </style>
 </head>
 <body>

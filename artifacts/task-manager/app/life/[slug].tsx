@@ -1132,7 +1132,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       {/* Notes body */}
       <TextInput
         ref={qaNotesRef}
-        style={[s.dsNotesInput, { minHeight: 80, paddingHorizontal: 20, paddingVertical: 14 }]}
+        style={[s.dsNotesInput, { minHeight: isTablet ? 180 : 80, paddingHorizontal: 20, paddingVertical: 14 }]}
         value={notes}
         onChangeText={handleQABodyChange}
         onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
@@ -1167,7 +1167,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         {isTablet ? (
           // ── iPad: centered card ───────────────────────────────────
           <Animated.View style={[s.dsCard, { width: cardW, maxHeight: screenH * 0.92, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
-            <View style={s.dsCardTop}>
+            <View style={[s.dsCardTop, { paddingTop: 28, paddingBottom: 20, paddingHorizontal: 26 }]}>
               {innerContent}
             </View>
             {qaLoaderOverlay}
