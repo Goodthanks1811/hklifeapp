@@ -193,54 +193,49 @@ function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
     { id: "underline", label: "U",  isUnder: true },
     { id: "bullet",    label: "•" },
   ];
-  const borderStyle = { borderTopWidth: 1, borderTopColor: Colors.border, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: "rgba(255,255,255,0.02)" };
   return (
-    <View style={borderStyle}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7 }}>
-          {btns.map(btn => (
-            <Pressable
-              key={btn.id}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onFormat(btn.id); }}
-              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.07)", minWidth: 36, alignItems: "center" }}
-            >
-              <Text style={{ color: Colors.textPrimary, fontSize: 13, fontFamily: btn.isBold ? "Inter_700Bold" : "Inter_500Medium", textDecorationLine: btn.isUnder ? "underline" : "none" }}>
-                {btn.label}
-              </Text>
-            </Pressable>
-          ))}
-          {viewLink ? (
-            <Pressable
-              onPress={() => Linking.openURL(viewLink)}
-              hitSlop={8}
-              style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderLeftWidth: 1, borderLeftColor: Colors.border, marginLeft: 4, maxWidth: 160 }}
-            >
-              <Text style={{ fontSize: 14 }}>🔗</Text>
-              <Text numberOfLines={1} style={{ color: Colors.primary, fontSize: 11, fontFamily: "Inter_500Medium", maxWidth: 110 }}>
-                {viewLink.replace(/^https?:\/\//, "")}
-              </Text>
-            </Pressable>
-          ) : null}
-          {onLinkChange !== undefined && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingLeft: 6, borderLeftWidth: 1, borderLeftColor: Colors.border, marginLeft: 4 }}>
-              <Text style={{ fontSize: 14 }}>🔗</Text>
-              <TextInput
-                value={link ?? ""}
-                onChangeText={onLinkChange}
-                placeholder="URL…"
-                placeholderTextColor={Colors.textMuted}
-                selectionColor={Colors.primary}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                returnKeyType="done"
-                keyboardAppearance="dark"
-                style={{ width: 100, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 6, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
-              />
-            </View>
-          )}
+    <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.02)", paddingHorizontal: 10, paddingVertical: 7, gap: 4 }}>
+      {btns.map(btn => (
+        <Pressable
+          key={btn.id}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onFormat(btn.id); }}
+          style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.07)", minWidth: 36, alignItems: "center" }}
+        >
+          <Text style={{ color: Colors.textPrimary, fontSize: 13, fontFamily: btn.isBold ? "Inter_700Bold" : "Inter_500Medium", textDecorationLine: btn.isUnder ? "underline" : "none" }}>
+            {btn.label}
+          </Text>
+        </Pressable>
+      ))}
+      {viewLink ? (
+        <Pressable
+          onPress={() => Linking.openURL(viewLink)}
+          hitSlop={8}
+          style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderLeftWidth: 1, borderLeftColor: Colors.border, marginLeft: 2 }}
+        >
+          <Text style={{ fontSize: 14 }}>🔗</Text>
+          <Text numberOfLines={1} style={{ flex: 1, color: Colors.primary, fontSize: 11, fontFamily: "Inter_500Medium" }}>
+            {viewLink.replace(/^https?:\/\//, "")}
+          </Text>
+        </Pressable>
+      ) : null}
+      {onLinkChange !== undefined && (
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 5, paddingLeft: 6, borderLeftWidth: 1, borderLeftColor: Colors.border, marginLeft: 2 }}>
+          <Text style={{ fontSize: 14 }}>🔗</Text>
+          <TextInput
+            value={link ?? ""}
+            onChangeText={onLinkChange}
+            placeholder="URL…"
+            placeholderTextColor={Colors.textMuted}
+            selectionColor={Colors.primary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            returnKeyType="done"
+            keyboardAppearance="dark"
+            style={{ flex: 1, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 6, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
+          />
         </View>
-      </ScrollView>
+      )}
     </View>
   );
 }
@@ -636,6 +631,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
   const sheetContent = (
     <>
       {/* Title */}
+      <Text style={s.dsFieldLabel}>Summary</Text>
       <TextInput
         style={s.dsTitleInput}
         value={title}
@@ -727,13 +723,6 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   const bodySection = (
     <>
-      <View style={s.dsDivider} />
-
-      {/* ── Notes header ──────────────────────────────────────────────── */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>
-        <Text style={s.dsSectionLabel}>NOTES</Text>
-      </View>
-
       <FormattingToolbar
         onFormat={handleFormat}
         viewLink={task?.url ?? task?.fileLinks?.[0]?.url ?? undefined}
