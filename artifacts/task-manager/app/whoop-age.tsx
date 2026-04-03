@@ -371,18 +371,25 @@ function drawLine() {
     // Tooltip pill
     const line1 = 'WHOOP ' + wv.toFixed(1);
     const line2 = 'REAL  ' + rv.toFixed(1);
+    const line3 = labels[si];
     ctx.font = "700 11px 'DM Mono', monospace";
     const tw = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
-    const pw = tw + 18, ph = 38, gap = 6;
+    ctx.font = "400 10px 'DM Mono', monospace";
+    const tw3 = ctx.measureText(line3).width;
+    const pw = Math.max(tw, tw3) + 18, ph = 52, gap = 6;
     let px = sx + gap;
     if (px + pw > PAD.left + cW) px = sx - pw - gap;
     const py = PAD.top + 4;
     ctx.fillStyle = 'rgba(20,20,20,0.93)';
     ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 6); ctx.fill();
+    ctx.font = "700 11px 'DM Mono', monospace"; ctx.textAlign = 'left';
     ctx.fillStyle = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a';
-    ctx.textAlign = 'left'; ctx.fillText(line1, px + 9, py + 14);
+    ctx.fillText(line1, px + 9, py + 14);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillText(line2, px + 9, py + 29);
+    ctx.fillText(line2, px + 9, py + 28);
+    ctx.font = "400 10px 'DM Mono', monospace";
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(line3, px + 9, py + 44);
   }
 }
 
@@ -457,17 +464,24 @@ function drawBar() {
     ctx.beginPath(); ctx.arc(sx, barTop, 3.5, 0, Math.PI * 2);
     ctx.fillStyle = dotColor; ctx.fill();
 
-    // Tooltip pill above dot
+    // Tooltip pill above dot — age + date
     const label = sv.toFixed(1);
-    ctx.font = "700 11px 'DM Mono', monospace"; ctx.textAlign = 'center';
-    const tw = ctx.measureText(label).width;
-    const pw = tw + 14, ph = 18;
+    const dateLabel = labels[si];
+    ctx.font = "700 12px 'DM Mono', monospace";
+    const aw = ctx.measureText(label).width;
+    ctx.font = "400 10px 'DM Mono', monospace";
+    const dw = ctx.measureText(dateLabel).width;
+    const pw = Math.max(aw, dw) + 18, ph = 34;
     const px = Math.min(Math.max(sx - pw / 2, PAD.left), PAD.left + cW - pw);
     const py = barTop - ph - 10;
     ctx.fillStyle = 'rgba(30,30,30,0.92)';
     ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 5); ctx.fill();
+    ctx.font = "700 12px 'DM Mono', monospace"; ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(label, px + pw / 2, py + ph - 5);
+    ctx.fillText(label, px + pw / 2, py + 15);
+    ctx.font = "400 10px 'DM Mono', monospace";
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(dateLabel, px + pw / 2, py + 29);
   }
 
   labels.forEach((l, i) => {
