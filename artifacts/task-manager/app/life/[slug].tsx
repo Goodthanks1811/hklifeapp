@@ -212,7 +212,7 @@ function FormattingToolbar({ onFormat, link, onLinkChange }: {
       </ScrollView>
       {onLinkChange !== undefined && (
         <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 10, paddingLeft: 6, gap: 5, borderLeftWidth: 1, borderLeftColor: Colors.border }}>
-          <Text style={{ color: Colors.textSecondary, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 }}>LINK</Text>
+          <Text style={{ fontSize: 14 }}>🔗</Text>
           <TextInput
             value={link ?? ""}
             onChangeText={onLinkChange}
@@ -733,56 +733,29 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
       <View style={s.dsDivider} />
 
       {/* ── Notes header ──────────────────────────────────────────────── */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>
         <Text style={s.dsSectionLabel}>NOTES</Text>
-        {!bodyLoading && (
-          <Pressable onPress={() => setEditingBody(e => !e)} hitSlop={12}
-            style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Feather name={editingBody ? "eye" : "edit-2"} size={14} color={editingBody ? Colors.primary : Colors.textMuted} />
-            <Text style={{ color: editingBody ? Colors.primary : Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" }}>
-              {editingBody ? "Preview" : "Edit"}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
-      {editingBody ? (
-        // ── Edit mode ────────────────────────────────────────────────────
-        <>
-          <FormattingToolbar onFormat={handleFormat} />
-          <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
-              <TextInput
-                ref={notesRef}
-                style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
-                value={notes}
-                onChangeText={handleBodyChange}
-                onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
-                multiline
-                editable={!bodyLoading}
-                placeholder="Start typing…"
-                placeholderTextColor={Colors.textMuted}
-                selectionColor={Colors.primary}
-                keyboardAppearance="dark"
-                textAlignVertical="top"
-              />
-            </View>
-          </ScrollView>
-        </>
-      ) : (
-        // ── Read mode ────────────────────────────────────────────────────
-        <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Pressable style={[s.dsBodyInner, { paddingTop: 6 }]} onPress={() => setEditingBody(true)}>
-            {bodyLoading ? (
-              <Text style={{ color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic" }}>Loading…</Text>
-            ) : notes.trim() ? (
-              <RichBodyView markdown={notes} />
-            ) : (
-              <Text style={{ color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic" }}>Tap to add notes…</Text>
-            )}
-          </Pressable>
-        </ScrollView>
-      )}
+      <FormattingToolbar onFormat={handleFormat} />
+      <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
+          <TextInput
+            ref={notesRef}
+            style={[s.dsNotesInput, bodyLoading && { opacity: 0.35 }]}
+            value={notes}
+            onChangeText={handleBodyChange}
+            onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
+            multiline
+            editable={!bodyLoading}
+            placeholder="Tap to add notes…"
+            placeholderTextColor={Colors.textMuted}
+            selectionColor={Colors.primary}
+            keyboardAppearance="dark"
+            textAlignVertical="top"
+          />
+        </View>
+      </ScrollView>
 
       <View style={s.dsDivider} />
       <View style={s.dsActions}>
