@@ -630,7 +630,7 @@ const ed = StyleSheet.create({
   navTitle:   { flex: 1, textAlign: "center", color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", paddingHorizontal: 8 },
   navSpacer:  { width: 36 },
 
-  scroll:  { padding: HPAD, paddingBottom: 16, gap: 18 },
+  scroll:  { padding: HPAD, paddingBottom: 16, gap: 10 },
 
   saveWrap: { paddingHorizontal: HPAD, paddingVertical: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)" },
   saveBtn:  { backgroundColor: RED, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
@@ -642,7 +642,7 @@ const ed = StyleSheet.create({
   typePill: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 6, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD,
-    borderRadius: 12, paddingVertical: 13,
+    borderRadius: 12, paddingVertical: 10,
   },
   typePillActive:     { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
   typePillIcon:       { fontSize: 15 },
@@ -663,7 +663,7 @@ const ed = StyleSheet.create({
   durRow: { flexDirection: "row", gap: 8 },
   durPill: {
     flex: 1, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORD,
-    borderRadius: 10, paddingVertical: 11, alignItems: "center",
+    borderRadius: 10, paddingVertical: 8, alignItems: "center",
   },
   durPillActive:    { backgroundColor: `${RED}18`, borderColor: `${RED}66` },
   durPillTxt:       { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT },
