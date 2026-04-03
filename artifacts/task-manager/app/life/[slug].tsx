@@ -230,7 +230,7 @@ function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
             keyboardType="url"
             returnKeyType="done"
             keyboardAppearance="dark"
-            style={{ flex: 1, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingVertical: 8, paddingHorizontal: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 7 }}
+            style={{ flex: 1, color: Colors.textPrimary, fontSize: 12, fontFamily: "Inter_400Regular", paddingTop: 9, paddingBottom: 5, paddingHorizontal: 10, backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10 }}
           />
         </View>
       )}
