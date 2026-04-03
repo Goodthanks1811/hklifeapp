@@ -49,7 +49,7 @@ const DOW_HEADS  = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
 // ── Drum data ─────────────────────────────────────────────────────────────────
 const HOURS_W   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-const MINUTES_W = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES_W = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 const AMPM_W    = ["AM", "PM"];
 
 const DURATIONS = [
@@ -85,10 +85,10 @@ function fmtTimeLbl(hIdx: number, mIdx: number, apIdx: number) {
 }
 
 // ── DrumPicker — exact match to ui-kit ────────────────────────────────────────
-const ITEM_H  = 38;
-const VISIBLE = 3;
+const ITEM_H  = 30;
+const VISIBLE = 5;
 const DRUM_H  = ITEM_H * VISIBLE;
-const PADDING = Math.floor(VISIBLE / 2); // 1
+const PADDING = Math.floor(VISIBLE / 2); // 2
 
 function DrumPicker({
   items, selectedIndex, onChange, width = 90,
