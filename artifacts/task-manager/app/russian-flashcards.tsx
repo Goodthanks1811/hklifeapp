@@ -113,9 +113,12 @@ const HTML = `<!DOCTYPE html>
     color: rgba(255,255,255,0.6);
     font-size: clamp(14px, 2vw, 16px);
     font-weight: 600;
+    font-family: -apple-system, sans-serif;
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none;
+    appearance: none;
     transition: all 0.15s;
   }
   .session-pill.active {
@@ -190,7 +193,11 @@ const HTML = `<!DOCTYPE html>
     width: 100%;
     text-align: center;
     cursor: pointer;
+    touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    font-family: -apple-system, sans-serif;
     transition: opacity 0.15s;
   }
   .btn:active { opacity: 0.75; }
@@ -277,8 +284,14 @@ const HTML = `<!DOCTYPE html>
     <div class="start-title">Russian Alphabet</div>
     <div class="start-sub">33 letters · type the sound</div>
     <div class="session-label">Cards per session</div>
-    <div class="session-pills" id="pills"></div>
-    <div class="btn" onclick="startSession()">Start</div>
+    <div class="session-pills">
+      <button class="session-pill active" id="pill-5"  onclick="selectPill(5)">5</button>
+      <button class="session-pill"        id="pill-10" onclick="selectPill(10)">10</button>
+      <button class="session-pill"        id="pill-15" onclick="selectPill(15)">15</button>
+      <button class="session-pill"        id="pill-20" onclick="selectPill(20)">20</button>
+      <button class="session-pill"        id="pill-33" onclick="selectPill(33)">All</button>
+    </div>
+    <button class="btn" onclick="startSession()">Start</button>
   </div>
 </div>
 
@@ -294,8 +307,8 @@ const HTML = `<!DOCTYPE html>
       autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
   </div>
   <div class="btn-row">
-    <div class="btn" id="submit-btn" onclick="checkAnswer()">Check</div>
-    <div class="btn btn-hint" id="hint-btn" onclick="showHint()">Hint</div>
+    <button class="btn" id="submit-btn" onclick="checkAnswer()">Check</button>
+    <button class="btn btn-hint" id="hint-btn" onclick="showHint()">Hint</button>
   </div>
   <div class="feedback" id="feedback"></div>
 </div>
@@ -312,14 +325,13 @@ const HTML = `<!DOCTYPE html>
       <h3>Review These</h3>
       <div id="mistakes-rows"></div>
     </div>
-    <div class="btn" onclick="restart()">Play Again</div>
+    <button class="btn" onclick="restart()">Play Again</button>
   </div>
 </div>
 
 <script>
 const FULL_ALPHABET = ${JSON.stringify(ALPHABET)};
-const SESSION_OPTIONS = [5, 10, 15, 20, 33];
-let selectedSize = 10;
+let selectedSize = 5;
 
 let SESSION  = [];
 let index    = 0;
@@ -330,23 +342,12 @@ let hintUsed = false;
 
 function $(id) { return document.getElementById(id); }
 
-// ── Build session-size pills ─────────────────────────────────────────────────
-(function buildPills() {
-  const container = $('pills');
-  SESSION_OPTIONS.forEach(function(n) {
-    const pill = document.createElement('div');
-    pill.className = 'session-pill' + (n === selectedSize ? ' active' : '');
-    pill.textContent = n === 33 ? 'All' : String(n);
-    function selectPill() {
-      selectedSize = n;
-      document.querySelectorAll('.session-pill').forEach(function(p) { p.classList.remove('active'); });
-      pill.classList.add('active');
-    }
-    pill.addEventListener('touchend', function(e) { e.preventDefault(); selectPill(); });
-    pill.addEventListener('click', selectPill);
-    container.appendChild(pill);
-  });
-})();
+function selectPill(n) {
+  selectedSize = n;
+  document.querySelectorAll('.session-pill').forEach(function(p) { p.classList.remove('active'); });
+  var pill = document.getElementById('pill-' + n);
+  if (pill) pill.classList.add('active');
+}
 
 function startSession() {
   $('start-view').style.display = 'none';
