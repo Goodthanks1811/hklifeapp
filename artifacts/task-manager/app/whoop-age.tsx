@@ -358,9 +358,15 @@ function drawLine() {
     ctx.moveTo(sx, PAD.top); ctx.lineTo(sx, PAD.top + cH);
     ctx.stroke(); ctx.setLineDash([]);
 
-    // Highlight dot on WHOOP age line only
-    ctx.beginPath(); ctx.arc(sx, yOf(wv), 4, 0, Math.PI * 2);
-    ctx.fillStyle = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a'; ctx.fill();
+    // Highlight dot on WHOOP age line — outer ring + inner fill
+    const dotColor = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a';
+    const dy = yOf(wv);
+    ctx.beginPath(); ctx.arc(sx, dy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, dy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, dy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = dotColor; ctx.fill();
 
     // Tooltip pill
     const line1 = 'WHOOP ' + wv.toFixed(1);
@@ -430,19 +436,34 @@ function drawBar() {
     }
     ctx.fillStyle = bg;
     ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
+    // Brighten selected bar
+    if (i === selectedBarIdx) {
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
+    }
   });
 
   if (selectedBarIdx !== null) {
     const si = selectedBarIdx;
     const sv = whoopAge[si];
+    const isOlder = si >= CROSSOVER_IDX;
+    const dotColor = isOlder ? '#ff3a3a' : '#26c97a';
     const sx = xOf(si) + barW / 2;
-    const sy = yOf(sv) - 6;
+    const barTop = yOf(sv);
+
+    // Dot at top of bar
+    ctx.beginPath(); ctx.arc(sx, barTop, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, barTop, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = dotColor; ctx.fill();
+
+    // Tooltip pill above dot
     const label = sv.toFixed(1);
     ctx.font = "700 11px 'DM Mono', monospace"; ctx.textAlign = 'center';
     const tw = ctx.measureText(label).width;
     const pw = tw + 14, ph = 18;
     const px = Math.min(Math.max(sx - pw / 2, PAD.left), PAD.left + cW - pw);
-    const py = sy - ph - 2;
+    const py = barTop - ph - 10;
     ctx.fillStyle = 'rgba(30,30,30,0.92)';
     ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 5); ctx.fill();
     ctx.fillStyle = '#ffffff';
