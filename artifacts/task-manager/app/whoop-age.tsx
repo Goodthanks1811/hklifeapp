@@ -396,9 +396,11 @@ function drawBar() {
     }
     ctx.fillStyle = bg;
     ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
-    ctx.fillStyle = isOlder ? '#ff8888' : '#26c97a';
-    ctx.font = "500 7px 'DM Mono', monospace"; ctx.textAlign = 'center';
-    ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
+    if (i % 3 === 0) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = "500 7px 'DM Mono', monospace"; ctx.textAlign = 'center';
+      ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
+    }
   });
 
   labels.forEach((l, i) => {
