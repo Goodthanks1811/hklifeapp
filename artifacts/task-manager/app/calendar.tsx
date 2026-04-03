@@ -113,40 +113,48 @@ function DrumPicker({
     ref.current?.scrollTo({ y: pos * ITEM_H, animated });
   }, []);
 
+  // For looping drums: the highlight band sits PADDING rows below the viewport top.
+  // To centre items[k] from the middle copy (rows[n+k]), viewport pos = n + k - PADDING.
+  // For non-looping: rows = [blank×P, items, blank×P], centre on items[k] at pos = k.
+  const posFor = useCallback((k: number) =>
+    looping ? n + k - PADDING : k,
+  [looping, n]);
+
   const onLayout = useCallback(() => {
     if (!mounted.current) {
       mounted.current = true;
-      scrollTo(looping ? n + selectedIndex : selectedIndex, false);
+      scrollTo(posFor(selectedIndex), false);
     }
-  }, [selectedIndex, scrollTo, looping, n]);
+  }, [selectedIndex, scrollTo, posFor]);
 
   // Sync AMPM drum when selectedIndex flips due to hour wrap
   useEffect(() => {
     if (!mounted.current || dragging.current) return;
     if (selectedIndex !== prevSel.current) {
       prevSel.current = selectedIndex;
-      scrollTo(looping ? n + selectedIndex : selectedIndex, true);
+      scrollTo(posFor(selectedIndex), true);
     }
-  }, [selectedIndex, scrollTo, looping, n]);
+  }, [selectedIndex, scrollTo, posFor]);
 
   const snap = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y      = e.nativeEvent.contentOffset.y;
-    const maxIdx = looping ? n * 3 - 1 : n + PADDING * 2 - 1;
-    const rawIdx = Math.max(0, Math.min(maxIdx, Math.round(y / ITEM_H)));
+    const rawIdx = Math.round(y / ITEM_H);           // scroll position in row units
 
     if (looping) {
-      const actual = rawIdx % n;
-      if (rawIdx < n) {
+      // Item in highlight = rows[rawIdx + PADDING]; actual index = (rawIdx + PADDING) % n
+      const actual = ((rawIdx + PADDING) % n + n) % n;
+      if (rawIdx < n - PADDING) {                    // centre drifted into first copy
         onWrapBack?.();
-        requestAnimationFrame(() => scrollTo(n + actual, false));
-      } else if (rawIdx >= 2 * n) {
+        requestAnimationFrame(() => scrollTo(n + actual - PADDING, false));
+      } else if (rawIdx >= 2 * n - PADDING) {        // centre drifted into third copy
         onWrapForward?.();
-        requestAnimationFrame(() => scrollTo(n + actual, false));
+        requestAnimationFrame(() => scrollTo(n + actual - PADDING, false));
       }
       prevSel.current = actual;
       onChange(actual);
     } else {
-      const idx = Math.max(0, Math.min(n - 1, rawIdx - PADDING));
+      // Non-looping: rawIdx IS the actual item index (blank-pad maths cancel out)
+      const idx = Math.max(0, Math.min(n - 1, rawIdx));
       prevSel.current = idx;
       onChange(idx);
       scrollTo(idx, true);
@@ -178,7 +186,7 @@ function DrumPicker({
               onPress={() => {
                 if (blank) return;
                 onChange(actual);
-                scrollTo(looping ? n + actual : actual);
+                scrollTo(posFor(actual));
                 Haptics.selectionAsync();
               }}
             >
