@@ -1306,6 +1306,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         rightThreshold={40}
         friction={3}
         enabled={!isDragging && !deletingRef.current}
+        onSwipeableWillOpen={() => { pressOpacity.setValue(1); }}
         onSwipeableOpen={() => {
           isRevealedRef.current = true;
           onSwipeOpen?.(() => swipeableRef.current?.close());
