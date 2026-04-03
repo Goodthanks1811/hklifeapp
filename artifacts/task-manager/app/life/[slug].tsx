@@ -1121,21 +1121,6 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       <View style={s.dsDivider} />
       <FormattingToolbar onFormat={handleFormatQA} />
 
-      {/* Notes body */}
-      <TextInput
-        ref={qaNotesRef}
-        style={[s.dsNotesInput, { minHeight: 80, paddingHorizontal: 20, paddingVertical: 14 }]}
-        value={notes}
-        onChangeText={handleQABodyChange}
-        onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
-        multiline
-        placeholder="Add notes…"
-        placeholderTextColor={Colors.textMuted}
-        selectionColor={Colors.primary}
-        keyboardAppearance="dark"
-        textAlignVertical="top"
-      />
-
       {/* Link / URL field */}
       <View style={s.dsLinkField}>
         <Text style={s.dsLinkFieldLabel}>LINK</Text>
@@ -1153,6 +1138,21 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
           keyboardAppearance="dark"
         />
       </View>
+
+      {/* Notes body */}
+      <TextInput
+        ref={qaNotesRef}
+        style={[s.dsNotesInput, { minHeight: 80, paddingHorizontal: 20, paddingVertical: 14 }]}
+        value={notes}
+        onChangeText={handleQABodyChange}
+        onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
+        multiline
+        placeholder="Add notes…"
+        placeholderTextColor={Colors.textMuted}
+        selectionColor={Colors.primary}
+        keyboardAppearance="dark"
+        textAlignVertical="top"
+      />
 
       <View style={s.dsDivider} />
 

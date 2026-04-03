@@ -792,7 +792,6 @@ export default function CalendarScreen() {
         <View style={[s.evDot, { backgroundColor: item.dotColor }]} />
         <Text style={s.evTitle}>{item.title}</Text>
       </View>
-      <Feather name="more-horizontal" size={15} color={MUT} />
     </Pressable>
   ), []);
 
@@ -954,11 +953,11 @@ const am = StyleSheet.create({
   infoTitle:        { flex: 1, color: TEXT, fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 22 },
   infoTime:         { color: SUB, fontSize: 13, fontFamily: "Inter_500Medium", paddingBottom: 2 },
   btnRow:           { flexDirection: "row", gap: 10 },
-  btnReschedule:    { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: CARD2, borderRadius: 13, paddingVertical: 15, borderWidth: 1, borderColor: BORD },
-  btnRescheduleTxt: { color: TEXT, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  btnReschedule:    { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: "#5aa5ff", borderRadius: 13, paddingVertical: 15 },
+  btnRescheduleTxt: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   btnDelete:        { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: RED, borderRadius: 13, paddingVertical: 15 },
   btnDeleteTxt:     { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
-  cancelBtn:        { alignItems: "center", paddingVertical: 6 },
+  cancelBtn:        { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: CARD2, borderRadius: 13, paddingVertical: 15, borderWidth: 1, borderColor: BORD },
   cancelTxt:        { color: SUB, fontSize: 15, fontFamily: "Inter_500Medium" },
 });
 
