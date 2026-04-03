@@ -92,30 +92,67 @@ const PADDING = Math.floor(VISIBLE / 2); // 2
 
 function DrumPicker({
   items, selectedIndex, onChange, width = 90,
+  looping = false, onWrapForward, onWrapBack, onDragStart, onDragEnd,
 }: {
   items: string[]; selectedIndex: number; onChange: (i: number) => void; width?: number;
+  looping?: boolean; onWrapForward?: () => void; onWrapBack?: () => void;
+  onDragStart?: () => void; onDragEnd?: () => void;
 }) {
+  const n        = items.length;
   const ref      = useRef<ScrollView>(null);
   const dragging = useRef(false);
+  const mounted  = useRef(false);
+  const prevSel  = useRef(selectedIndex);
 
-  const scrollTo = useCallback((i: number, animated = true) => {
-    ref.current?.scrollTo({ y: i * ITEM_H, animated });
+  // Looping: triple the array so user can scroll through seam; non-looping: blank padding
+  const rows = looping
+    ? [...items, ...items, ...items]
+    : [...Array(PADDING).fill(""), ...items, ...Array(PADDING).fill("")];
+
+  const scrollTo = useCallback((pos: number, animated = true) => {
+    ref.current?.scrollTo({ y: pos * ITEM_H, animated });
   }, []);
 
-  const mounted = useRef(false);
   const onLayout = useCallback(() => {
-    if (!mounted.current) { mounted.current = true; scrollTo(selectedIndex, false); }
-  }, [selectedIndex, scrollTo]);
+    if (!mounted.current) {
+      mounted.current = true;
+      scrollTo(looping ? n + selectedIndex : selectedIndex, false);
+    }
+  }, [selectedIndex, scrollTo, looping, n]);
+
+  // Sync AMPM drum when selectedIndex flips due to hour wrap
+  useEffect(() => {
+    if (!mounted.current || dragging.current) return;
+    if (selectedIndex !== prevSel.current) {
+      prevSel.current = selectedIndex;
+      scrollTo(looping ? n + selectedIndex : selectedIndex, true);
+    }
+  }, [selectedIndex, scrollTo, looping, n]);
 
   const snap = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y  = e.nativeEvent.contentOffset.y;
-    const idx = Math.max(0, Math.min(items.length - 1, Math.round(y / ITEM_H)));
-    onChange(idx);
-    scrollTo(idx);
-    Haptics.selectionAsync();
-  }, [items.length, onChange, scrollTo]);
+    const y      = e.nativeEvent.contentOffset.y;
+    const maxIdx = looping ? n * 3 - 1 : n + PADDING * 2 - 1;
+    const rawIdx = Math.max(0, Math.min(maxIdx, Math.round(y / ITEM_H)));
 
-  const padItems = Array(PADDING).fill("");
+    if (looping) {
+      const actual = rawIdx % n;
+      if (rawIdx < n) {
+        onWrapBack?.();
+        requestAnimationFrame(() => scrollTo(n + actual, false));
+      } else if (rawIdx >= 2 * n) {
+        onWrapForward?.();
+        requestAnimationFrame(() => scrollTo(n + actual, false));
+      }
+      prevSel.current = actual;
+      onChange(actual);
+    } else {
+      const idx = Math.max(0, Math.min(n - 1, rawIdx - PADDING));
+      prevSel.current = idx;
+      onChange(idx);
+      scrollTo(idx, true);
+    }
+    Haptics.selectionAsync();
+  }, [looping, n, onChange, onWrapForward, onWrapBack, scrollTo]);
 
   return (
     <View style={[dp.wrap, { width }]}>
@@ -127,20 +164,26 @@ function DrumPicker({
         snapToInterval={ITEM_H}
         decelerationRate="fast"
         onLayout={onLayout}
-        onScrollBeginDrag={() => { dragging.current = true; }}
-        onMomentumScrollEnd={e => { dragging.current = false; snap(e); }}
-        onScrollEndDrag={e => { if (!dragging.current) snap(e); }}
+        onScrollBeginDrag={() => { dragging.current = true; onDragStart?.(); }}
+        onMomentumScrollEnd={e => { dragging.current = false; snap(e); onDragEnd?.(); }}
+        onScrollEndDrag={e => { if (!dragging.current) { snap(e); onDragEnd?.(); } }}
         scrollEventThrottle={16}
       >
-        {[...padItems, ...items, ...padItems].map((item, i) => {
-          const real = i - PADDING;
-          const sel  = real === selectedIndex && item !== "";
+        {rows.map((item, i) => {
+          const actual = looping ? i % n : i - PADDING;
+          const sel    = actual === selectedIndex && (looping || item !== "");
+          const blank  = !looping && item === "";
           return (
             <Pressable key={i} style={dp.item}
-              onPress={() => { if (!item) return; onChange(real); scrollTo(real); Haptics.selectionAsync(); }}
+              onPress={() => {
+                if (blank) return;
+                onChange(actual);
+                scrollTo(looping ? n + actual : actual);
+                Haptics.selectionAsync();
+              }}
             >
-              <Text style={[dp.itemTxt, sel && dp.itemTxtSel, item === "" && { opacity: 0 }]}>
-                {item || "·"}
+              <Text style={[dp.itemTxt, sel && dp.itemTxtSel, blank && { opacity: 0 }]}>
+                {item || (blank ? "·" : "")}
               </Text>
             </Pressable>
           );
@@ -365,9 +408,11 @@ function EventDetailScreen({
 
   const [date,    setDate]    = useState(() => normalDay(new Date()));
   const [evType,  setEvType]  = useState<EventType | null>(null);
-  const [hourIdx, setHourIdx] = useState(8);  // "09"
-  const [minIdx,  setMinIdx]  = useState(0);
-  const [ampmIdx, setAmpmIdx] = useState(0);  // AM
+  const [hourIdx, setHourIdx]           = useState(8);  // "09"
+  const [minIdx,  setMinIdx]            = useState(0);
+  const [ampmIdx, setAmpmIdx]           = useState(0);  // AM
+  const [pageScrollEnabled, setPageScroll] = useState(true);
+  const flipAmpm = useCallback(() => setAmpmIdx(p => (p + 1) % 2), []);
   const [durMins, setDurMins] = useState(-1);
   const [calKey,  setCalKey]  = useState<CalKey>("HK");
   const [saving,  setSaving]  = useState(false);
@@ -457,6 +502,7 @@ function EventDetailScreen({
         contentContainerStyle={ed.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        scrollEnabled={pageScrollEnabled}
       >
         {/* Calendar grid */}
         <View style={ed.section}>
@@ -485,10 +531,14 @@ function EventDetailScreen({
             {/* Time — ui-kit card style */}
             <View style={ed.card}>
               <View style={ed.drumRow}>
-                <DrumPicker items={HOURS_W}   selectedIndex={hourIdx}  onChange={setHourIdx}  width={72} />
+                <DrumPicker items={HOURS_W}   selectedIndex={hourIdx}  onChange={setHourIdx}  width={72}
+                  looping onWrapForward={flipAmpm} onWrapBack={flipAmpm}
+                  onDragStart={() => setPageScroll(false)} onDragEnd={() => setPageScroll(true)} />
                 <Text style={ed.colon}>:</Text>
-                <DrumPicker items={MINUTES_W} selectedIndex={minIdx}   onChange={setMinIdx}   width={72} />
-                <DrumPicker items={AMPM_W}    selectedIndex={ampmIdx}  onChange={setAmpmIdx}  width={66} />
+                <DrumPicker items={MINUTES_W} selectedIndex={minIdx}   onChange={setMinIdx}   width={72}
+                  onDragStart={() => setPageScroll(false)} onDragEnd={() => setPageScroll(true)} />
+                <DrumPicker items={AMPM_W}    selectedIndex={ampmIdx}  onChange={setAmpmIdx}  width={66}
+                  onDragStart={() => setPageScroll(false)} onDragEnd={() => setPageScroll(true)} />
               </View>
               <View style={ed.displayRow}>
                 <Feather name="clock" size={14} color={RED} />
@@ -597,7 +647,7 @@ const ed = StyleSheet.create({
     padding: 14, gap: 12,
   },
   drumRow:    { flexDirection: "row", gap: 8, justifyContent: "center", alignItems: "center" },
-  colon:      { color: SUB, fontSize: 24, fontFamily: "Inter_700Bold", marginHorizontal: -2 },
+  colon:      { color: TEXT, fontSize: 24, fontFamily: "Inter_700Bold", marginHorizontal: -2 },
   displayRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 4, borderTopWidth: 1, borderTopColor: BORD },
   displayTxt: { color: TEXT, fontSize: 13, fontFamily: "Inter_500Medium" },
 
@@ -852,7 +902,7 @@ const s = StyleSheet.create({
   weekDivider:{ height: 1, backgroundColor: "rgba(255,255,255,0.18)", marginHorizontal: 22, marginTop: 4, marginBottom: 2 },
   evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG, gap: 12 },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
-  tStart:     { width: 58, flexShrink: 0, fontSize: 12, fontFamily: "Inter_500Medium", color: SUB },
+  tStart:     { width: 58, flexShrink: 0, fontSize: 12, fontFamily: "Inter_500Medium", color: TEXT },
   evMain:     { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
   evDot:      { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   evTitle:    { flex: 1, fontSize: 15, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 20 },
