@@ -2182,7 +2182,7 @@ const sc = StyleSheet.create({
 
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
 
-  rowOuter: { height: ITEM_H, overflow: "hidden" },
+  rowOuter: { height: ITEM_H },
   deleteAction: {
     width: 110, height: ITEM_H,
     backgroundColor: Colors.primary,
@@ -2193,7 +2193,7 @@ const sc = StyleSheet.create({
   rowWrap: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border,
-    paddingHorizontal: 14, paddingVertical: 12, height: ITEM_H,
+    paddingHorizontal: 14, height: ITEM_H,
   },
   rowDragging: {
     backgroundColor: Colors.cardBgElevated,
