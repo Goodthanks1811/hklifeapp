@@ -46,6 +46,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Mood Report",   icon: "activity",  route: "/mood-report",  description: "Monthly mood charts" },
     { label: "My Workload",   icon: "bar-chart", route: "/my-workload",  description: "Created vs done"     },
     { label: "March Sleep",   icon: "moon",      route: "/march-sleep",  description: "Feb 28 – Mar 27"    },
+    { label: "Whoop Age",     icon: "heart",     route: "/whoop-age",    description: "Mar 2024 – Mar 2025" },
     { label: "Review Digest", icon: "file-text", route: null,            description: "Coming soon"         },
   ],
   apps: [

@@ -1,0 +1,452 @@
+// Variables used by Scriptable.
+// icon-color: red; icon-glyph: chart-line;
+
+const HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0b0b0c; color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    position: fixed; left: 0; right: 0; top: 0;
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .screens { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px 18px 14px;
+    overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .screen.active { opacity: 1; pointer-events: all; }
+  .tab-bar {
+    display: flex; background: #0f0f0f;
+    border-top: 1px solid #222; flex-shrink: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tab-btn {
+    flex: 1; padding: 12px 8px 14px;
+    background: none; border: none; color: #888;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; -webkit-tap-highlight-color: transparent;
+  }
+  .tab-btn .icon { font-size: 20px; }
+  .tab-btn.active { color: #ff1e1e; }
+  .tab-indicator { width: 22px; height: 2px; border-radius: 1px; background: transparent; }
+  .tab-btn.active .tab-indicator { background: #ff1e1e; }
+  .header { text-align: center; margin-bottom: 14px; flex-shrink: 0; width: 100%; }
+  .header .emoji { font-size: 26px; display: block; margin-bottom: 6px; }
+  .header h1 { font-size: clamp(20px, 4vw, 30px); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .header h1 span { color: #ff1e1e; }
+  .header .subtitle {
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #fff; margin-top: 5px; font-family: 'DM Mono', monospace;
+  }
+  .header .subtitle::before, .header .subtitle::after {
+    content: ''; display: inline-block; width: 20px; height: 1px;
+    background: #ff1e1e; vertical-align: middle; margin: 0 7px;
+  }
+  .stats-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; max-width: 900px; flex-shrink: 0; }
+  .stat-card {
+    flex: 1; background: #141414; border: 1px solid #1e1e1e;
+    border-radius: 8px; padding: 10px 8px; text-align: center;
+  }
+  .stat-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; font-family: 'DM Mono', monospace; margin-bottom: 5px; }
+  .stat-value { font-size: clamp(15px, 2.8vw, 22px); font-weight: 700; font-family: 'DM Mono', monospace; }
+  .stat-value.red { color: #ff1e1e; }
+  .stat-value.green { color: #26c97a; }
+  .unit-green { font-size: 11px; color: #26c97a; font-weight: 400; margin-left: 1px; font-family: 'DM Mono', monospace; }
+  .unit-red   { font-size: 11px; color: #ff1e1e; font-weight: 400; margin-left: 1px; font-family: 'DM Mono', monospace; }
+  .chart-card {
+    background: #111; border: 1px solid #1e1e1e; border-radius: 10px;
+    padding: 16px 16px 12px; width: 100%; max-width: 900px;
+    flex: 1; display: flex; flex-direction: column; min-height: 0;
+  }
+  .chart-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0; }
+  .chart-title { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; font-family: 'DM Mono', monospace; }
+  .legend { display: flex; gap: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #fff; font-family: 'DM Mono', monospace; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chart-wrap { position: relative; flex: 1; min-height: 0; }
+  canvas { display: block; width: 100% !important; height: 100% !important; }
+</style>
+</head>
+<body>
+
+<div class="screens">
+
+  <!-- TAB 1: LINE -->
+  <div class="screen active" id="screen-line">
+    <div class="header">
+      <span class="emoji">🕒</span>
+      <h1>WHOOP <span>AGE</span> TREND</h1>
+      <div class="subtitle">Mar 2024 — Mar 2025</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Best</div>
+        <div class="stat-value green">39.0<span class="unit-green">yrs</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Current</div>
+        <div class="stat-value red">48.0<span class="unit-red">yrs</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Change</div>
+        <div class="stat-value red">+9.0<span class="unit-red">yrs</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">vs Real Age</div>
+        <div class="stat-value red">+5.7<span class="unit-red">yrs</span></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title-row">
+        <div class="chart-title">Weekly WHOOP Age</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#26c97a"></div>Younger</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff1e1e"></div>Older</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4fc3f7"></div>Real Age</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: COLUMNS -->
+  <div class="screen" id="screen-bar">
+    <div class="header">
+      <span class="emoji">📊</span>
+      <h1>WEEKLY <span>WHOOP AGE</span></h1>
+      <div class="subtitle">Actual age per week</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Start · Mar 23</div>
+        <div class="stat-value green">39.0<span class="unit-green">yrs</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Current · Mar 29</div>
+        <div class="stat-value red">48.0<span class="unit-red">yrs</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Change</div>
+        <div class="stat-value red">+9.0<span class="unit-red">yrs</span></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title-row">
+        <div class="chart-title">WHOOP Age by Week</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#26c97a"></div>Younger</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff1e1e"></div>Older</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" id="btn-line" onclick="switchTab('line')">
+    <span class="icon">📈</span>
+    <span>Trend</span>
+    <div class="tab-indicator"></div>
+  </button>
+  <button class="tab-btn" id="btn-bar" onclick="switchTab('bar')">
+    <span class="icon">📊</span>
+    <span>Weekly</span>
+    <div class="tab-indicator"></div>
+  </button>
+</div>
+
+<script>
+const labels = [
+  "Mar 23","Mar 30","Apr 6","Apr 13","Apr 20","Apr 27",
+  "May 4","May 11","May 18","May 25",
+  "Jun 1","Jun 8","Jun 15","Jun 22","Jun 29",
+  "Jul 6","Jul 13","Jul 20","Jul 27",
+  "Aug 3","Aug 10","Aug 17","Aug 24","Aug 31",
+  "Sep 7","Sep 14","Sep 21","Sep 28",
+  "Oct 5","Oct 12","Oct 19","Oct 26",
+  "Nov 2","Nov 9","Nov 16","Nov 23","Nov 30",
+  "Dec 7","Dec 14","Dec 21","Dec 28",
+  "Jan 4","Jan 11","Jan 18","Jan 25",
+  "Feb 1","Feb 8","Feb 15","Feb 22",
+  "Mar 1","Mar 8","Mar 15","Mar 22","Mar 29"
+];
+const whoopAge = [
+  39.0,39.2,39.3,39.4,39.5,39.4,
+  39.4,39.4,39.3,39.4,
+  39.3,39.3,39.3,39.5,39.7,
+  39.8,39.9,40.0,40.1,
+  40.5,40.5,40.3,40.4,40.5,
+  40.8,40.8,40.9,41.1,
+  41.1,41.2,41.6,41.7,
+  41.8,42.0,42.2,42.6,42.7,
+  42.8,43.2,43.6,43.7,
+  44.1,44.8,45.1,45.4,
+  45.6,46.0,46.2,46.4,
+  46.5,47.1,47.4,47.6,48.0
+];
+const realAge = whoopAge.map((_, i) => +(41.3 + i * 0.019).toFixed(2));
+const CROSSOVER_IDX = 33;
+const PERIOD_TEXT = 'MAR 23, 2024 — MAR 29, 2025  ·  55 WEEKS';
+
+function onVP() {
+  const vp = window.visualViewport;
+  if (!vp) return;
+  document.body.style.top = vp.offsetTop + 'px';
+  document.body.style.height = vp.height + 'px';
+  requestAnimationFrame(redrawActive);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onVP);
+  window.visualViewport.addEventListener('scroll', onVP);
+}
+window.addEventListener('resize', onVP);
+
+function redrawActive() {
+  const id = document.querySelector('.screen.active').id;
+  if (id === 'screen-line') drawLine();
+  if (id === 'screen-bar') drawBar();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  document.getElementById('btn-' + tab).classList.add('active');
+  requestAnimationFrame(redrawActive);
+}
+
+function setupCanvas(id) {
+  const canvas = document.getElementById(id);
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  if (!W || !H) return null;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, W, H };
+}
+
+function drawPeriodPill(ctx, PAD, cW) {
+  ctx.font = "600 10px 'DM Mono', monospace";
+  const ptw = ctx.measureText(PERIOD_TEXT).width;
+  const ppw = ptw + 20, pph = 18, ppr = 5;
+  const midX = PAD.left + cW / 2;
+  const ppx = midX - ppw / 2, ppy = 8;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath(); ctx.roundRect(ppx, ppy, ppw, pph, ppr); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(ppx, ppy, ppw, pph, ppr); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left';
+  ctx.fillText(PERIOD_TEXT, ppx + 10, ppy + 12);
+  return { ppx, ppy, ppw, pph };
+}
+
+function drawTagPill(ctx, text, x, y, color) {
+  ctx.font = "600 10px 'DM Mono', monospace";
+  const tw = ctx.measureText(text).width;
+  const pw = tw + 14, ph = 16, pr = 4;
+  ctx.fillStyle = color.replace('rgb(', 'rgba(').replace(')', ',0.15)');
+  ctx.beginPath(); ctx.roundRect(x, y, pw, ph, pr); ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x, y, pw, ph, pr); ctx.stroke();
+  ctx.fillStyle = color; ctx.textAlign = 'left';
+  ctx.fillText(text, x + 7, y + 11);
+  return pw;
+}
+
+function drawLine() {
+  const c = setupCanvas('lineChart');
+  if (!c) return;
+  const { ctx, W, H } = c;
+  const PAD = { top: 42, right: 16, bottom: 46, left: 44 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+  const n = labels.length;
+  const allVals = [...whoopAge, ...realAge];
+  const minY = Math.floor(Math.min(...allVals)) - 0.5;
+  const maxY = Math.ceil(Math.max(...allVals)) + 0.5;
+  const xOf = i => PAD.left + (i / (n - 1)) * cW;
+  const yOf = v => PAD.top + cH - ((v - minY) / (maxY - minY)) * cH;
+
+  const pill = drawPeriodPill(ctx, PAD, cW);
+  const pillMidY = pill.ppy + pill.pph / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(pill.ppx, pillMidY); ctx.lineTo(xOf(0), pillMidY); ctx.lineTo(xOf(0), PAD.top - 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pill.ppx + pill.ppw, pillMidY); ctx.lineTo(xOf(n-1), pillMidY); ctx.lineTo(xOf(n-1), PAD.top - 2); ctx.stroke();
+
+  for (let v = Math.ceil(minY); v <= maxY; v++) {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#aaa'; ctx.font = "500 11px 'DM Mono', monospace";
+    ctx.textAlign = 'right'; ctx.fillText(v, PAD.left - 6, y + 4);
+  }
+
+  labels.forEach((l, i) => {
+    if (i % 4 !== 0) return;
+    ctx.fillStyle = '#aaa'; ctx.font = "400 10px 'DM Mono', monospace";
+    ctx.textAlign = 'center'; ctx.fillText(l, xOf(i), H - PAD.bottom + 15);
+  });
+
+  // Green fill
+  ctx.beginPath();
+  for (let i = 0; i <= CROSSOVER_IDX; i++) {
+    i === 0 ? ctx.moveTo(xOf(i), yOf(whoopAge[i])) : ctx.lineTo(xOf(i), yOf(whoopAge[i]));
+  }
+  for (let i = CROSSOVER_IDX; i >= 0; i--) ctx.lineTo(xOf(i), yOf(realAge[i]));
+  ctx.closePath(); ctx.fillStyle = 'rgba(38,201,122,0.07)'; ctx.fill();
+
+  // Red fill
+  ctx.beginPath();
+  for (let i = CROSSOVER_IDX; i < n; i++) {
+    i === CROSSOVER_IDX ? ctx.moveTo(xOf(i), yOf(whoopAge[i])) : ctx.lineTo(xOf(i), yOf(whoopAge[i]));
+  }
+  for (let i = n - 1; i >= CROSSOVER_IDX; i--) ctx.lineTo(xOf(i), yOf(realAge[i]));
+  ctx.closePath(); ctx.fillStyle = 'rgba(255,30,30,0.06)'; ctx.fill();
+
+  // Real age dashed
+  ctx.beginPath();
+  realAge.forEach((v, i) => i === 0 ? ctx.moveTo(xOf(i), yOf(v)) : ctx.lineTo(xOf(i), yOf(v)));
+  ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Green segment
+  ctx.beginPath();
+  for (let i = 0; i <= CROSSOVER_IDX; i++) {
+    i === 0 ? ctx.moveTo(xOf(i), yOf(whoopAge[i])) : ctx.lineTo(xOf(i), yOf(whoopAge[i]));
+  }
+  ctx.strokeStyle = '#26c97a'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Red gradient segment
+  const gradRed = ctx.createLinearGradient(xOf(CROSSOVER_IDX), 0, xOf(n-1), 0);
+  gradRed.addColorStop(0, '#ff1e1e'); gradRed.addColorStop(1, '#ff6600');
+  ctx.beginPath();
+  for (let i = CROSSOVER_IDX; i < n; i++) {
+    i === CROSSOVER_IDX ? ctx.moveTo(xOf(i), yOf(whoopAge[i])) : ctx.lineTo(xOf(i), yOf(whoopAge[i]));
+  }
+  ctx.strokeStyle = gradRed; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Dots
+  whoopAge.forEach((v, i) => {
+    ctx.beginPath(); ctx.arc(xOf(i), yOf(v), 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = i < CROSSOVER_IDX ? '#26c97a' : '#ff1e1e'; ctx.fill();
+  });
+
+  // Crossover marker
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(255,30,30,0.3)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  ctx.moveTo(xOf(CROSSOVER_IDX), PAD.top); ctx.lineTo(xOf(CROSSOVER_IDX), PAD.top + cH);
+  ctx.stroke(); ctx.setLineDash([]);
+}
+
+function drawBar() {
+  const c = setupCanvas('barChart');
+  if (!c) return;
+  const { ctx, W, H } = c;
+  const PAD = { top: 52, right: 16, bottom: 46, left: 44 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+  const n = whoopAge.length;
+  const minY = 38, maxY = 49;
+  const barGap = 2;
+  const barW = (cW / n) - barGap;
+  const xOf = i => PAD.left + i * (cW / n) + barGap / 2;
+  const yOf = v => PAD.top + cH - ((v - minY) / (maxY - minY)) * cH;
+
+  const pill = drawPeriodPill(ctx, PAD, cW);
+  const startBarCx = xOf(0) + barW / 2;
+  const endBarCx = xOf(n - 1) + barW / 2;
+  const pillMidY = pill.ppy + pill.pph / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(pill.ppx, pillMidY); ctx.lineTo(startBarCx, pillMidY); ctx.lineTo(startBarCx, PAD.top - 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pill.ppx + pill.ppw, pillMidY); ctx.lineTo(endBarCx, pillMidY); ctx.lineTo(endBarCx, PAD.top - 2); ctx.stroke();
+
+  for (let v = 39; v <= 48; v++) {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#aaa'; ctx.font = "500 11px 'DM Mono', monospace";
+    ctx.textAlign = 'right'; ctx.fillText(v, PAD.left - 6, y + 4);
+  }
+
+  ctx.beginPath();
+  realAge.forEach((v, i) => {
+    const x = xOf(i) + barW / 2;
+    i === 0 ? ctx.moveTo(x, yOf(v)) : ctx.lineTo(x, yOf(v));
+  });
+  ctx.strokeStyle = 'rgba(79,195,247,0.4)'; ctx.lineWidth = 1;
+  ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+
+  whoopAge.forEach((v, i) => {
+    const x = xOf(i);
+    const barTop = yOf(v), barBot = yOf(minY), barHeight = barBot - barTop;
+    const isOlder = i >= CROSSOVER_IDX;
+    const bg = ctx.createLinearGradient(0, barTop, 0, barBot);
+    if (!isOlder) {
+      bg.addColorStop(0, '#26c97a'); bg.addColorStop(1, 'rgba(38,201,122,0.15)');
+    } else {
+      bg.addColorStop(0, '#ff3a3a'); bg.addColorStop(1, 'rgba(255,30,30,0.15)');
+    }
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.roundRect(x, barTop, barW, barHeight, [2,2,0,0]); ctx.fill();
+    if (i % 4 === 0) {
+      ctx.fillStyle = isOlder ? '#ff8888' : '#26c97a';
+      ctx.font = "500 8px 'DM Mono', monospace"; ctx.textAlign = 'center';
+      ctx.fillText(v.toFixed(1), x + barW / 2, barTop - 3);
+    }
+  });
+
+  labels.forEach((l, i) => {
+    if (i % 4 !== 0) return;
+    ctx.fillStyle = '#aaa'; ctx.font = "400 10px 'DM Mono', monospace";
+    ctx.textAlign = 'center'; ctx.fillText(l, xOf(i) + barW / 2, H - PAD.bottom + 15);
+  });
+
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(255,30,30,0.3)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  ctx.moveTo(xOf(CROSSOVER_IDX), PAD.top); ctx.lineTo(xOf(CROSSOVER_IDX), PAD.top + cH);
+  ctx.stroke(); ctx.setLineDash([]);
+
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(38,201,122,0.5)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  ctx.moveTo(startBarCx, yOf(whoopAge[0]) - 6); ctx.lineTo(startBarCx, PAD.top - 6);
+  ctx.stroke(); ctx.setLineDash([]);
+  drawTagPill(ctx, 'START 39.0', Math.max(PAD.left, startBarCx - 4), PAD.top - 22, 'rgb(38,201,122)');
+
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(255,68,68,0.5)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  ctx.moveTo(endBarCx, yOf(whoopAge[n-1]) - 6); ctx.lineTo(endBarCx, PAD.top - 6);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = "600 10px 'DM Mono', monospace";
+  const nowPW = ctx.measureText('NOW 48.0').width + 14;
+  drawTagPill(ctx, 'NOW 48.0', Math.min(PAD.left + cW - nowPW, endBarCx - nowPW + 4), PAD.top - 22, 'rgb(255,68,68)');
+}
+
+document.fonts.ready.then(() => {
+  onVP();
+  drawLine();
+});
+<\/script>
+</body>
+</html>`;
+
+const wv = new WebView();
+await wv.loadHTML(HTML);
+const IS_IPAD = Device.isPad();
+await wv.present(IS_IPAD);
