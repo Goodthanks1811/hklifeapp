@@ -32,12 +32,16 @@ const HTML = `<!DOCTYPE html>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html, body {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
   body {
     font-family: -apple-system, sans-serif;
     background: #0b0b0c;
     color: #fff;
-    min-height: 100vh;
-    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -496,7 +500,7 @@ export default function RussianFlashcardsScreen() {
       <WebView
         source={{ html: HTML }}
         style={styles.webview}
-        scrollEnabled={false}
+        scrollEnabled={true}
         bounces={false}
         overScrollMode="never"
         originWhitelist={["*"]}
