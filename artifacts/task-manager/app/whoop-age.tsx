@@ -203,6 +203,7 @@ const realAge = whoopAge.map((_, i) => +(41.3 + i * 0.019).toFixed(2));
 const CROSSOVER_IDX = 33;
 const PERIOD_TEXT = 'MAR 23, 2024 — MAR 29, 2025  ·  55 WEEKS';
 let selectedBarIdx = null;
+let selectedLineIdx = null;
 
 window.addEventListener('resize', () => requestAnimationFrame(redrawActive));
 
@@ -345,6 +346,40 @@ function drawLine() {
   ctx.setLineDash([3,3]);
   ctx.moveTo(xOf(CROSSOVER_IDX), PAD.top); ctx.lineTo(xOf(CROSSOVER_IDX), PAD.top + cH);
   ctx.stroke(); ctx.setLineDash([]);
+
+  if (selectedLineIdx !== null) {
+    const si = selectedLineIdx;
+    const sx = xOf(si);
+    const wv = whoopAge[si], rv = realAge[si];
+
+    // Vertical scrub line
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.moveTo(sx, PAD.top); ctx.lineTo(sx, PAD.top + cH);
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Highlight dots
+    [[wv, si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a'], [rv, 'rgba(255,255,255,0.85)']].forEach(([v, col]) => {
+      ctx.beginPath(); ctx.arc(sx, yOf(v), 4, 0, Math.PI * 2);
+      ctx.fillStyle = col; ctx.fill();
+    });
+
+    // Tooltip pill
+    const line1 = 'WHOOP ' + wv.toFixed(1);
+    const line2 = 'REAL  ' + rv.toFixed(1);
+    ctx.font = "700 11px 'DM Mono', monospace";
+    const tw = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+    const pw = tw + 18, ph = 38, gap = 6;
+    let px = sx + gap;
+    if (px + pw > PAD.left + cW) px = sx - pw - gap;
+    const py = PAD.top + 4;
+    ctx.fillStyle = 'rgba(20,20,20,0.93)';
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 6); ctx.fill();
+    ctx.fillStyle = si < CROSSOVER_IDX ? '#26c97a' : '#ff3a3a';
+    ctx.textAlign = 'left'; ctx.fillText(line1, px + 9, py + 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText(line2, px + 9, py + 29);
+  }
 }
 
 function drawBar() {
@@ -439,28 +474,50 @@ function drawBar() {
   drawTagPill(ctx, 'NOW 48.0', Math.min(PAD.left + cW - nowPW, endBarCx - nowPW + 4), PAD.top - 22, 'rgb(255,68,68)');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const barCanvas = document.getElementById('barChart');
-  barCanvas.addEventListener('touchstart', handleBarTouch, { passive: true });
-  barCanvas.addEventListener('click', handleBarTouch);
-});
-
-function handleBarTouch(e) {
-  const barCanvas = document.getElementById('barChart');
-  const rect = barCanvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const canvasX = (clientX - rect.left) * (barCanvas.width / rect.width);
-  const PAD_LEFT = 44, PAD_RIGHT = 16;
-  const cW = barCanvas.width - PAD_LEFT - PAD_RIGHT;
-  const n = whoopAge.length;
-  const slotW = cW / n;
-  const idx = Math.floor((canvasX - PAD_LEFT) / slotW);
-  if (idx >= 0 && idx < n) {
-    selectedBarIdx = selectedBarIdx === idx ? null : idx;
-    drawBar();
-  }
+function canvasIdx(canvas, clientX, padLeft, padRight, n) {
+  const rect = canvas.getBoundingClientRect();
+  const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
+  const cW = canvas.width - padLeft - padRight;
+  return Math.round((canvasX - padLeft) / (cW / (n - 1)));
 }
+
+function barCanvasIdx(canvas, clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
+  const cW = canvas.width - 44 - 16;
+  return Math.floor((canvasX - 44) / (cW / whoopAge.length));
+}
+
+function setupChartTouch(canvasId, onMove, onEnd) {
+  const cv = document.getElementById(canvasId);
+  cv.addEventListener('touchstart', e => { onMove(e.touches[0].clientX); }, { passive: true });
+  cv.addEventListener('touchmove',  e => { onMove(e.touches[0].clientX); }, { passive: true });
+  cv.addEventListener('touchend',   () => { onEnd(); });
+  cv.addEventListener('mousemove',  e => { onMove(e.clientX); });
+  cv.addEventListener('mouseleave', () => { onEnd(); });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupChartTouch('barChart',
+    clientX => {
+      const cv = document.getElementById('barChart');
+      const idx = barCanvasIdx(cv, clientX);
+      if (idx >= 0 && idx < whoopAge.length && idx !== selectedBarIdx) {
+        selectedBarIdx = idx; drawBar();
+      }
+    },
+    () => { selectedBarIdx = null; drawBar(); }
+  );
+
+  setupChartTouch('lineChart',
+    clientX => {
+      const cv = document.getElementById('lineChart');
+      const idx = Math.max(0, Math.min(whoopAge.length - 1, canvasIdx(cv, clientX, 44, 16, whoopAge.length)));
+      if (idx !== selectedLineIdx) { selectedLineIdx = idx; drawLine(); }
+    },
+    () => { selectedLineIdx = null; drawLine(); }
+  );
+});
 
 document.fonts.ready.then(() => {
   function tryDrawLine(n) {
