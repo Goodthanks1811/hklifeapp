@@ -1236,17 +1236,17 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const opacityAnim   = useRef(new Animated.Value(1)).current;
   const rowHeight     = useRef(new Animated.Value(ITEM_H)).current;
   const rowScale        = useRef(new Animated.Value(1)).current;
-  const pressOpacity    = useRef(new Animated.Value(1)).current;
+  const pressOverlay    = useRef(new Animated.Value(0)).current;
   const deletingRef     = useRef(false);
   const isRevealedRef   = useRef(false);
   const [checked, setChecked] = useState(false);
 
   const onPressIn = useCallback(() => {
-    Animated.timing(pressOpacity, { toValue: 0.65, duration: 60, useNativeDriver: true }).start();
-  }, [pressOpacity]);
+    Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
+  }, [pressOverlay]);
   const onPressOut = useCallback(() => {
-    Animated.timing(pressOpacity, { toValue: 1, duration: 130, useNativeDriver: true }).start();
-  }, [pressOpacity]);
+    Animated.timing(pressOverlay, { toValue: 0, duration: 130, useNativeDriver: true }).start();
+  }, [pressOverlay]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
@@ -1306,7 +1306,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         rightThreshold={40}
         friction={3}
         enabled={!isDragging && !deletingRef.current}
-        onSwipeableWillOpen={() => { pressOpacity.setValue(1); }}
+        onSwipeableWillOpen={() => { pressOverlay.setValue(0); }}
         onSwipeableOpen={() => {
           isRevealedRef.current = true;
           onSwipeOpen?.(() => swipeableRef.current?.close());
@@ -1314,7 +1314,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; onSwipeClose?.(); }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { opacity: pressOpacity }]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
           {/* Emoji */}
           <Pressable
             ref={emojiBtnRef}
@@ -1372,6 +1372,17 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
               </Animated.View>
             </Animated.View>
           </Pressable>
+
+          {/* Press-feedback overlay — sits on top, never makes background transparent */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              backgroundColor: "#000",
+              borderRadius: 14,
+              opacity: pressOverlay,
+            }}
+          />
         </Animated.View>
       </Swipeable>
     </Animated.View>
