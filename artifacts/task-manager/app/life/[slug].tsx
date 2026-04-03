@@ -2068,8 +2068,8 @@ const s = StyleSheet.create({
   },
   dsCardTop: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
   dsTitleInput: {
-    color: Colors.textPrimary, fontSize: 19, fontFamily: "Inter_700Bold",
-    lineHeight: 28, paddingVertical: 0, marginBottom: 0,
+    color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_400Regular",
+    lineHeight: 24, paddingVertical: 0, marginBottom: 0,
   },
   dsMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   dsEmojiChip: {
