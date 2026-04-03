@@ -1234,10 +1234,18 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   const checkScale    = useRef(new Animated.Value(0)).current;
   const opacityAnim   = useRef(new Animated.Value(1)).current;
   const rowHeight     = useRef(new Animated.Value(ITEM_H)).current;
-  const rowScale      = useRef(new Animated.Value(1)).current;
-  const deletingRef   = useRef(false);
-  const isRevealedRef = useRef(false);
+  const rowScale        = useRef(new Animated.Value(1)).current;
+  const pressOpacity    = useRef(new Animated.Value(1)).current;
+  const deletingRef     = useRef(false);
+  const isRevealedRef   = useRef(false);
   const [checked, setChecked] = useState(false);
+
+  const onPressIn = useCallback(() => {
+    Animated.timing(pressOpacity, { toValue: 0.65, duration: 60, useNativeDriver: true }).start();
+  }, [pressOpacity]);
+  const onPressOut = useCallback(() => {
+    Animated.timing(pressOpacity, { toValue: 1, duration: 130, useNativeDriver: true }).start();
+  }, [pressOpacity]);
 
   const triggerDelete = useCallback(() => {
     if (deletingRef.current) return;
@@ -1304,7 +1312,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         onSwipeableClose={() => { isRevealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
+        <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging, { opacity: pressOpacity }]}>
           {/* Emoji */}
           <Pressable
             ref={emojiBtnRef}
@@ -1322,9 +1330,11 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
           {/* Name — fills full row height so tap target = entire row, not just text */}
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
-            onPress={() => handleRowTap(onPress)}
+            onPress={() => { onPressOut(); handleRowTap(onPress); }}
             onLongPress={onLongPress}
             delayLongPress={200}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
             hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
           >
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
