@@ -374,7 +374,7 @@ function TitleModal({
             </Pressable>
             <Pressable onPress={handleNext} style={tm.btnNext} hitSlop={8}>
               <Text style={tm.btnNextTxt}>Next</Text>
-              <Feather name="arrow-right" size={15} color={RED} />
+              <Feather name="arrow-right" size={15} color="#fff" />
             </Pressable>
           </View>
         </Animated.View>
@@ -402,8 +402,8 @@ const tm = StyleSheet.create({
   btnRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
   btnCancel: { paddingVertical: 10, paddingRight: 8 },
   btnCancelTxt: { color: TEXT, fontSize: 15, fontFamily: "Inter_500Medium" },
-  btnNext: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 10, paddingLeft: 8 },
-  btnNextTxt: { color: RED, fontSize: 15, fontFamily: "Inter_700Bold" },
+  btnNext: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: RED, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 },
+  btnNextTxt: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
 
 // ── EventDetailScreen (Step 2) ────────────────────────────────────────────────
