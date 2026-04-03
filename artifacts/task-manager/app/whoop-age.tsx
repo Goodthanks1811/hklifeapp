@@ -383,8 +383,7 @@ function drawBar() {
   for (let v = 39; v <= 48; v++) {
     const y = yOf(v);
     ctx.beginPath(); ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1;
-    ctx.setLineDash([4,4]); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
     ctx.fillStyle = '#aaa'; ctx.font = "500 11px 'DM Mono', monospace";
     ctx.textAlign = 'right'; ctx.fillText(v, PAD.left - 6, y + 4);
   }
@@ -395,7 +394,7 @@ function drawBar() {
     i === 0 ? ctx.moveTo(x, yOf(v)) : ctx.lineTo(x, yOf(v));
   });
   ctx.strokeStyle = 'rgba(79,195,247,0.4)'; ctx.lineWidth = 1;
-  ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.stroke();
 
   whoopAge.forEach((v, i) => {
     const x = xOf(i);
@@ -423,20 +422,17 @@ function drawBar() {
   });
 
   ctx.beginPath(); ctx.strokeStyle = 'rgba(255,30,30,0.3)'; ctx.lineWidth = 1;
-  ctx.setLineDash([3,3]);
   ctx.moveTo(xOf(CROSSOVER_IDX), PAD.top); ctx.lineTo(xOf(CROSSOVER_IDX), PAD.top + cH);
-  ctx.stroke(); ctx.setLineDash([]);
+  ctx.stroke();
 
   ctx.beginPath(); ctx.strokeStyle = 'rgba(38,201,122,0.5)'; ctx.lineWidth = 1;
-  ctx.setLineDash([3,3]);
   ctx.moveTo(startBarCx, yOf(whoopAge[0]) - 6); ctx.lineTo(startBarCx, PAD.top - 6);
-  ctx.stroke(); ctx.setLineDash([]);
+  ctx.stroke();
   drawTagPill(ctx, 'START 39.0', Math.max(PAD.left, startBarCx - 4), PAD.top - 22, 'rgb(38,201,122)');
 
   ctx.beginPath(); ctx.strokeStyle = 'rgba(255,68,68,0.5)'; ctx.lineWidth = 1;
-  ctx.setLineDash([3,3]);
   ctx.moveTo(endBarCx, yOf(whoopAge[n-1]) - 6); ctx.lineTo(endBarCx, PAD.top - 6);
-  ctx.stroke(); ctx.setLineDash([]);
+  ctx.stroke();
   ctx.font = "600 10px 'DM Mono', monospace";
   const nowPW = ctx.measureText('NOW 48.0').width + 14;
   drawTagPill(ctx, 'NOW 48.0', Math.min(PAD.left + cW - nowPW, endBarCx - nowPW + 4), PAD.top - 22, 'rgb(255,68,68)');
