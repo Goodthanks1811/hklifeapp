@@ -179,11 +179,11 @@ function RichBodyView({ markdown }: { markdown: string }) {
 }
 
 // ── Formatting toolbar ────────────────────────────────────────────────────────
-function FormattingToolbar({ onFormat, link, onLinkChange, rightSlot }: {
+function FormattingToolbar({ onFormat, link, onLinkChange, viewLink }: {
   onFormat: (id: string) => void;
   link?: string;
   onLinkChange?: (v: string) => void;
-  rightSlot?: React.ReactNode;
+  viewLink?: string;
 }) {
   const btns: Array<{ id: string; label: string; isBold?: boolean; isUnder?: boolean }> = [
     { id: "h1",        label: "H1", isBold: true },
@@ -229,11 +229,18 @@ function FormattingToolbar({ onFormat, link, onLinkChange, rightSlot }: {
           />
         </View>
       )}
-      {rightSlot !== undefined && (
-        <View style={{ borderLeftWidth: 1, borderLeftColor: Colors.border, paddingHorizontal: 10, justifyContent: "center" }}>
-          {rightSlot}
-        </View>
-      )}
+      {viewLink ? (
+        <Pressable
+          onPress={() => Linking.openURL(viewLink)}
+          hitSlop={8}
+          style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderLeftWidth: 1, borderLeftColor: Colors.border, maxWidth: 110 }}
+        >
+          <Text style={{ fontSize: 14 }}>🔗</Text>
+          <Text numberOfLines={1} style={{ flex: 1, color: Colors.primary, fontSize: 11, fontFamily: "Inter_500Medium" }}>
+            {viewLink.replace(/^https?:\/\//, "")}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -740,11 +747,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
       <FormattingToolbar
         onFormat={handleFormat}
-        rightSlot={task?.url ? (
-          <Pressable onPress={() => task.url && Linking.openURL(task.url)} hitSlop={8}>
-            <Text style={{ fontSize: 18 }}>🔗</Text>
-          </Pressable>
-        ) : undefined}
+        viewLink={task?.url ?? undefined}
       />
       <ScrollView style={s.dsBodyScroll} bounces showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={[s.dsBodyInner, { paddingTop: 10 }]}>
