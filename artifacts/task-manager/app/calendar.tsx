@@ -959,7 +959,7 @@ const am = StyleSheet.create({
   btnDelete:        { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: RED, borderRadius: 13, paddingVertical: 15 },
   btnDeleteTxt:     { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   cancelBtn:        { alignItems: "center", justifyContent: "center", backgroundColor: CARD2, borderRadius: 13, paddingVertical: 15, borderWidth: 1, borderColor: BORD },
-  cancelTxt:        { color: SUB, fontSize: 15, fontFamily: "Inter_500Medium" },
+  cancelTxt:        { color: "#ffffff", fontSize: 15, fontFamily: "Inter_500Medium" },
 });
 
 // ── RescheduleModal ───────────────────────────────────────────────────────────
