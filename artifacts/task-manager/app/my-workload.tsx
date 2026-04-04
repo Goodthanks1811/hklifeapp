@@ -64,7 +64,7 @@ function WorkloadBarChart({
   maxVal: number;
   availableWidth?: number;
 }) {
-  const chartH = 180, barW = 22, barGap = 6, groupGap = 24;
+  const chartH = 220, barW = 22, barGap = 6, groupGap = 24;
   const pL = 32, pR = 20, pT = 28, pB = 34;
   const groupW = barW * 2 + barGap;
 
