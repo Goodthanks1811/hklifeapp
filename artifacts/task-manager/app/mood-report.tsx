@@ -226,7 +226,7 @@ export default function MoodReportScreen() {
   const [months,  setMonths]  = useState<MonthData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
-  const [tab,     setTab]     = useState<TabType>("pie");
+  const [tab,     setTab]     = useState<TabType>("bar");
   const [tabBarH, setTabBarH] = useState(0);
 
   useEffect(() => {
@@ -318,20 +318,6 @@ export default function MoodReportScreen() {
           style={[s.tabBar, { paddingBottom: bottomPad }]}
           onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}
         >
-          <Pressable style={s.tab} onPress={() => setTab("pie")}>
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"
-              stroke={tab === "pie" ? "#fff" : MUTED} strokeWidth={2}
-              strokeLinecap="round" strokeLinejoin="round"
-            >
-              <Path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-              <Path d="M22 12A10 10 0 0 0 12 2v10z" />
-            </Svg>
-            <Text style={[s.tabLabel, tab === "pie" && s.tabLabelActive]}>PIE</Text>
-            <View style={[s.tabIndicator, tab === "pie" && s.tabIndicatorActive]} />
-          </Pressable>
-
-          <View style={s.tabDivider} />
-
           <Pressable style={s.tab} onPress={() => setTab("bar")}>
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"
               stroke={tab === "bar" ? "#fff" : MUTED} strokeWidth={2}
@@ -343,6 +329,20 @@ export default function MoodReportScreen() {
             </Svg>
             <Text style={[s.tabLabel, tab === "bar" && s.tabLabelActive]}>BAR</Text>
             <View style={[s.tabIndicator, tab === "bar" && s.tabIndicatorActive]} />
+          </Pressable>
+
+          <View style={s.tabDivider} />
+
+          <Pressable style={s.tab} onPress={() => setTab("pie")}>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"
+              stroke={tab === "pie" ? "#fff" : MUTED} strokeWidth={2}
+              strokeLinecap="round" strokeLinejoin="round"
+            >
+              <Path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+              <Path d="M22 12A10 10 0 0 0 12 2v10z" />
+            </Svg>
+            <Text style={[s.tabLabel, tab === "pie" && s.tabLabelActive]}>PIE</Text>
+            <View style={[s.tabIndicator, tab === "pie" && s.tabIndicatorActive]} />
           </Pressable>
         </View>
       )}
@@ -443,12 +443,13 @@ const s = StyleSheet.create({
     flex: 1, color: "#fff",
     fontSize: 10, fontFamily: "Inter_600SemiBold",
     letterSpacing: 1, textTransform: "uppercase",
+    textAlign: "right",
   },
   legendPct: {
     fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "right",
   },
   bottomLegend: {
-    flexDirection: "row", flexWrap: "wrap",
+    flexDirection: "row", flexWrap: "wrap", justifyContent: "center",
     paddingHorizontal: 14, paddingBottom: 12, paddingTop: 8,
     borderTopWidth: 1, borderTopColor: BORDER, gap: 8,
   },
