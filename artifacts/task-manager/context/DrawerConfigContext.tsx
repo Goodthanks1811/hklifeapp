@@ -63,6 +63,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   ],
   knowledge: [
     { label: "Russian Flashcards", icon: "flag", route: "/russian-flashcards", description: "Learn the Russian alphabet" },
+    { label: "Greek Flashcards",   icon: "flag", route: "/greek-flashcards",   description: "Learn the Greek alphabet" },
   ],
   uikit: [
     { label: "Buttons",        icon: "square",  route: "/ui-kit/buttons",       description: "Styles & states"    },
