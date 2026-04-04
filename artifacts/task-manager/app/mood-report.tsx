@@ -1,8 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { PageLoader } from "@/components/PageLoader";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -303,10 +303,7 @@ export default function MoodReportScreen() {
 
       {/* Content */}
       {loading ? (
-        <View style={styles.centred}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Loading mood data…</Text>
-        </View>
+        <PageLoader />
       ) : !apiKey ? (
         <View style={styles.centred}>
           <Feather name="alert-circle" size={32} color="#607D8B" />

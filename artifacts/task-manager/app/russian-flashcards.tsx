@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { PageLoader } from "@/components/PageLoader";
 import {
-  ActivityIndicator,
   Animated,
   Image,
   Keyboard,
@@ -201,9 +201,7 @@ export default function RussianFlashcardsScreen() {
           onLoad={() => setFlagLoaded(true)}
         />
         {!flagLoaded ? (
-          <View style={s.loadingContainer}>
-            <ActivityIndicator size="large" color="rgba(255,255,255,0.35)" />
-          </View>
+          <PageLoader />
         ) : (
         <ScrollView contentContainerStyle={s.centerContainer} keyboardShouldPersistTaps="handled">
           <View style={s.flagContainer}>
