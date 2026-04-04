@@ -1940,7 +1940,7 @@ export default function LifeTaskScreen() {
         {/* Soft fade-to-background at the header's bottom edge */}
         <LinearGradient
           colors={["transparent", "#0f0f0f"]}
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 28 }}
+          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 8 }}
           pointerEvents="none"
         />
       </View>
