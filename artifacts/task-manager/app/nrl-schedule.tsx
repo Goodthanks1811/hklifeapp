@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   StyleSheet,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewMessageEvent } from "react-native-webview";
-import { PageLoader } from "@/components/PageLoader";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── NRL theme ──────────────────────────────────────────────────────────────────
@@ -579,7 +579,9 @@ export default function NRLScheduleScreen() {
       <ScreenHeader title="Schedule" />
 
       {loading && (
-        <PageLoader style={styles.loadingCover} />
+        <View style={styles.loadingCover}>
+          <ActivityIndicator size="large" color={NRL_GREEN} />
+        </View>
       )}
 
       {html !== "" && (
