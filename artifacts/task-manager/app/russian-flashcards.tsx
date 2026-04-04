@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Image,
   Keyboard,
@@ -89,6 +90,7 @@ export default function RussianFlashcardsScreen() {
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
   const [screen,      setScreen]      = useState<Screen>("start");
+  const [flagLoaded,  setFlagLoaded]  = useState(false);
   const [sessionSize, setSessionSize] = useState(5);
   const [session,     setSession]     = useState<typeof ALPHABET>([]);
   const [idx,         setIdx]         = useState(0);
@@ -192,7 +194,18 @@ export default function RussianFlashcardsScreen() {
       <View style={[s.root, { paddingTop: topPad }]}>
         <ScreenHeader title="Russian Flashcards" />
         <ScrollView contentContainerStyle={s.centerContainer} keyboardShouldPersistTaps="handled">
-          <Image source={russianFlag} style={s.flagImg} resizeMode="contain" fadeDuration={0} />
+          <View style={s.flagContainer}>
+            <Image
+              source={russianFlag}
+              style={[s.flagImg, { opacity: flagLoaded ? 1 : 0 }]}
+              resizeMode="contain"
+              fadeDuration={0}
+              onLoad={() => setFlagLoaded(true)}
+            />
+            {!flagLoaded && (
+              <ActivityIndicator style={StyleSheet.absoluteFill} color="rgba(255,255,255,0.4)" />
+            )}
+          </View>
           <Text style={s.bigTitle}>Russian Alphabet</Text>
           <Text style={s.subtitle}>33 letters · type the sound</Text>
           <Text style={s.sectionLabel}>CARDS PER SESSION</Text>
@@ -359,7 +372,8 @@ const s = StyleSheet.create({
   },
 
   flag:           { fontSize: 64, marginBottom: 16 },
-  flagImg:        { width: 300, height: 200, marginBottom: 24, borderRadius: 10 },
+  flagContainer:  { width: 300, height: 200, marginBottom: 24, justifyContent: "center", alignItems: "center" },
+  flagImg:        { width: 300, height: 200, borderRadius: 10 },
   bigTitle:       { fontSize: 32, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 8 },
   subtitle:       { fontSize: 16, color: "rgba(255,255,255,0.4)", marginBottom: 36 },
   sectionLabel:   { fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.35)", marginBottom: 14 },
