@@ -770,7 +770,7 @@ export default function NRLScheduleScreen() {
         onRequestClose={() => setPickerVisible(false)}
       >
         <View style={styles.pickerOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPickerVisible(false)} />
+          <Pressable style={{ flex: 1 }} onPress={() => setPickerVisible(false)} />
           <View style={[styles.pickerSheet, { paddingBottom: insets.bottom + 8 }]}>
             <View style={styles.pickerHandle} />
             <Text style={styles.pickerTitle}>Round {pickerRound} Tips</Text>
