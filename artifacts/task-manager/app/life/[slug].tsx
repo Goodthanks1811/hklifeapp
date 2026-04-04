@@ -1910,13 +1910,10 @@ export default function LifeTaskScreen() {
       {/* ── Gradient header ───────────────────────────────────────────────────── */}
       <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8, paddingBottom: isTablet ? 58 : 36 }]}>
         <LinearGradient
-          colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.32)", "rgba(15,15,15,0.88)", "#0f0f0f"]}
-          locations={[0, 0.42, 0.78, 1]}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <LinearGradient
-          colors={["rgba(224,49,49,0.22)", "transparent"]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.32)", "rgba(15,15,15,0.92)", "#0f0f0f"]}
+          locations={[0, 0.40, 0.80, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
         <View style={sc.gradNav}>
@@ -1955,11 +1952,12 @@ export default function LifeTaskScreen() {
         </View>
       ) : (
         <ScrollView
+          style={{ marginTop: -8 }}
           scrollEnabled={scrollEnabled}
           showsVerticalScrollIndicator={false}
           onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: bottomPad + 100, paddingTop: 4 }}
+          contentContainerStyle={{ paddingBottom: bottomPad + 100, paddingTop: 12 }}
           onScrollBeginDrag={closeActiveSwipe}
           refreshControl={
             <RefreshControl
