@@ -34,11 +34,18 @@ interface WeekData {
   createdItems: string[];
   doneItems: string[];
 }
+interface CategoryWeekData {
+  created: number;
+  done: number;
+  createdItems: string[];
+  doneItems: string[];
+}
 interface CategoryData {
   name: string;
   created: number;
   done: number;
   doneItems: string[];
+  weeks: Record<string, CategoryWeekData>;
 }
 interface MonthData {
   key: string;
@@ -206,78 +213,79 @@ function WeekRow({
   );
 }
 
-// ── Items by Week (bottom section) ────────────────────────────────────────────
-function WeekItemsSection({ month }: { month: MonthData }) {
-  const hasAnyItems = month.visibleWeeks.some((w) => {
-    const d = month.weeks[w];
-    return d && (d.createdItems.length > 0 || d.doneItems.length > 0);
-  });
-  if (!hasAnyItems) return null;
-
-  return (
-    <View style={[styles.card, { marginBottom: 24 }]}>
-      <View style={styles.cardSectionHeader}>
-        <Text style={styles.cardSectionTitle}>Items by Week</Text>
-      </View>
-      <View style={styles.cardSectionDivider} />
-      {month.visibleWeeks.map((w) => {
-        const d = month.weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] };
-        if (d.createdItems.length === 0 && d.doneItems.length === 0) return null;
-        return (
-          <View key={w} style={styles.weekItemsGroup}>
-            <Text style={styles.weekItemsWeekLabel}>{w}</Text>
-            {d.createdItems.length > 0 && (
-              <View style={styles.weekItemsList}>
-                <Text style={[styles.expandSectionLabel, { color: HK_RED }]}>Created</Text>
-                {d.createdItems.map((t, i) => (
-                  <View key={i} style={styles.expandItem}>
-                    <View style={[styles.expandDot, { backgroundColor: HK_RED }]} />
-                    <Text style={styles.expandText}>{t}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            {d.doneItems.length > 0 && (
-              <View style={[styles.weekItemsList, d.createdItems.length > 0 && { marginTop: 8 }]}>
-                <Text style={[styles.expandSectionLabel, { color: DONE_CLR }]}>Completed</Text>
-                {d.doneItems.map((t, i) => (
-                  <View key={i} style={styles.expandItem}>
-                    <View style={[styles.expandDot, { backgroundColor: DONE_CLR }]} />
-                    <Text style={styles.expandText}>{t}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
 // ── Category Row ──────────────────────────────────────────────────────────────
-function CategoryRow({ cat, maxVal }: { cat: CategoryData; maxVal: number }) {
+function CategoryRow({ cat, maxVal, visibleWeeks }: { cat: CategoryData; maxVal: number; visibleWeeks: string[] }) {
+  const [open, setOpen] = useState(false);
   const cp = Math.min(100, maxVal > 0 ? (cat.created / maxVal) * 100 : 0);
   const dp = Math.min(100, maxVal > 0 ? (cat.done / maxVal) * 100 : 0);
+  const hasWeeks = visibleWeeks.some((w) => {
+    const wd = cat.weeks?.[w];
+    return wd && (wd.createdItems.length > 0 || wd.doneItems.length > 0);
+  });
+
   return (
     <View style={styles.catRow}>
-      <Text style={styles.catName}>{cat.name.trim()}</Text>
-      <View style={styles.catBars}>
-        <View style={styles.catBarLine}>
-          <Text style={styles.barLabel}>Created</Text>
-          <View style={styles.barBg}>
-            <View style={[styles.barFg, { width: `${cp}%`, backgroundColor: HK_RED }]} />
-          </View>
-          <Text style={[styles.catVal, { color: HK_RED }]}>{cat.created}</Text>
+      <Pressable
+        onPress={hasWeeks ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOpen((v) => !v); } : undefined}
+        disabled={!hasWeeks}
+      >
+        <View style={styles.catHead}>
+          <Text style={styles.catName}>{cat.name.trim()}</Text>
+          {hasWeeks && <Text style={[styles.weekChevron, open && styles.weekChevronOpen]}>▶</Text>}
         </View>
-        <View style={styles.catBarLine}>
-          <Text style={styles.barLabel}>Done</Text>
-          <View style={styles.barBg}>
-            <View style={[styles.barFg, { width: `${dp}%`, backgroundColor: DONE_CLR }]} />
+        <View style={styles.catBars}>
+          <View style={styles.catBarLine}>
+            <Text style={styles.barLabel}>Created</Text>
+            <View style={styles.barBg}>
+              <View style={[styles.barFg, { width: `${cp}%`, backgroundColor: HK_RED }]} />
+            </View>
+            <Text style={[styles.catVal, { color: HK_RED }]}>{cat.created}</Text>
           </View>
-          <Text style={[styles.catVal, { color: DONE_CLR }]}>{cat.done}</Text>
+          <View style={styles.catBarLine}>
+            <Text style={styles.barLabel}>Done</Text>
+            <View style={styles.barBg}>
+              <View style={[styles.barFg, { width: `${dp}%`, backgroundColor: DONE_CLR }]} />
+            </View>
+            <Text style={[styles.catVal, { color: DONE_CLR }]}>{cat.done}</Text>
+          </View>
         </View>
-      </View>
+      </Pressable>
+
+      {open && (
+        <View style={styles.catWeeksArea}>
+          {visibleWeeks.map((w) => {
+            const wd = cat.weeks?.[w];
+            if (!wd || (wd.createdItems.length === 0 && wd.doneItems.length === 0)) return null;
+            return (
+              <View key={w} style={styles.catWeekBlock}>
+                <Text style={styles.catWeekLabel}>{w}</Text>
+                {wd.createdItems.length > 0 && (
+                  <View style={styles.weekItemsList}>
+                    <Text style={[styles.expandSectionLabel, { color: HK_RED }]}>Created</Text>
+                    {wd.createdItems.map((t, i) => (
+                      <View key={i} style={styles.expandItem}>
+                        <View style={[styles.expandDot, { backgroundColor: HK_RED }]} />
+                        <Text style={styles.expandText}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {wd.doneItems.length > 0 && (
+                  <View style={[styles.weekItemsList, wd.createdItems.length > 0 && { marginTop: 8 }]}>
+                    <Text style={[styles.expandSectionLabel, { color: DONE_CLR }]}>Completed</Text>
+                    {wd.doneItems.map((t, i) => (
+                      <View key={i} style={styles.expandItem}>
+                        <View style={[styles.expandDot, { backgroundColor: DONE_CLR }]} />
+                        <Text style={styles.expandText}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -361,7 +369,7 @@ function MonthView({ month }: { month: MonthData }) {
       <View style={styles.cardSectionContent}>
         {month.categories.length > 0
           ? month.categories.map((cat) => (
-              <CategoryRow key={cat.name} cat={cat} maxVal={month.maxCatVal} />
+              <CategoryRow key={cat.name} cat={cat} maxVal={month.maxCatVal} visibleWeeks={month.visibleWeeks} />
             ))
           : <Text style={styles.emptyCardText}>No category data</Text>
         }
@@ -397,14 +405,12 @@ function MonthView({ month }: { month: MonthData }) {
             <View style={styles.tabletRight}>{weeklyCard}</View>
           </View>
           {categoryCard}
-          <WeekItemsSection month={month} />
         </>
       ) : (
         <>
           {barChartCard}
           {weeklyCard}
           {categoryCard}
-          <WeekItemsSection month={month} />
         </>
       )}
     </View>
@@ -581,12 +587,16 @@ const styles = StyleSheet.create({
   expandItem: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 2 },
   expandDot: { width: 5, height: 5, borderRadius: 3, marginTop: 5, flexShrink: 0 },
   expandText: { flex: 1, fontSize: 13, color: "rgba(255,255,255,0.72)", lineHeight: 19, fontFamily: "Inter_400Regular" },
-  weekItemsGroup: { paddingBottom: 14, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
-  weekItemsWeekLabel: { fontSize: 13, fontWeight: "900", color: "#fff", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, fontFamily: "Inter_700Bold" },
-  weekItemsList: {},
   catRow: { paddingBottom: 10, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,30,30,0.05)" },
-  catName: { fontSize: 13, fontWeight: "800", color: "#fff", marginBottom: 6, fontFamily: "Inter_700Bold" },
+  catHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  catName: { fontSize: 13, fontWeight: "800", color: "#fff", fontFamily: "Inter_700Bold" },
+  weekChevron: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
+  weekChevronOpen: { transform: [{ rotate: "90deg" }] },
   catBars: { gap: 5 },
   catBarLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   catVal: { width: 24, fontSize: 11, fontWeight: "800", textAlign: "right", fontFamily: "Inter_700Bold" },
+  catWeeksArea: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", gap: 12 },
+  catWeekBlock: {},
+  catWeekLabel: { fontSize: 11, fontWeight: "900", color: "rgba(255,255,255,0.5)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, fontFamily: "Inter_700Bold" },
+  weekItemsList: {},
 });

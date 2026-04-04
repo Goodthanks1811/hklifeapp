@@ -760,7 +760,7 @@ router.get("/workload", async (req, res) => {
 
   type WeekBucket = { created: number; done: number; createdItems: string[]; doneItems: string[] };
   type MonthWeeks = Record<string, WeekBucket>;
-  type CatBucket = { created: number; done: number; doneItems: string[] };
+  type CatBucket = { created: number; done: number; doneItems: string[]; weeks: Record<string, WeekBucket> };
 
   try {
     const allPages: any[] = [];
@@ -788,6 +788,16 @@ router.get("/workload", async (req, res) => {
     const monthData: Record<string, MonthWeeks> = {};
     const categoryMonthData: Record<string, Record<string, CatBucket>> = {};
 
+    const ensureCat = (month: string, cat: string) => {
+      if (!categoryMonthData[month]) categoryMonthData[month] = {};
+      if (!categoryMonthData[month][cat]) categoryMonthData[month][cat] = { created: 0, done: 0, doneItems: [], weeks: {} };
+      return categoryMonthData[month][cat];
+    };
+    const ensureCatWeek = (bucket: CatBucket, week: string) => {
+      if (!bucket.weeks[week]) bucket.weeks[week] = { created: 0, done: 0, createdItems: [], doneItems: [] };
+      return bucket.weeks[week];
+    };
+
     for (const page of allPages) {
       const props = page.properties || {};
       const cs: string | null = props.Created?.created_time || page.created_time || null;
@@ -806,9 +816,10 @@ router.get("/workload", async (req, res) => {
         if (!monthData[cm][cw]) monthData[cm][cw] = { created: 0, done: 0, createdItems: [], doneItems: [] };
         monthData[cm][cw].created++;
         monthData[cm][cw].createdItems.push(title);
-        if (!categoryMonthData[cm]) categoryMonthData[cm] = {};
-        if (!categoryMonthData[cm][cat]) categoryMonthData[cm][cat] = { created: 0, done: 0, doneItems: [] };
-        categoryMonthData[cm][cat].created++;
+        const cb = ensureCat(cm, cat);
+        cb.created++;
+        ensureCatWeek(cb, cw).created++;
+        ensureCatWeek(cb, cw).createdItems.push(title);
       }
 
       if (done && us) {
@@ -819,12 +830,14 @@ router.get("/workload", async (req, res) => {
           if (!monthData[dm][dw]) monthData[dm][dw] = { created: 0, done: 0, createdItems: [], doneItems: [] };
           monthData[dm][dw].done++;
           monthData[dm][dw].doneItems.push(title);
+          const db = ensureCat(dm, cat);
+          ensureCatWeek(db, dw).done++;
+          ensureCatWeek(db, dw).doneItems.push(title);
         }
         if (dm) {
-          if (!categoryMonthData[dm]) categoryMonthData[dm] = {};
-          if (!categoryMonthData[dm][cat]) categoryMonthData[dm][cat] = { created: 0, done: 0, doneItems: [] };
-          categoryMonthData[dm][cat].done++;
-          categoryMonthData[dm][cat].doneItems.push(title);
+          const db = ensureCat(dm, cat);
+          db.done++;
+          db.doneItems.push(title);
         }
       }
     }
@@ -863,6 +876,7 @@ router.get("/workload", async (req, res) => {
         ),
         categories: catEntries.map(([name, v]) => ({
           name, created: v.created, done: v.done, doneItems: v.doneItems,
+          weeks: v.weeks,
         })),
         maxCatVal,
       };
