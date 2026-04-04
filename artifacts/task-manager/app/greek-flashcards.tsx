@@ -298,11 +298,9 @@ export default function GreekFlashcardsScreen() {
               <View style={s.alertRow}>
                 <Text style={[s.alertIcon, { color: fbAccent }]}>{fbIcon}</Text>
                 <Text style={[s.alertTitle, { color: fbAccent }]}>{fbTitle}</Text>
-                <Text style={s.alertSub}>
-                  {"  "}{feedback.kind === "incorrect"
-                    ? `the sound is ${feedback.sound.toUpperCase()}`
-                    : `${feedback.char}  ${feedback.sound.toUpperCase()}`}
-                </Text>
+                {feedback.kind === "incorrect" && (
+                  <Text style={s.alertSub}>{"  "}the sound is {feedback.sound.toUpperCase()}</Text>
+                )}
               </View>
             </View>
           ) : (
