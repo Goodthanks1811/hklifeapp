@@ -1937,6 +1937,12 @@ export default function LifeTaskScreen() {
           </Pressable>
         </View>
         <Text style={sc.gradTitle}>{config.title}</Text>
+        {/* Soft fade-to-background at the header's bottom edge */}
+        <LinearGradient
+          colors={["transparent", "#0f0f0f"]}
+          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 28 }}
+          pointerEvents="none"
+        />
       </View>
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
@@ -1959,7 +1965,7 @@ export default function LifeTaskScreen() {
           showsVerticalScrollIndicator={false}
           onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
+          contentContainerStyle={{ paddingBottom: bottomPad + 100, paddingTop: 12 }}
           onScrollBeginDrag={closeActiveSwipe}
           refreshControl={
             <RefreshControl
