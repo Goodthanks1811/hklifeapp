@@ -1,0 +1,439 @@
+// ─────────────────────────────────────────────
+// 🧠 Psychology Daily  — AI-powered edition
+// Uses Claude API to generate fresh concepts
+// Deduplicates across last 30 days
+// ─────────────────────────────────────────────
+
+const ANTHROPIC_KEY = Keychain.get(“anthropic_api_key”);
+const storage       = FileManager.local();
+const SEEN_PATH     = storage.joinPath(storage.documentsDirectory(), “psych_seen.json”);
+
+// ── Seen-concept helpers ──────────────────────
+
+function loadSeen() {
+try {
+if (storage.fileExists(SEEN_PATH)) {
+return JSON.parse(storage.readString(SEEN_PATH));
+}
+} catch(e) {}
+return [];
+}
+
+function saveSeen(list) {
+try { storage.writeString(SEEN_PATH, JSON.stringify(list, null, 2)); }
+catch(e) {}
+}
+
+function addSeen(name) {
+let list = loadSeen();
+list.push({ concept: name, date: new Date().toISOString() });
+if (list.length > 60) list = list.slice(-60);
+saveSeen(list);
+}
+
+function recentNames(days = 30) {
+const cutoff = new Date();
+cutoff.setDate(cutoff.getDate() - days);
+return loadSeen()
+.filter(s => new Date(s.date) > cutoff)
+.map(s => s.concept);
+}
+
+// ── Claude API call ───────────────────────────
+
+async function fetchConcept(excluded) {
+const excludeStr = excluded.length
+? `Do NOT use any of these (recently shown): ${excluded.join(", ")}.`
+: “”;
+
+const prompt = `You are a psychology educator. Generate ONE interesting psychology concept for a daily learning app.
+${excludeStr}
+
+Choose from any area: cognitive, social, clinical, developmental, behavioural, neuropsychology, positive psychology, personality, etc. Favour lesser-known gems over overused classics like Dunning-Kruger or Cognitive Dissonance.
+
+Respond with ONLY a valid JSON object — no markdown, no code fences, no extra text:
+{
+“concept”: “Name of the concept”,
+“category”: “Branch of psychology”,
+“description”: “Clear 1-2 sentence explanation”,
+“example”: “Concrete real-world example”,
+“didYouKnow”: “Surprising historical or research fact”,
+“keyFigure”: “Key researcher or psychologist associated with this”
+}`;
+
+const req = new Request(“https://api.anthropic.com/v1/messages”);
+req.method = “POST”;
+req.headers = {
+“Content-Type”: “application/json”,
+“x-api-key”: ANTHROPIC_KEY,
+“anthropic-version”: “2023-06-01”
+};
+req.body = JSON.stringify({
+model: “claude-sonnet-4-20250514”,
+max_tokens: 500,
+messages: [{ role: “user”, content: prompt }]
+});
+
+const res  = await req.loadJSON();
+const text = res.content[0].text.trim();
+// Strip accidental fences
+const clean = text.replace(/^`json\s*/i, "").replace(/^`\s*/i, “”).replace(/```\s*$/i, “”).trim();
+return JSON.parse(clean);
+}
+
+// ── HTML renderer ─────────────────────────────
+
+function buildHTML(concept, seenCount) {
+const dateStr = new Date().toLocaleDateString(“en-AU”, {
+weekday: “long”, year: “numeric”, month: “long”, day: “numeric”
+});
+
+return `<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Psychology Daily</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap');
+
+:root {
+–bg:       #080808;
+–surface:  #101010;
+–surface2: #161616;
+–border:   #202020;
+–accent:   #c0392b;
+–accent2:  #922b21;
+–text:     #e8e8e8;
+–muted:    #888;
+–dim:      #555;
+}
+
+- { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+font-family: ‘DM Sans’, sans-serif;
+background: var(–bg);
+min-height: 100vh;
+display: flex;
+align-items: flex-start;
+justify-content: center;
+padding: 24px 16px 40px;
+color: var(–text);
+}
+
+.wrap {
+width: 100%;
+max-width: 680px;
+animation: up .5s ease both;
+}
+
+@keyframes up {
+from { opacity:0; transform:translateY(16px); }
+to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── Header ── */
+.hdr {
+text-align: center;
+padding-bottom: 28px;
+margin-bottom: 28px;
+border-bottom: 1px solid var(–border);
+}
+.hdr-date {
+font-size: .72rem;
+letter-spacing: 2.5px;
+text-transform: uppercase;
+color: var(–dim);
+margin-bottom: 10px;
+}
+.hdr-title {
+font-family: ‘DM Serif Display’, serif;
+font-size: 2.2rem;
+color: var(–text);
+letter-spacing: -.5px;
+line-height: 1;
+}
+.hdr-sub {
+margin-top: 8px;
+font-size: .8rem;
+color: var(–dim);
+font-weight: 300;
+}
+.red { color: var(–accent); }
+
+/* ── Card ── */
+.card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 24px;
+padding: 28px;
+margin-bottom: 12px;
+}
+
+.tag {
+display: inline-flex;
+align-items: center;
+gap: 6px;
+background: var(–surface2);
+border: 1px solid var(–border);
+color: var(–accent);
+font-size: .72rem;
+letter-spacing: 1.5px;
+text-transform: uppercase;
+padding: 4px 12px;
+border-radius: 30px;
+margin-bottom: 16px;
+}
+
+.concept-name {
+font-family: ‘DM Serif Display’, serif;
+font-size: 2rem;
+color: #fff;
+line-height: 1.1;
+margin-bottom: 14px;
+letter-spacing: -.3px;
+}
+
+.desc {
+font-size: 1.05rem;
+line-height: 1.65;
+color: #ccc;
+font-weight: 300;
+margin-bottom: 20px;
+}
+
+/* ── Sub-cards ── */
+.sub {
+background: var(–surface2);
+border: 1px solid var(–border);
+border-radius: 16px;
+padding: 16px 18px;
+margin-bottom: 10px;
+}
+.sub:last-child { margin-bottom: 0; }
+
+.sub-label {
+font-size: .7rem;
+letter-spacing: 1.8px;
+text-transform: uppercase;
+color: var(–accent);
+font-weight: 500;
+margin-bottom: 7px;
+display: flex;
+align-items: center;
+gap: 6px;
+}
+
+.sub-body {
+font-size: .95rem;
+line-height: 1.55;
+color: #b8b8b8;
+font-weight: 300;
+}
+
+.key-figure {
+display: flex;
+align-items: center;
+gap: 10px;
+padding: 14px 18px;
+background: var(–surface2);
+border: 1px solid var(–border);
+border-radius: 16px;
+margin-bottom: 10px;
+}
+.kf-icon {
+width: 36px; height: 36px;
+background: #1a0a0a;
+border: 1px solid var(–accent2);
+border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 1rem;
+flex-shrink: 0;
+}
+.kf-text { font-size: .88rem; color: #aaa; font-weight: 300; }
+.kf-text strong { color: var(–text); font-weight: 500; }
+
+/* ── Progress ── */
+.progress-row {
+display: flex;
+align-items: center;
+gap: 10px;
+margin-top: 20px;
+padding-top: 16px;
+border-top: 1px solid var(–border);
+}
+.progress-bar {
+flex: 1;
+height: 3px;
+background: var(–border);
+border-radius: 2px;
+overflow: hidden;
+}
+.progress-fill {
+height: 100%;
+background: var(–accent);
+border-radius: 2px;
+width: ${Math.min((seenCount / 100) * 100, 100)}%;
+transition: width .8s ease;
+}
+.progress-label {
+font-size: .75rem;
+color: var(–dim);
+white-space: nowrap;
+}
+
+/* ── Save button ── */
+.btn-row {
+display: flex;
+justify-content: center;
+margin-top: 20px;
+}
+.btn {
+background: var(–surface);
+color: var(–text);
+border: 1px solid var(–border);
+padding: 13px 28px;
+border-radius: 40px;
+font-family: ‘DM Sans’, sans-serif;
+font-size: .95rem;
+font-weight: 400;
+cursor: pointer;
+display: inline-flex;
+align-items: center;
+gap: 8px;
+transition: all .2s;
+letter-spacing: .2px;
+}
+.btn:hover { border-color: var(–accent2); color: #fff; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.footer {
+text-align: center;
+margin-top: 20px;
+font-size: .72rem;
+color: var(–dim);
+letter-spacing: 1px;
+text-transform: uppercase;
+}
+</style>
+
+</head>
+<body>
+<div class="wrap" id="capture">
+
+  <div class="hdr">
+    <div class="hdr-date">${dateStr}</div>
+    <div class="hdr-title"><span class="red">Psychology</span> Daily</div>
+    <div class="hdr-sub">${seenCount} concept${seenCount !== 1 ? "s" : ""} explored</div>
+  </div>
+
+  <div class="card">
+    <div class="tag">📚 ${concept.category}</div>
+    <div class="concept-name">${concept.concept}</div>
+    <div class="desc">${concept.description}</div>
+
+```
+<div class="key-figure">
+  <div class="kf-icon">🎓</div>
+  <div class="kf-text"><strong>Key Figure</strong> — ${concept.keyFigure}</div>
+</div>
+
+<div class="sub">
+  <div class="sub-label">💬 Example</div>
+  <div class="sub-body">${concept.example}</div>
+</div>
+
+<div class="sub">
+  <div class="sub-label">💡 Did You Know?</div>
+  <div class="sub-body">${concept.didYouKnow}</div>
+</div>
+
+<div class="progress-row">
+  <div class="progress-bar"><div class="progress-fill"></div></div>
+  <div class="progress-label">${seenCount} / 100</div>
+</div>
+```
+
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="saveBtn">📸 Save Image</button>
+  </div>
+
+  <div class="footer">psychology daily · ai-generated · dark edition</div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  document.getElementById('saveBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.textContent = '⏳ Saving...';
+    btn.disabled = true;
+    try {
+      const canvas = await html2canvas(document.getElementById('capture'), {
+        scale: 2, backgroundColor: '#080808', logging: false, useCORS: true
+      });
+      const data = canvas.toDataURL('image/png');
+      window.location.href = 'scriptable:///saveImage?data=' + encodeURIComponent(data);
+      btn.textContent = '✓ Saved!';
+    } catch(e) {
+      btn.textContent = '✗ Failed';
+    }
+    setTimeout(() => { btn.innerHTML = '📸 Save Image'; btn.disabled = false; }, 2000);
+  });
+</script>
+</body>
+</html>`;
+}
+
+// ── Main ──────────────────────────────────────
+
+async function main() {
+// Image-save callback
+if (args.queryParameters && args.queryParameters.data) {
+try {
+const b64 = args.queryParameters.data.split(’,’)[1];
+await Photos.save(Data.fromBase64String(b64));
+const n = new Notification();
+n.title = “✅ Saved”; n.body = “Concept saved to camera roll”;
+n.schedule();
+} catch(e) {
+const n = new Notification();
+n.title = “❌ Failed”; n.body = String(e);
+n.schedule();
+}
+return;
+}
+
+// Loading indicator
+const loadWV = new WebView();
+await loadWV.loadHTML(`<html><body style="background:#080808;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+<div style="text-align:center;color:#c0392b;font-family:-apple-system,sans-serif">
+<div style="font-size:2.5rem;margin-bottom:12px">🧠</div>
+<div style="font-size:1rem;letter-spacing:2px;text-transform:uppercase;color:#555">Generating concept…</div>
+</div>
+
+  </body></html>`);
+
+const excluded = recentNames(30);
+let concept;
+try {
+concept = await fetchConcept(excluded);
+} catch(e) {
+const a = new Alert();
+a.title = “API Error”; a.message = String(e); a.addAction(“OK”);
+await a.present(); return;
+}
+
+addSeen(concept.concept);
+const seenCount = loadSeen().length;
+
+const wv = new WebView();
+await wv.loadHTML(buildHTML(concept, seenCount));
+await wv.present(true);
+}
+
+await main();
+Script.complete();
