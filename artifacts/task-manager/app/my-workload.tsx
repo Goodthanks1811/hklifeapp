@@ -75,7 +75,8 @@ function WorkloadBarChart({
   });
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <View style={{ height: svgH }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
       <Svg width={totalW} height={svgH} viewBox={`0 0 ${totalW} ${svgH}`}>
         {gridLines.map(({ y, val }) => (
           <G key={y}>
@@ -138,6 +139,7 @@ function WorkloadBarChart({
         })}
       </Svg>
     </ScrollView>
+    </View>
   );
 }
 
