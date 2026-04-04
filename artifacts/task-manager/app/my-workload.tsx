@@ -77,11 +77,11 @@ function WorkloadBarChart({
   const totalW = pL + layoutWeeks.length * (groupW + groupGap) - groupGap + pR;
   const svgH = chartH + pT + pB;
 
-  // Scale SVG to fill card width on tablet — capped so bars never exceed 50px wide
-  const maxScale  = 50 / barW;                // ~2.27×
+  // Scale SVG width to fill card — height stays fixed so all months look the same size
+  const maxScale  = 50 / barW;                // ~2.27×, prevents absurdly wide bars
   const fillWidth = availableWidth != null && availableWidth > totalW;
   const renderW   = fillWidth ? Math.min(availableWidth!, Math.round(totalW * maxScale)) : totalW;
-  const renderH   = fillWidth ? Math.round(svgH * (renderW / totalW)) : svgH;
+  const renderH   = svgH;                     // always fixed — never scale height
 
   const gridLines = [0, 1, 2, 3, 4].map((i) => {
     const y = pT + (chartH / 4) * i;
