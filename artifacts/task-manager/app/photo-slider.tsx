@@ -418,11 +418,19 @@ function drawImg(img,disp,tx,alpha,useMask){
   ctx.restore();
 }
 
-// Draw colorCanvas overlay at img2's transform
+// Draw colorCanvas overlay at img2's transform — masked to img2's visible region
 function drawColorOverlay(etx2){
   if(!colorCanvas||!img2||!etx2)return;
   var nw=img2.naturalWidth,nh=img2.naturalHeight;
-  ctx.drawImage(colorCanvas,etx2.cx-nw*etx2.scale/2,etx2.cy-nh*etx2.scale/2,nw*etx2.scale,nh*etx2.scale);
+  var dx=etx2.cx-nw*etx2.scale/2,dy=etx2.cy-nh*etx2.scale/2,dw=nw*etx2.scale,dh=nh*etx2.scale;
+  if(!maskCanvas){ctx.drawImage(colorCanvas,dx,dy,dw,dh);return;}
+  var sw=W(),sh=H();var off=getOff(sw,sh);
+  off.x.clearRect(0,0,sw,sh);
+  off.x.globalCompositeOperation='source-over';
+  off.x.drawImage(colorCanvas,dx,dy,dw,dh);
+  off.x.globalCompositeOperation='destination-in';
+  off.x.drawImage(maskCanvas,dx,dy,dw,dh);
+  ctx.drawImage(off.c,0,0);
 }
 
 function draw(){
@@ -499,7 +507,8 @@ stage.addEventListener('touchstart',function(e){
   }
 
   if(t.length===1){
-    if(nearSlider(p)){tMode='slider';}
+    if(sliderMode){tMode='slider';}
+    else if(nearSlider(p)){tMode='slider';}
     else if(zoomMode||active!==0){tMode='pan';panLast=p;}
   }else if(t.length>=2){
     tMode='pinch';hadPinch=true;
@@ -578,9 +587,20 @@ function toggleZoom(){
   draw();
 }
 function toggleSlider(){
-  if(!sliderMode){sliderMode=true;sliderVert=true;sliderPos=0.5;document.getElementById('btnSlider').className='btn-icon slider-active';toolBar.classList.add('slider-lock');}
-  else if(sliderVert){sliderVert=false;}
-  else{sliderMode=false;document.getElementById('btnSlider').className='btn-icon';dividerEl.style.display='none';toolBar.classList.remove('slider-lock');}
+  var obar=document.getElementById('obar');
+  if(!sliderMode){
+    sliderMode=true;sliderVert=true;sliderPos=0.5;
+    document.getElementById('btnSlider').className='btn-icon slider-active';
+    toolBar.classList.add('slider-lock');
+    if(obar)obar.style.display='none';
+  }else if(sliderVert){sliderVert=false;}
+  else{
+    sliderMode=false;
+    document.getElementById('btnSlider').className='btn-icon';
+    dividerEl.style.display='none';
+    toolBar.classList.remove('slider-lock');
+    if(obar&&img1&&img2)obar.style.display='flex';
+  }
   draw();
 }
 function resetActive(){
@@ -612,10 +632,14 @@ function toggleBrush(){
   if(!img2)return;
   if(!maskCanvas)initMask();
   brushMode=!brushMode;
+  var bb=document.getElementById('btnBrush');
   if(brushMode){
+    if(bb)bb.style.display='none';
     _setBrushInline(true);
     setBrushMode('erase'); // default to erase when opening (also shows eyeBtn)
   }else{
+    if(bb)bb.style.display='';
+    brushPaintMode=''; // reset so re-entering doesn't trigger early-exit guard
     _setBrushInline(false);
     document.getElementById('btnEye').style.display='none'; // hide colour picker
     // turn off eyedrop if on
@@ -625,6 +649,7 @@ function toggleBrush(){
 }
 
 function setBrushMode(m){
+  if(m===brushPaintMode&&brushMode){toggleBrush();return;} // tap active mode → exit brush
   brushPaintMode=m;
   var eBtn=document.getElementById('btnErase');
   var rBtn=document.getElementById('btnRestore');
@@ -665,6 +690,7 @@ function swatchTap(){
   if(!brushMode){
     if(!maskCanvas)initMask();
     brushMode=true;
+    var bb=document.getElementById('btnBrush');if(bb)bb.style.display='none';
     _setBrushInline(true);
   }
   setBrushMode('color');
