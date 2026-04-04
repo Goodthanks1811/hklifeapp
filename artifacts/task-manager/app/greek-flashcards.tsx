@@ -138,7 +138,6 @@ export default function GreekFlashcardsScreen() {
     setFeedback({ kind: "", char: "", sound: "" });
     animateProgress(0);
     setScreen("quiz");
-    setTimeout(() => inputRef.current?.focus(), 300);
   }, [sessionSize, animateProgress]);
 
   const showHint = useCallback(() => {
@@ -296,6 +295,7 @@ export default function GreekFlashcardsScreen() {
             placeholderTextColor="rgba(255,255,255,0.25)"
             autoCorrect={false}
             autoCapitalize="none"
+            autoFocus
             spellCheck={false}
             returnKeyType={answered ? "next" : "done"}
             onSubmitEditing={checkAnswer}
