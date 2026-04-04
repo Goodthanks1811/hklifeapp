@@ -22,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocalSearchParams } from "expo-router";
 import { useDrawer } from "@/context/DrawerContext";
 import { Colors } from "@/constants/colors";
 
@@ -684,6 +685,7 @@ const ed = StyleSheet.create({
 
 // ── CalendarScreen ─────────────────────────────────────────────────────────────
 export default function CalendarScreen() {
+  const { add } = useLocalSearchParams<{ add?: string }>();
   const insets = useSafeAreaInsets();
   const { toggleDrawer } = useDrawer();
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -700,6 +702,14 @@ export default function CalendarScreen() {
   const [pendingTitle,  setPendingTitle]  = useState("");
   const [eventTitle,    setEventTitle]    = useState("");
   const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
+  const hasAutoOpened = useRef(false);
+  useEffect(() => {
+    if (add === "true" && !hasAutoOpened.current) {
+      hasAutoOpened.current = true;
+      setPendingTitle("");
+      setStep("title");
+    }
+  }, [add]);
 
   const fetchEvents = useCallback(async () => {
     try {

@@ -1388,7 +1388,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function LifeTaskScreen() {
-  const { slug }          = useLocalSearchParams<{ slug: string }>();
+  const { slug, add }     = useLocalSearchParams<{ slug: string; add?: string }>();
   const config            = SLUG_MAP[slug ?? ""] ?? null;
   const insets            = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
@@ -1664,6 +1664,13 @@ export default function LifeTaskScreen() {
   const [emojiAnchor,  setEmojiAnchor]  = useState<EmojiAnchor | null>(null);
   const [epicAnchor,   setEpicAnchor]   = useState<EpicAnchor  | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const hasAutoOpened = useRef(false);
+  useEffect(() => {
+    if (add === "true" && !hasAutoOpened.current) {
+      hasAutoOpened.current = true;
+      setShowQuickAdd(true);
+    }
+  }, [add]);
 
   const openDetail = useCallback((task: LifeTask) => {
     if (dragOccurredRef.current) return;
