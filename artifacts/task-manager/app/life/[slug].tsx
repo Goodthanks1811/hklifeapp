@@ -651,18 +651,18 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         keyboardAppearance="dark"
       />
 
-      {/* Emoji row — updates when category chip is tapped */}
-      {displayEmojis.length > 0 && (
-        <View style={[s.dsMetaRow, { marginBottom: 6 }]}>
-          {displayEmojis.map((e, i) => {
-            const selected = norm(task?.emoji ?? "") === norm(e);
+      {/* Category row */}
+      {allCategories.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 8, marginBottom: 0 }]}>
+          {allCategories.map(cat => {
+            const selected = cat === localCat;
             return (
               <Pressable
-                key={`emoji-${i}`}
-                onPress={() => { if (task) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEmojiChange(task.id, e); } }}
-                style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
+                key={`cat-${cat}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChange(cat); }}
+                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={s.dsEmojiText}>{e}</Text>
+                <Text style={[s.dsCatText, selected && s.dsCatTextActive, isTablet && { fontSize: 14 }]}>{cat}</Text>
               </Pressable>
             );
           })}
@@ -693,24 +693,6 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         </View>
       )}
 
-      {/* Category row + inline URL chip */}
-      {allCategories.length > 0 && (
-        <View style={[s.dsMetaRow, { marginTop: 8, marginBottom: 10 }]}>
-          {allCategories.map(cat => {
-            const selected = cat === localCat;
-            return (
-              <Pressable
-                key={`cat-${cat}`}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChange(cat); }}
-                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
-              >
-                <Text style={[s.dsCatText, selected && s.dsCatTextActive, isTablet && { fontSize: 14 }]}>{cat}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-
     </>
   );
 
@@ -731,6 +713,23 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   const bodySection = (
     <>
+      {/* Emoji row — just above formatting bar */}
+      {displayEmojis.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 12, marginBottom: 4, paddingHorizontal: 20 }]}>
+          {displayEmojis.map((e, i) => {
+            const selected = norm(task?.emoji ?? "") === norm(e);
+            return (
+              <Pressable
+                key={`emoji-${i}`}
+                onPress={() => { if (task) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEmojiChange(task.id, e); } }}
+                style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
+              >
+                <Text style={s.dsEmojiText}>{e}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
       <FormattingToolbar
         onFormat={handleFormat}
         viewLink={task?.url ?? task?.fileLinks?.[0]?.url ?? undefined}
@@ -1079,24 +1078,6 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         />
       </Animated.View>
 
-      {/* Emoji row — reacts to category chip taps */}
-      {displayEmojis.length > 0 && (
-        <View style={[s.dsMetaRow, { marginTop: 20 }]}>
-          {displayEmojis.map((e, i) => {
-            const selected = norm(selEmoji ?? "") === norm(e);
-            return (
-              <Pressable
-                key={`qa-emoji-${i}`}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEmoji(e); }}
-                style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
-              >
-                <Text style={s.dsEmojiText}>{e}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-
       {/* Category row — always shown */}
       {allCategories.length > 0 && (
         <View style={[s.dsMetaRow, { marginTop: 16 }]}>
@@ -1134,7 +1115,25 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         </View>
       )}
 
-      <View style={[s.dsDivider, { marginTop: 20 }]} />
+      {/* Emoji row — just above formatting bar */}
+      {displayEmojis.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 16 }]}>
+          {displayEmojis.map((e, i) => {
+            const selected = norm(selEmoji ?? "") === norm(e);
+            return (
+              <Pressable
+                key={`qa-emoji-${i}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEmoji(e); }}
+                style={[s.dsEmojiChip, selected && s.dsEmojiChipActive]}
+              >
+                <Text style={s.dsEmojiText}>{e}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={[s.dsDivider, { marginTop: 16 }]} />
       <FormattingToolbar onFormat={handleFormatQA} link={linkUrl} onLinkChange={setLinkUrl} />
 
       {/* Notes body */}
