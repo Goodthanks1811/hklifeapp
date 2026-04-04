@@ -76,10 +76,10 @@ function ProposedPreview() {
     <View style={s.card}>
       {/* Hero gradient area — title + buttons overlay it */}
       <View style={s.heroOuter}>
-        {/* Main gradient: black → dark crimson → transparent */}
+        {/* Main gradient: black → E03131 tinted → transparent (matches canvas radial) */}
         <LinearGradient
-          colors={["#000000", "rgba(100,0,0,0.72)", "rgba(40,0,0,0.25)", "transparent"]}
-          locations={[0, 0.28, 0.58, 1]}
+          colors={["#000000", "rgba(224,49,49,0.50)", "rgba(224,49,49,0.15)", "transparent"]}
+          locations={[0, 0.28, 0.55, 1]}
           style={StyleSheet.absoluteFillObject}
         />
         {/* Header row: burger + spacer (no border, no bg) */}
@@ -134,11 +134,11 @@ export default function GradientHeaderScreen() {
           <Text style={s.specTitle}>Spec</Text>
           <View style={s.specRow}>
             <Text style={s.specKey}>Gradient</Text>
-            <Text style={s.specVal}>#000 → rgba(100,0,0,0.72) → transparent</Text>
+            <Text style={s.specVal}>#000 → rgba(224,49,49,0.50) → transparent</Text>
           </View>
           <View style={s.specRow}>
             <Text style={s.specKey}>Hero height</Text>
-            <Text style={s.specVal}>~100 px</Text>
+            <Text style={s.specVal}>~128 px</Text>
           </View>
           <View style={s.specRow}>
             <Text style={s.specKey}>Header border</Text>
@@ -194,10 +194,10 @@ const s = StyleSheet.create({
 
   // ── Proposed hero ──
   heroOuter: {
-    height: 100,
+    height: 128,
     backgroundColor: "#000",
     justifyContent: "flex-end",
-    paddingBottom: 12,
+    paddingBottom: 18,
   },
   heroNav: {
     position: "absolute", top: 8, left: 10, right: 10,
