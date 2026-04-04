@@ -311,7 +311,7 @@ export default function GreekFlashcardsScreen() {
                 )}
                 <Text style={[s.alertTitle, { color: fbAccent }]}>{fbTitle}</Text>
                 {feedback.kind === "incorrect" && (
-                  <Text style={s.alertSub}>{"  "}the sound is {capSound(feedback.sound)}</Text>
+                  <Text style={s.alertSub}>{"  "}The sound is {capSound(feedback.sound)}</Text>
                 )}
                 {feedback.kind === "hint" && (
                   <Text style={s.alertSub}>{"  "}{capSound(feedback.sound)}</Text>
