@@ -28,10 +28,9 @@ function Row({ emoji, title, done }: typeof ITEMS[0]) {
       marginBottom: 8,
     }}>
       <div style={{
-        width: 32, height: 32, borderRadius: 8,
-        backgroundColor: "rgba(224,49,49,0.12)",
+        minWidth: 36, alignSelf: "stretch",
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 15, flexShrink: 0,
+        fontSize: 24, flexShrink: 0,
       }}>{emoji}</div>
       <span style={{
         flex: 1, fontSize: 15,

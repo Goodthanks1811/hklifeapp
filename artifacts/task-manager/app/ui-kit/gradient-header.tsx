@@ -27,8 +27,8 @@ const ITEMS = [
 function Row({ emoji, title, done }: typeof ITEMS[0]) {
   return (
     <View style={s.row}>
-      <View style={s.pill}>
-        <Text style={s.pillEmoji}>{emoji}</Text>
+      <View style={s.emojiBtn}>
+        <Text style={s.rowEmoji}>{emoji}</Text>
       </View>
       <Text style={[s.rowTitle, done && s.rowDone]} numberOfLines={1}>{title}</Text>
       <View style={[s.chk, done && s.chkOn]}>
@@ -145,13 +145,8 @@ const s = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
   },
-  pill: {
-    width: 32, height: 32, borderRadius: 8,
-    backgroundColor: "rgba(224,49,49,0.12)",
-    alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
-  },
-  pillEmoji: { fontSize: 15 },
+  emojiBtn: { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
+  rowEmoji: { fontSize: 24 },
 
   rowTitle: {
     flex: 1,
