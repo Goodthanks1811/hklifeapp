@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Calendar from "expo-calendar";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import React, {
   useCallback, useEffect, useRef, useState,
 } from "react";
@@ -703,6 +704,7 @@ export default function CalendarScreen() {
   const [pendingTitle,  setPendingTitle]  = useState("");
   const [eventTitle,    setEventTitle]    = useState("");
   const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
+  // Cold start: open create modal if launched via shortcut URL
   const hasAutoOpened = useRef(false);
   useEffect(() => {
     if (add === "true" && !hasAutoOpened.current) {
@@ -711,6 +713,19 @@ export default function CalendarScreen() {
       setStep("title");
     }
   }, [add]);
+
+  // Warm start: app was backgrounded then re-opened via shortcut URL.
+  // useLocalSearchParams won't re-fire if `add` is already "true" from a prior
+  // session, so we listen to the raw Linking event directly.
+  useEffect(() => {
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      if (url.includes("add=true")) {
+        setPendingTitle("");
+        setStep("title");
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const fetchEvents = useCallback(async () => {
     try {
