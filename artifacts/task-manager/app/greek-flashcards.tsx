@@ -101,7 +101,7 @@ export default function GreekFlashcardsScreen() {
   const [answered,    setAnswered]    = useState(false);
   const [hintUsed,    setHintUsed]    = useState(false);
   const [hintShown,   setHintShown]   = useState(false);
-  const [feedback,    setFeedback]    = useState<{ text: string; kind: "correct" | "incorrect" | "hint" | "" }>({ text: "", kind: "" });
+  const [feedback,    setFeedback]    = useState<{ kind: "correct" | "incorrect" | "hint" | ""; char: string; sound: string }>({ kind: "", char: "", sound: "" });
   const [score,       setScore]       = useState(0);
   const [mistakes,    setMistakes]    = useState<Mistake[]>([]);
 
@@ -133,7 +133,7 @@ export default function GreekFlashcardsScreen() {
     setAnswered(false);
     setHintUsed(false);
     setHintShown(false);
-    setFeedback({ text: "", kind: "" });
+    setFeedback({ kind: "", char: "", sound: "" });
     animateProgress(0);
     setScreen("quiz");
     setTimeout(() => inputRef.current?.focus(), 300);
@@ -143,7 +143,7 @@ export default function GreekFlashcardsScreen() {
     if (answered) return;
     setHintUsed(true);
     setHintShown(true);
-    setFeedback({ text: `💡 "${session[idx].sound}"`, kind: "hint" });
+    setFeedback({ kind: "hint", char: session[idx].char, sound: session[idx].sound });
   }, [answered, session, idx]);
 
   const checkAnswer = useCallback(() => {
@@ -159,7 +159,7 @@ export default function GreekFlashcardsScreen() {
         setAnswered(false);
         setHintUsed(false);
         setHintShown(false);
-        setFeedback({ text: "", kind: "" });
+        setFeedback({ kind: "", char: "", sound: "" });
         setTimeout(() => inputRef.current?.focus(), 200);
       }
       return;
@@ -171,13 +171,13 @@ export default function GreekFlashcardsScreen() {
     if (user === correct) {
       if (!hintUsed) {
         setScore(s => s + 1);
-        setFeedback({ text: `✓ Correct! "${session[idx].sound}"`, kind: "correct" });
+        setFeedback({ kind: "correct", char: session[idx].char, sound: session[idx].sound });
       } else {
-        setFeedback({ text: "✓ Correct — hint used", kind: "hint" });
+        setFeedback({ kind: "hint", char: session[idx].char, sound: session[idx].sound });
         setMistakes(m => [...m, { char: session[idx].char, correct: session[idx].sound, given: "(hint)" }]);
       }
     } else {
-      setFeedback({ text: `✗ It's "${session[idx].sound}"`, kind: "incorrect" });
+      setFeedback({ kind: "incorrect", char: session[idx].char, sound: session[idx].sound });
       setMistakes(m => [...m, { char: session[idx].char, correct: session[idx].sound, given: answer.trim() }]);
     }
   }, [answered, answer, session, idx, hintUsed, animateProgress]);
@@ -238,10 +238,14 @@ export default function GreekFlashcardsScreen() {
 
   // ── Quiz screen ───────────────────────────────────────────────────────────────
   const card = session[idx];
-  const feedbackColor =
-    feedback.kind === "correct"   ? "#2cb67d" :
-    feedback.kind === "incorrect" ? "#ff6b6b" :
-    feedback.kind === "hint"      ? "#ffc832" : "transparent";
+
+  const fbIsGood = feedback.kind === "correct" || feedback.kind === "hint";
+  const fbAccent = fbIsGood ? "#2f9e44" : "#e03131";
+  const fbBg     = fbIsGood ? "rgba(47,158,68,0.15)" : "rgba(224,49,49,0.15)";
+  const fbTitle  = feedback.kind === "correct" ? "Correct"
+    : feedback.kind === "hint" ? "Correct (hint)"
+    : "Incorrect";
+  const fbIcon   = fbIsGood ? "✓" : "✗";
 
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
@@ -289,9 +293,19 @@ export default function GreekFlashcardsScreen() {
             </Pressable>
           </View>
 
-          <Text style={[s.feedback, { color: feedbackColor }]}>
-            {feedback.text || " "}
-          </Text>
+          {feedback.kind ? (
+            <View style={[s.alertCard, { backgroundColor: fbBg, borderColor: fbAccent }]}>
+              <View style={s.alertRow}>
+                <Text style={[s.alertIcon, { color: fbAccent }]}>{fbIcon}</Text>
+                <Text style={[s.alertTitle, { color: fbAccent }]}>{fbTitle}</Text>
+              </View>
+              <Text style={s.alertSub}>
+                {feedback.char}{"  "}{feedback.sound.toUpperCase()}
+              </Text>
+            </View>
+          ) : (
+            <View style={s.alertPlaceholder} />
+          )}
         </ScrollView>
       </Animated.View>
     </View>
@@ -321,7 +335,12 @@ const s = StyleSheet.create({
   btnHintRevealed: { backgroundColor: "rgba(255,200,50,0.12)", borderColor: "rgba(255,200,50,0.35)" },
   btnHintText:     { color: "rgba(255,255,255,0.65)", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   btnHintTextRevealed: { color: "#ffc832" },
-  feedback:        { fontSize: 14, fontWeight: "600", textAlign: "center", minHeight: 22 },
+  alertCard:       { width: "100%", maxWidth: 480, borderWidth: 1, borderRadius: 14, padding: 16, marginTop: 12 },
+  alertRow:        { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  alertIcon:       { fontSize: 16, fontWeight: "700", marginRight: 8 },
+  alertTitle:      { fontSize: 15, fontFamily: "Inter_700Bold" },
+  alertSub:        { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", marginLeft: 24 },
+  alertPlaceholder:{ height: 72, marginTop: 12 },
   scoreBig:        { fontSize: 88, fontFamily: "Inter_700Bold", lineHeight: 96, marginBottom: 4 },
   scoreLabel:      { fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 28 },
   mistakesBox:     { width: "100%", maxWidth: 480, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", borderRadius: 14, padding: 18, marginBottom: 28 },
