@@ -7,51 +7,51 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 // ── Data ─────────────────────────────────────────────────────────────────────
 const WEEKS = [
   {
-    range: "28th Feb – 6th March", avg: "4:51",
+    range: "27th Feb – 5th March", avg: "4:51",
     days: [
-      { d: "Sat 28th", bed: "2:36am",  wake: "8:13am",  dur: "5:37" },
-      { d: "Sun 1st",  bed: "5:56am",  wake: "10:16am", dur: "4:20" },
-      { d: "Mon 2nd",  bed: "12:06am", wake: "3:24am",  dur: "3:18" },
-      { d: "Tue 3rd",  bed: "11:47pm", wake: "5:14am",  dur: "5:27" },
-      { d: "Wed 4th",  bed: "10:38pm", wake: "3:40am",  dur: "5:02" },
-      { d: "Thu 5th",  bed: "12:32am", wake: "5:41am",  dur: "5:09" },
-      { d: "Fri 6th",  bed: "10:15pm", wake: "3:19am",  dur: "5:04" },
+      { d: "Fri 27th", bed: "2:36am",  wake: "8:13am",  dur: "5:37" },
+      { d: "Sat 28th", bed: "5:56am",  wake: "10:16am", dur: "4:20" },
+      { d: "Sun 1st",  bed: "12:06am", wake: "3:24am",  dur: "3:18" },
+      { d: "Mon 2nd",  bed: "11:47pm", wake: "5:14am",  dur: "5:27" },
+      { d: "Tue 3rd",  bed: "10:38pm", wake: "3:40am",  dur: "5:02" },
+      { d: "Wed 4th",  bed: "12:32am", wake: "5:41am",  dur: "5:09" },
+      { d: "Thu 5th",  bed: "10:15pm", wake: "3:19am",  dur: "5:04" },
     ],
   },
   {
-    range: "7th March – 13th March", avg: "5:02",
+    range: "6th March – 12th March", avg: "5:02",
     days: [
-      { d: "Sat 7th",  bed: "11:17pm", wake: "5:12am",  dur: "5:55" },
-      { d: "Sun 8th",  bed: "10:32pm", wake: "3:52am",  dur: "5:20" },
-      { d: "Mon 9th",  bed: "11:04pm", wake: "3:48am",  dur: "4:44" },
+      { d: "Fri 6th",  bed: "11:17pm", wake: "5:12am",  dur: "5:55" },
+      { d: "Sat 7th",  bed: "10:32pm", wake: "3:52am",  dur: "5:20" },
+      { d: "Sun 8th",  bed: "11:04pm", wake: "3:48am",  dur: "4:44" },
+      { d: "Mon 9th",  bed: "11:14pm", wake: "3:10am",  dur: "3:56" },
       { d: "Tue 10th", bed: "11:14pm", wake: "3:10am",  dur: "3:56" },
-      { d: "Wed 11th", bed: "11:14pm", wake: "3:10am",  dur: "3:56" },
-      { d: "Thu 12th", bed: "10:59pm", wake: "3:08am",  dur: "4:09" },
-      { d: "Fri 13th", bed: "11:30pm", wake: "5:39am",  dur: "6:09" },
+      { d: "Wed 11th", bed: "10:59pm", wake: "3:08am",  dur: "4:09" },
+      { d: "Thu 12th", bed: "11:30pm", wake: "5:39am",  dur: "6:09" },
     ],
   },
   {
-    range: "14th March – 20th March", avg: "4:39",
+    range: "13th March – 19th March", avg: "4:39",
     days: [
-      { d: "Sat 14th", bed: "12:29am", wake: "4:45am",  dur: "4:16" },
-      { d: "Sun 15th", bed: "10:52pm", wake: "5:03am",  dur: "6:11" },
-      { d: "Mon 16th", bed: "11:30pm", wake: "4:49am",  dur: "5:19" },
-      { d: "Tue 17th", bed: "12:16am", wake: "4:27am",  dur: "4:11" },
-      { d: "Wed 18th", bed: "10:05pm", wake: "2:41am",  dur: "4:36" },
-      { d: "Thu 19th", bed: "10:57pm", wake: "3:09am",  dur: "4:12" },
-      { d: "Fri 20th", bed: "11:18pm", wake: "3:09am",  dur: "3:51" },
+      { d: "Fri 13th", bed: "12:29am", wake: "4:45am",  dur: "4:16" },
+      { d: "Sat 14th", bed: "10:52pm", wake: "5:03am",  dur: "6:11" },
+      { d: "Sun 15th", bed: "11:30pm", wake: "4:49am",  dur: "5:19" },
+      { d: "Mon 16th", bed: "12:16am", wake: "4:27am",  dur: "4:11" },
+      { d: "Tue 17th", bed: "10:05pm", wake: "2:41am",  dur: "4:36" },
+      { d: "Wed 18th", bed: "10:57pm", wake: "3:09am",  dur: "4:12" },
+      { d: "Thu 19th", bed: "11:18pm", wake: "3:09am",  dur: "3:51" },
     ],
   },
   {
-    range: "21st March – 27th March", avg: "4:36",
+    range: "20th March – 26th March", avg: "4:36",
     days: [
-      { d: "Sat 21st", bed: "3:09am",  wake: "7:20am",  dur: "4:11" },
-      { d: "Sun 22nd", bed: "10:49pm", wake: "4:39am",  dur: "5:50" },
-      { d: "Mon 23rd", bed: "12:11am", wake: "4:45am",  dur: "4:34" },
-      { d: "Tue 24th", bed: "11:02pm", wake: "4:37am",  dur: "5:35" },
-      { d: "Wed 25th", bed: "11:47pm", wake: "4:46am",  dur: "4:59" },
-      { d: "Thu 26th", bed: "12:20am", wake: "3:58am",  dur: "3:38" },
-      { d: "Fri 27th", bed: "1:41am",  wake: "5:10am",  dur: "3:29" },
+      { d: "Fri 20th", bed: "3:09am",  wake: "7:20am",  dur: "4:11" },
+      { d: "Sat 21st", bed: "10:49pm", wake: "4:39am",  dur: "5:50" },
+      { d: "Sun 22nd", bed: "12:11am", wake: "4:45am",  dur: "4:34" },
+      { d: "Mon 23rd", bed: "11:02pm", wake: "4:37am",  dur: "5:35" },
+      { d: "Tue 24th", bed: "11:47pm", wake: "4:46am",  dur: "4:59" },
+      { d: "Wed 25th", bed: "12:20am", wake: "3:58am",  dur: "3:38" },
+      { d: "Thu 26th", bed: "1:41am",  wake: "5:10am",  dur: "3:29" },
     ],
   },
 ] as const;
@@ -220,7 +220,7 @@ function buildHtml(): string {
     <div class="header">
       <span class="emoji">😴</span>
       <div class="title">HK <span>Sleep Report</span></div>
-      <div class="subtitle">28th February – 27th March, 2026</div>
+      <div class="subtitle">27th February – 26th March, 2026</div>
       <div class="accent-line"></div>
     </div>
     <div class="pills">
