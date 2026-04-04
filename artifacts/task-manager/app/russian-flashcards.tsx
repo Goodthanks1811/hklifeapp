@@ -309,10 +309,8 @@ export default function RussianFlashcardsScreen() {
               <View style={s.alertRow}>
                 <Text style={[s.alertIcon, { color: fbAccent }]}>{fbIcon}</Text>
                 <Text style={[s.alertTitle, { color: fbAccent }]}>{fbTitle}</Text>
+                <Text style={s.alertSub}>{"  "}{feedback.char}{"  "}{feedback.sound.toUpperCase()}</Text>
               </View>
-              <Text style={s.alertSub}>
-                {feedback.char}{"  "}{feedback.sound.toUpperCase()}
-              </Text>
             </View>
           ) : (
             <View style={s.alertPlaceholder} />
@@ -404,11 +402,11 @@ const s = StyleSheet.create({
   btnHintTextRevealed: { color: "#ffc832" },
 
   alertCard:      { width: "100%", maxWidth: 480, borderWidth: 1, borderRadius: 14, padding: 16, marginTop: 12 },
-  alertRow:       { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  alertRow:       { flexDirection: "row", alignItems: "center" },
   alertIcon:      { fontSize: 16, fontWeight: "700", marginRight: 8 },
   alertTitle:     { fontSize: 15, fontFamily: "Inter_700Bold" },
-  alertSub:       { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", marginLeft: 24 },
-  alertPlaceholder: { height: 72, marginTop: 12 },
+  alertSub:       { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
+  alertPlaceholder: { height: 56, marginTop: 12 },
 
   scoreBig:       { fontSize: 88, fontFamily: "Inter_700Bold", lineHeight: 96, marginBottom: 4 },
   scoreLabel:     { fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 28 },
