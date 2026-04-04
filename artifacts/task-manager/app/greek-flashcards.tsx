@@ -239,13 +239,18 @@ export default function GreekFlashcardsScreen() {
   // ── Quiz screen ───────────────────────────────────────────────────────────────
   const card = session[idx];
 
-  const fbIsGood = feedback.kind === "correct" || feedback.kind === "hint";
-  const fbAccent = fbIsGood ? "#2f9e44" : "#e03131";
-  const fbBg     = fbIsGood ? "rgba(47,158,68,0.15)" : "rgba(224,49,49,0.15)";
+  const fbAccent = feedback.kind === "correct" ? "#2f9e44"
+    : feedback.kind === "hint" ? "#1971c2"
+    : "#e03131";
+  const fbBg = feedback.kind === "correct" ? "rgba(47,158,68,0.15)"
+    : feedback.kind === "hint" ? "rgba(25,113,194,0.15)"
+    : "rgba(224,49,49,0.15)";
   const fbTitle  = feedback.kind === "correct" ? "Correct"
-    : feedback.kind === "hint" ? "Correct (hint)"
+    : feedback.kind === "hint" ? "Hint"
     : "Incorrect";
-  const fbIcon   = fbIsGood ? "✓" : "✗";
+  const fbIcon = feedback.kind === "correct" ? "✓"
+    : feedback.kind === "hint" ? "ℹ"
+    : "✗";
 
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
@@ -300,6 +305,9 @@ export default function GreekFlashcardsScreen() {
                 <Text style={[s.alertTitle, { color: fbAccent }]}>{fbTitle}</Text>
                 {feedback.kind === "incorrect" && (
                   <Text style={s.alertSub}>{"  "}the sound is {feedback.sound.toUpperCase()}</Text>
+                )}
+                {feedback.kind === "hint" && (
+                  <Text style={s.alertSub}>{"  "}{feedback.sound.toUpperCase()}</Text>
                 )}
               </View>
             </View>
