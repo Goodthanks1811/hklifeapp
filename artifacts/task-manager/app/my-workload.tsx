@@ -112,7 +112,7 @@ function WorkloadBarChart({
             />
             <SvgText
               x={pL - 5} y={y + 4}
-              textAnchor="end" fill="rgba(255,255,255,0.25)"
+              textAnchor="end" fill="#fff"
               fontSize={9}
             >
               {val}
@@ -157,7 +157,7 @@ function WorkloadBarChart({
               <SvgText
                 x={gx + groupW / 2} y={pT + chartH + 22}
                 textAnchor="middle"
-                fill={week ? MUTED : "rgba(255,255,255,0.1)"}
+                fill={week ? "#fff" : "rgba(255,255,255,0.12)"}
                 fontSize={11} fontWeight="700"
               >
                 {week || "—"}
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   expandSectionLabel: { fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4, fontFamily: "Inter_600SemiBold" },
   expandItem: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 2 },
   expandDot: { width: 5, height: 5, borderRadius: 3, marginTop: 5, flexShrink: 0 },
-  expandText: { flex: 1, fontSize: 13, color: "rgba(255,255,255,0.72)", lineHeight: 19, fontFamily: "Inter_400Regular" },
+  expandText: { flex: 1, fontSize: 13, color: "#fff", lineHeight: 19, fontFamily: "Inter_400Regular" },
   catRow: { paddingBottom: 10, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,30,30,0.05)" },
   catHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   catName: { fontSize: 13, fontWeight: "800", color: "#fff", fontFamily: "Inter_700Bold" },
