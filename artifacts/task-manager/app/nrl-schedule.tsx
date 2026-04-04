@@ -467,7 +467,7 @@ function switchTab(tab){
     var b=document.getElementById('tab-'+t);
     b.classList.remove('active-nrl','active-drg','active-ladder');
   });
-  if(tab==='nrl') document.getElementById('tab-nrl').classList.add('active-nrl');
+  if(tab==='nrl'){document.getElementById('tab-nrl').classList.add('active-nrl');postMsg({type:'nrlTabActive',round:currentRound});}
   else if(tab==='drg'){document.getElementById('tab-drg').classList.add('active-drg');if(!dragonsLoaded)postMsg({type:'needDragons'});}
   else if(tab==='ladder'){document.getElementById('tab-ladder').classList.add('active-ladder');if(!ladderLoaded)postMsg({type:'needLadder'});}
 }
@@ -637,8 +637,12 @@ export default function NRLScheduleScreen() {
   useFocusEffect(useCallback(() => {
     const round = currentRoundRef.current;
     const state = picksDisplayState.current;
-    if (state === 1) injectPickMarkers(round);
-    else if (state === 2) injectPickResults(round);
+    if (state === 2) {
+      injectPickResults(round);
+    } else {
+      const picks = allPicksRef.current[String(round)] ?? {};
+      if (Object.keys(picks).length > 0) injectPickMarkers(round);
+    }
   }, [injectPickMarkers, injectPickResults]));
 
   const loadInitial = async () => {
@@ -730,12 +734,19 @@ export default function NRLScheduleScreen() {
     );
   }, []);
 
-  // Re-inject picks when the WebView reloads (iOS WKWebView memory purge)
+  // Re-inject picks when the WebView loads or reloads (screen remount, iOS memory purge)
   const onWebViewLoad = useCallback(() => {
     const round = currentRoundRef.current;
     const state = picksDisplayState.current;
-    if (state === 1) injectPickMarkers(round);
-    else if (state === 2) injectPickResults(round);
+    if (state === 2) {
+      injectPickResults(round);
+    } else {
+      // Auto-show dots whenever picks exist — covers remount with state=0 and normal restore
+      const picks = allPicksRef.current[String(round)] ?? {};
+      if (Object.keys(picks).length > 0) {
+        injectPickMarkers(round);
+      }
+    }
   }, [injectPickMarkers, injectPickResults]);
 
   const onMessage = useCallback(async (event: WebViewMessageEvent) => {
@@ -743,20 +754,43 @@ export default function NRLScheduleScreen() {
     try { msg = JSON.parse(event.nativeEvent.data); } catch { return; }
 
     if (msg.type === "changeRound") {
-      picksDisplayState.current = 0;
       const roundData = await nrlFetch(
         `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${msg.round}`
       );
       const matches = parseMatches(roundData || {});
       currentMatchesRef.current = matches;
       currentRoundRef.current   = msg.round;
-      const groups  = groupByDay(matches);
-      const content = buildDayGroups(groups);
-      webViewRef.current?.injectJavaScript(`updateFixtures(${JSON.stringify(content)}); true;`);
+      const groups   = groupByDay(matches);
+      const content  = buildDayGroups(groups);
+      const picks    = allPicksRef.current[String(msg.round)] ?? {};
+      const markers  = matches
+        .filter((m) => picks[m.id])
+        .map((m) => ({ matchId: m.id, isHome: m.homeTeam === picks[m.id] }));
+      if (markers.length > 0) {
+        // Combine into one injection so markers land on the fresh DOM atomically
+        picksDisplayState.current = 1;
+        webViewRef.current?.injectJavaScript(
+          `updateFixtures(${JSON.stringify(content)}); setPicksShowing(1); showPickMarkers(${JSON.stringify(markers)}); true;`
+        );
+      } else {
+        picksDisplayState.current = 0;
+        webViewRef.current?.injectJavaScript(`updateFixtures(${JSON.stringify(content)}); true;`);
+      }
     }
 
     if (msg.type === "picksClear") {
       picksDisplayState.current = 0;
+    }
+
+    if (msg.type === "nrlTabActive") {
+      const round = msg.round ?? currentRoundRef.current;
+      const state = picksDisplayState.current;
+      if (state === 2) {
+        injectPickResults(round);
+      } else {
+        const picks = allPicksRef.current[String(round)] ?? {};
+        if (Object.keys(picks).length > 0) injectPickMarkers(round);
+      }
     }
 
     if (msg.type === "needDragons") {
