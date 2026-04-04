@@ -93,7 +93,7 @@ canvas { position:absolute; top:0; left:0; display:block; }
 /* ── Sheet — iPad (centered modal) ──────────────────── */
 @media (min-width:768px) {
   #sheet-bg.open { background:rgba(0,0,0,.55); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
-  #sheet { left:50%; right:auto; bottom:auto; top:50%; width:420px; transform:translate(-50%,-50%) scale(0.94); opacity:0; border-radius:20px; padding:0 28px 32px; border:1px solid ${C.border}; transition:transform 0.22s ease, opacity 0.22s ease; }
+  #sheet { left:50%; right:auto; bottom:auto; top:50%; width:420px; transform:translate(-50%,-50%) scale(0.94); opacity:0; border-radius:20px; padding:28px 28px 32px; border:1px solid ${C.border}; transition:transform 0.22s ease, opacity 0.22s ease; }
   #sheet.open { transform:translate(-50%,-50%) scale(1); opacity:1; }
   .sheet-handle { display:none; }
 }
@@ -484,7 +484,7 @@ stage.addEventListener('touchstart',function(e){
   gestureStart=captureState();brushDirty=false;
 
   // ── Brush mode ─────────────────────────────────────
-  if(brushMode&&img2){
+  if(brushMode&&img2&&!sliderMode){
     if(t.length===1){
       tMode='brush';panLast=p;
       paintAt(p.x,p.y);draw();
@@ -612,13 +612,10 @@ function toggleBrush(){
   if(!img2)return;
   if(!maskCanvas)initMask();
   brushMode=!brushMode;
-  var bb=document.getElementById('btnBrush');
   if(brushMode){
-    bb.classList.add('brush-active-btn');
     _setBrushInline(true);
     setBrushMode('erase'); // default to erase when opening (also shows eyeBtn)
   }else{
-    bb.classList.remove('brush-active-btn');
     _setBrushInline(false);
     document.getElementById('btnEye').style.display='none'; // hide colour picker
     // turn off eyedrop if on
@@ -668,7 +665,6 @@ function swatchTap(){
   if(!brushMode){
     if(!maskCanvas)initMask();
     brushMode=true;
-    document.getElementById('btnBrush').classList.add('brush-active-btn');
     _setBrushInline(true);
   }
   setBrushMode('color');
