@@ -412,6 +412,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
   const slideAnim = useRef(new Animated.Value(600)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
+  const [kbVisible, setKbVisible] = useState(false);
   const insets    = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const [title,       setTitle]      = useState("");
@@ -490,8 +491,8 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   // ── Keyboard avoidance ────────────────────────────────────────────────────
   useEffect(() => {
-    const onShow = (e: any) => Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
-    const onHide = (e: any) => Animated.timing(kbAnim, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
+    const onShow = (e: any) => { setKbVisible(true);  Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start(); };
+    const onHide = (e: any) => { setKbVisible(false); Animated.timing(kbAnim, { toValue: 0,                       duration: e.duration || 200, useNativeDriver: false }).start(); };
     const s1 = Keyboard.addListener("keyboardWillShow", onShow);
     const s2 = Keyboard.addListener("keyboardWillHide", onHide);
     const s3 = Keyboard.addListener("keyboardDidShow",  onShow);
@@ -800,7 +801,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
           // ── Phone: bottom sheet ───────────────────────────────────
           // Two nested views: outer on native driver (slide), inner on JS (keyboard offset)
           <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
-            <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
+            <Animated.View style={[s.sheet, { paddingBottom: kbVisible ? 4 : insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
               <View style={s.handle} />
               {sheetContent}
               {bodySection}
@@ -827,6 +828,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const [kbVisible, setKbVisible] = useState(false);
   const insets    = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const [title,        setTitle]       = useState("");
@@ -912,8 +914,8 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
   // Keyboard avoidance
   useEffect(() => {
-    const onShow = (e: any) => Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
-    const onHide = (e: any) => Animated.timing(kbAnim, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
+    const onShow = (e: any) => { setKbVisible(true);  Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start(); };
+    const onHide = (e: any) => { setKbVisible(false); Animated.timing(kbAnim, { toValue: 0,                       duration: e.duration || 200, useNativeDriver: false }).start(); };
     const s1 = Keyboard.addListener("keyboardWillShow", onShow);
     const s2 = Keyboard.addListener("keyboardWillHide", onHide);
     const s3 = Keyboard.addListener("keyboardDidShow",  onShow);
@@ -1182,7 +1184,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
           <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
-            <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
+            <Animated.View style={[s.sheet, { paddingBottom: kbVisible ? 4 : insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
               <View style={s.handle} />
               {innerContent}
               {qaLoaderOverlay}
