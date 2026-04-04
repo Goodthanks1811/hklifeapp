@@ -55,7 +55,7 @@ const CATEGORIES: Category[] = [
   },
   {
     label: "To Investigate",
-    value: "                     \uD83D\uDD0E To Investigate",
+    value: "\uD83D\uDD0E To Investigate",
     bg:  "rgba(255,30,30,0.18)",
     bgA: "rgba(255,30,30,0.35)",
     tx:  "#FFFFFF",
