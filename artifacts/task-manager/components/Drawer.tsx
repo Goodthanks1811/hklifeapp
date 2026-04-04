@@ -132,7 +132,7 @@ export function Drawer() {
 
   const pathname     = usePathname();
   // Life routes: /life/* and /calendar (calendar is in the Life section)
-  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/");
+  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/") || r === "/ui-kit/gradient-header";
   const onLifeScreen = isLifeRoute(pathname);
 
   // Keep a ref so gesture handlers can read isOpen without stale closure
