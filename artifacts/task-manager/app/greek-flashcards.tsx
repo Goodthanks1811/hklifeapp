@@ -305,7 +305,7 @@ const s = StyleSheet.create({
   centerContainer: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   quizContainer:   { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 20 },
   flag:            { fontSize: 64, marginBottom: 16 },
-  flagImg:         { width: 120, height: 80, marginBottom: 20, borderRadius: 6 },
+  flagImg:         { width: 240, height: 160, marginBottom: 20, borderRadius: 8 },
   bigTitle:        { fontSize: 26, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 6 },
   subtitle:        { fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 36 },
   sectionLabel:    { fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.35)", marginBottom: 14 },
