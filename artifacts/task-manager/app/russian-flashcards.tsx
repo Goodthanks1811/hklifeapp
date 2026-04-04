@@ -159,7 +159,7 @@ export default function RussianFlashcardsScreen() {
         setHintUsed(false);
         setHintShown(false);
         setFeedback({ kind: "", char: "", sound: "" });
-        setTimeout(() => inputRef.current?.focus(), 200);
+        setTimeout(() => inputRef.current?.focus(), 50);
       }
       return;
     }
@@ -192,7 +192,7 @@ export default function RussianFlashcardsScreen() {
       <View style={[s.root, { paddingTop: topPad }]}>
         <ScreenHeader title="Russian Flashcards" />
         <ScrollView contentContainerStyle={s.centerContainer} keyboardShouldPersistTaps="handled">
-          <Image source={russianFlag} style={s.flagImg} resizeMode="contain" />
+          <Image source={russianFlag} style={s.flagImg} resizeMode="contain" fadeDuration={0} />
           <Text style={s.bigTitle}>Russian Alphabet</Text>
           <Text style={s.subtitle}>33 letters · type the sound</Text>
           <Text style={s.sectionLabel}>CARDS PER SESSION</Text>
@@ -282,7 +282,7 @@ export default function RussianFlashcardsScreen() {
             ref={inputRef}
             style={s.input}
             value={answer}
-            onChangeText={setAnswer}
+            onChangeText={answered ? undefined : setAnswer}
             placeholder="Type the sound…"
             placeholderTextColor="rgba(255,255,255,0.25)"
             autoCorrect={false}
@@ -290,7 +290,7 @@ export default function RussianFlashcardsScreen() {
             spellCheck={false}
             returnKeyType="done"
             onSubmitEditing={checkAnswer}
-            editable={!answered}
+            blurOnSubmit={false}
           />
 
           {/* Buttons */}
@@ -359,9 +359,9 @@ const s = StyleSheet.create({
   },
 
   flag:           { fontSize: 64, marginBottom: 16 },
-  flagImg:        { width: 240, height: 160, marginBottom: 20, borderRadius: 8 },
-  bigTitle:       { fontSize: 26, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 6 },
-  subtitle:       { fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 36 },
+  flagImg:        { width: 300, height: 200, marginBottom: 24, borderRadius: 10 },
+  bigTitle:       { fontSize: 32, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 8 },
+  subtitle:       { fontSize: 16, color: "rgba(255,255,255,0.4)", marginBottom: 36 },
   sectionLabel:   { fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.35)", marginBottom: 14 },
 
   card:           {
