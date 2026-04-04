@@ -60,19 +60,25 @@ interface MonthData {
 }
 
 // ── Bar Chart ─────────────────────────────────────────────────────────────────
+const LEGEND_H = 42; // height reserved below SVG for the legend row
+
 function WorkloadBarChart({
   weeks,
   visibleWeeks,
   maxVal,
   availableWidth,
+  availableHeight,
 }: {
   weeks: Record<string, WeekData>;
   visibleWeeks: string[];
   maxVal: number;
   availableWidth?: number;
+  availableHeight?: number;
 }) {
-  const chartH = 220, barW = 22, barGap = 6, groupGap = 24;
+  const barW = 22, barGap = 6, groupGap = 24;
   const pL = 32, pR = 20, pT = 28, pB = 34;
+  // When the card height is known, fill it; otherwise fall back to default
+  const chartH = availableHeight ? Math.max(80, availableHeight - pT - pB) : 220;
   const groupW = barW * 2 + barGap;
 
   // Always lay out at least 4 week columns — pads with empty slots for short months
@@ -298,6 +304,7 @@ function MonthView({ month }: { month: MonthData }) {
   const { width } = useWindowDimensions();
   const isTablet  = width >= 768;
   const [chartCardW, setChartCardW] = useState(0);
+  const [chartCardH, setChartCardH] = useState(0);
 
   const ratio = month.totalCreated > 0
     ? Math.round((month.totalDone / month.totalCreated) * 100)
@@ -313,13 +320,19 @@ function MonthView({ month }: { month: MonthData }) {
   const barChartCard = month.visibleWeeks.length > 0 ? (
     <View
       style={[styles.card, tabletCardStyle]}
-      onLayout={(e) => { if (isTablet) setChartCardW(e.nativeEvent.layout.width - 24); }}
+      onLayout={(e) => {
+        if (isTablet) {
+          setChartCardW(e.nativeEvent.layout.width - 24);
+          setChartCardH(e.nativeEvent.layout.height - 24 - LEGEND_H);
+        }
+      }}
     >
       <WorkloadBarChart
         weeks={month.weeks}
         visibleWeeks={month.visibleWeeks}
         maxVal={month.maxWeekVal}
         availableWidth={isTablet && chartCardW > 0 ? chartCardW : undefined}
+        availableHeight={isTablet && chartCardH > 0 ? chartCardH : undefined}
       />
       <View style={styles.chartLegend}>
         <View style={styles.legendItem}>
