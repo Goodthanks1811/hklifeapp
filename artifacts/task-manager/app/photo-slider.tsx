@@ -295,7 +295,19 @@ if(window.visualViewport){
 // ── Image button taps ──────────────────────────────────
 function imgBtnTap(n){
   var hasImg=(n===1)?img1:img2;
-  if(hasImg){if(zoomMode){bakeZoom();zoomMode=false;document.getElementById('btnZoom').className='btn-icon';}active=n;updateActiveUI();}
+  if(hasImg){
+    if(zoomMode){bakeZoom();zoomMode=false;document.getElementById('btnZoom').className='btn-icon';}
+    active=n;
+    // tapping img2 exits brush mode so the image can be freely moved
+    if(n===2&&brushMode){
+      brushMode=false;brushPaintMode='';
+      var _bb2=document.getElementById('btnBrush');if(_bb2)_bb2.style.display='';
+      _setBrushInline(false);
+      document.getElementById('btnEye').style.display='none';
+      if(eyedropMode){eyedropMode=false;stage.classList.remove('eye-cursor');colorSwatch.classList.remove('picking');}
+    }
+    updateActiveUI();
+  }
   else{openLoadSheet();}
 }
 
@@ -311,6 +323,10 @@ function filesChosen(e){
       loadFile(f2,function(imgB){
         img2=imgB;di2=prescale(imgB);tx2=defaultTx(img2,W(),H());
         initMask();active=2;draw();snapshot();closeSheet();updateActiveUI();
+        // auto-enable erase as soon as both images are loaded
+        brushMode=true;
+        var _bb=document.getElementById('btnBrush');if(_bb)_bb.style.display='none';
+        _setBrushInline(true);setBrushMode('erase');
       });
     }else{
       active=1;draw();snapshot();closeSheet();updateActiveUI();
