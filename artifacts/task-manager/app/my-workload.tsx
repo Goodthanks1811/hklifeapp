@@ -259,7 +259,7 @@ function MonthView({ month }: { month: MonthData }) {
 
   const barChartCard = month.visibleWeeks.length > 0 ? (
     <View style={[styles.card, isTablet && { flex: 1 }]}>
-      <View style={isTablet ? { flex: 1, justifyContent: "flex-end" } : undefined}>
+      <View style={isTablet ? { flex: 1, justifyContent: "flex-end", alignItems: "center" } : undefined}>
         <WorkloadBarChart
           weeks={month.weeks}
           visibleWeeks={month.visibleWeeks}
