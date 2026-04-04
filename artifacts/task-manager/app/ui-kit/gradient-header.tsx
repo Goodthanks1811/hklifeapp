@@ -142,6 +142,7 @@ const s = StyleSheet.create({
     backgroundColor: "#0f0f0f",
     borderWidth: 1,
     borderColor: "#2A2A2A",
+    borderRadius: 10,
     marginBottom: 8,
   },
   pill: {

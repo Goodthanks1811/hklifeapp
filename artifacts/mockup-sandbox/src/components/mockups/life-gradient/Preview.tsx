@@ -24,6 +24,7 @@ function Row({ emoji, title, done }: typeof ITEMS[0]) {
       height: 48, paddingLeft: 14, paddingRight: 14,
       backgroundColor: "#0f0f0f",
       border: "1px solid #2A2A2A",
+      borderRadius: 10,
       marginBottom: 8,
     }}>
       <div style={{
