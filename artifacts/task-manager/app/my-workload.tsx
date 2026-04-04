@@ -258,7 +258,7 @@ function MonthView({ month }: { month: MonthData }) {
   const ratioColor = ratio >= 80 ? DONE_CLR : ratio >= 50 ? "#FFC107" : HK_RED;
 
   const barChartCard = month.visibleWeeks.length > 0 ? (
-    <View style={styles.card}>
+    <View style={[styles.card, isTablet && { flex: 1 }]}>
       <WorkloadBarChart
         weeks={month.weeks}
         visibleWeeks={month.visibleWeeks}
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   cardSectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 2, textTransform: "uppercase", fontWeight: "800" },
   cardSectionDivider: { height: 1, backgroundColor: "#1e1e22", marginHorizontal: -12, marginBottom: 10 },
   cardSectionContent: {},
-  tabletTopRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  tabletTopRow: { flexDirection: "row", gap: 8, alignItems: "stretch" },
   tabletLeft:   { flex: 1 },
   tabletRight:  { flex: 1 },
   weekRow: { backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 10, marginBottom: 8 },
