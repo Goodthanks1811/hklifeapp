@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
+import { useAnthropic } from "@/context/AnthropicContext";
 import { useBiometric } from "@/context/BiometricContext";
 import { useHeaderImage, type ResizeMode } from "@/context/HeaderImageContext";
 import {
@@ -286,6 +287,7 @@ function MenuSectionCard({
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey, setApiKey, clearConfig } = useNotion();
+  const { apiKey: anthropicKey, setApiKey: setAnthropicKey, clearKey: clearAnthropicKey } = useAnthropic();
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection, sidebarAlwaysOpen, setSidebarAlwaysOpen } = useDrawerConfig();
 
@@ -294,6 +296,9 @@ export default function SettingsScreen() {
   const [draft,        setDraft]        = useState(apiKey ?? "");
   const [saved,        setSaved]        = useState(false);
   const [masked,       setMasked]       = useState(true);
+  const [aiDraft,      setAiDraft]      = useState(anthropicKey ?? "");
+  const [aiSaved,      setAiSaved]      = useState(false);
+  const [aiMasked,     setAiMasked]     = useState(true);
   const [clearing,     setClearing]     = useState(false);
   const [activeMove,   setActiveMove]   = useState<ActiveMove | null>(null);
   const [bioToggling,  setBioToggling]  = useState(false);
@@ -352,6 +357,7 @@ export default function SettingsScreen() {
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
   useEffect(() => { setDraft(apiKey ?? ""); }, [apiKey]);
+  useEffect(() => { setAiDraft(anthropicKey ?? ""); }, [anthropicKey]);
 
   const handleSave = async () => {
     const trimmed = draft.trim();
@@ -374,6 +380,22 @@ export default function SettingsScreen() {
     await clearConfig();
     setDraft("");
     setClearing(false);
+  };
+
+  const aiTickOpacity = useRef(new Animated.Value(0)).current;
+  const handleAiSave = async () => {
+    const trimmed = aiDraft.trim();
+    if (!trimmed) return;
+    Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await setAnthropicKey(trimmed);
+    setAiSaved(true);
+    aiTickOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(aiTickOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(aiTickOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setAiSaved(false));
   };
 
   const handleBiometricToggle = async (val: boolean) => {
@@ -480,6 +502,71 @@ export default function SettingsScreen() {
                 <Text style={styles.stepText}>{step.text}</Text>
               </View>
             ))}
+
+          </View>
+        </Accordion>
+
+        {/* ══ ANTHROPIC API ═══════════════════════════════════════════════════ */}
+        <Accordion title="Anthropic API" icon="cpu" defaultOpen={false}>
+          <View style={styles.accordionBody}>
+
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: anthropicKey ? Colors.success : Colors.textMuted }]} />
+              <Text style={[styles.statusText, { color: anthropicKey ? Colors.success : Colors.textMuted }]}>
+                {anthropicKey ? "API key configured" : "Not configured"}
+              </Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.fieldLabel}>Claude API Key</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={aiDraft}
+                onChangeText={setAiDraft}
+                placeholder="sk-ant-xxxxxxxxxxxx…"
+                placeholderTextColor={Colors.textMuted}
+                secureTextEntry={aiMasked}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardAppearance="dark"
+                returnKeyType="done"
+                onSubmitEditing={handleAiSave}
+              />
+              <Pressable onPress={() => setAiMasked((m) => !m)} style={styles.eyeBtn}>
+                <Feather name={aiMasked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.hint}>
+              Get your key at{" "}
+              <Text style={styles.hintLink}>console.anthropic.com</Text>
+              {"\n"}API Keys → Create Key. Used for Psychology Daily and any future AI features.
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.saveBtn, (aiDraft.trim() === (anthropicKey ?? "")) && styles.saveBtnDisabled]}
+              onPress={handleAiSave}
+              disabled={aiDraft.trim() === (anthropicKey ?? "") || !aiDraft.trim()}
+            >
+              {aiSaved ? (
+                <Animated.View style={[styles.savedRow, { opacity: aiTickOpacity }]}>
+                  <Feather name="check" size={16} color="#fff" />
+                  <Text style={styles.saveBtnText}>Saved</Text>
+                </Animated.View>
+              ) : (
+                <Text style={styles.saveBtnText}>Save API Key</Text>
+              )}
+            </TouchableOpacity>
+
+            {anthropicKey && (
+              <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={clearAnthropicKey}>
+                <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                <Text style={styles.clearBtnText}>Remove saved key</Text>
+              </TouchableOpacity>
+            )}
 
           </View>
         </Accordion>

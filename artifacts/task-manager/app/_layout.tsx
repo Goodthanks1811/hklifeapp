@@ -22,6 +22,7 @@ import { StartupScan } from "@/components/StartupScan";
 import { DrawerProvider, isTablet, useDrawer } from "@/context/DrawerContext";
 import { DrawerConfigProvider } from "@/context/DrawerConfigContext";
 import { NotionProvider } from "@/context/NotionContext";
+import { AnthropicProvider } from "@/context/AnthropicContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
 import { HeaderImageProvider } from "@/context/HeaderImageContext";
 
@@ -100,18 +101,20 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <NotionProvider>
-            <HeaderImageProvider>
-              <DrawerConfigProvider>
-                <DrawerProvider>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <RootLayoutNav />
-                    {showStartup && !isTablet && (
-                      <StartupScan onDone={() => setShowStartup(false)} />
-                    )}
-                  </GestureHandlerRootView>
-                </DrawerProvider>
-              </DrawerConfigProvider>
-            </HeaderImageProvider>
+            <AnthropicProvider>
+              <HeaderImageProvider>
+                <DrawerConfigProvider>
+                  <DrawerProvider>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <RootLayoutNav />
+                      {showStartup && !isTablet && (
+                        <StartupScan onDone={() => setShowStartup(false)} />
+                      )}
+                    </GestureHandlerRootView>
+                  </DrawerProvider>
+                </DrawerConfigProvider>
+              </HeaderImageProvider>
+            </AnthropicProvider>
           </NotionProvider>
         </QueryClientProvider>
       </ErrorBoundary>

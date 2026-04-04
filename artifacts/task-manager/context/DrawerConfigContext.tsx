@@ -62,9 +62,10 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Photo Slider", icon: "image", route: "/photo-slider", description: "Compare & export photos" },
   ],
   knowledge: [
-    { label: "API's",              icon: "code", route: "/api-quiz",           description: "Learn & quiz API fundamentals" },
-    { label: "Russian Flashcards", icon: "flag", route: "/russian-flashcards", description: "Learn the Russian alphabet" },
-    { label: "Greek Flashcards",   icon: "flag", route: "/greek-flashcards",   description: "Learn the Greek alphabet" },
+    { label: "API's",              icon: "code",     route: "/api-quiz",           description: "Learn & quiz API fundamentals" },
+    { label: "Psychology Daily",   icon: "zap",      route: "/psychology-daily",   description: "AI-generated concept of the day" },
+    { label: "Russian Flashcards", icon: "flag",     route: "/russian-flashcards", description: "Learn the Russian alphabet" },
+    { label: "Greek Flashcards",   icon: "flag",     route: "/greek-flashcards",   description: "Learn the Greek alphabet" },
   ],
   uikit: [
     { label: "Buttons",        icon: "square",  route: "/ui-kit/buttons",       description: "Styles & states"    },
