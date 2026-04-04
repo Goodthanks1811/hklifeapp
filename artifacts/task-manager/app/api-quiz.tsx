@@ -639,10 +639,15 @@ export default function ApiQuizScreen() {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const maxW = isTablet ? Math.min(Math.round(width * 0.82), 900) : 560;
-  const src = HTML.replace(
-    '.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 560px; }',
-    `.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: ${maxW}px; }`,
-  );
+  const src = HTML
+    .replace(
+      '.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 560px; }',
+      `.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: ${maxW}px; }`,
+    )
+    .replace(
+      'body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px; }',
+      'body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }',
+    );
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScreenHeader title="API Fundamentals" />
