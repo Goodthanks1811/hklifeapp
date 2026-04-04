@@ -245,7 +245,7 @@ export default function GreekFlashcardsScreen() {
               ))}
             </View>
           )}
-          <Pressable style={s.btnPrimary} onPress={startSession}>
+          <Pressable style={s.btnPrimary} onPress={() => setScreen("start")}>
             <Text style={s.btnPrimaryText}>Play Again</Text>
           </Pressable>
         </ScrollView>
