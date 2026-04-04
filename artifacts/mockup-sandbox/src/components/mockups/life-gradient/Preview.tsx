@@ -54,7 +54,7 @@ function Row({ emoji, label, status, statusColor }: typeof ROWS[0]) {
         paddingRight: 14,
         borderBottom: "1px solid #1e1e1e",
         gap: 10,
-        background: "#0b0b0c",
+        background: "#0d0d0d",
         flexShrink: 0,
       }}
     >
@@ -129,7 +129,7 @@ function PhoneFrame({ children, label }: { children: React.ReactNode; label: str
           width: 320,
           height: 620,
           borderRadius: 32,
-          background: "#0b0b0c",
+          background: "#111",
           border: "2px solid #2a2a2a",
           overflow: "hidden",
           display: "flex",
@@ -147,7 +147,7 @@ function PhoneFrame({ children, label }: { children: React.ReactNode; label: str
             transform: "translateX(-50%)",
             width: 90,
             height: 24,
-            background: "#0b0b0c",
+            background: "#111",
             borderRadius: "0 0 16px 16px",
             zIndex: 10,
             border: "2px solid #2a2a2a",
@@ -155,7 +155,7 @@ function PhoneFrame({ children, label }: { children: React.ReactNode; label: str
           }}
         />
         {/* Status bar space */}
-        <div style={{ height: 28, background: "#0b0b0c", flexShrink: 0 }} />
+        <div style={{ height: 28, background: "#111", flexShrink: 0 }} />
         {children}
       </div>
     </div>
@@ -208,28 +208,14 @@ export function Preview() {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 72,
-                background: "linear-gradient(180deg, rgba(224,49,49,0.22) 0%, rgba(224,49,49,0.08) 55%, transparent 100%)",
+                height: 70,
+                background: "linear-gradient(180deg, rgba(224,49,49,0.28) 0%, transparent 100%)",
                 zIndex: 2,
                 pointerEvents: "none",
               }}
             />
-            {/* Subtle red left-edge accent line */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: 2,
-                height: 72,
-                background: "linear-gradient(180deg, #E03131 0%, transparent 100%)",
-                zIndex: 3,
-                pointerEvents: "none",
-                opacity: 0.6,
-              }}
-            />
-            {/* Spacer pushes items down */}
-            <div style={{ height: 20, flexShrink: 0 }} />
+            {/* Spacer pushes items below the gradient */}
+            <div style={{ height: 70, flexShrink: 0 }} />
             {ROWS.map((r, i) => <Row key={i} {...r} />)}
           </div>
         </PhoneFrame>
