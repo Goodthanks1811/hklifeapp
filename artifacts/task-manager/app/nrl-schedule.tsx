@@ -393,7 +393,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .team-block{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
 .team-colour-bar{height:3px;width:32px;border-radius:2px}
 .team-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;line-height:1.1}
-.team-logo{width:64px;height:64px;object-fit:contain;margin-top:2px;display:block}
+.team-logo{width:64px;height:64px;object-fit:contain;margin-top:6px;display:block}
 .score-area{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:110px;flex-shrink:0}
 .score-inner{display:flex;flex-direction:column;align-items:center;gap:2px}
 .score-display{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;color:#fff;letter-spacing:1px;line-height:1;text-align:center}
