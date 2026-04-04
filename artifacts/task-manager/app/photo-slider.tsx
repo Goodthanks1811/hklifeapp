@@ -49,15 +49,12 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .img-btn-dim  { opacity:0.35 !important; }
 .zoom-active  { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
 .slider-active{ background:${C.purple} !important; box-shadow:0 0 0 2px rgba(191,90,242,.45); }
-.undo-active  { background:#ff453a !important; }
 .eye-active   { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
 .brush-active-btn { background:${C.green} !important; box-shadow:0 0 8px rgba(48,168,48,.45) !important; }
 .erase-on  { background:${C.primary} !important; box-shadow:0 0 8px rgba(224,49,49,.45) !important; }
 .restore-on{ background:${C.green} !important; box-shadow:0 0 8px rgba(48,168,48,.45) !important; }
 .draw-on   { box-shadow:0 0 8px rgba(224,49,49,.35) !important; }
 
-/* Reset — always red */
-#btnReset { background:#ff453a !important; box-shadow:0 0 0 2px rgba(255,69,58,.25); }
 
 /* Colour swatch in main bar — hidden until a colour is picked */
 #colorSwatch { flex:0 0 28px; width:28px; height:28px; border-radius:8px; border:2px solid #555; cursor:pointer; background:rgb(224,49,49); transition:border-color .2s, box-shadow .2s; display:none; }
@@ -125,7 +122,7 @@ input[type=file] { display:none; }
   <button class="btn-icon" id="btnSlider"  onclick="toggleSlider()">&#9474;</button>
   <!-- fit: plus with 4 arrowheads -->
   <button class="btn-icon" id="btnFit"     onclick="fitActive()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6.5" y1="1.5" x2="6.5" y2="11.5"/><polyline points="4,4 6.5,1.5 9,4"/><polyline points="4,9 6.5,11.5 9,9"/><line x1="1.5" y1="6.5" x2="11.5" y2="6.5"/><polyline points="4,4 1.5,6.5 4,9"/><polyline points="9,4 11.5,6.5 9,9"/></svg></button>
-  <button class="btn-icon" id="btnUndo"    onclick="undo()">&#8617;</button>
+  <button class="btn-icon" id="btnUndo"    onclick="undo()"><svg width="14" height="14" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 8.75,2.6 A 4.5,4.5 0 1 0 4.25,2.6"/><polyline points="6.2,0.8 4.25,2.6 6.2,4.4"/></svg></button>
   <!-- colour swatch: hidden until a colour is picked; tap activates colour-draw mode -->
   <div id="colorSwatch" onclick="swatchTap()"></div>
   <!-- inline brush tools: only visible when brush mode is on -->
@@ -242,7 +239,6 @@ var stage=document.getElementById('stage');
 var cv=document.getElementById('cv');
 var ctx=cv.getContext('2d');
 var dividerEl=document.getElementById('divider');
-var btnUndo=document.getElementById('btnUndo');
 var ldr=document.getElementById('loader');
 var ldrSpw=document.getElementById('loader-spw');
 var ldrScw=document.getElementById('loader-scw');
@@ -371,14 +367,13 @@ function cloneColor(){
 function snapshot(){
   undoStack.push({tx1:cloneTx(tx1),tx2:cloneTx(tx2),gTx:cloneTx(gTx),sliderPos:sliderPos,mask:cloneMask(),color:cloneColor()});
   if(undoStack.length>MAX_UNDO)undoStack.shift();
-  btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');
 }
 function undo(){
   if(undoStack.length===0)return;
   var s=undoStack.pop();tx1=cloneTx(s.tx1);tx2=cloneTx(s.tx2);gTx=cloneTx(s.gTx);sliderPos=s.sliderPos;
   if(s.mask){maskCanvas=s.mask;offCanvas=null;}
   if(s.color!==undefined)colorCanvas=s.color;
-  btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');draw();
+  draw();
 }
 function defaultTx(img,w,h){var s=Math.min(w/img.naturalWidth,h/img.naturalHeight);return{scale:s,cx:w/2,cy:h/2};}
 function activeTx(){return active===1?tx1:tx2;}
