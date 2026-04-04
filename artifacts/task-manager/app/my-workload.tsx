@@ -300,25 +300,35 @@ function MonthView({ month }: { month: MonthData }) {
       )}
 
       {/* Weekly breakdown */}
-      <Text style={styles.sectionTitle}>Weekly Breakdown</Text>
       <View style={styles.card}>
-        {month.visibleWeeks.length > 0
-          ? month.visibleWeeks.map((w) => (
-              <WeekRow key={w} week={w} data={month.weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] }} maxVal={month.maxWeekVal} />
-            ))
-          : <Text style={styles.emptyCardText}>No weeks yet</Text>
-        }
+        <View style={styles.cardSectionHeader}>
+          <Text style={styles.cardSectionTitle}>Weekly Breakdown</Text>
+        </View>
+        <View style={styles.cardSectionDivider} />
+        <View style={styles.cardSectionContent}>
+          {month.visibleWeeks.length > 0
+            ? month.visibleWeeks.map((w) => (
+                <WeekRow key={w} week={w} data={month.weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] }} maxVal={month.maxWeekVal} />
+              ))
+            : <Text style={styles.emptyCardText}>No weeks yet</Text>
+          }
+        </View>
       </View>
 
       {/* Category breakdown */}
-      <Text style={styles.sectionTitle}>Category Breakdown</Text>
       <View style={[styles.card, { marginBottom: 24 }]}>
-        {month.categories.length > 0
-          ? month.categories.map((cat) => (
-              <CategoryRow key={cat.name} cat={cat} maxVal={month.maxCatVal} />
-            ))
-          : <Text style={styles.emptyCardText}>No category data</Text>
-        }
+        <View style={styles.cardSectionHeader}>
+          <Text style={styles.cardSectionTitle}>Category Breakdown</Text>
+        </View>
+        <View style={styles.cardSectionDivider} />
+        <View style={styles.cardSectionContent}>
+          {month.categories.length > 0
+            ? month.categories.map((cat) => (
+                <CategoryRow key={cat.name} cat={cat} maxVal={month.maxCatVal} />
+              ))
+            : <Text style={styles.emptyCardText}>No category data</Text>
+          }
+        </View>
       </View>
     </View>
   );
@@ -470,6 +480,10 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 2 },
   legendText: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
   sectionTitle: { fontSize: 11, fontWeight: "800", color: "#fff", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, marginLeft: 2, fontFamily: "Inter_600SemiBold" },
+  cardSectionHeader: { marginHorizontal: -12, marginTop: -12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: "#111113", alignItems: "center", justifyContent: "center" },
+  cardSectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 2, textTransform: "uppercase", fontWeight: "800" },
+  cardSectionDivider: { height: 1, backgroundColor: "#1e1e22", marginHorizontal: -12, marginBottom: 10 },
+  cardSectionContent: {},
   weekRow: { backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 10, marginBottom: 8 },
   weekHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   weekName: { fontSize: 15, fontWeight: "900", color: "#fff", fontFamily: "Inter_700Bold" },
