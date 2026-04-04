@@ -398,7 +398,9 @@ router.post("/pages", async (req, res) => {
       const propName = req.body.referencePropertyName || "Reference";
       let u = url.trim();
       if (u && !u.startsWith("http://") && !u.startsWith("https://")) u = "https://" + u;
-      if (referenceType === "rich_text") {
+      if (referenceType === "files") {
+        body.properties[propName] = { files: [{ type: "external", name: u, external: { url: u } }] };
+      } else if (referenceType === "rich_text") {
         body.properties[propName] = { rich_text: [{ type: "text", text: { content: u, link: { url: u } } }] };
       } else {
         body.properties[propName] = { url: u };
