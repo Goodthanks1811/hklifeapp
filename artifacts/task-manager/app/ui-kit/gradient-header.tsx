@@ -50,13 +50,13 @@ export default function GradientHeaderScreen() {
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         {/* Multi-radial approximation with two LinearGradient layers */}
         <LinearGradient
-          colors={["rgba(224,49,49,0.38)", "rgba(180,20,20,0.10)", "transparent"]}
+          colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.28)", "transparent"]}
           locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFillObject}
         />
         {/* Corner glows via a wide low-opacity overlay */}
         <LinearGradient
-          colors={["rgba(224,49,49,0.12)", "transparent"]}
+          colors={["rgba(224,49,49,0.22)", "transparent"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />

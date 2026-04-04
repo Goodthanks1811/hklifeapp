@@ -65,9 +65,9 @@ export function Preview() {
         <div style={{
           padding: "52px 20px 36px",
           background: [
-            `radial-gradient(ellipse 100% 100% at 50% 0%, rgba(224,49,49,0.38) 0%, rgba(180,20,20,0.10) 45%, transparent 70%)`,
-            `radial-gradient(ellipse 60% 65% at 0% 0%, rgba(224,49,49,0.12) 0%, transparent 60%)`,
-            `radial-gradient(ellipse 60% 65% at 100% 0%, rgba(224,49,49,0.12) 0%, transparent 60%)`,
+            `radial-gradient(ellipse 100% 100% at 50% 0%, rgba(224,49,49,0.72) 0%, rgba(180,20,20,0.28) 45%, transparent 70%)`,
+            `radial-gradient(ellipse 60% 65% at 0% 0%, rgba(224,49,49,0.22) 0%, transparent 60%)`,
+            `radial-gradient(ellipse 60% 65% at 100% 0%, rgba(224,49,49,0.22) 0%, transparent 60%)`,
             BG,
           ].join(", "),
           WebkitMaskImage: "linear-gradient(to bottom, black 62%, transparent 100%)",
@@ -77,7 +77,7 @@ export function Preview() {
           <div style={{
             position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)",
             width: 280, height: 180,
-            background: "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(224,49,49,0.40) 0%, rgba(160,15,15,0.12) 45%, transparent 68%)",
+            background: "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(224,49,49,0.72) 0%, rgba(160,15,15,0.28) 45%, transparent 68%)",
             pointerEvents: "none", zIndex: 0,
           }} />
 
