@@ -43,7 +43,7 @@ function PhoneHeader({ title }: { title: string }) {
   );
 }
 
-function Row({ emoji, label, status, statusColor }: typeof ROWS[0]) {
+function Row({ emoji, label, status, statusColor, index }: typeof ROWS[0] & { index: number }) {
   return (
     <div
       style={{
@@ -54,7 +54,7 @@ function Row({ emoji, label, status, statusColor }: typeof ROWS[0]) {
         paddingRight: 14,
         borderBottom: "1px solid #1e1e1e",
         gap: 10,
-        background: "#0d0d0d",
+        background: index % 2 === 0 ? "#0d0d0d" : "#111",
         flexShrink: 0,
       }}
     >
@@ -167,7 +167,7 @@ export function Preview() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#090909",
+        background: "#000",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -193,7 +193,7 @@ export function Preview() {
         <PhoneFrame label="Current">
           <PhoneHeader title="Life Admin" />
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            {ROWS.map((r, i) => <Row key={i} {...r} />)}
+            {ROWS.map((r, i) => <Row key={i} {...r} index={i} />)}
           </div>
         </PhoneFrame>
 
@@ -216,14 +216,14 @@ export function Preview() {
             />
             {/* Spacer pushes items below the gradient */}
             <div style={{ height: 70, flexShrink: 0 }} />
-            {ROWS.map((r, i) => <Row key={i} {...r} />)}
+            {ROWS.map((r, i) => <Row key={i} {...r} index={i} />)}
           </div>
         </PhoneFrame>
       </div>
 
       {/* Caption */}
       <p style={{ color: "#555", fontSize: 12, textAlign: "center", maxWidth: 520, lineHeight: 1.6, margin: 0 }}>
-        Right: ~22% opacity red gradient fades from the top of the list area, with a subtle left-edge accent line. List items start 20px lower.
+        Right: 70px red gradient (28% opacity → transparent) fades from the top of the list area. List items start 70px lower.
       </p>
     </div>
   );
