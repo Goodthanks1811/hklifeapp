@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
 import React from "react";
+import { useDrawer } from "@/context/DrawerContext";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -39,7 +40,7 @@ function Row({ emoji, title, done }: typeof ITEMS[0]) {
 
 export default function GradientHeaderScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const { toggleDrawer } = useDrawer();
   const doneCount = ITEMS.filter(i => i.done).length;
 
   return (
@@ -62,8 +63,8 @@ export default function GradientHeaderScreen() {
 
         {/* Nav row: back + refresh */}
         <View style={s.navRow}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.back()} hitSlop={8}>
-            <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.75)" />
+          <TouchableOpacity style={s.iconBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }} hitSlop={8}>
+            <Feather name="menu" size={18} color="rgba(255,255,255,0.75)" />
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
           <TouchableOpacity style={s.iconBtnGhost} hitSlop={8}>
