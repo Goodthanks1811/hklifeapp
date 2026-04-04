@@ -98,7 +98,7 @@ const T_HOLD       = 700;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LifeTask { id: string; title: string; emoji: string; sortOrder: number | null; url: string | null; epic?: string | null; fileLinks?: Array<{ name: string; url: string }> | null; }
-interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; epicOptions?: string[] | null; epicType?: string; referenceType?: string; }
+interface Schema   { priType: string; priOptions: string[] | null; categoryType: string; epicOptions?: string[] | null; epicType?: string; referenceType?: string; referencePropertyName?: string | null; }
 
 const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
@@ -1012,8 +1012,14 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       priOptions: schema?.priOptions ?? null,
       categoryType: schema?.categoryType ?? "select",
       ...(showEpic && selEpic ? { epic: selEpic, epicType: schema?.epicType ?? "select" } : {}),
-      ...(linkUrl.trim() ? { url: linkUrl.trim(), referenceType: schema?.referenceType ?? "url" } : {}),
+      ...(linkUrl.trim() ? {
+        url: linkUrl.trim(),
+        referenceType: schema?.referenceType ?? "url",
+        referencePropertyName: schema?.referencePropertyName ?? null,
+      } : {}),
     };
+    console.log("[handleSave] payload:", JSON.stringify(payload));
+    console.log("[handleSave] schema:", JSON.stringify(schema));
     const apiPromise = fetch(`${BASE_URL}/api/notion/pages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },

@@ -297,6 +297,7 @@ router.patch("/tasks/:taskId", async (req, res) => {
 });
 
 router.get("/schema/:dbId", async (req, res) => {
+  res.set("Cache-Control", "no-store");
   const apiKey = req.headers["x-notion-key"] as string;
   const { dbId } = req.params;
   if (!apiKey) { res.status(400).json({ message: "Missing Notion API key" }); return; }
@@ -329,9 +330,25 @@ router.get("/schema/:dbId", async (req, res) => {
       categoryType === "select"       ? (categoryProp?.select?.options       || []).map((o: any) => o.name) :
       categoryType === "multi_select" ? (categoryProp?.multi_select?.options || []).map((o: any) => o.name) :
       categoryType === "status"       ? (categoryProp?.status?.options       || []).map((o: any) => o.name) : [];
-    const refProp = props["Reference"];
-    const referenceType: string = refProp?.type || "url";
-    res.json({ priType, priOptions, epicType, epicOptions, priorityType, categoryType, categoryOptions, referenceType });
+    // Find the URL-holding property: prefer "Reference", else first url-type prop
+    let referencePropertyName: string | null = null;
+    let referenceType: string = "url";
+    if (props["Reference"]) {
+      referencePropertyName = "Reference";
+      referenceType = props["Reference"].type || "url";
+    } else {
+      for (const key of Object.keys(props)) {
+        if (props[key].type === "url") { referencePropertyName = key; referenceType = "url"; break; }
+      }
+      if (!referencePropertyName) {
+        for (const key of Object.keys(props)) {
+          if (key.toLowerCase().includes("ref") || key.toLowerCase().includes("link") || key.toLowerCase().includes("url")) {
+            referencePropertyName = key; referenceType = props[key].type || "rich_text"; break;
+          }
+        }
+      }
+    }
+    res.json({ priType, priOptions, epicType, epicOptions, priorityType, categoryType, categoryOptions, referenceType, referencePropertyName });
   } catch (e: any) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -378,11 +395,13 @@ router.post("/pages", async (req, res) => {
 
     if (url && typeof url === "string" && url.trim()) {
       const referenceType = req.body.referenceType || "url";
+      const propName = req.body.referencePropertyName || "Reference";
+      let u = url.trim();
+      if (u && !u.startsWith("http://") && !u.startsWith("https://")) u = "https://" + u;
       if (referenceType === "rich_text") {
-        const u = url.trim();
-        body.properties.Reference = { rich_text: [{ type: "text", text: { content: u, link: { url: u } } }] };
+        body.properties[propName] = { rich_text: [{ type: "text", text: { content: u, link: { url: u } } }] };
       } else {
-        body.properties.Reference = { url: url.trim() };
+        body.properties[propName] = { url: u };
       }
     }
 
@@ -399,6 +418,7 @@ router.post("/pages", async (req, res) => {
 
     if (!response.ok) {
       const err = await response.json();
+      console.error("[POST /pages] Notion error:", JSON.stringify(err), "body sent:", JSON.stringify(body));
       res.status(response.status).json({ message: err.message || "Notion error" });
       return;
     }
