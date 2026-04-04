@@ -23,28 +23,6 @@ const ROWS = [
 
 const ITEM_H = 48;
 
-function MiniHeader() {
-  return (
-    <View style={s.miniHeader}>
-      <View style={s.menuBtn}>
-        <Feather name="menu" size={16} color={Colors.textPrimary} />
-      </View>
-      <Text style={s.miniTitle}>Life Admin</Text>
-      <View style={s.menuBtn}>
-        <Feather name="refresh-cw" size={14} color={Colors.textMuted} />
-      </View>
-    </View>
-  );
-}
-
-function MiniCountRow() {
-  return (
-    <View style={s.countRow}>
-      <Text style={s.countText}>{ROWS.length} items</Text>
-    </View>
-  );
-}
-
 function MiniRow({ emoji, title, status, sc }: typeof ROWS[0]) {
   return (
     <View style={s.row}>
@@ -68,6 +46,67 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
+// Current — normal header with border, items start below it
+function CurrentPreview() {
+  return (
+    <View style={s.card}>
+      {/* Exact ScreenHeader replica */}
+      <View style={s.currentHeader}>
+        <View style={s.menuBtn}>
+          <Feather name="menu" size={16} color={Colors.textPrimary} />
+        </View>
+        <Text style={s.miniTitle}>Life Admin</Text>
+        <View style={s.menuBtn}>
+          <Feather name="refresh-cw" size={13} color={Colors.textMuted} />
+        </View>
+      </View>
+      <View style={s.countRow}>
+        <Text style={s.countText}>{ROWS.length} items</Text>
+      </View>
+      <View style={s.listArea}>
+        {ROWS.map((r, i) => <MiniRow key={i} {...r} />)}
+      </View>
+    </View>
+  );
+}
+
+// Proposed — Spotify-style: title floats over black→dark-crimson glow, no separator
+function ProposedPreview() {
+  return (
+    <View style={s.card}>
+      {/* Hero gradient area — title + buttons overlay it */}
+      <View style={s.heroOuter}>
+        {/* Main gradient: black → dark crimson → transparent */}
+        <LinearGradient
+          colors={["#000000", "rgba(100,0,0,0.72)", "rgba(40,0,0,0.25)", "transparent"]}
+          locations={[0, 0.28, 0.58, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        {/* Header row: burger + spacer (no border, no bg) */}
+        <View style={s.heroNav}>
+          <View style={s.menuBtnGhost}>
+            <Feather name="menu" size={16} color={Colors.textPrimary} />
+          </View>
+          <View style={{ flex: 1 }} />
+          <View style={s.menuBtnGhost}>
+            <Feather name="refresh-cw" size={13} color={Colors.textMuted} />
+          </View>
+        </View>
+        {/* Title sits in lower half of the hero */}
+        <Text style={s.heroTitle}>Life Admin</Text>
+      </View>
+
+      {/* Count — no separator above, blends right in */}
+      <View style={s.countRow}>
+        <Text style={s.countText}>{ROWS.length} items</Text>
+      </View>
+      <View style={s.listArea}>
+        {ROWS.map((r, i) => <MiniRow key={i} {...r} />)}
+      </View>
+    </View>
+  );
+}
+
 export default function GradientHeaderScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -80,54 +119,34 @@ export default function GradientHeaderScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: botPad + 24 }]}
       >
-        {/* Description */}
         <Text style={s.description}>
-          A subtle red gradient above the list items gives each Life section a
-          visual anchor and pushes items down for more breathing room.
+          Title and nav float over a black → dark crimson glow. No header border — the top blends seamlessly into the list.
         </Text>
 
-        {/* ── Current ── */}
         <SectionDivider label="Current" />
-        <View style={s.card}>
-          <MiniHeader />
-          <MiniCountRow />
-          <View style={s.listArea}>
-            {ROWS.map((r, i) => <MiniRow key={i} {...r} />)}
-          </View>
-        </View>
+        <CurrentPreview />
 
-        {/* ── Proposed ── */}
         <SectionDivider label="Proposed" />
-        <View style={s.card}>
-          <MiniHeader />
-          <MiniCountRow />
-          <View style={s.listArea}>
-            {/* Gradient overlay */}
-            <LinearGradient
-              colors={["rgba(224,49,49,0.28)", "transparent"]}
-              style={s.gradient}
-            />
-            {/* Items pushed down below the gradient */}
-            <View style={{ paddingTop: 70 }}>
-              {ROWS.map((r, i) => <MiniRow key={i} {...r} />)}
-            </View>
-          </View>
-        </View>
+        <ProposedPreview />
 
-        {/* Spec note */}
+        {/* Spec */}
         <View style={s.specCard}>
           <Text style={s.specTitle}>Spec</Text>
           <View style={s.specRow}>
             <Text style={s.specKey}>Gradient</Text>
-            <Text style={s.specVal}>rgba(224,49,49, 0.28) → transparent</Text>
+            <Text style={s.specVal}>#000 → rgba(100,0,0,0.72) → transparent</Text>
           </View>
           <View style={s.specRow}>
-            <Text style={s.specKey}>Height</Text>
-            <Text style={s.specVal}>70 px</Text>
+            <Text style={s.specKey}>Hero height</Text>
+            <Text style={s.specVal}>~100 px</Text>
           </View>
           <View style={s.specRow}>
-            <Text style={s.specKey}>Item offset</Text>
-            <Text style={s.specVal}>paddingTop: 70</Text>
+            <Text style={s.specKey}>Header border</Text>
+            <Text style={s.specVal}>Removed</Text>
+          </View>
+          <View style={s.specRow}>
+            <Text style={s.specKey}>Title position</Text>
+            <Text style={s.specVal}>Overlays gradient (bottom of hero)</Text>
           </View>
         </View>
       </ScrollView>
@@ -137,26 +156,17 @@ export default function GradientHeaderScreen() {
 
 const s = StyleSheet.create({
   root:  { flex: 1, backgroundColor: Colors.darkBg },
-  scroll: { padding: 20, gap: 0 },
+  scroll: { padding: 20 },
 
   description: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 21,
-    marginTop: 4,
-    marginBottom: 4,
+    color: Colors.textSecondary, fontSize: 14,
+    fontFamily: "Inter_400Regular", lineHeight: 21,
+    marginTop: 4, marginBottom: 4,
   },
 
-  divider: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    marginTop: 24, marginBottom: 14,
-  },
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 24, marginBottom: 14 },
   dividerLine:  { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerLabel: {
-    color: Colors.textMuted, fontSize: 11,
-    fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase",
-  },
+  dividerLabel: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" },
 
   card: {
     backgroundColor: Colors.darkBg,
@@ -164,7 +174,8 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
 
-  miniHeader: {
+  // ── Current header (exact ScreenHeader style) ──
+  currentHeader: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 12, paddingVertical: 10, gap: 12,
     backgroundColor: Colors.darkBg,
@@ -181,40 +192,47 @@ const s = StyleSheet.create({
     fontFamily: "Inter_700Bold", letterSpacing: 0.1,
   },
 
+  // ── Proposed hero ──
+  heroOuter: {
+    height: 100,
+    backgroundColor: "#000",
+    justifyContent: "flex-end",
+    paddingBottom: 12,
+  },
+  heroNav: {
+    position: "absolute", top: 8, left: 10, right: 10,
+    flexDirection: "row", alignItems: "center",
+  },
+  menuBtnGhost: {
+    width: 32, height: 32, borderRadius: 9,
+    backgroundColor: "rgba(26,26,26,0.5)",
+    alignItems: "center", justifyContent: "center",
+  },
+  heroTitle: {
+    textAlign: "center",
+    color: Colors.textPrimary, fontSize: 15,
+    fontFamily: "Inter_700Bold", letterSpacing: 0.1,
+  },
+
+  // ── Shared list ──
   countRow: { paddingHorizontal: 14, paddingVertical: 6 },
   countText: { fontSize: 11, color: Colors.textMuted, fontFamily: "Inter_500Medium" },
 
-  listArea: { position: "relative", marginHorizontal: 14, marginTop: 6, marginBottom: 10 },
-
-  gradient: {
-    position: "absolute", top: 0, left: 0, right: 0,
-    height: 70, zIndex: 1,
-  },
+  listArea: { marginHorizontal: 14, marginBottom: 10, gap: 1 },
 
   row: {
-    height: ITEM_H,
-    flexDirection: "row", alignItems: "center", gap: 10,
+    height: ITEM_H, flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: Colors.border,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 1,
+    paddingHorizontal: 12, borderRadius: 8,
   },
-  emoji:    { fontSize: 20, minWidth: 26, textAlign: "center" },
-  rowTitle: {
-    flex: 1, color: Colors.textPrimary, fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  pill: {
-    borderRadius: 6, borderWidth: 1,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
+  emoji:    { fontSize: 19, minWidth: 24, textAlign: "center" },
+  rowTitle: { flex: 1, color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  pill:     { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2 },
   pillText: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2 },
-  checkbox: {
-    width: 20, height: 20, borderRadius: 5,
-    borderWidth: 2, borderColor: "#5a5a5a",
-  },
+  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: "#5a5a5a" },
 
+  // ── Spec ──
   specCard: {
     marginTop: 24,
     backgroundColor: Colors.cardBg,
@@ -226,7 +244,7 @@ const s = StyleSheet.create({
     fontFamily: "Inter_700Bold", letterSpacing: 1, textTransform: "uppercase",
     marginBottom: 2,
   },
-  specRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  specRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 4 },
   specKey: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_500Medium" },
-  specVal: { color: Colors.textPrimary,   fontSize: 13, fontFamily: "Inter_400Regular" },
+  specVal: { color: Colors.textPrimary,   fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 1, textAlign: "right" },
 });
