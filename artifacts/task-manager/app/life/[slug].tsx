@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import Svg, { Path as SvgPath } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useDrawer } from "@/context/DrawerContext";
+import { isTablet, useDrawer } from "@/context/DrawerContext";
 import { useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -1908,7 +1908,7 @@ export default function LifeTaskScreen() {
     <View style={sc.root}>
 
       {/* ── Gradient header ───────────────────────────────────────────────────── */}
-      <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8 }]}>
+      <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8, paddingBottom: isTablet ? 88 : 56 }]}>
         <LinearGradient
           colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.28)", "transparent"]}
           locations={[0, 0.45, 1]}
