@@ -1,7 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -536,7 +538,7 @@ function attachNrlLogo(){
     if(nrlLogoTimer!==null){
       clearTimeout(nrlLogoTimer);
       nrlLogoTimer=null;
-      if(picksState===2){picksState=0;clearPickResults();}
+      if(picksState===2){picksState=0;clearPickResults();postMsg({type:'picksClear',round:currentRound});}
       else if(picksState===1){postMsg({type:'logoTap',round:currentRound,mode:'results'});}
       else{postMsg({type:'logoTap',round:currentRound,mode:'picks'});}
     }
@@ -614,6 +616,7 @@ export default function NRLScheduleScreen() {
   const currentMatchesRef  = useRef<Match[]>([]);
   const currentRoundRef    = useRef<number>(1);
   const allPicksRef        = useRef<Record<string, Record<string, string>>>({});
+  const picksDisplayState  = useRef<number>(0); // 0=hidden 1=dots 2=results
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMatches, setPickerMatches] = useState<Match[]>([]);
@@ -621,11 +624,22 @@ export default function NRLScheduleScreen() {
   const [roundPicks,    setRoundPicks]    = useState<Record<string, string>>({});
 
   useEffect(() => {
-    AsyncStorage.getItem(PICKS_KEY).then((raw) => {
-      if (raw) allPicksRef.current = JSON.parse(raw);
-    }).catch(() => {});
-    loadInitial();
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(PICKS_KEY);
+        if (raw) allPicksRef.current = JSON.parse(raw);
+      } catch {}
+      loadInitial();
+    })();
   }, []);
+
+  // Re-inject picks display whenever the screen regains focus (handles navigation away/back)
+  useFocusEffect(useCallback(() => {
+    const round = currentRoundRef.current;
+    const state = picksDisplayState.current;
+    if (state === 1) injectPickMarkers(round);
+    else if (state === 2) injectPickResults(round);
+  }, [injectPickMarkers, injectPickResults]));
 
   const loadInitial = async () => {
     const data = await nrlFetch(
@@ -688,6 +702,7 @@ export default function NRLScheduleScreen() {
     const markers = matches
       .filter((m) => picks[m.id])
       .map((m) => ({ matchId: m.id, isHome: m.homeTeam === picks[m.id] }));
+    picksDisplayState.current = 1;
     webViewRef.current?.injectJavaScript(
       `setPicksShowing(1); showPickMarkers(${JSON.stringify(markers)}); true;`
     );
@@ -709,16 +724,26 @@ export default function NRLScheduleScreen() {
         }
         return { matchId: m.id, pick: pickedTeam, isHome, result };
       });
+    picksDisplayState.current = 2;
     webViewRef.current?.injectJavaScript(
       `setPicksShowing(2); showPickResults(${JSON.stringify(results)}); true;`
     );
   }, []);
+
+  // Re-inject picks when the WebView reloads (iOS WKWebView memory purge)
+  const onWebViewLoad = useCallback(() => {
+    const round = currentRoundRef.current;
+    const state = picksDisplayState.current;
+    if (state === 1) injectPickMarkers(round);
+    else if (state === 2) injectPickResults(round);
+  }, [injectPickMarkers, injectPickResults]);
 
   const onMessage = useCallback(async (event: WebViewMessageEvent) => {
     let msg: any;
     try { msg = JSON.parse(event.nativeEvent.data); } catch { return; }
 
     if (msg.type === "changeRound") {
+      picksDisplayState.current = 0;
       const roundData = await nrlFetch(
         `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${msg.round}`
       );
@@ -728,6 +753,10 @@ export default function NRLScheduleScreen() {
       const groups  = groupByDay(matches);
       const content = buildDayGroups(groups);
       webViewRef.current?.injectJavaScript(`updateFixtures(${JSON.stringify(content)}); true;`);
+    }
+
+    if (msg.type === "picksClear") {
+      picksDisplayState.current = 0;
     }
 
     if (msg.type === "needDragons") {
@@ -753,6 +782,7 @@ export default function NRLScheduleScreen() {
       setRoundPicks({ ...saved });
       setPickerVisible(true);
       // Reset display cycle so next tap always starts with marker (dot) first
+      picksDisplayState.current = 0;
       webViewRef.current?.injectJavaScript(`setPicksShowing(0); clearPickResults(); true;`);
     }
 
@@ -784,6 +814,7 @@ export default function NRLScheduleScreen() {
           source={{ html }}
           style={styles.webview}
           onMessage={onMessage}
+          onLoad={onWebViewLoad}
           javaScriptEnabled
           scrollEnabled
           bounces={false}
@@ -817,6 +848,9 @@ export default function NRLScheduleScreen() {
                       activeOpacity={0.75}
                       onPress={() => togglePick(m.id, m.homeTeam)}
                     >
+                      {getTeamLogo(m.homeTeam) ? (
+                        <Image source={{ uri: getTeamLogo(m.homeTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
+                      ) : null}
                       <Text style={[styles.pickerTeamTx, pick === m.homeTeam && styles.pickerTeamTxActive]}>
                         {m.homeTeam}
                       </Text>
@@ -827,6 +861,9 @@ export default function NRLScheduleScreen() {
                       activeOpacity={0.75}
                       onPress={() => togglePick(m.id, m.awayTeam)}
                     >
+                      {getTeamLogo(m.awayTeam) ? (
+                        <Image source={{ uri: getTeamLogo(m.awayTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
+                      ) : null}
                       <Text style={[styles.pickerTeamTx, pick === m.awayTeam && styles.pickerTeamTxActive]}>
                         {m.awayTeam}
                       </Text>
@@ -901,8 +938,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2a2a2a",
     borderRadius: 10,
-    paddingVertical: 13,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  pickerTeamLogo: {
+    width: 26,
+    height: 26,
   },
   pickerTeamBtnActive: {
     backgroundColor: NRL_GREEN + "22",
