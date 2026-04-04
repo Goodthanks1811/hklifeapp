@@ -139,20 +139,10 @@ function WorkloadBarChart({
           return (
             <G key={week || `empty-${i}`}>
               {week && wd.created > 0 && (
-                <G>
-                  <Rect x={cx} y={cy} width={barW} height={ch} fill={HK_RED} rx={5} ry={5} />
-                  <SvgText x={cx + barW / 2} y={cy - 6} textAnchor="middle" fill="#fff" fontSize={10} fontWeight="800">
-                    {wd.created}
-                  </SvgText>
-                </G>
+                <Rect x={cx} y={cy} width={barW} height={ch} fill={HK_RED} rx={5} ry={5} />
               )}
               {week && wd.done > 0 && (
-                <G>
-                  <Rect x={dx} y={dy} width={barW} height={dh} fill={DONE_CLR} rx={5} ry={5} />
-                  <SvgText x={dx + barW / 2} y={dy - 6} textAnchor="middle" fill="#fff" fontSize={10} fontWeight="800">
-                    {wd.done}
-                  </SvgText>
-                </G>
+                <Rect x={dx} y={dy} width={barW} height={dh} fill={DONE_CLR} rx={5} ry={5} />
               )}
               <SvgText
                 x={gx + groupW / 2} y={pT + chartH + 22}
