@@ -1,107 +1,37 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { useRouter } from "expo-router";
 import React from "react";
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors } from "@/constants/colors";
 
-const ROWS = [
-  { emoji: "🏠", title: "Pay rent",             status: "In Progress", sc: Colors.warning  },
-  { emoji: "📋", title: "Insurance renewal",     status: "Not started", sc: "#555555"       },
-  { emoji: "🔑", title: "Book locksmith",        status: "Done",        sc: Colors.success  },
-  { emoji: "📦", title: "Return Amazon package", status: "Backlog",     sc: Colors.info     },
-  { emoji: "💳", title: "Credit card statement", status: "Not started", sc: "#555555"       },
-  { emoji: "🚗", title: "Car service booking",   status: "In Progress", sc: Colors.warning  },
+const BG = "#0f0f0f";
+
+const ITEMS = [
+  { emoji: "🔥", title: "Check suncorp origin",                          done: false },
+  { emoji: "🔥", title: "Video for Suegra",                              done: false },
+  { emoji: "🔥", title: "Make Tyga Playlist",                            done: false },
+  { emoji: "🔥", title: "Think about weekly reflection",                 done: false },
+  { emoji: "🔥", title: "Make appointment with myself",                  done: false },
+  { emoji: "🖥", title: "Recommence Spanish Lessons",                    done: false },
+  { emoji: "🖥", title: "Book laser",                                     done: false },
+  { emoji: "🖥", title: "GP check Alice",                                done: false },
+  { emoji: "🖥", title: "Email Alice with weekly check in 🧠",           done: true  },
+  { emoji: "🖥", title: "Cancel subscriptions",                          done: false },
+  { emoji: "🖥", title: "Danny GPT Instructions",                        done: true  },
+  { emoji: "🖥", title: "Research new running shoes",                    done: false },
+  { emoji: "🖥", title: "Sort tax documents",                            done: true  },
 ];
 
-const ITEM_H = 48;
-
-function MiniRow({ emoji, title, status, sc }: typeof ROWS[0]) {
+function Row({ emoji, title, done }: typeof ITEMS[0]) {
   return (
     <View style={s.row}>
-      <Text style={s.emoji}>{emoji}</Text>
-      <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
-      <View style={[s.pill, { backgroundColor: sc + "28", borderColor: sc + "55" }]}>
-        <Text style={[s.pillText, { color: sc }]}>{status}</Text>
+      <View style={s.pill}>
+        <Text style={s.pillEmoji}>{emoji}</Text>
       </View>
-      <View style={s.checkbox} />
-    </View>
-  );
-}
-
-function SectionDivider({ label }: { label: string }) {
-  return (
-    <View style={s.divider}>
-      <View style={s.dividerLine} />
-      <Text style={s.dividerLabel}>{label}</Text>
-      <View style={s.dividerLine} />
-    </View>
-  );
-}
-
-// Current — normal header with border, items start below it
-function CurrentPreview() {
-  return (
-    <View style={s.card}>
-      {/* Exact ScreenHeader replica */}
-      <View style={s.currentHeader}>
-        <View style={s.menuBtn}>
-          <Feather name="menu" size={16} color={Colors.textPrimary} />
-        </View>
-        <Text style={s.miniTitle}>Life Admin</Text>
-        <View style={s.menuBtn}>
-          <Feather name="refresh-cw" size={13} color={Colors.textMuted} />
-        </View>
-      </View>
-      <View style={s.countRow}>
-        <Text style={s.countText}>{ROWS.length} items</Text>
-      </View>
-      <View style={s.listArea}>
-        {ROWS.map((r, i) => <MiniRow key={i} {...r} />)}
-      </View>
-    </View>
-  );
-}
-
-// Proposed — Spotify-style: title floats over black→dark-crimson glow, no separator
-function ProposedPreview() {
-  return (
-    <View style={s.card}>
-      {/* Hero gradient area — title + buttons overlay it */}
-      <View style={s.heroOuter}>
-        {/* Main gradient: black → E03131 tinted → transparent (matches canvas radial) */}
-        <LinearGradient
-          colors={["#000000", "rgba(224,49,49,0.70)", "rgba(224,49,49,0.25)", "transparent"]}
-          locations={[0, 0.28, 0.55, 1]}
-          style={StyleSheet.absoluteFillObject}
-        />
-        {/* Header row: burger + spacer (no border, no bg) */}
-        <View style={s.heroNav}>
-          <View style={s.menuBtnGhost}>
-            <Feather name="menu" size={16} color={Colors.textPrimary} />
-          </View>
-          <View style={{ flex: 1 }} />
-          <View style={s.menuBtnGhost}>
-            <Feather name="refresh-cw" size={13} color={Colors.textMuted} />
-          </View>
-        </View>
-        {/* Title sits in lower half of the hero */}
-        <Text style={s.heroTitle}>Life Admin</Text>
-      </View>
-
-      {/* Count — no separator above, blends right in */}
-      <View style={s.countRow}>
-        <Text style={s.countText}>{ROWS.length} items</Text>
-      </View>
-      <View style={s.listArea}>
-        {ROWS.map((r, i) => <MiniRow key={i} {...r} />)}
+      <Text style={[s.rowTitle, done && s.rowDone]} numberOfLines={1}>{title}</Text>
+      <View style={[s.chk, done && s.chkOn]}>
+        {done && <Text style={s.chkTick}>✓</Text>}
       </View>
     </View>
   );
@@ -109,142 +39,137 @@ function ProposedPreview() {
 
 export default function GradientHeaderScreen() {
   const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
-  const botPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
+  const router = useRouter();
+  const doneCount = ITEMS.filter(i => i.done).length;
 
   return (
-    <View style={[s.root, { paddingTop: topPad }]}>
-      <ScreenHeader title="Gradient Header" />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingBottom: botPad + 24 }]}
-      >
-        <Text style={s.description}>
-          Title and nav float over a black → dark crimson glow. No header border — the top blends seamlessly into the list.
-        </Text>
+    <View style={s.root}>
 
-        <SectionDivider label="Current" />
-        <CurrentPreview />
+      {/* ── Gradient header ───────────────────────────── */}
+      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
+        {/* Multi-radial approximation with two LinearGradient layers */}
+        <LinearGradient
+          colors={["rgba(224,49,49,0.38)", "rgba(180,20,20,0.10)", "transparent"]}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        {/* Corner glows via a wide low-opacity overlay */}
+        <LinearGradient
+          colors={["rgba(224,49,49,0.12)", "transparent"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
 
-        <SectionDivider label="Proposed" />
-        <ProposedPreview />
-
-        {/* Spec */}
-        <View style={s.specCard}>
-          <Text style={s.specTitle}>Spec</Text>
-          <View style={s.specRow}>
-            <Text style={s.specKey}>Gradient</Text>
-            <Text style={s.specVal}>#000 → rgba(224,49,49,0.50) → transparent</Text>
-          </View>
-          <View style={s.specRow}>
-            <Text style={s.specKey}>Hero height</Text>
-            <Text style={s.specVal}>~128 px</Text>
-          </View>
-          <View style={s.specRow}>
-            <Text style={s.specKey}>Header border</Text>
-            <Text style={s.specVal}>Removed</Text>
-          </View>
-          <View style={s.specRow}>
-            <Text style={s.specKey}>Title position</Text>
-            <Text style={s.specVal}>Overlays gradient (bottom of hero)</Text>
-          </View>
+        {/* Nav row: back + refresh */}
+        <View style={s.navRow}>
+          <TouchableOpacity style={s.iconBtn} onPress={() => router.back()} hitSlop={8}>
+            <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.75)" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity style={s.iconBtnGhost} hitSlop={8}>
+            <Feather name="refresh-cw" size={14} color="rgba(255,255,255,0.28)" />
+          </TouchableOpacity>
         </View>
+
+        {/* Title */}
+        <Text style={s.title}>Gradient Header</Text>
+        {/* Subtitle */}
+        <Text style={s.subtitle}>{doneCount} done · {ITEMS.length} items</Text>
+      </View>
+
+      {/* ── List ─────────────────────────────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {ITEMS.map((item, i) => <Row key={i} {...item} />)}
       </ScrollView>
+
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: Colors.darkBg },
-  scroll: { padding: 20 },
+  root: { flex: 1, backgroundColor: BG },
 
-  description: {
-    color: Colors.textSecondary, fontSize: 14,
-    fontFamily: "Inter_400Regular", lineHeight: 21,
-    marginTop: 4, marginBottom: 4,
-  },
-
-  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 24, marginBottom: 14 },
-  dividerLine:  { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerLabel: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" },
-
-  card: {
-    backgroundColor: Colors.darkBg,
-    borderRadius: 14, borderWidth: 1, borderColor: Colors.border,
+  header: {
+    backgroundColor: BG,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
     overflow: "hidden",
   },
 
-  // ── Current header (exact ScreenHeader style) ──
-  currentHeader: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 12, paddingVertical: 10, gap: 12,
-    backgroundColor: Colors.darkBg,
-    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
   },
-  menuBtn: {
-    width: 32, height: 32, borderRadius: 9,
-    backgroundColor: Colors.cardBg,
+  iconBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(26,26,26,0.55)",
     alignItems: "center", justifyContent: "center",
   },
-  miniTitle: {
-    flex: 1, textAlign: "center",
-    color: Colors.textPrimary, fontSize: 15,
-    fontFamily: "Inter_700Bold", letterSpacing: 0.1,
+  iconBtnGhost: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
   },
 
-  // ── Proposed hero ──
-  heroOuter: {
-    height: 128,
-    backgroundColor: "#000",
-    justifyContent: "flex-end",
-    paddingBottom: 18,
-  },
-  heroNav: {
-    position: "absolute", top: 8, left: 10, right: 10,
-    flexDirection: "row", alignItems: "center",
-  },
-  menuBtnGhost: {
-    width: 32, height: 32, borderRadius: 9,
-    backgroundColor: "rgba(26,26,26,0.5)",
-    alignItems: "center", justifyContent: "center",
-  },
-  heroTitle: {
+  title: {
+    fontSize: 20, fontWeight: "700",
+    color: "#fff",
+    fontFamily: "Inter_700Bold",
     textAlign: "center",
-    color: Colors.textPrimary, fontSize: 15,
-    fontFamily: "Inter_700Bold", letterSpacing: 0.1,
+    textShadowColor: "rgba(224,49,49,0.45)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 24,
+    marginBottom: 4,
   },
-
-  // ── Shared list ──
-  countRow: { paddingHorizontal: 14, paddingVertical: 6 },
-  countText: { fontSize: 11, color: Colors.textMuted, fontFamily: "Inter_500Medium" },
-
-  listArea: { marginHorizontal: 14, marginBottom: 10, gap: 1 },
+  subtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.25)",
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
 
   row: {
-    height: ITEM_H, flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1, borderColor: Colors.border,
-    paddingHorizontal: 12, borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+    gap: 13,
   },
-  emoji:    { fontSize: 19, minWidth: 24, textAlign: "center" },
-  rowTitle: { flex: 1, color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  pill:     { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2 },
-  pillText: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2 },
-  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: "#5a5a5a" },
+  pill: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: "rgba(224,49,49,0.12)",
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
+  },
+  pillEmoji: { fontSize: 15 },
 
-  // ── Spec ──
-  specCard: {
-    marginTop: 24,
-    backgroundColor: Colors.cardBg,
-    borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
-    padding: 14, gap: 8,
+  rowTitle: {
+    flex: 1,
+    fontSize: 15,
+    color: "rgba(255,255,255,0.82)",
+    fontFamily: "Inter_400Regular",
+    lineHeight: 21,
   },
-  specTitle: {
-    color: Colors.textMuted, fontSize: 10,
-    fontFamily: "Inter_700Bold", letterSpacing: 1, textTransform: "uppercase",
-    marginBottom: 2,
+  rowDone: {
+    color: "rgba(255,255,255,0.22)",
+    textDecorationLine: "line-through",
   },
-  specRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 4 },
-  specKey: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_500Medium" },
-  specVal: { color: Colors.textPrimary,   fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 1, textAlign: "right" },
+
+  chk: {
+    width: 24, height: 24, borderRadius: 6,
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)",
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
+  },
+  chkOn: {
+    backgroundColor: "#E03131",
+    borderColor: "#E03131",
+  },
+  chkTick: { color: "#fff", fontSize: 13, fontWeight: "700" },
 });
