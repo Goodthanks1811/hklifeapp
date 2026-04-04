@@ -109,26 +109,12 @@ Respond with ONLY a valid JSON object — no markdown, no code fences, no extra 
   return JSON.parse(text) as Concept;
 }
 
-// ── Branch numerals ───────────────────────────────────────────────────────────
-
-const GLYPHS: Record<string, string> = {
-  "Ethics":                  "I",
-  "Metaphysics":             "II",
-  "Epistemology":            "III",
-  "Logic":                   "IV",
-  "Political Philosophy":    "V",
-  "Aesthetics":              "VI",
-  "Philosophy of Mind":      "VII",
-  "Philosophy of Language":  "VIII",
-};
-
 // ── HTML builder ─────────────────────────────────────────────────────────────
 
 function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
   const dateStr = new Date().toLocaleDateString("en-AU", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
-  const numeral = GLYPHS[concept.branch] ?? "∞";
   const pct = Math.min((seenCount / 100) * 100, 100);
 
   return `<!DOCTYPE html>
@@ -138,22 +124,22 @@ function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Philosophy Daily</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:      #09090b;
-  --surface: #111113;
-  --sur2:    #171719;
-  --border:  #252527;
-  --gold:    #c9a84c;
-  --gold2:   #8a6e2f;
-  --text:    #e2e2e0;
+  --bg:      #080808;
+  --surface: #101010;
+  --sur2:    #161616;
+  --border:  #202020;
+  --accent:  #c0392b;
+  --accent2: #922b21;
+  --text:    #e8e8e8;
   --muted:   #888;
-  --dim:     #4a4a4a;
+  --dim:     #555;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  font-family: 'Jost', -apple-system, sans-serif;
+  font-family: 'DM Sans', -apple-system, sans-serif;
   background: var(--bg);
   min-height: 100vh;
   display: flex;
@@ -165,119 +151,76 @@ body {
 .wrap {
   width: 100%;
   max-width: ${maxW}px;
-  animation: up .6s cubic-bezier(.16,1,.3,1) both;
+  animation: up .5s ease both;
 }
 @keyframes up {
-  from { opacity:0; transform:translateY(18px); }
+  from { opacity:0; transform:translateY(14px); }
   to   { opacity:1; transform:translateY(0); }
 }
 .hdr {
   text-align: center;
-  padding-bottom: 26px;
-  margin-bottom: 26px;
-  position: relative;
-}
-.hdr::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 15%; right: 15%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold2), transparent);
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
 }
 .hdr-date {
-  font-size: .68rem;
-  letter-spacing: 3px;
+  font-size: .7rem;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
   color: var(--dim);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .hdr-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 2.6rem;
-  font-weight: 300;
+  font-family: 'DM Serif Display', serif;
+  font-size: 2rem;
   color: var(--text);
-  letter-spacing: .5px;
+  letter-spacing: -.5px;
   line-height: 1;
 }
-.hdr-title em { font-style: italic; color: var(--gold); }
-.hdr-sub { margin-top:10px; font-size:.72rem; color:var(--dim); font-weight:300; letter-spacing:1px; }
-.concept-meta {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 20px;
-}
-.numeral {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 3.2rem;
-  font-weight: 300;
-  color: var(--gold2);
-  line-height: .9;
-  flex-shrink: 0;
-  min-width: 42px;
-}
-.meta-right { flex: 1; }
-.tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
-.tag {
-  display: inline-flex;
-  align-items: center;
-  background: var(--sur2);
-  border: 1px solid var(--border);
-  color: var(--gold);
-  font-size: .63rem;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-weight: 400;
-}
-.tag.tradition { color: var(--muted); border-color: #1e1e20; }
-.concept-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 2.2rem;
-  font-weight: 400;
-  color: #fff;
-  line-height: 1.1;
-  letter-spacing: -.2px;
-}
+.hdr-sub { margin-top:8px; font-size:.78rem; color:var(--dim); font-weight:300; }
+.red { color: var(--accent); }
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 22px;
+  border-radius: 22px;
+  padding: 24px;
   margin-bottom: 10px;
 }
-.desc {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.2rem;
-  font-weight: 300;
-  line-height: 1.7;
-  color: #d0d0ce;
-  font-style: italic;
-  margin-bottom: 18px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border);
-}
-.thinker-row {
+.tags {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--sur2);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: .7rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 30px;
 }
-.thinker-icon {
-  width:36px; height:36px;
-  background:#0f0f0a;
-  border:1px solid var(--gold2);
-  border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  font-size:.95rem; flex-shrink:0; margin-top:2px;
+.tag.tradition { color: var(--muted); }
+.concept-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.85rem;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  letter-spacing: -.3px;
 }
-.thinker-name { font-size:.9rem; color:var(--text); font-weight:500; margin-bottom:3px; }
-.thinker-work { font-size:.82rem; color:var(--muted); font-style:italic; font-family:'Cormorant Garamond',serif; }
+.desc {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #ccc;
+  font-weight: 300;
+  margin-bottom: 18px;
+}
 .sub {
   background: var(--sur2);
   border: 1px solid var(--border);
@@ -285,41 +228,51 @@ body {
   padding: 14px 16px;
   margin-bottom: 8px;
 }
-.sub:last-of-type { margin-bottom:0; }
+.sub:last-of-type { margin-bottom: 0; }
 .sub-label {
-  font-size: .63rem;
-  letter-spacing: 2px;
+  font-size: .68rem;
+  letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--accent);
   font-weight: 500;
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
-.sub-body { font-size:.92rem; line-height:1.6; color:#adadab; font-weight:300; }
-.sub-body.thought {
-  font-family:'Cormorant Garamond',serif;
-  font-style:italic;
-  font-size:1.05rem;
-  color:#c0c0be;
+.sub-body { font-size:.92rem; line-height:1.55; color:#b8b8b8; font-weight:300; }
+.key-figure {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--sur2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 8px;
 }
+.kf-icon {
+  width:34px; height:34px;
+  background:#1a0a0a;
+  border:1px solid var(--accent2);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.9rem; flex-shrink:0;
+}
+.kf-text { font-size:.85rem; color:#aaa; font-weight:300; }
+.kf-text strong { color:var(--text); font-weight:500; }
+.kf-work { font-size:.8rem; color:var(--dim); margin-top:2px; font-weight:300; }
 .progress-row {
   display:flex; align-items:center; gap:10px;
   margin-top:18px; padding-top:14px;
   border-top:1px solid var(--border);
 }
-.progress-bar { flex:1; height:2px; background:var(--border); border-radius:2px; overflow:hidden; }
-.progress-fill {
-  height:100%;
-  background:linear-gradient(90deg, var(--gold2), var(--gold));
-  border-radius:2px;
-  width:${pct}%;
-}
-.progress-label { font-size:.7rem; color:var(--dim); white-space:nowrap; }
+.progress-bar { flex:1; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.progress-fill { height:100%; background:var(--accent); border-radius:2px; width:${pct}%; }
+.progress-label { font-size:.72rem; color:var(--dim); white-space:nowrap; }
 .footer {
   text-align:center;
   margin-top:18px;
-  font-size:.63rem;
+  font-size:.68rem;
   color:var(--dim);
-  letter-spacing:1.5px;
+  letter-spacing:1px;
   text-transform:uppercase;
 }
 </style>
@@ -328,31 +281,26 @@ body {
 <div class="wrap">
   <div class="hdr">
     <div class="hdr-date">${dateStr}</div>
-    <div class="hdr-title"><em>Philosophy</em> Daily</div>
+    <div class="hdr-title"><span class="red">Philosophy</span> Daily</div>
     <div class="hdr-sub">${seenCount} idea${seenCount !== 1 ? "s" : ""} contemplated</div>
   </div>
-  <div class="concept-meta">
-    <div class="numeral">${numeral}</div>
-    <div class="meta-right">
-      <div class="tags">
-        <span class="tag">${concept.branch}</span>
-        <span class="tag tradition">${concept.tradition}</span>
-      </div>
-      <div class="concept-name">${concept.concept}</div>
-    </div>
-  </div>
   <div class="card">
+    <div class="tags">
+      <span class="tag">🏛 ${concept.branch}</span>
+      <span class="tag tradition">${concept.tradition}</span>
+    </div>
+    <div class="concept-name">${concept.concept}</div>
     <div class="desc">${concept.description}</div>
-    <div class="thinker-row">
-      <div class="thinker-icon">🏛</div>
+    <div class="key-figure">
+      <div class="kf-icon">🎓</div>
       <div>
-        <div class="thinker-name">${concept.keyThinker}</div>
-        <div class="thinker-work">${concept.keyWork}</div>
+        <div class="kf-text"><strong>${concept.keyThinker}</strong></div>
+        <div class="kf-work">${concept.keyWork}</div>
       </div>
     </div>
-    <div class="sub" style="margin-top:8px">
+    <div class="sub">
       <div class="sub-label">🪬 Thought Experiment</div>
-      <div class="sub-body thought">${concept.thoughtExperiment}</div>
+      <div class="sub-body">${concept.thoughtExperiment}</div>
     </div>
     <div class="sub">
       <div class="sub-label">⚡ Modern Relevance</div>
