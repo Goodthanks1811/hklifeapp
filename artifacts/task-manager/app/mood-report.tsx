@@ -185,7 +185,6 @@ function MonthCard({ month, tab }: { month: MonthData; tab: TabType }) {
       <View style={s.monthCard}>
         <View style={s.cardHeader}>
           <Text style={s.cardMonth}>{label}</Text>
-          <Text style={s.cardTotal}>{total} <Text style={s.cardTotalUnit}>entries</Text></Text>
         </View>
         <View style={s.divider} />
         <View style={s.pieRow}>
@@ -203,7 +202,6 @@ function MonthCard({ month, tab }: { month: MonthData; tab: TabType }) {
     <View style={s.monthCard}>
       <View style={s.cardHeader}>
         <Text style={s.cardMonth}>{label}</Text>
-        <Text style={s.cardTotal}>{total} <Text style={s.cardTotalUnit}>entries</Text></Text>
       </View>
       <View style={s.divider} />
       <View style={s.barChartCentered}>
@@ -407,9 +405,8 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
   cardHeader: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: SURFACE,
