@@ -143,6 +143,7 @@ function SideLegend({ slices, total }: { slices: [string, number][]; total: numb
         const pct   = ((count / total) * 100).toFixed(0);
         return (
           <View key={mood} style={s.legendRow}>
+            <View style={{ flex: 1 }} />
             <View style={[s.legendDot, { backgroundColor: color }]} />
             <Text style={s.legendName}>{mood.toUpperCase()}</Text>
             <Text style={[s.legendPct, { color }]}>{pct}%</Text>
@@ -440,10 +441,9 @@ const s = StyleSheet.create({
   },
   legendDot: { width: 7, height: 7, borderRadius: 3.5 },
   legendName: {
-    flex: 1, color: "#fff",
+    color: "#fff",
     fontSize: 10, fontFamily: "Inter_600SemiBold",
     letterSpacing: 1, textTransform: "uppercase",
-    textAlign: "right",
   },
   legendPct: {
     fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "right",
