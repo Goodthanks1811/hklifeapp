@@ -191,18 +191,25 @@ export default function GreekFlashcardsScreen() {
     return (
       <View style={[s.root, { paddingTop: topPad }]}>
         <ScreenHeader title="Greek Flashcards" />
+        <Image
+          source={greekFlag}
+          style={{ width: 0, height: 0, position: "absolute" }}
+          fadeDuration={0}
+          onLoad={() => setFlagLoaded(true)}
+        />
+        {!flagLoaded ? (
+          <View style={s.loadingContainer}>
+            <ActivityIndicator size="large" color="rgba(255,255,255,0.35)" />
+          </View>
+        ) : (
         <ScrollView contentContainerStyle={s.centerContainer} keyboardShouldPersistTaps="handled">
           <View style={s.flagContainer}>
             <Image
               source={greekFlag}
-              style={[s.flagImg, { opacity: flagLoaded ? 1 : 0 }]}
+              style={s.flagImg}
               resizeMode="contain"
               fadeDuration={0}
-              onLoad={() => setFlagLoaded(true)}
             />
-            {!flagLoaded && (
-              <ActivityIndicator style={StyleSheet.absoluteFill} color="rgba(255,255,255,0.4)" />
-            )}
           </View>
           <Text style={s.bigTitle}>Greek Alphabet</Text>
           <Text style={s.subtitle}>24 letters · type the sound</Text>
@@ -212,6 +219,7 @@ export default function GreekFlashcardsScreen() {
             <Text style={s.btnPrimaryText}>Start</Text>
           </Pressable>
         </ScrollView>
+        )}
       </View>
     );
   }
@@ -347,6 +355,7 @@ const s = StyleSheet.create({
   centerContainer: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   quizContainer:   { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 20 },
   flag:            { fontSize: 64, marginBottom: 16 },
+  loadingContainer:{ flex: 1, alignItems: "center", justifyContent: "center" },
   flagContainer:   { width: 300, height: 200, marginBottom: 24, justifyContent: "center", alignItems: "center" },
   flagImg:         { width: 300, height: 200, borderRadius: 10 },
   bigTitle:        { fontSize: 32, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 8 },
