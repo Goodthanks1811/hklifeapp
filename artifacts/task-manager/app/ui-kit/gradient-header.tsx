@@ -81,7 +81,7 @@ export default function GradientHeaderScreen() {
       {/* ── List ─────────────────────────────────────── */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingHorizontal: 16, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}
       >
         {ITEMS.map((item, i) => <Row key={i} {...item} />)}
@@ -136,11 +136,13 @@ const s = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.05)",
-    gap: 13,
+    height: 48,
+    paddingHorizontal: 14,
+    gap: 12,
+    backgroundColor: "#0f0f0f",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    marginBottom: 8,
   },
   pill: {
     width: 32, height: 32, borderRadius: 8,

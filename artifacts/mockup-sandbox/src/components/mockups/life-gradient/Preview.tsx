@@ -20,9 +20,11 @@ const PRIMARY = "#E03131";
 function Row({ emoji, title, done }: typeof ITEMS[0]) {
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 13,
-      padding: "13px 18px",
-      borderBottom: "1px solid rgba(255,255,255,0.05)",
+      display: "flex", alignItems: "center", gap: 12,
+      height: 48, paddingLeft: 14, paddingRight: 14,
+      backgroundColor: "#0f0f0f",
+      border: "1px solid #2A2A2A",
+      marginBottom: 8,
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: 8,
@@ -105,7 +107,7 @@ export function Preview() {
       </div>
 
       {/* ── List ─────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" } as any}>
+      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "8px 16px 32px" } as any}>
         {ITEMS.map((item, i) => <Row key={i} {...item} />)}
       </div>
 
