@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
 import React, { useCallback, useEffect, useRef } from "react";
 import {
@@ -146,6 +147,15 @@ export function Drawer() {
     closeDrawer();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, isTablet]);
+
+  // Close drawer when a deep-link URL arrives even if the route doesn't change
+  // (e.g. shortcut fires while already on /calendar — pathname stays the same
+  // so the effect above doesn't re-run, but the drawer should still close)
+  useEffect(() => {
+    if (isTablet) return undefined;
+    const sub = Linking.addEventListener("url", () => { closeDrawer(); });
+    return () => sub.remove();
+  }, [isTablet, closeDrawer]);
 
   // Scroll drawer back to top each time it opens
   const scrollRef = useRef<ScrollView>(null);
