@@ -1908,7 +1908,7 @@ export default function LifeTaskScreen() {
     <View style={sc.root}>
 
       {/* ── Gradient header ───────────────────────────────────────────────────── */}
-      <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8, paddingBottom: isTablet ? 88 : 56 }]}>
+      <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8, paddingBottom: isTablet ? 58 : 36 }]}>
         <LinearGradient
           colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.28)", "transparent"]}
           locations={[0, 0.45, 1]}

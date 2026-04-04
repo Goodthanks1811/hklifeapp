@@ -293,10 +293,10 @@ export function Drawer() {
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 12, paddingBottom: 12 }}>
-        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 150 : 100 }]}>
+        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 120 : 70 }]}>
           {(() => {
             const bW = DRAWER_WIDTH;
-            const bH = isTablet ? 150 : 100;
+            const bH = isTablet ? 120 : 70;
             const uri = bannerUri ?? FALLBACK_BANNER;
             const iw = bW * BANNER_SCALE;
             const ih = bH * BANNER_SCALE;
