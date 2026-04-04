@@ -249,10 +249,71 @@ function CategoryRow({ cat, maxVal }: { cat: CategoryData; maxVal: number }) {
 
 // ── Month View ────────────────────────────────────────────────────────────────
 function MonthView({ month }: { month: MonthData }) {
+  const { width } = useWindowDimensions();
+  const isTablet  = width >= 768;
+
   const ratio = month.totalCreated > 0
     ? Math.round((month.totalDone / month.totalCreated) * 100)
     : 0;
   const ratioColor = ratio >= 80 ? DONE_CLR : ratio >= 50 ? "#FFC107" : HK_RED;
+
+  const barChartCard = month.visibleWeeks.length > 0 ? (
+    <View style={styles.card}>
+      <WorkloadBarChart
+        weeks={month.weeks}
+        visibleWeeks={month.visibleWeeks}
+        maxVal={month.maxWeekVal}
+      />
+      <View style={styles.chartLegend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: HK_RED }]} />
+          <Text style={styles.legendText}>Created</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: DONE_CLR }]} />
+          <Text style={styles.legendText}>Done</Text>
+        </View>
+      </View>
+    </View>
+  ) : (
+    <View style={[styles.card, styles.emptyCard]}>
+      <Text style={styles.emptyCardText}>No data yet for this month</Text>
+    </View>
+  );
+
+  const weeklyCard = (
+    <View style={[styles.card, isTablet && { flex: 1 }]}>
+      <View style={styles.cardSectionHeader}>
+        <Text style={styles.cardSectionTitle}>Weekly Breakdown</Text>
+      </View>
+      <View style={styles.cardSectionDivider} />
+      <View style={styles.cardSectionContent}>
+        {month.visibleWeeks.length > 0
+          ? month.visibleWeeks.map((w) => (
+              <WeekRow key={w} week={w} data={month.weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] }} maxVal={month.maxWeekVal} />
+            ))
+          : <Text style={styles.emptyCardText}>No weeks yet</Text>
+        }
+      </View>
+    </View>
+  );
+
+  const categoryCard = (
+    <View style={[styles.card, { marginBottom: 24 }]}>
+      <View style={styles.cardSectionHeader}>
+        <Text style={styles.cardSectionTitle}>Category Breakdown</Text>
+      </View>
+      <View style={styles.cardSectionDivider} />
+      <View style={styles.cardSectionContent}>
+        {month.categories.length > 0
+          ? month.categories.map((cat) => (
+              <CategoryRow key={cat.name} cat={cat} maxVal={month.maxCatVal} />
+            ))
+          : <Text style={styles.emptyCardText}>No category data</Text>
+        }
+      </View>
+    </View>
+  );
 
   return (
     <View>
@@ -274,62 +335,23 @@ function MonthView({ month }: { month: MonthData }) {
         </View>
       </View>
 
-      {/* Bar chart */}
-      {month.visibleWeeks.length > 0 ? (
-        <View style={styles.card}>
-          <WorkloadBarChart
-            weeks={month.weeks}
-            visibleWeeks={month.visibleWeeks}
-            maxVal={month.maxWeekVal}
-          />
-          <View style={styles.chartLegend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: HK_RED }]} />
-              <Text style={styles.legendText}>Created</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: DONE_CLR }]} />
-              <Text style={styles.legendText}>Done</Text>
-            </View>
+      {isTablet ? (
+        <>
+          {/* iPad: bar chart left, weekly breakdown right */}
+          <View style={styles.tabletTopRow}>
+            <View style={styles.tabletLeft}>{barChartCard}</View>
+            <View style={styles.tabletRight}>{weeklyCard}</View>
           </View>
-        </View>
+          {/* iPad: category breakdown full width */}
+          {categoryCard}
+        </>
       ) : (
-        <View style={[styles.card, styles.emptyCard]}>
-          <Text style={styles.emptyCardText}>No data yet for this month</Text>
-        </View>
+        <>
+          {barChartCard}
+          {weeklyCard}
+          {categoryCard}
+        </>
       )}
-
-      {/* Weekly breakdown */}
-      <View style={styles.card}>
-        <View style={styles.cardSectionHeader}>
-          <Text style={styles.cardSectionTitle}>Weekly Breakdown</Text>
-        </View>
-        <View style={styles.cardSectionDivider} />
-        <View style={styles.cardSectionContent}>
-          {month.visibleWeeks.length > 0
-            ? month.visibleWeeks.map((w) => (
-                <WeekRow key={w} week={w} data={month.weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] }} maxVal={month.maxWeekVal} />
-              ))
-            : <Text style={styles.emptyCardText}>No weeks yet</Text>
-          }
-        </View>
-      </View>
-
-      {/* Category breakdown */}
-      <View style={[styles.card, { marginBottom: 24 }]}>
-        <View style={styles.cardSectionHeader}>
-          <Text style={styles.cardSectionTitle}>Category Breakdown</Text>
-        </View>
-        <View style={styles.cardSectionDivider} />
-        <View style={styles.cardSectionContent}>
-          {month.categories.length > 0
-            ? month.categories.map((cat) => (
-                <CategoryRow key={cat.name} cat={cat} maxVal={month.maxCatVal} />
-              ))
-            : <Text style={styles.emptyCardText}>No category data</Text>
-          }
-        </View>
-      </View>
     </View>
   );
 }
@@ -484,6 +506,9 @@ const styles = StyleSheet.create({
   cardSectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 2, textTransform: "uppercase", fontWeight: "800" },
   cardSectionDivider: { height: 1, backgroundColor: "#1e1e22", marginHorizontal: -12, marginBottom: 10 },
   cardSectionContent: {},
+  tabletTopRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  tabletLeft:   { flex: 1 },
+  tabletRight:  { flex: 1 },
   weekRow: { backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 10, marginBottom: 8 },
   weekHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   weekName: { fontSize: 15, fontWeight: "900", color: "#fff", fontFamily: "Inter_700Bold" },
