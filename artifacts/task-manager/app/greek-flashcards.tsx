@@ -107,7 +107,8 @@ export default function GreekFlashcardsScreen() {
   const [score,       setScore]       = useState(0);
   const [mistakes,    setMistakes]    = useState<Mistake[]>([]);
 
-  const inputRef     = useRef<TextInput>(null);
+  const inputRef     = useRef<TextInput
+              keyboardAppearance="dark">(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const kbOffset     = useRef(new Animated.Value(0)).current;
 
@@ -287,6 +288,7 @@ export default function GreekFlashcardsScreen() {
           </View>
 
           <TextInput
+              keyboardAppearance="dark"
             ref={inputRef}
             style={s.input}
             value={answer}

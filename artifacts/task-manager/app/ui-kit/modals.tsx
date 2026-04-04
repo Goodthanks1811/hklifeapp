@@ -262,6 +262,7 @@ export default function ModalsScreen() {
 
       <BottomSheet visible={inputSheetVisible} onClose={() => setInputSheetVisible(false)} title="Add a note">
         <TextInput
+              keyboardAppearance="dark"
           style={styles.sheetInput}
           value={inputValue}
           onChangeText={setInputValue}

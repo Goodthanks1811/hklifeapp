@@ -214,6 +214,7 @@ function NewFolderModal({
         <Pressable style={s.modalBox} onPress={(e) => e.stopPropagation()}>
           <Text style={s.modalTitle}>New Folder</Text>
           <TextInput
+              keyboardAppearance="dark"
             style={s.modalInput}
             placeholder="Folder name"
             placeholderTextColor="#555"

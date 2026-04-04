@@ -87,6 +87,7 @@ export function SetupScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>NOTION API KEY</Text>
             <TextInput
+              keyboardAppearance="dark"
               style={styles.input}
               value={inputKey}
               onChangeText={setInputKey}

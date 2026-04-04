@@ -138,11 +138,13 @@ function DetailModal({ item, onClose, onUpdate }: {
           </View>
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>TITLE</Text>
-            <TextInput style={styles.fieldInput} value={label} onChangeText={setLabel} placeholderTextColor={Colors.textMuted} selectionColor={Colors.primary} />
+            <TextInput
+              keyboardAppearance="dark" style={styles.fieldInput} value={label} onChangeText={setLabel} placeholderTextColor={Colors.textMuted} selectionColor={Colors.primary} />
           </View>
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>NOTES</Text>
-            <TextInput style={[styles.fieldInput, styles.fieldTextArea]} value={notes} onChangeText={setNotes} multiline numberOfLines={4} placeholderTextColor={Colors.textMuted} selectionColor={Colors.primary} textAlignVertical="top" />
+            <TextInput
+              keyboardAppearance="dark" style={[styles.fieldInput, styles.fieldTextArea]} value={notes} onChangeText={setNotes} multiline numberOfLines={4} placeholderTextColor={Colors.textMuted} selectionColor={Colors.primary} textAlignVertical="top" />
           </View>
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>PRIORITY</Text>

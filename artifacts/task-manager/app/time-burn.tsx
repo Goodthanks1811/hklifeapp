@@ -545,6 +545,7 @@ export default function TimeBurnScreen() {
               <View style={s.cfgField}>
                 <Text style={s.cfgFieldLabel}>Label</Text>
                 <TextInput
+              keyboardAppearance="dark"
                   style={s.cfgInput}
                   value={cfgLabel}
                   onChangeText={setCfgLabel}
@@ -558,6 +559,7 @@ export default function TimeBurnScreen() {
                 <View style={[s.cfgField, { flex: 1 }]}>
                   <Text style={s.cfgFieldLabel}>Budget</Text>
                   <TextInput
+              keyboardAppearance="dark"
                     style={s.cfgInput}
                     value={cfgBudget}
                     onChangeText={setCfgBudget}
@@ -582,6 +584,7 @@ export default function TimeBurnScreen() {
                 <View style={s.cfgField}>
                   <Text style={s.cfgFieldLabel}>Custom (seconds)</Text>
                   <TextInput
+              keyboardAppearance="dark"
                     style={s.cfgInput}
                     value={cfgCust}
                     onChangeText={setCfgCust}

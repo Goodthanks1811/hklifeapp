@@ -359,6 +359,7 @@ function TitleModal({
         <Animated.View style={[tm.card, { transform: [{ translateX: shakeX }] }]}>
           <Text style={tm.cardTitle}>New Event</Text>
           <TextInput
+              keyboardAppearance="dark"
             style={tm.input}
             placeholder="Add summary"
             placeholderTextColor={MUT}
