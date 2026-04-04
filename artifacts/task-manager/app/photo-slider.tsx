@@ -49,6 +49,8 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .img-btn-dim  { opacity:0.35 !important; }
 .zoom-active  { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
 .slider-active{ background:${C.purple} !important; box-shadow:0 0 0 2px rgba(191,90,242,.45); }
+/* Lock all other buttons when slider mode is on */
+.bar.slider-lock > *:not(#btnSlider) { opacity:0.22; pointer-events:none; transition:opacity .2s; }
 .eye-active   { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
 .brush-active-btn { background:${C.green} !important; box-shadow:0 0 8px rgba(48,168,48,.45) !important; }
 .erase-on  { background:${C.primary} !important; box-shadow:0 0 8px rgba(224,49,49,.45) !important; }
@@ -94,7 +96,7 @@ canvas { position:absolute; top:0; left:0; display:block; }
 .load-btn { display:inline-block; padding:14px 36px; border:none; border-radius:13px; font-size:15px; font-weight:700; cursor:pointer; background:${C.primary}; color:#fff; margin-bottom:12px; font-family:inherit; box-shadow:0 0 18px rgba(224,49,49,.4); }
 .load-cancel { display:block; width:100%; padding:14px; border:none; border-radius:13px; font-size:15px; font-weight:600; cursor:pointer; background:${C.card}; color:${C.text}; font-family:inherit; }
 
-#panel-name { display:none; }
+#panel-rename { display:none; }
 .name-row { margin-bottom:14px; }
 .name-label { font-size:12px; font-weight:700; color:${C.muted}; margin-bottom:7px; letter-spacing:.4px; text-transform:uppercase; }
 .name-label span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; position:relative; top:-1px; }
@@ -117,8 +119,8 @@ input[type=file] { display:none; }
 
 <!-- ── Single scrollable toolbar ─────────────────── -->
 <div class="bar">
-  <button class="img-btn" id="btn1" onclick="imgBtnTap(1)">Image 1</button>
-  <button class="img-btn" id="btn2" onclick="imgBtnTap(2)">Image 2</button>
+  <button class="img-btn" id="btn1" onclick="if(!longPressFired)imgBtnTap(1)" ontouchstart="startLongPress(1)" ontouchend="cancelLongPress()" ontouchcancel="cancelLongPress()" oncontextmenu="return false">Image 1</button>
+  <button class="img-btn" id="btn2" onclick="if(!longPressFired)imgBtnTap(2)" ontouchstart="startLongPress(2)" ontouchend="cancelLongPress()" ontouchcancel="cancelLongPress()" oncontextmenu="return false">Image 2</button>
   <button class="btn-icon" id="btnSlider"  onclick="toggleSlider()">&#9474;</button>
   <!-- fit: plus with 4 arrowheads -->
   <button class="btn-icon" id="btnFit"     onclick="fitActive()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6.5" y1="1.5" x2="6.5" y2="11.5"/><polyline points="4,4 6.5,1.5 9,4"/><polyline points="4,9 6.5,11.5 9,9"/><line x1="1.5" y1="6.5" x2="11.5" y2="6.5"/><polyline points="4,4 1.5,6.5 4,9"/><polyline points="9,4 11.5,6.5 9,9"/></svg></button>
@@ -128,9 +130,8 @@ input[type=file] { display:none; }
   <!-- inline brush tools: only visible when brush mode is on -->
   <button class="btn-icon brush-inline" id="btnErase"   onclick="setBrushMode('erase')"  >&#9675;</button>
   <button class="btn-icon brush-inline" id="btnRestore" onclick="setBrushMode('restore')" >&#9679;</button>
-  <button class="btn-icon brush-inline" id="btnDraw"    onclick="setBrushMode('color')"  >&#9998;</button>
-  <!-- colour picker pencil: only visible in brush mode; bigger via .picker-btn -->
-  <button class="btn-icon brush-inline picker-btn" id="btnEye" onclick="toggleEyedrop()">&#9998;</button>
+  <!-- colour picker pencil: shown only when erase or restore is active -->
+  <button class="btn-icon" id="btnEye" onclick="toggleEyedrop()" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
   <!-- brush toggle: circle (no fill) -->
   <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9675;</button>
   <!-- download + reset + zoom: pushed to far right together -->
@@ -179,20 +180,14 @@ input[type=file] { display:none; }
     </div>
     <button class="load-cancel" id="load-cancel" onclick="closeSheet()" style="display:none;">Cancel</button>
   </div>
-  <div id="panel-name">
-    <div class="sheet-title">Name Your Images</div>
-    <div class="sheet-desc">Optional — tap Skip to start comparing.</div>
-    <div class="name-row">
-      <div class="name-label"><span style="background:${C.blue};"></span>Image 1</div>
-      <input class="sheet-input" id="nameInput1" type="text" maxlength="20" placeholder="e.g. Before">
-    </div>
-    <div class="name-row">
-      <div class="name-label"><span style="background:${C.primary};"></span>Image 2</div>
-      <input class="sheet-input" id="nameInput2" type="text" maxlength="20" placeholder="e.g. After">
+  <div id="panel-rename" style="display:none">
+    <div class="sheet-title" id="renameTitle">Rename Image</div>
+    <div style="margin-bottom:12px">
+      <input class="sheet-input" id="renameInput" type="text" maxlength="20" placeholder="Image name">
     </div>
     <div class="sheet-row">
-      <button class="sheet-btn secondary" onclick="skipNames()">Skip</button>
-      <button class="sheet-btn primary"   onclick="confirmNames()">Done</button>
+      <button class="sheet-btn secondary" onclick="closeSheet()">Cancel</button>
+      <button class="sheet-btn primary"   onclick="confirmRename()">Done</button>
     </div>
   </div>
 </div>
@@ -249,19 +244,24 @@ var tkp=document.getElementById('tkp');
 var sheetBg=document.getElementById('sheet-bg');
 var sheet=document.getElementById('sheet');
 var panelLoad=document.getElementById('panel-load');
-var panelName=document.getElementById('panel-name');
+var panelRename=document.getElementById('panel-rename');
+var toolBar=document.querySelector('.bar');
 var btn1=document.getElementById('btn1');
 var btn2=document.getElementById('btn2');
 var colorSwatch=document.getElementById('colorSwatch');
+var renameTarget=0,longPressTimer=null,longPressFired=false;
 
 function W(){return stage.clientWidth;}
 function H(){return stage.clientHeight;}
 
 // ── Sheet ──────────────────────────────────────────────
-function showLoadPanel(){panelLoad.style.display='block';panelName.style.display='none';}
-function showNamePanel(){panelLoad.style.display='none';panelName.style.display='block';}
+function showLoadPanel(){panelLoad.style.display='block';panelRename.style.display='none';}
 function openLoadSheet(){document.getElementById('load-cancel').style.display=(img1||img2)?'block':'none';showLoadPanel();sheetBg.classList.add('open');sheet.classList.add('open');}
-function closeSheet(){sheetBg.classList.remove('open');sheet.classList.remove('open');sheet.style.bottom='';}
+function closeSheet(){sheetBg.classList.remove('open');sheet.classList.remove('open');sheet.style.bottom='';panelRename.style.display='none';}
+// ── Long-press rename ──────────────────────────────
+function startLongPress(n){longPressFired=false;longPressTimer=setTimeout(function(){longPressFired=true;longPressTimer=null;renameTarget=n;var ri=document.getElementById('renameInput');document.getElementById('renameTitle').textContent='Rename Image '+n;ri.value=n===1?name1:name2;panelLoad.style.display='none';panelRename.style.display='block';sheetBg.classList.add('open');sheet.classList.add('open');setTimeout(function(){ri.focus();ri.select();},350);},600);}
+function cancelLongPress(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}}
+function confirmRename(){var v=document.getElementById('renameInput').value.trim();if(v){if(renameTarget===1)name1=v;else name2=v;}closeSheet();updateActiveUI();}
 function bgTap(){if(img1||img2)closeSheet();}
 function triggerPick(){document.getElementById('filePick').click();}
 
@@ -289,21 +289,15 @@ function filesChosen(e){
     if(f2){
       loadFile(f2,function(imgB){
         img2=imgB;di2=prescale(imgB);tx2=defaultTx(img2,W(),H());
-        initMask();active=2;draw();snapshot();
-        document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';
-        showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
+        initMask();active=2;draw();snapshot();closeSheet();updateActiveUI();
       });
     }else{
-      active=1;draw();snapshot();
-      document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';
-      showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
+      active=1;draw();snapshot();closeSheet();updateActiveUI();
     }
   });
   e.target.value='';
 }
 
-function confirmNames(){var v1=document.getElementById('nameInput1').value.trim();var v2=document.getElementById('nameInput2').value.trim();if(v1)name1=v1;if(v2)name2=v2;closeSheet();updateActiveUI();}
-function skipNames(){closeSheet();updateActiveUI();}
 
 // ── Active UI ──────────────────────────────────────────
 function updateActiveUI(){
@@ -576,9 +570,9 @@ function toggleZoom(){
   draw();
 }
 function toggleSlider(){
-  if(!sliderMode){sliderMode=true;sliderVert=true;sliderPos=0.5;document.getElementById('btnSlider').className='btn-icon slider-active';}
+  if(!sliderMode){sliderMode=true;sliderVert=true;sliderPos=0.5;document.getElementById('btnSlider').className='btn-icon slider-active';toolBar.classList.add('slider-lock');}
   else if(sliderVert){sliderVert=false;}
-  else{sliderMode=false;document.getElementById('btnSlider').className='btn-icon';dividerEl.style.display='none';}
+  else{sliderMode=false;document.getElementById('btnSlider').className='btn-icon';dividerEl.style.display='none';toolBar.classList.remove('slider-lock');}
   draw();
 }
 function resetActive(){
@@ -614,10 +608,11 @@ function toggleBrush(){
   if(brushMode){
     bb.classList.add('brush-active-btn');
     _setBrushInline(true);
-    setBrushMode('erase'); // default to erase when opening
+    setBrushMode('erase'); // default to erase when opening (also shows eyeBtn)
   }else{
     bb.classList.remove('brush-active-btn');
     _setBrushInline(false);
+    document.getElementById('btnEye').style.display='none'; // hide colour picker
     // turn off eyedrop if on
     if(eyedropMode){eyedropMode=false;stage.classList.remove('eye-cursor');colorSwatch.classList.remove('picking');}
   }
@@ -628,19 +623,13 @@ function setBrushMode(m){
   brushPaintMode=m;
   var eBtn=document.getElementById('btnErase');
   var rBtn=document.getElementById('btnRestore');
-  var dBtn=document.getElementById('btnDraw');
+  var eyeBtn=document.getElementById('btnEye');
   // reset all
   eBtn.className='btn-icon brush-inline bi-on';
   rBtn.className='btn-icon brush-inline bi-on';
-  dBtn.className='btn-icon brush-inline bi-on';
-  dBtn.style.background='';
-  if(m==='erase'){eBtn.classList.add('erase-on');colorSwatch.classList.remove('swatch-active');}
-  else if(m==='restore'){rBtn.classList.add('restore-on');colorSwatch.classList.remove('swatch-active');}
-  else if(m==='color'){
-    dBtn.classList.add('draw-on');
-    dBtn.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';
-    colorSwatch.classList.add('swatch-active');
-  }
+  if(m==='erase'){eBtn.classList.add('erase-on');colorSwatch.classList.remove('swatch-active');eyeBtn.style.display='flex';}
+  else if(m==='restore'){rBtn.classList.add('restore-on');colorSwatch.classList.remove('swatch-active');eyeBtn.style.display='flex';}
+  else if(m==='color'){colorSwatch.classList.add('swatch-active');eyeBtn.style.display='none';}
 }
 
 // ── Eyedropper ─────────────────────────────────────────
