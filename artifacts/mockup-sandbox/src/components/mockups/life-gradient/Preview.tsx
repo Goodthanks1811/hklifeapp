@@ -91,17 +91,11 @@ export function Preview() {
           </div>
 
           {/* Title */}
-          <div style={{ position: "relative", zIndex: 1, textAlign: "center", marginBottom: 4 }}>
+          <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
             <span style={{
               fontSize: 20, fontWeight: 700, color: "#fff",
               textShadow: "0 0 24px rgba(224,49,49,0.45)",
             }}>Gradient Header</span>
-          </div>
-          {/* Subtitle */}
-          <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-              {doneCount} done · {ITEMS.length} items
-            </span>
           </div>
         </div>
       </div>

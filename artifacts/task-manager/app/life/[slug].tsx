@@ -1929,9 +1929,6 @@ export default function LifeTaskScreen() {
           </Pressable>
         </View>
         <Text style={sc.gradTitle}>{config.title}</Text>
-        {!loading && !error && (
-          <Text style={sc.gradSub}>{tasks.length} item{tasks.length !== 1 ? "s" : ""}</Text>
-        )}
       </View>
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}

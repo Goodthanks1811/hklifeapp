@@ -74,8 +74,6 @@ export default function GradientHeaderScreen() {
 
         {/* Title */}
         <Text style={s.title}>Gradient Header</Text>
-        {/* Subtitle */}
-        <Text style={s.subtitle}>{doneCount} done · {ITEMS.length} items</Text>
       </View>
 
       {/* ── List ─────────────────────────────────────── */}
