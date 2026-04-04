@@ -83,12 +83,20 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 canvas { position:absolute; top:0; left:0; display:block; }
 #divider { position:absolute; z-index:3; background:rgba(255,255,255,.85); box-shadow:0 0 8px rgba(0,0,0,.6); pointer-events:none; display:none; }
 
-/* ── Sheet ───────────────────────────────────────────── */
+/* ── Sheet — phone (bottom sheet) ────────────────────── */
 #sheet-bg { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,0); pointer-events:none; transition:background 0.28s; }
 #sheet-bg.open { background:rgba(0,0,0,.65); pointer-events:all; }
 #sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; background:${C.surface}; border-radius:20px 20px 0 0; padding:0 20px 48px; transform:translateY(100%); transition:transform 0.32s cubic-bezier(0.32,.72,0,1), bottom 0.22s ease; border-top:1px solid ${C.border}; }
 #sheet.open { transform:translateY(0); }
 .sheet-handle { width:36px; height:5px; border-radius:3px; background:${C.border}; margin:12px auto 22px; }
+
+/* ── Sheet — iPad (centered modal) ──────────────────── */
+@media (min-width:768px) {
+  #sheet-bg.open { background:rgba(0,0,0,.55); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  #sheet { left:50%; right:auto; bottom:auto; top:50%; width:420px; transform:translate(-50%,-50%) scale(0.94); opacity:0; border-radius:20px; padding:0 28px 32px; border:1px solid ${C.border}; transition:transform 0.22s ease, opacity 0.22s ease; }
+  #sheet.open { transform:translate(-50%,-50%) scale(1); opacity:1; }
+  .sheet-handle { display:none; }
+}
 .sheet-title { font-size:17px; font-weight:800; text-align:center; margin-bottom:4px; }
 .sheet-desc { font-size:13px; color:${C.muted}; text-align:center; margin-bottom:24px; line-height:1.45; }
 
@@ -266,7 +274,7 @@ function bgTap(){if(img1||img2)closeSheet();}
 function triggerPick(){document.getElementById('filePick').click();}
 
 if(window.visualViewport){
-  function _onVV(){var kb=Math.max(0,window.innerHeight-window.visualViewport.height);sheet.style.bottom=kb>50?kb+'px':'';}
+  function _onVV(){if(window.innerWidth>=768){sheet.style.bottom='';return;}var kb=Math.max(0,window.innerHeight-window.visualViewport.height);sheet.style.bottom=kb>50?kb+'px':'';}
   window.visualViewport.addEventListener('resize',_onVV);
   window.visualViewport.addEventListener('scroll',_onVV);
 }
