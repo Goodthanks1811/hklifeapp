@@ -100,7 +100,7 @@ function parseMatches(rawData: any): Match[] {
     const ageMs      = Date.now() - kickoff.getTime();
     const isComplete = f.matchState === "FullTime" || f.matchState === "PostMatch";
     return {
-      id:          String(f.matchId || Math.random()),
+      id:          String(f.matchId || f.id || `${f.roundNumber ?? rawData.roundNumber ?? 0}_${f.homeTeam?.nickName || f.homeTeam?.teamName || "H"}_${f.awayTeam?.nickName || f.awayTeam?.teamName || "A"}`),
       homeTeam:    f.homeTeam?.nickName || f.homeTeam?.teamName || "TBA",
       awayTeam:    f.awayTeam?.nickName || f.awayTeam?.teamName || "TBA",
       homeScore:   f.homeTeam?.score ?? null,
@@ -630,7 +630,18 @@ export default function NRLScheduleScreen() {
       try {
         const raw = await AsyncStorage.getItem(PICKS_KEY);
         console.log("[NRL_PICKS] load from storage:", raw ?? "null");
-        if (raw) allPicksRef.current = JSON.parse(raw);
+        if (raw) {
+          const stored: Record<string, Record<string, string>> = JSON.parse(raw);
+          // Migrate: wipe picks that have old Math.random() float keys (decimals without underscores)
+          const allKeys = Object.values(stored).flatMap(p => Object.keys(p));
+          const hasRandomKeys = allKeys.some(k => k.includes(".") && !k.includes("_"));
+          if (hasRandomKeys) {
+            console.log("[NRL_PICKS] wiping old random-key data");
+            await AsyncStorage.removeItem(PICKS_KEY);
+          } else {
+            allPicksRef.current = stored;
+          }
+        }
       } catch (e) {
         console.log("[NRL_PICKS] load ERROR:", e);
       }
