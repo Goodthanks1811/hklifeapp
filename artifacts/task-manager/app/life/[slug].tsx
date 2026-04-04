@@ -1910,8 +1910,8 @@ export default function LifeTaskScreen() {
       {/* ── Gradient header ───────────────────────────────────────────────────── */}
       <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8, paddingBottom: isTablet ? 58 : 36 }]}>
         <LinearGradient
-          colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.28)", "transparent"]}
-          locations={[0, 0.45, 1]}
+          colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.32)", "rgba(15,15,15,0.88)", "#0f0f0f"]}
+          locations={[0, 0.42, 0.78, 1]}
           style={StyleSheet.absoluteFillObject}
         />
         <LinearGradient
@@ -1937,12 +1937,6 @@ export default function LifeTaskScreen() {
           </Pressable>
         </View>
         <Text style={sc.gradTitle}>{config.title}</Text>
-        {/* Soft fade-to-background at the header's bottom edge */}
-        <LinearGradient
-          colors={["transparent", "#0f0f0f"]}
-          style={{ position: "absolute", bottom: -6, left: 0, right: 0, height: 16 }}
-          pointerEvents="none"
-        />
       </View>
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
