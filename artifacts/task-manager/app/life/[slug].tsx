@@ -1911,12 +1911,12 @@ export default function LifeTaskScreen() {
       <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8, paddingBottom: isTablet ? 58 : 36 }]}>
         <LinearGradient
           colors={[
-            "rgba(224,49,49,0.72)",
-            "rgba(205,38,38,0.60)",
-            "rgba(175,25,25,0.46)",
-            "rgba(130,15,15,0.32)",
-            "rgba(80,8,8,0.18)",
-            "rgba(30,3,3,0.07)",
+            "rgba(224,49,49,0.90)",
+            "rgba(215,42,42,0.74)",
+            "rgba(190,28,28,0.56)",
+            "rgba(145,16,16,0.38)",
+            "rgba(90,8,8,0.20)",
+            "rgba(35,3,3,0.08)",
             "#0f0f0f",
           ]}
           locations={[0, 0.18, 0.36, 0.54, 0.70, 0.85, 1]}
