@@ -155,6 +155,16 @@ input[type=file] { display:none; }
   <span class="oval" id="oval">100%</span>
 </div>
 
+<!-- ── Brush settings bar ────────────────────────── -->
+<div class="obar brush-inline" id="bbar">
+  <label>Size</label>
+  <input type="range" id="bszsl" min="2" max="120" value="20" oninput="setBrushSize(this.value)">
+  <span class="oval" id="bszval">20</span>
+  <label style="margin-left:8px;">Soft</label>
+  <input type="range" id="bsfsl" min="0" max="100" value="0" oninput="setBrushSoft(this.value)">
+  <span class="oval" id="bsfval">0%</span>
+</div>
+
 <!-- ── Stage ─────────────────────────────────────── -->
 <div id="stage">
   <canvas id="cv"></canvas>
@@ -610,6 +620,8 @@ function resetActive(){
   var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}
 }
 function setOpacity(v){opacity2=v/100;document.getElementById('oval').textContent=v+'%';drawRaf();}
+function setBrushSize(v){brushSize=parseInt(v);document.getElementById('bszval').textContent=v;}
+function setBrushSoft(v){brushSoft=parseInt(v)/100;document.getElementById('bsfval').textContent=v+'%';}
 window.addEventListener('resize',function(){var w=W(),h=H();if(img1)tx1=defaultTx(img1,w,h);if(img2)tx2=defaultTx(img2,w,h);gTx=null;draw();});
 
 // ── Brush controls ─────────────────────────────────────
