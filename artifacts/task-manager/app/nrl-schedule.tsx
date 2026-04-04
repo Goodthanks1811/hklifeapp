@@ -1,8 +1,14 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +32,7 @@ const SPOILER_WINDOW_MS   = 24 * 60 * 60 * 1000;
 const MAX_CONTENT_WIDTH   = 640;
 const YEAR                = new Date().getFullYear();
 const BASE_URL            = `https://www.nrl.com`;
+const PICKS_KEY           = "@nrl_picks";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Match {
@@ -232,7 +239,7 @@ function matchCard(m: Match, isDrgTab: boolean): string {
 
   if (m.isBye) {
     return `
-<div class="match-card">
+<div class="match-card" id="mc-${m.id}">
   <div class="match-body" style="justify-content:center;padding:20px 14px">
     <div style="text-align:center">
       <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:26px;color:${NRL_MUTED};letter-spacing:1px">BYE</div>
@@ -272,7 +279,7 @@ function matchCard(m: Match, isDrgTab: boolean): string {
   }
 
   return `
-<div class="match-card">
+<div class="match-card" id="mc-${m.id}">
   <div class="match-body">
     <div class="team-block">
       <div class="team-colour-bar" style="background:${m.homeColour}"></div>
@@ -403,7 +410,8 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .day-header{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;color:#bbb;text-align:center;padding:6px 0 8px;letter-spacing:.3px}
 .day-divider{height:1px;background:linear-gradient(to right,transparent,#2a3a2a 30%,#2a3a2a 70%,transparent);margin:10px 20px 14px}
 .cards-col{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
-.match-card{background:${NRL_CARD};border:1px solid ${NRL_BORDER};border-radius:12px;overflow:hidden}
+.match-card{background:${NRL_CARD};border:1px solid ${NRL_BORDER};border-radius:12px;overflow:hidden;position:relative;}
+.pick-chip{position:absolute;top:6px;right:8px;font-size:22px;line-height:1;pointer-events:none;z-index:10;}
 .match-body{padding:14px;display:flex;align-items:center;gap:8px}
 .team-block{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
 .team-colour-bar{height:3px;width:32px;border-radius:2px}
@@ -445,6 +453,9 @@ td.ldiff{font-size:13px;}.dpos{color:#5a9;}.dneg{color:#a55;}
 var currentTab='nrl';
 var dragonsLoaded=false;
 var ladderLoaded=false;
+var currentRound=${selRound};
+var nrlLogoTimer=null;
+var picksShowing=false;
 function postMsg(o){if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(o));}
 function switchTab(tab){
   currentTab=tab;
@@ -459,6 +470,9 @@ function switchTab(tab){
   else if(tab==='ladder'){document.getElementById('tab-ladder').classList.add('active-ladder');if(!ladderLoaded)postMsg({type:'needLadder'});}
 }
 function handleRound(round){
+  currentRound=round;
+  picksShowing=false;
+  clearPickResults();
   document.querySelectorAll('.round-pill').forEach(function(p){p.classList.remove('active');});
   var pill=document.getElementById('pill-'+round);
   if(pill){pill.classList.add('active');pill.scrollIntoView({inline:'center',block:'nearest'});}
@@ -474,9 +488,52 @@ function revealScore(id){
   if(s)s.style.display='none';
   if(r)r.style.display='flex';
 }
+function clearPickResults(){
+  document.querySelectorAll('.pick-chip').forEach(function(el){el.remove();});
+}
+function showPickResults(results){
+  clearPickResults();
+  results.forEach(function(r){
+    var card=document.getElementById('mc-'+r.matchId);
+    if(!card) return;
+    var chip=document.createElement('div');
+    chip.className='pick-chip';
+    if(r.result==='win')      chip.textContent='\u2705';
+    else if(r.result==='loss')chip.textContent='\u274C';
+    else return;
+    card.appendChild(chip);
+  });
+}
+function setPicksShowing(v){picksShowing=v;}
+function attachNrlLogo(){
+  var img=document.getElementById('nrl-logo');
+  if(!img||img._picksAttached) return;
+  img._picksAttached=true;
+  img.style.cursor='pointer';
+  img.addEventListener('touchstart',function(e){
+    e.preventDefault();
+    nrlLogoTimer=setTimeout(function(){
+      nrlLogoTimer=null;
+      postMsg({type:'logoLongPress',round:currentRound});
+    },450);
+  },{passive:false});
+  img.addEventListener('touchend',function(e){
+    e.preventDefault();
+    if(nrlLogoTimer!==null){
+      clearTimeout(nrlLogoTimer);
+      nrlLogoTimer=null;
+      if(picksShowing){picksShowing=false;clearPickResults();}
+      else{postMsg({type:'logoTap',round:currentRound});}
+    }
+  },{passive:false});
+  img.addEventListener('touchmove',function(){
+    if(nrlLogoTimer!==null){clearTimeout(nrlLogoTimer);nrlLogoTimer=null;}
+  },{passive:false});
+}
 (function(){
   var a=document.querySelector('.round-pill.active');
   if(a)a.scrollIntoView({inline:'center',block:'nearest'});
+  attachNrlLogo();
 })();`;
 
   return `<!DOCTYPE html>
@@ -491,7 +548,7 @@ function revealScore(id){
 <div class="tab-panel visible" id="panel-nrl">
   <div class="header">
     <div class="header-logo-row">
-      <img class="header-banner" src="https://i.postimg.cc/8CFL755P/IMG-4791.png" onerror="this.style.display='none'" alt="NRL">
+      <img class="header-banner" id="nrl-logo" src="https://i.postimg.cc/8CFL755P/IMG-4791.png" onerror="this.style.display='none'" alt="NRL">
     </div>
     <div class="rounds-scroll" id="roundsScroll">${pills}</div>
   </div>
@@ -539,7 +596,21 @@ export default function NRLScheduleScreen() {
   const maxRoundRef           = useRef(MAX_ROUNDS);
   const webViewRef            = useRef<WebView>(null);
 
-  useEffect(() => { loadInitial(); }, []);
+  const currentMatchesRef  = useRef<Match[]>([]);
+  const currentRoundRef    = useRef<number>(1);
+  const allPicksRef        = useRef<Record<string, Record<string, string>>>({});
+
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerMatches, setPickerMatches] = useState<Match[]>([]);
+  const [pickerRound,   setPickerRound]   = useState(1);
+  const [roundPicks,    setRoundPicks]    = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    AsyncStorage.getItem(PICKS_KEY).then((raw) => {
+      if (raw) allPicksRef.current = JSON.parse(raw);
+    }).catch(() => {});
+    loadInitial();
+  }, []);
 
   const loadInitial = async () => {
     const data = await nrlFetch(
@@ -566,6 +637,8 @@ export default function NRLScheduleScreen() {
       `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${currentRound}`
     );
     const matches = parseMatches(roundData || data);
+    currentMatchesRef.current = matches;
+    currentRoundRef.current   = currentRound;
 
     const drgLoading = `<div class="loading"><div class="loader" style="border-top-color:${DRG_RED}"></div>Loading Dragons schedule\u2026</div>`;
     const ldrLoading = `<div class="loading"><div class="loader"></div>Loading ladder\u2026</div>`;
@@ -573,6 +646,47 @@ export default function NRLScheduleScreen() {
     setHtml(buildMainHtml(matches, rounds, currentRound, drgLoading, ldrLoading, bottomPad));
     setLoading(false);
   };
+
+  const savePicks = useCallback(async (round: number, picks: Record<string, string>) => {
+    try {
+      allPicksRef.current = { ...allPicksRef.current, [String(round)]: picks };
+      await AsyncStorage.setItem(PICKS_KEY, JSON.stringify(allPicksRef.current));
+    } catch {}
+  }, []);
+
+  const togglePick = useCallback((matchId: string, team: string) => {
+    setRoundPicks((prev) => {
+      const updated = { ...prev };
+      if (updated[matchId] === team) {
+        delete updated[matchId];
+      } else {
+        updated[matchId] = team;
+      }
+      savePicks(pickerRound, updated);
+      return updated;
+    });
+  }, [pickerRound, savePicks]);
+
+  const injectPickResults = useCallback((round: number) => {
+    const picks   = allPicksRef.current[String(round)] ?? {};
+    const matches = currentMatchesRef.current;
+    const results = matches
+      .filter((m) => picks[m.id])
+      .map((m) => {
+        const pickedTeam  = picks[m.id];
+        let   result: "win" | "loss" | "pending" = "pending";
+        if (m.isComplete && m.homeScore != null && m.awayScore != null) {
+          const pickedIsHome = m.homeTeam === pickedTeam;
+          const pickedScore  = pickedIsHome ? m.homeScore : m.awayScore;
+          const oppScore     = pickedIsHome ? m.awayScore : m.homeScore;
+          result = pickedScore > oppScore ? "win" : "loss";
+        }
+        return { matchId: m.id, pick: pickedTeam, result };
+      });
+    webViewRef.current?.injectJavaScript(
+      `setPicksShowing(true); showPickResults(${JSON.stringify(results)}); true;`
+    );
+  }, []);
 
   const onMessage = useCallback(async (event: WebViewMessageEvent) => {
     let msg: any;
@@ -583,6 +697,8 @@ export default function NRLScheduleScreen() {
         `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${msg.round}`
       );
       const matches = parseMatches(roundData || {});
+      currentMatchesRef.current = matches;
+      currentRoundRef.current   = msg.round;
       const groups  = groupByDay(matches);
       const content = buildDayGroups(groups);
       webViewRef.current?.injectJavaScript(`updateFixtures(${JSON.stringify(content)}); true;`);
@@ -602,7 +718,23 @@ export default function NRLScheduleScreen() {
       const ladderHtml = buildLadderHTML(ladder);
       webViewRef.current?.injectJavaScript(`updateLadder(${JSON.stringify(ladderHtml)}); true;`);
     }
-  }, []);
+
+    if (msg.type === "logoLongPress") {
+      const round = msg.round ?? currentRoundRef.current;
+      const saved = allPicksRef.current[String(round)] ?? {};
+      setPickerRound(round);
+      setPickerMatches(currentMatchesRef.current.filter((m) => !m.isBye));
+      setRoundPicks({ ...saved });
+      setPickerVisible(true);
+    }
+
+    if (msg.type === "logoTap") {
+      const round = msg.round ?? currentRoundRef.current;
+      const picks = allPicksRef.current[String(round)] ?? {};
+      if (Object.keys(picks).length === 0) return;
+      injectPickResults(round);
+    }
+  }, [injectPickResults]);
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
@@ -629,6 +761,58 @@ export default function NRLScheduleScreen() {
           allowsInlineMediaPlayback={false}
         />
       )}
+
+      {/* ── Picks Picker Modal ─────────────────────────────────────────────── */}
+      <Modal
+        visible={pickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPickerVisible(false)}
+      >
+        <View style={styles.pickerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPickerVisible(false)} />
+          <View style={[styles.pickerSheet, { paddingBottom: insets.bottom + 8 }]}>
+            <View style={styles.pickerHandle} />
+            <Text style={styles.pickerTitle}>Round {pickerRound} Tips</Text>
+            <Text style={styles.pickerSub}>Tap a team to set your pick — tap again to clear</Text>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.pickerList}
+              showsVerticalScrollIndicator={false}
+            >
+              {pickerMatches.map((m) => {
+                const pick = roundPicks[m.id] ?? null;
+                return (
+                  <View key={m.id} style={styles.pickerRow}>
+                    <TouchableOpacity
+                      style={[styles.pickerTeamBtn, pick === m.homeTeam && styles.pickerTeamBtnActive]}
+                      activeOpacity={0.75}
+                      onPress={() => togglePick(m.id, m.homeTeam)}
+                    >
+                      <Text style={[styles.pickerTeamTx, pick === m.homeTeam && styles.pickerTeamTxActive]}>
+                        {m.homeTeam}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={styles.pickerVs}>vs</Text>
+                    <TouchableOpacity
+                      style={[styles.pickerTeamBtn, pick === m.awayTeam && styles.pickerTeamBtnActive]}
+                      activeOpacity={0.75}
+                      onPress={() => togglePick(m.id, m.awayTeam)}
+                    >
+                      <Text style={[styles.pickerTeamTx, pick === m.awayTeam && styles.pickerTeamTxActive]}>
+                        {m.awayTeam}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={() => setPickerVisible(false)}>
+              <Text style={styles.pickerDoneTx}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -640,5 +824,88 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: "center", justifyContent: "center",
     backgroundColor: NRL_DARK, zIndex: 10,
+  },
+  // Picker modal
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.72)",
+  },
+  pickerSheet: {
+    backgroundColor: "#141414",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    maxHeight: "82%",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  pickerHandle: {
+    width: 38,
+    height: 4,
+    backgroundColor: "#333",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 18,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  pickerSub: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  pickerList: {
+    paddingBottom: 8,
+  },
+  pickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  pickerTeamBtn: {
+    flex: 1,
+    backgroundColor: "#1c1c1c",
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  pickerTeamBtnActive: {
+    backgroundColor: NRL_GREEN + "22",
+    borderColor: NRL_GREEN,
+  },
+  pickerTeamTx: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#777",
+  },
+  pickerTeamTxActive: {
+    color: NRL_GREEN,
+  },
+  pickerVs: {
+    fontSize: 13,
+    color: "#444",
+    fontWeight: "500",
+  },
+  pickerDoneBtn: {
+    backgroundColor: NRL_GREEN,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  pickerDoneTx: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
   },
 });
