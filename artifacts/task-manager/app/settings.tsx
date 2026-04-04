@@ -31,7 +31,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 import { useAnthropic } from "@/context/AnthropicContext";
 import { useBiometric } from "@/context/BiometricContext";
-import { useHeaderImage } from "@/context/HeaderImageContext";
+import { useHeaderImage, type ResizeMode } from "@/context/HeaderImageContext";
 import {
   SECTION_LABELS,
   useDrawerConfig,
@@ -291,7 +291,7 @@ export default function SettingsScreen() {
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection, sidebarAlwaysOpen, setSidebarAlwaysOpen } = useDrawerConfig();
 
-  const { uri: headerUri, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
+  const { uri: headerUri, resizeMode: headerResizeMode, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
   const [draft,        setDraft]        = useState(apiKey ?? "");
   const [saved,        setSaved]        = useState(false);
@@ -633,12 +633,28 @@ export default function SettingsScreen() {
                       left: -(boxDims.w * (BANNER_SCALE - 1) / 2),
                       transform: [{ translateX: imgDisplay.x }, { translateY: imgDisplay.y }],
                     }}
-                    resizeMode="cover"
+                    resizeMode={headerResizeMode}
                   />
                   <View style={imgSt.previewHint}>
                     <Feather name="move" size={11} color="rgba(255,255,255,0.7)" />
                     <Text style={imgSt.previewHintText}>Drag to reposition</Text>
                   </View>
+                </View>
+
+                {/* Display mode */}
+                <Text style={styles.fieldLabel}>DISPLAY MODE</Text>
+                <View style={imgSt.modeRow}>
+                  {(["cover", "contain", "center", "stretch"] as ResizeMode[]).map(mode => (
+                    <Pressable
+                      key={mode}
+                      onPress={() => headerUpdate({ resizeMode: mode })}
+                      style={[imgSt.modePill, headerResizeMode === mode && imgSt.modePillActive]}
+                    >
+                      <Text style={[imgSt.modePillText, headerResizeMode === mode && imgSt.modePillTextActive]}>
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
 
                 <View style={styles.divider} />

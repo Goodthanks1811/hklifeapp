@@ -209,7 +209,7 @@ export function Drawer() {
     },
   })).current;
 
-  const { uri: bannerUri, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
+  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
 
   const pickBannerImage = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -295,7 +295,7 @@ export function Drawer() {
                     ? [{ translateX: bannerOffX }, { translateY: bannerOffY }]
                     : undefined,
                 }}
-                resizeMode="cover"
+                resizeMode={bannerUri ? bannerResizeMode : "cover"}
               />
             );
           })()}
