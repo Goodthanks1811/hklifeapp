@@ -666,12 +666,9 @@ export default function NRLScheduleScreen() {
   useFocusEffect(useCallback(() => {
     const round = currentRoundRef.current;
     const state = picksDisplayState.current;
-    if (state === 2) {
-      injectPickResults(round);
-    } else {
-      const picks = allPicksRef.current[String(round)] ?? {};
-      if (Object.keys(picks).length > 0) injectPickMarkers(round);
-    }
+    if (state === 2) injectPickResults(round);
+    else if (state === 1) injectPickMarkers(round);
+    // state === 0: leave schedule clean
   }, [injectPickMarkers, injectPickResults]));
 
   const loadInitial = async () => {
@@ -772,15 +769,9 @@ export default function NRLScheduleScreen() {
   const onWebViewLoad = useCallback(() => {
     const round = currentRoundRef.current;
     const state = picksDisplayState.current;
-    if (state === 2) {
-      injectPickResults(round);
-    } else {
-      // Auto-show dots whenever picks exist — covers remount with state=0 and normal restore
-      const picks = allPicksRef.current[String(round)] ?? {};
-      if (Object.keys(picks).length > 0) {
-        injectPickMarkers(round);
-      }
-    }
+    if (state === 2) injectPickResults(round);
+    else if (state === 1) injectPickMarkers(round);
+    // state === 0: leave schedule clean, user must tap to reveal
   }, [injectPickMarkers, injectPickResults]);
 
   const onMessage = useCallback(async (event: WebViewMessageEvent) => {
@@ -800,13 +791,15 @@ export default function NRLScheduleScreen() {
       const markers  = matches
         .filter((m) => picks[m.id])
         .map((m) => ({ matchId: m.id, isHome: m.homeTeam === picks[m.id] }));
-      if (markers.length > 0) {
-        // Combine into one injection so markers land on the fresh DOM atomically
+      const prevState = picksDisplayState.current;
+      if (prevState >= 1 && markers.length > 0) {
+        // User had dots (or results) showing — restore dots on the new round atomically
         picksDisplayState.current = 1;
         webViewRef.current?.injectJavaScript(
           `updateFixtures(${JSON.stringify(content)}); setPicksShowing(1); showPickMarkers(${JSON.stringify(markers)}); true;`
         );
       } else {
+        // User had dots hidden (state 0) or no picks — just update fixtures, no dots
         picksDisplayState.current = 0;
         webViewRef.current?.injectJavaScript(`updateFixtures(${JSON.stringify(content)}); true;`);
       }
@@ -819,12 +812,9 @@ export default function NRLScheduleScreen() {
     if (msg.type === "nrlTabActive") {
       const round = msg.round ?? currentRoundRef.current;
       const state = picksDisplayState.current;
-      if (state === 2) {
-        injectPickResults(round);
-      } else {
-        const picks = allPicksRef.current[String(round)] ?? {};
-        if (Object.keys(picks).length > 0) injectPickMarkers(round);
-      }
+      if (state === 2) injectPickResults(round);
+      else if (state === 1) injectPickMarkers(round);
+      // state === 0: leave schedule clean
     }
 
     if (msg.type === "needDragons") {
