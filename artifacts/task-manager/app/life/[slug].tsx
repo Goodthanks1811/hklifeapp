@@ -1,6 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import Svg, { Path as SvgPath } from "react-native-svg";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { useDrawer } from "@/context/DrawerContext";
 import { useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -1394,6 +1396,7 @@ export default function LifeTaskScreen() {
   const { width: screenW } = useWindowDimensions();
   const isTablet          = screenW >= 768;
   const { apiKey }        = useNotion();
+  const { toggleDrawer }  = useDrawer();
 
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
@@ -1894,26 +1897,42 @@ export default function LifeTaskScreen() {
 
 
   return (
-    <View style={[sc.root, { paddingTop: topPad }]}>
-      <ScreenHeader
-        title={config.title}
-        right={
+    <View style={sc.root}>
+
+      {/* ── Gradient header ───────────────────────────────────────────────────── */}
+      <View style={[sc.gradHeader, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top) + 8 }]}>
+        <LinearGradient
+          colors={["rgba(224,49,49,0.72)", "rgba(180,20,20,0.28)", "transparent"]}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <LinearGradient
+          colors={["rgba(224,49,49,0.22)", "transparent"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={sc.gradNav}>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={sc.gradIconBtn}
+          >
+            <Feather name="menu" size={18} color="rgba(255,255,255,0.75)" />
+          </Pressable>
+          <View style={{ flex: 1 }} />
           <Pressable
             onPress={onResetPress}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={sc.resetBtn}
+            style={sc.gradIconGhost}
           >
-            <Feather name={resetting ? "loader" : "refresh-cw"} size={16} color={resetting ? Colors.primary : Colors.textMuted} />
+            <Feather name={resetting ? "loader" : "refresh-cw"} size={15} color={resetting ? Colors.primary : "rgba(255,255,255,0.28)"} />
           </Pressable>
-        }
-      />
-
-      {/* ── Item count ───────────────────────────────────────────────────────── */}
-      {!loading && !error && tasks.length > 0 && (
-        <View style={sc.countRow}>
-          <Text style={sc.countText}>{tasks.length} item{tasks.length !== 1 ? "s" : ""}</Text>
         </View>
-      )}
+        <Text style={sc.gradTitle}>{config.title}</Text>
+        {!loading && !error && (
+          <Text style={sc.gradSub}>{tasks.length} item{tasks.length !== 1 ? "s" : ""}</Text>
+        )}
+      </View>
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       {loading ? (
@@ -2228,6 +2247,25 @@ const sc = StyleSheet.create({
   headerBanner: { height: 160, overflow: "hidden", backgroundColor: "#000" },
   headerBannerImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
 
+  gradHeader: {
+    paddingHorizontal: 20, paddingBottom: 56, overflow: "hidden",
+    backgroundColor: "#0f0f0f",
+  },
+  gradNav: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
+  gradIconBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(26,26,26,0.55)",
+    alignItems: "center", justifyContent: "center",
+  },
+  gradIconGhost: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  gradTitle: {
+    fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff",
+    textAlign: "center", marginBottom: 4,
+    textShadowColor: "rgba(224,49,49,0.45)",
+    textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24,
+  },
+  gradSub: { fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: "Inter_400Regular", textAlign: "center" },
+
   countRow: { paddingHorizontal: 16, paddingVertical: 8 },
   countText: { fontSize: 12, color: Colors.textMuted, fontFamily: "Inter_500Medium" },
 
@@ -2243,7 +2281,8 @@ const sc = StyleSheet.create({
 
   rowWrap: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: "#0f0f0f", borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 10,
     paddingHorizontal: 14, height: ITEM_H,
   },
   rowDragging: {
