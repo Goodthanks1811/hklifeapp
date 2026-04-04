@@ -67,7 +67,14 @@ function WorkloadBarChart({
   const chartH = 180, barW = 22, barGap = 6, groupGap = 24;
   const pL = 32, pR = 20, pT = 28, pB = 34;
   const groupW = barW * 2 + barGap;
-  const totalW = pL + visibleWeeks.length * (groupW + groupGap) - groupGap + pR;
+
+  // Always lay out at least 4 week columns — pads with empty slots for short months
+  const MIN_WEEKS = 4;
+  const layoutWeeks = visibleWeeks.length >= MIN_WEEKS
+    ? visibleWeeks
+    : [...visibleWeeks, ...Array(MIN_WEEKS - visibleWeeks.length).fill("")];
+
+  const totalW = pL + layoutWeeks.length * (groupW + groupGap) - groupGap + pR;
   const svgH = chartH + pT + pB;
 
   // Scale SVG to fill card width on tablet — capped so bars never exceed 50px wide
@@ -100,8 +107,8 @@ function WorkloadBarChart({
           </G>
         ))}
 
-        {visibleWeeks.map((week, i) => {
-          const wd = weeks[week] || { created: 0, done: 0 };
+        {layoutWeeks.map((week, i) => {
+          const wd = week ? (weeks[week] || { created: 0, done: 0 }) : { created: 0, done: 0 };
           const gx = pL + i * (groupW + groupGap);
 
           const ch = maxVal > 0
@@ -117,8 +124,8 @@ function WorkloadBarChart({
           const dy = pT + chartH - dh;
 
           return (
-            <G key={week}>
-              {wd.created > 0 && (
+            <G key={week || `empty-${i}`}>
+              {week && wd.created > 0 && (
                 <G>
                   <Rect x={cx} y={cy} width={barW} height={ch} fill={HK_RED} rx={5} ry={5} />
                   <SvgText x={cx + barW / 2} y={cy - 6} textAnchor="middle" fill="#fff" fontSize={10} fontWeight="800">
@@ -126,7 +133,7 @@ function WorkloadBarChart({
                   </SvgText>
                 </G>
               )}
-              {wd.done > 0 && (
+              {week && wd.done > 0 && (
                 <G>
                   <Rect x={dx} y={dy} width={barW} height={dh} fill={DONE_CLR} rx={5} ry={5} />
                   <SvgText x={dx + barW / 2} y={dy - 6} textAnchor="middle" fill="#fff" fontSize={10} fontWeight="800">
@@ -136,9 +143,11 @@ function WorkloadBarChart({
               )}
               <SvgText
                 x={gx + groupW / 2} y={pT + chartH + 22}
-                textAnchor="middle" fill={MUTED} fontSize={11} fontWeight="700"
+                textAnchor="middle"
+                fill={week ? MUTED : "rgba(255,255,255,0.1)"}
+                fontSize={11} fontWeight="700"
               >
-                {week}
+                {week || "—"}
               </SvgText>
             </G>
           );
