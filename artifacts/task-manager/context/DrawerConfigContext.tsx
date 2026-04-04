@@ -64,6 +64,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   knowledge: [
     { label: "API's",              icon: "code",     route: "/api-quiz",           description: "Learn & quiz API fundamentals" },
     { label: "Psychology Daily",   icon: "zap",      route: "/psychology-daily",   description: "AI-generated concept of the day" },
+    { label: "Philosophy Daily",   icon: "book-open", route: "/philosophy-daily",  description: "AI-generated idea of the day" },
     { label: "Russian Flashcards", icon: "flag",     route: "/russian-flashcards", description: "Learn the Russian alphabet" },
     { label: "Greek Flashcards",   icon: "flag",     route: "/greek-flashcards",   description: "Learn the Greek alphabet" },
   ],

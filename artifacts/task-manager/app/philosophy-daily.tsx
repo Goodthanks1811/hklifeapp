@@ -18,7 +18,7 @@ import { Colors } from "@/constants/colors";
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 
-const SEEN_KEY = "psych_seen_v1";
+const SEEN_KEY = "phil_seen_v1";
 const MAX_SEEN = 60;
 
 type SeenEntry = { concept: string; date: string };
@@ -48,12 +48,14 @@ function recentNames(list: SeenEntry[], days = 30): string[] {
 // ── Claude fetch ─────────────────────────────────────────────────────────────
 
 interface Concept {
-  concept:    string;
-  category:   string;
-  description: string;
-  example:    string;
-  didYouKnow: string;
-  keyFigure:  string;
+  concept:          string;
+  branch:           string;
+  tradition:        string;
+  description:      string;
+  thoughtExperiment: string;
+  modernRelevance:  string;
+  keyThinker:       string;
+  keyWork:          string;
 }
 
 async function fetchConcept(apiKey: string, excluded: string[]): Promise<Concept> {
@@ -61,19 +63,21 @@ async function fetchConcept(apiKey: string, excluded: string[]): Promise<Concept
     ? `Do NOT use any of these (recently shown): ${excluded.join(", ")}.`
     : "";
 
-  const prompt = `You are a psychology educator. Generate ONE interesting psychology concept for a daily learning app.
+  const prompt = `You are a philosophy professor crafting a daily concept card for curious, intelligent non-specialists.
 ${excludeStr}
 
-Choose from any area: cognitive, social, clinical, developmental, behavioural, neuropsychology, positive psychology, personality, etc. Favour lesser-known gems over overused classics like Dunning-Kruger or Cognitive Dissonance.
+Pick ONE interesting philosophical concept, thought experiment, logical concept, ethical dilemma, or idea from any tradition — Western, Eastern, African, Islamic, analytic, continental, ancient, modern. Favour lesser-known treasures over overused clichés like Trolley Problem or Cogito.
 
 Respond with ONLY a valid JSON object — no markdown, no code fences, no extra text:
 {
-  "concept": "Name of the concept",
-  "category": "Branch of psychology",
-  "description": "Clear 1-2 sentence explanation",
-  "example": "Concrete real-world example",
-  "didYouKnow": "Surprising historical or research fact",
-  "keyFigure": "Key researcher or psychologist associated with this"
+  "concept": "Name of the concept or idea",
+  "branch": "Branch of philosophy (e.g. Ethics, Metaphysics, Epistemology, Logic, Political Philosophy, Aesthetics, Philosophy of Mind, etc.)",
+  "tradition": "e.g. Ancient Greek, Stoic, Buddhist, Analytic, Continental, Islamic, African, etc.",
+  "description": "Clear 2-sentence explanation accessible to a smart non-philosopher",
+  "thoughtExperiment": "A brief thought experiment or scenario that illustrates the concept vividly",
+  "modernRelevance": "How this idea applies to life, technology, politics, or human experience today",
+  "keyThinker": "Primary philosopher or thinker associated with this concept",
+  "keyWork": "The key text or work where this idea appears"
 }`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -85,7 +89,7 @@ Respond with ONLY a valid JSON object — no markdown, no code fences, no extra 
     },
     body: JSON.stringify({
       model:      "claude-sonnet-4-20250514",
-      max_tokens: 500,
+      max_tokens: 600,
       messages:   [{ role: "user", content: prompt }],
     }),
   });
@@ -105,12 +109,26 @@ Respond with ONLY a valid JSON object — no markdown, no code fences, no extra 
   return JSON.parse(text) as Concept;
 }
 
+// ── Branch numerals ───────────────────────────────────────────────────────────
+
+const GLYPHS: Record<string, string> = {
+  "Ethics":                  "I",
+  "Metaphysics":             "II",
+  "Epistemology":            "III",
+  "Logic":                   "IV",
+  "Political Philosophy":    "V",
+  "Aesthetics":              "VI",
+  "Philosophy of Mind":      "VII",
+  "Philosophy of Language":  "VIII",
+};
+
 // ── HTML builder ─────────────────────────────────────────────────────────────
 
 function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
   const dateStr = new Date().toLocaleDateString("en-AU", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
+  const numeral = GLYPHS[concept.branch] ?? "∞";
   const pct = Math.min((seenCount / 100) * 100, 100);
 
   return `<!DOCTYPE html>
@@ -118,24 +136,24 @@ function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Psychology Daily</title>
+<title>Philosophy Daily</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:      #080808;
-  --surface: #101010;
-  --sur2:    #161616;
-  --border:  #202020;
-  --accent:  #c0392b;
-  --accent2: #922b21;
-  --text:    #e8e8e8;
+  --bg:      #09090b;
+  --surface: #111113;
+  --sur2:    #171719;
+  --border:  #252527;
+  --gold:    #c9a84c;
+  --gold2:   #8a6e2f;
+  --text:    #e2e2e0;
   --muted:   #888;
-  --dim:     #555;
+  --dim:     #4a4a4a;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-family: 'Jost', -apple-system, sans-serif;
   background: var(--bg);
   min-height: 100vh;
   display: flex;
@@ -147,70 +165,119 @@ body {
 .wrap {
   width: 100%;
   max-width: ${maxW}px;
-  animation: up .5s ease both;
+  animation: up .6s cubic-bezier(.16,1,.3,1) both;
 }
 @keyframes up {
-  from { opacity:0; transform:translateY(14px); }
+  from { opacity:0; transform:translateY(18px); }
   to   { opacity:1; transform:translateY(0); }
 }
 .hdr {
   text-align: center;
-  padding-bottom: 24px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 26px;
+  margin-bottom: 26px;
+  position: relative;
+}
+.hdr::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 15%; right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold2), transparent);
 }
 .hdr-date {
-  font-size: .7rem;
-  letter-spacing: 2.5px;
+  font-size: .68rem;
+  letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--dim);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .hdr-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 2rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.6rem;
+  font-weight: 300;
   color: var(--text);
-  letter-spacing: -.5px;
+  letter-spacing: .5px;
   line-height: 1;
 }
-.hdr-sub { margin-top:8px; font-size:.78rem; color:var(--dim); font-weight:300; }
-.red { color: var(--accent); }
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 24px;
-  margin-bottom: 10px;
+.hdr-title em { font-style: italic; color: var(--gold); }
+.hdr-sub { margin-top:10px; font-size:.72rem; color:var(--dim); font-weight:300; letter-spacing:1px; }
+.concept-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
 }
+.numeral {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 3.2rem;
+  font-weight: 300;
+  color: var(--gold2);
+  line-height: .9;
+  flex-shrink: 0;
+  min-width: 42px;
+}
+.meta-right { flex: 1; }
+.tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   background: var(--sur2);
   border: 1px solid var(--border);
-  color: var(--accent);
-  font-size: .7rem;
+  color: var(--gold);
+  font-size: .63rem;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 30px;
-  margin-bottom: 14px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 400;
 }
+.tag.tradition { color: var(--muted); border-color: #1e1e20; }
 .concept-name {
-  font-family: 'DM Serif Display', serif;
-  font-size: 1.85rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.2rem;
+  font-weight: 400;
   color: #fff;
   line-height: 1.1;
-  margin-bottom: 12px;
-  letter-spacing: -.3px;
+  letter-spacing: -.2px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px;
+  margin-bottom: 10px;
 }
 .desc {
-  font-size: 1rem;
-  line-height: 1.65;
-  color: #ccc;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
   font-weight: 300;
+  line-height: 1.7;
+  color: #d0d0ce;
+  font-style: italic;
   margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
 }
+.thinker-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--sur2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 8px;
+}
+.thinker-icon {
+  width:36px; height:36px;
+  background:#0f0f0a;
+  border:1px solid var(--gold2);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.95rem; flex-shrink:0; margin-top:2px;
+}
+.thinker-name { font-size:.9rem; color:var(--text); font-weight:500; margin-bottom:3px; }
+.thinker-work { font-size:.82rem; color:var(--muted); font-style:italic; font-family:'Cormorant Garamond',serif; }
 .sub {
   background: var(--sur2);
   border: 1px solid var(--border);
@@ -218,50 +285,41 @@ body {
   padding: 14px 16px;
   margin-bottom: 8px;
 }
-.sub:last-of-type { margin-bottom: 0; }
+.sub:last-of-type { margin-bottom:0; }
 .sub-label {
-  font-size: .68rem;
-  letter-spacing: 1.8px;
+  font-size: .63rem;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--gold);
   font-weight: 500;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
-.sub-body { font-size:.92rem; line-height:1.55; color:#b8b8b8; font-weight:300; }
-.key-figure {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--sur2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  margin-bottom: 8px;
+.sub-body { font-size:.92rem; line-height:1.6; color:#adadab; font-weight:300; }
+.sub-body.thought {
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic;
+  font-size:1.05rem;
+  color:#c0c0be;
 }
-.kf-icon {
-  width:34px; height:34px;
-  background:#1a0a0a;
-  border:1px solid var(--accent2);
-  border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  font-size:.9rem; flex-shrink:0;
-}
-.kf-text { font-size:.85rem; color:#aaa; font-weight:300; }
-.kf-text strong { color:var(--text); font-weight:500; }
 .progress-row {
   display:flex; align-items:center; gap:10px;
   margin-top:18px; padding-top:14px;
   border-top:1px solid var(--border);
 }
-.progress-bar { flex:1; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
-.progress-fill { height:100%; background:var(--accent); border-radius:2px; width:${pct}%; }
-.progress-label { font-size:.72rem; color:var(--dim); white-space:nowrap; }
+.progress-bar { flex:1; height:2px; background:var(--border); border-radius:2px; overflow:hidden; }
+.progress-fill {
+  height:100%;
+  background:linear-gradient(90deg, var(--gold2), var(--gold));
+  border-radius:2px;
+  width:${pct}%;
+}
+.progress-label { font-size:.7rem; color:var(--dim); white-space:nowrap; }
 .footer {
   text-align:center;
   margin-top:18px;
-  font-size:.68rem;
+  font-size:.63rem;
   color:var(--dim);
-  letter-spacing:1px;
+  letter-spacing:1.5px;
   text-transform:uppercase;
 }
 </style>
@@ -270,31 +328,42 @@ body {
 <div class="wrap">
   <div class="hdr">
     <div class="hdr-date">${dateStr}</div>
-    <div class="hdr-title"><span class="red">Psychology</span> Daily</div>
-    <div class="hdr-sub">${seenCount} concept${seenCount !== 1 ? "s" : ""} explored</div>
+    <div class="hdr-title"><em>Philosophy</em> Daily</div>
+    <div class="hdr-sub">${seenCount} idea${seenCount !== 1 ? "s" : ""} contemplated</div>
+  </div>
+  <div class="concept-meta">
+    <div class="numeral">${numeral}</div>
+    <div class="meta-right">
+      <div class="tags">
+        <span class="tag">${concept.branch}</span>
+        <span class="tag tradition">${concept.tradition}</span>
+      </div>
+      <div class="concept-name">${concept.concept}</div>
+    </div>
   </div>
   <div class="card">
-    <div class="tag">📚 ${concept.category}</div>
-    <div class="concept-name">${concept.concept}</div>
     <div class="desc">${concept.description}</div>
-    <div class="key-figure">
-      <div class="kf-icon">🎓</div>
-      <div class="kf-text"><strong>Key Figure</strong> — ${concept.keyFigure}</div>
+    <div class="thinker-row">
+      <div class="thinker-icon">🏛</div>
+      <div>
+        <div class="thinker-name">${concept.keyThinker}</div>
+        <div class="thinker-work">${concept.keyWork}</div>
+      </div>
+    </div>
+    <div class="sub" style="margin-top:8px">
+      <div class="sub-label">🪬 Thought Experiment</div>
+      <div class="sub-body thought">${concept.thoughtExperiment}</div>
     </div>
     <div class="sub">
-      <div class="sub-label">💬 Example</div>
-      <div class="sub-body">${concept.example}</div>
-    </div>
-    <div class="sub">
-      <div class="sub-label">💡 Did You Know?</div>
-      <div class="sub-body">${concept.didYouKnow}</div>
+      <div class="sub-label">⚡ Modern Relevance</div>
+      <div class="sub-body">${concept.modernRelevance}</div>
     </div>
     <div class="progress-row">
       <div class="progress-bar"><div class="progress-fill"></div></div>
       <div class="progress-label">${seenCount} / 100</div>
     </div>
   </div>
-  <div class="footer">psychology daily · ai-generated · dark edition</div>
+  <div class="footer">philosophy daily · ai-generated · dark edition</div>
 </div>
 </body>
 </html>`;
@@ -302,12 +371,12 @@ body {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-export default function PsychologyDailyScreen() {
-  const insets        = useSafeAreaInsets();
-  const { width }     = useWindowDimensions();
-  const { apiKey }    = useAnthropic();
-  const isTablet      = width >= 768;
-  const maxW          = isTablet ? Math.min(Math.round(width * 0.72), 720) : 520;
+export default function PhilosophyDailyScreen() {
+  const insets     = useSafeAreaInsets();
+  const { width }  = useWindowDimensions();
+  const { apiKey } = useAnthropic();
+  const isTablet   = width >= 768;
+  const maxW       = isTablet ? Math.min(Math.round(width * 0.72), 720) : 520;
 
   const [html,    setHtml]    = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -345,17 +414,16 @@ export default function PsychologyDailyScreen() {
     if (!c) return;
     try {
       await Share.share({
-        message: `🧠 Psychology Daily\n\n${c.concept} (${c.category})\n\n${c.description}\n\n💬 Example: ${c.example}\n\n💡 ${c.didYouKnow}\n\n🎓 Key Figure: ${c.keyFigure}`,
-        title: `Psychology Daily — ${c.concept}`,
+        message: `📜 Philosophy Daily\n\n${c.concept} (${c.branch} · ${c.tradition})\n\n${c.description}\n\n🪬 ${c.thoughtExperiment}\n\n⚡ ${c.modernRelevance}\n\n🏛 ${c.keyThinker} — ${c.keyWork}`,
+        title: `Philosophy Daily — ${c.concept}`,
       });
     } catch {}
   };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Psychology Daily" />
+      <ScreenHeader title="Philosophy Daily" />
 
-      {/* No key configured */}
       {!apiKey && (
         <View style={styles.center}>
           <Feather name="key" size={32} color={Colors.textMuted} />
@@ -366,12 +434,10 @@ export default function PsychologyDailyScreen() {
         </View>
       )}
 
-      {/* Loading */}
       {apiKey && loading && (
         <PageLoader />
       )}
 
-      {/* Error */}
       {apiKey && !loading && error && (
         <View style={styles.center}>
           <Feather name="alert-circle" size={32} color={Colors.primary} />
@@ -380,7 +446,6 @@ export default function PsychologyDailyScreen() {
         </View>
       )}
 
-      {/* Card */}
       {html && !loading && (
         <>
           <WebView
@@ -404,22 +469,22 @@ export default function PsychologyDailyScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:         { flex: 1, backgroundColor: "#080808" },
-  web:          { flex: 1, backgroundColor: "#080808" },
-  center:       { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },
-  emptyTitle:   { color: "#e8e8e8", fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  emptyBody:    { color: "#888", fontSize: 13, textAlign: "center", lineHeight: 20 },
-  toolbar:      { paddingHorizontal: 20, paddingTop: 10, backgroundColor: "#080808", borderTopWidth: 1, borderTopColor: "#202020" },
+  root:        { flex: 1, backgroundColor: "#09090b" },
+  web:         { flex: 1, backgroundColor: "#09090b" },
+  center:      { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },
+  emptyTitle:  { color: "#e2e2e0", fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  emptyBody:   { color: "#888", fontSize: 13, textAlign: "center", lineHeight: 20 },
+  toolbar:     { paddingHorizontal: 20, paddingTop: 10, backgroundColor: "#09090b", borderTopWidth: 1, borderTopColor: "#252527" },
   shareBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#111113",
     borderWidth: 1,
-    borderColor: "#2a2a2a",
+    borderColor: "#252527",
     borderRadius: 30,
     paddingVertical: 12,
   },
-  shareBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_500Medium" },
+  shareBtnText: { color: "#e2e2e0", fontSize: 14, fontFamily: "Inter_500Medium" },
 });
