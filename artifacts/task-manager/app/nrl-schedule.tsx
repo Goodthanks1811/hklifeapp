@@ -282,13 +282,13 @@ function matchCard(m: Match, isDrgTab: boolean): string {
   <div class="match-body">
     <div class="team-block">
       <div class="team-colour-bar" style="background:${m.homeColour}"></div>
-      <div class="team-name">${m.homeTeam}</div>
+      <div class="team-name" id="hn-${m.id}">${m.homeTeam}</div>
       ${getTeamLogo(m.homeTeam) ? '<img class="team-logo" src="' + getTeamLogo(m.homeTeam) + '" alt="">' : ''}
     </div>
     ${scoreArea}
     <div class="team-block" style="align-items:flex-end">
       <div class="team-colour-bar" style="background:${m.awayColour};margin-left:auto"></div>
-      <div class="team-name" style="text-align:right">${m.awayTeam}</div>
+      <div class="team-name" id="an-${m.id}" style="text-align:right">${m.awayTeam}</div>
       ${getTeamLogo(m.awayTeam) ? '<img class="team-logo" src="' + getTeamLogo(m.awayTeam) + '" alt="" style="margin-left:auto">' : ''}
     </div>
   </div>
@@ -409,8 +409,8 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .day-header{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;color:#bbb;text-align:center;padding:6px 0 8px;letter-spacing:.3px}
 .day-divider{height:1px;background:linear-gradient(to right,transparent,#2a3a2a 30%,#2a3a2a 70%,transparent);margin:10px 20px 14px}
 .cards-col{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
-.match-card{background:${NRL_CARD};border:1px solid ${NRL_BORDER};border-radius:12px;overflow:hidden;position:relative;}
-.pick-chip{position:absolute;top:6px;right:8px;font-size:22px;line-height:1;pointer-events:none;z-index:10;}
+.match-card{background:${NRL_CARD};border:1px solid ${NRL_BORDER};border-radius:12px;overflow:hidden;}
+.pick-chip{display:inline;font-size:18px;line-height:1;pointer-events:none;vertical-align:middle;}
 .match-body{padding:14px;display:flex;align-items:center;gap:8px}
 .team-block{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
 .team-colour-bar{height:3px;width:32px;border-radius:2px}
@@ -493,14 +493,20 @@ function clearPickResults(){
 function showPickResults(results){
   clearPickResults();
   results.forEach(function(r){
-    var card=document.getElementById('mc-'+r.matchId);
-    if(!card) return;
-    var chip=document.createElement('div');
+    if(r.result!=='win'&&r.result!=='loss') return;
+    var emoji=r.result==='win'?'\u2705':'\u274C';
+    var chip=document.createElement('span');
     chip.className='pick-chip';
-    if(r.result==='win')      chip.textContent='\u2705';
-    else if(r.result==='loss')chip.textContent='\u274C';
-    else return;
-    card.appendChild(chip);
+    chip.textContent=emoji;
+    if(r.isHome){
+      // Home team is on the LEFT — append chip after the name text (chip appears to the right of name)
+      var el=document.getElementById('hn-'+r.matchId);
+      if(el){chip.style.marginLeft='5px';el.appendChild(chip);}
+    } else {
+      // Away team is on the RIGHT — prepend chip before the name text (chip appears to the left of name)
+      var el=document.getElementById('an-'+r.matchId);
+      if(el){chip.style.marginRight='5px';el.insertBefore(chip,el.firstChild);}
+    }
   });
 }
 function setPicksShowing(v){picksShowing=v;}
@@ -673,14 +679,14 @@ export default function NRLScheduleScreen() {
       .filter((m) => picks[m.id])
       .map((m) => {
         const pickedTeam  = picks[m.id];
+        const isHome      = m.homeTeam === pickedTeam;
         let   result: "win" | "loss" | "pending" = "pending";
         if (m.isComplete && m.homeScore != null && m.awayScore != null) {
-          const pickedIsHome = m.homeTeam === pickedTeam;
-          const pickedScore  = pickedIsHome ? m.homeScore : m.awayScore;
-          const oppScore     = pickedIsHome ? m.awayScore : m.homeScore;
+          const pickedScore = isHome ? m.homeScore : m.awayScore;
+          const oppScore    = isHome ? m.awayScore : m.homeScore;
           result = pickedScore > oppScore ? "win" : "loss";
         }
-        return { matchId: m.id, pick: pickedTeam, result };
+        return { matchId: m.id, pick: pickedTeam, isHome, result };
       });
     webViewRef.current?.injectJavaScript(
       `setPicksShowing(true); showPickResults(${JSON.stringify(results)}); true;`
