@@ -133,9 +133,9 @@ input[type=file] { display:none; }
   <button class="btn-icon brush-inline picker-btn" id="btnEye" onclick="toggleEyedrop()">&#9998;</button>
   <!-- brush toggle: circle (no fill) -->
   <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9675;</button>
-  <button class="btn-icon" id="btnShare"  onclick="shareCanvas()">&#8679;</button>
-  <!-- reset + zoom: pushed to far right together -->
-  <button class="btn-icon" id="btnReset" onclick="resetActive()" style="margin-left:auto"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3 A9,9 0 1 1 15,3.5"/><polyline points="13,1.5 15,3.5 13,5.5"/></svg></button>
+  <!-- download + reset + zoom: pushed to far right together -->
+  <button class="btn-icon" id="btnShare" onclick="shareCanvas()" style="margin-left:auto"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="15"/><polyline points="7,10 12,15 17,10"/><path d="M5,18 L5,20 Q5,22 7,22 L17,22 Q19,22 19,20 L19,18"/></svg></button>
+  <button class="btn-icon" id="btnReset" onclick="resetActive()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3 A9,9 0 1 1 15,3.5"/><polyline points="13,1.5 15,3.5 13,5.5"/></svg></button>
   <button class="btn-icon" id="btnZoom"  onclick="toggleZoom()">&#128269;</button>
 </div>
 
@@ -212,6 +212,8 @@ var psScale=1,psDist=0,psMidX=0,psMidY=0,psCx=0,psCy=0,lastTap=0;
 var loaderRunning=false;
 var undoStack=[];
 var MAX_UNDO=30;
+var gestureStart=null;
+var brushDirty=false;
 
 // ── Brush state ────────────────────────────────────────
 var brushMode=false;
@@ -375,6 +377,10 @@ function undo(){
   if(s.color!==undefined)colorCanvas=s.color;
   draw();
 }
+function captureState(){return{tx1:cloneTx(tx1),tx2:cloneTx(tx2),gTx:cloneTx(gTx),sliderPos:sliderPos,mask:cloneMask(),color:cloneColor()};}
+function txDiff(a,b){if(!a&&!b)return false;if(!a||!b)return true;return a.scale!==b.scale||a.cx!==b.cx||a.cy!==b.cy;}
+function gestureChanged(){if(!gestureStart)return false;if(gestureStart.sliderPos!==sliderPos||brushDirty)return true;return txDiff(gestureStart.tx1,tx1)||txDiff(gestureStart.tx2,tx2)||txDiff(gestureStart.gTx,gTx);}
+function commitGesture(){if(gestureChanged()){undoStack.push(gestureStart);if(undoStack.length>MAX_UNDO)undoStack.shift();}gestureStart=null;brushDirty=false;}
 function defaultTx(img,w,h){var s=Math.min(w/img.naturalWidth,h/img.naturalHeight);return{scale:s,cx:w/2,cy:h/2};}
 function activeTx(){return active===1?tx1:tx2;}
 function setActiveTx(t){if(active===1)tx1=t;else tx2=t;}
@@ -472,6 +478,9 @@ stage.addEventListener('touchstart',function(e){
   // Reset hadPinch on fresh single-touch start
   if(t.length===1)hadPinch=false;
 
+  // ── Capture pre-gesture state for undo ─────────────
+  gestureStart=captureState();brushDirty=false;
+
   // ── Brush mode ─────────────────────────────────────
   if(brushMode&&img2){
     if(t.length===1){
@@ -527,17 +536,19 @@ stage.addEventListener('touchend',function(e){
   e.preventDefault();
   var rem=e.touches.length;
   if(rem===0){
-    if(tMode==='brush'){snapshot();tMode='none';draw();return;}
-    if(tMode==='pan'||tMode==='pinch'||tMode==='slider'){snapshot();}
+    if(tMode==='brush'){commitGesture();tMode='none';draw();return;}
     if(tMode==='pan'){
       var now=Date.now();
       // Only trigger double-tap reset if this was a genuine single-touch (not pinch release)
       if(now-lastTap<280&&!hadPinch){
         if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};}
         else if(active!==0){var img=active===1?img1:img2;if(img)setActiveTx(defaultTx(img,W(),H()));}
-        draw();snapshot();
+        draw();
       }
+      commitGesture();
       lastTap=now;hadPinch=false;
+    } else if(tMode==='pinch'||tMode==='slider'){
+      commitGesture();
     }
     tMode='none';
   }else if(rem===1){
@@ -668,6 +679,7 @@ function swatchTap(){
 
 // ── Painting ───────────────────────────────────────────
 function paintAt(sx,sy){
+  brushDirty=true;
   if(brushPaintMode==='color')paintColorAt(sx,sy);
   else paintMask(sx,sy);
 }
