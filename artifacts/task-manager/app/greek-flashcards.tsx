@@ -249,8 +249,9 @@ export default function GreekFlashcardsScreen() {
     : feedback.kind === "hint" ? "Hint"
     : "Incorrect";
   const fbIcon = feedback.kind === "correct" ? "✓"
-    : feedback.kind === "hint" ? "ℹ"
+    : feedback.kind === "hint" ? "i"
     : "✗";
+  const capSound = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
@@ -301,13 +302,19 @@ export default function GreekFlashcardsScreen() {
           {feedback.kind ? (
             <View style={[s.alertCard, { backgroundColor: fbBg, borderColor: fbAccent }]}>
               <View style={s.alertRow}>
-                <Text style={[s.alertIcon, { color: fbAccent }]}>{fbIcon}</Text>
+                {feedback.kind === "hint" ? (
+                  <View style={[s.alertIconCircle, { borderColor: fbAccent }]}>
+                    <Text style={[s.alertIconCircleText, { color: fbAccent }]}>i</Text>
+                  </View>
+                ) : (
+                  <Text style={[s.alertIcon, { color: fbAccent }]}>{fbIcon}</Text>
+                )}
                 <Text style={[s.alertTitle, { color: fbAccent }]}>{fbTitle}</Text>
                 {feedback.kind === "incorrect" && (
-                  <Text style={s.alertSub}>{"  "}the sound is {feedback.sound.toUpperCase()}</Text>
+                  <Text style={s.alertSub}>{"  "}the sound is {capSound(feedback.sound)}</Text>
                 )}
                 {feedback.kind === "hint" && (
-                  <Text style={s.alertSub}>{"  "}{feedback.sound.toUpperCase()}</Text>
+                  <Text style={s.alertSub}>{"  "}{capSound(feedback.sound)}</Text>
                 )}
               </View>
             </View>
@@ -346,6 +353,8 @@ const s = StyleSheet.create({
   alertCard:       { width: "100%", maxWidth: 480, borderWidth: 1, borderRadius: 14, padding: 16, marginTop: 12 },
   alertRow:        { flexDirection: "row", alignItems: "center" },
   alertIcon:       { fontSize: 16, fontWeight: "700", marginRight: 8 },
+  alertIconCircle:     { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginRight: 8 },
+  alertIconCircleText: { fontSize: 11, fontFamily: "Inter_700Bold", lineHeight: 14 },
   alertTitle:      { fontSize: 15, fontFamily: "Inter_700Bold" },
   alertSub:        { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
   alertPlaceholder:{ height: 56, marginTop: 12 },
