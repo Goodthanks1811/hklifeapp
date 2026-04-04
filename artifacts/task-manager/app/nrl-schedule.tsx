@@ -5,7 +5,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -775,11 +774,7 @@ export default function NRLScheduleScreen() {
             <View style={styles.pickerHandle} />
             <Text style={styles.pickerTitle}>Round {pickerRound} Tips</Text>
             <Text style={styles.pickerSub}>Tap a team to set your pick — tap again to clear</Text>
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={styles.pickerList}
-              showsVerticalScrollIndicator={false}
-            >
+            <View style={styles.pickerList}>
               {pickerMatches.map((m) => {
                 const pick = roundPicks[m.id] ?? null;
                 return (
@@ -806,7 +801,7 @@ export default function NRLScheduleScreen() {
                   </View>
                 );
               })}
-            </ScrollView>
+            </View>
             <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={() => setPickerVisible(false)}>
               <Text style={styles.pickerDoneTx}>Done</Text>
             </TouchableOpacity>
@@ -828,14 +823,12 @@ const styles = StyleSheet.create({
   // Picker modal
   pickerOverlay: {
     flex: 1,
-    justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.72)",
   },
   pickerSheet: {
     backgroundColor: "#141414",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    maxHeight: "82%",
     paddingHorizontal: 20,
     paddingTop: 12,
   },
