@@ -78,7 +78,7 @@ function ProposedPreview() {
       <View style={s.heroOuter}>
         {/* Main gradient: black → E03131 tinted → transparent (matches canvas radial) */}
         <LinearGradient
-          colors={["#000000", "rgba(224,49,49,0.50)", "rgba(224,49,49,0.15)", "transparent"]}
+          colors={["#000000", "rgba(224,49,49,0.70)", "rgba(224,49,49,0.25)", "transparent"]}
           locations={[0, 0.28, 0.55, 1]}
           style={StyleSheet.absoluteFillObject}
         />

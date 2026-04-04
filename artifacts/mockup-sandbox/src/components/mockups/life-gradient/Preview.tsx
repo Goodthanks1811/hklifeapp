@@ -71,7 +71,7 @@ function ProposedHero() {
       {/* E03131-tinted radial glow — black at edges, brand red blooms from top-centre */}
       <div style={{
         position: "absolute", inset: 0,
-        background: "radial-gradient(ellipse 110% 160% at 50% -20%, rgba(224,49,49,0.52) 0%, rgba(224,49,49,0.18) 42%, transparent 68%)",
+        background: "radial-gradient(ellipse 110% 160% at 50% -20%, rgba(224,49,49,0.72) 0%, rgba(224,49,49,0.28) 42%, transparent 68%)",
         backgroundColor: C.darkBg,
       }} />
       {/* Fade-to-list gradient at the bottom so rows merge seamlessly */}
