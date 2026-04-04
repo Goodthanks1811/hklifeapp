@@ -329,7 +329,9 @@ router.get("/schema/:dbId", async (req, res) => {
       categoryType === "select"       ? (categoryProp?.select?.options       || []).map((o: any) => o.name) :
       categoryType === "multi_select" ? (categoryProp?.multi_select?.options || []).map((o: any) => o.name) :
       categoryType === "status"       ? (categoryProp?.status?.options       || []).map((o: any) => o.name) : [];
-    res.json({ priType, priOptions, epicType, epicOptions, priorityType, categoryType, categoryOptions });
+    const refProp = props["Reference"];
+    const referenceType: string = refProp?.type || "url";
+    res.json({ priType, priOptions, epicType, epicOptions, priorityType, categoryType, categoryOptions, referenceType });
   } catch (e: any) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -375,7 +377,13 @@ router.post("/pages", async (req, res) => {
     }
 
     if (url && typeof url === "string" && url.trim()) {
-      body.properties.Reference = { url: url.trim() };
+      const referenceType = req.body.referenceType || "url";
+      if (referenceType === "rich_text") {
+        const u = url.trim();
+        body.properties.Reference = { rich_text: [{ type: "text", text: { content: u, link: { url: u } } }] };
+      } else {
+        body.properties.Reference = { url: url.trim() };
+      }
     }
 
     const emojiVal = String(emoji || "\uD83D\uDD25").replace(/\uFE0F/g, "");
