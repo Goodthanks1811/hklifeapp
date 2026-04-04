@@ -288,7 +288,7 @@ export default function RussianFlashcardsScreen() {
             autoCorrect={false}
             autoCapitalize="none"
             spellCheck={false}
-            returnKeyType="done"
+            returnKeyType={answered ? "next" : "done"}
             onSubmitEditing={checkAnswer}
             blurOnSubmit={false}
           />

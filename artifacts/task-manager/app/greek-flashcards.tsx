@@ -279,7 +279,7 @@ export default function GreekFlashcardsScreen() {
             autoCorrect={false}
             autoCapitalize="none"
             spellCheck={false}
-            returnKeyType="done"
+            returnKeyType={answered ? "next" : "done"}
             onSubmitEditing={checkAnswer}
             blurOnSubmit={false}
           />
