@@ -171,12 +171,6 @@ function getTeamLogo(name: string): string {
     if (name.includes(key)) return TEAM_LOGOS[key];
   }
   return '';
-};
-function getTeamLogo(name: string): string {
-  for (const key of Object.keys(TEAM_LOGOS)) {
-    if (name.includes(key)) return TEAM_LOGOS[key];
-  }
-  return '';
 }
 function parseLadder(data: any): LadderRow[] {
   const raw = data?.positions;
