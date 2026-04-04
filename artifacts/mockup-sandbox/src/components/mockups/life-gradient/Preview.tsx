@@ -1,162 +1,195 @@
+// Colours matching constants/colors.ts exactly
+const C = {
+  primary:         "#E03131",
+  darkBg:          "#111111",
+  cardBg:          "#1A1A1A",
+  cardBgElevated:  "#222222",
+  border:          "#2A2A2A",
+  textPrimary:     "#FFFFFF",
+  textSecondary:   "#A0A0A0",
+  textMuted:       "#666666",
+  success:         "#40C057",
+  warning:         "#FD7E14",
+  info:            "#339AF0",
+};
+
+const ITEM_H  = 48;
+const ITEM_GAP = 1;
+const SLOT_H  = ITEM_H + ITEM_GAP;
+
 const ROWS = [
-  { emoji: "🏠", label: "Pay rent", status: "In Progress", statusColor: "#FD7E14" },
-  { emoji: "📋", label: "Insurance renewal", status: "Not started", statusColor: "#555555" },
-  { emoji: "🔑", label: "Book locksmith", status: "Done", statusColor: "#40C057" },
-  { emoji: "📦", label: "Return Amazon package", status: "Backlog", statusColor: "#339AF0" },
-  { emoji: "💳", label: "Credit card statement", status: "Not started", statusColor: "#555555" },
-  { emoji: "🚗", label: "Car service booking", status: "In Progress", statusColor: "#FD7E14" },
-  { emoji: "📱", label: "Cancel Spotify trial", status: "Backlog", statusColor: "#339AF0" },
-  { emoji: "🔋", label: "Electricity bill", status: "Not started", statusColor: "#555555" },
-  { emoji: "🏦", label: "Transfer savings", status: "Done", statusColor: "#40C057" },
+  { emoji: "🏠", title: "Pay rent",               status: "In Progress", sc: C.warning },
+  { emoji: "📋", title: "Insurance renewal",       status: "Not started", sc: "#555555" },
+  { emoji: "🔑", title: "Book locksmith",          status: "Done",        sc: C.success },
+  { emoji: "📦", title: "Return Amazon package",   status: "Backlog",     sc: C.info    },
+  { emoji: "💳", title: "Credit card statement",   status: "Not started", sc: "#555555" },
+  { emoji: "🚗", title: "Car service booking",     status: "In Progress", sc: C.warning },
+  { emoji: "📱", title: "Cancel Spotify trial",    status: "Backlog",     sc: C.info    },
+  { emoji: "🔋", title: "Electricity bill",        status: "Not started", sc: "#555555" },
+  { emoji: "🏦", title: "Transfer savings",        status: "Done",        sc: C.success },
 ];
 
-function PhoneHeader({ title }: { title: string }) {
+// Exact replication of ScreenHeader from components/ScreenHeader.tsx
+function ScreenHeader({ title }: { title: string }) {
   return (
-    <div
-      style={{
-        height: 52,
-        background: "#0d0d0d",
-        borderBottom: "1px solid #1e1e1e",
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: 18,
-        paddingRight: 14,
-        gap: 10,
+    <div style={{
+      display: "flex", flexDirection: "row", alignItems: "center",
+      padding: "10px 12px", gap: 12,
+      backgroundColor: C.darkBg,
+      borderBottom: `1px solid ${C.border}`,
+      flexShrink: 0,
+    }}>
+      {/* Menu button */}
+      <div style={{
+        width: 38, height: 38, borderRadius: 11,
+        backgroundColor: C.cardBg,
+        display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0,
-      }}
-    >
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: "#E03131", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 14 }}>🏠</span>
+      }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.textPrimary} strokeWidth="2" strokeLinecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
       </div>
-      <span style={{ color: "#fff", fontSize: 16, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: -0.3 }}>
-        {title}
-      </span>
-      <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: "#1a1a1a", border: "1px solid #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#E03131", fontSize: 14 }}>+</span>
-        </div>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: "#1a1a1a", border: "1px solid #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#888", fontSize: 12 }}>⋮</span>
-        </div>
+      {/* Title */}
+      <span style={{
+        flex: 1, textAlign: "center",
+        color: C.textPrimary, fontSize: 17,
+        fontFamily: "'Inter', sans-serif", fontWeight: 700, letterSpacing: 0.1,
+      }}>{title}</span>
+      {/* Right spacer / refresh icon */}
+      <div style={{
+        width: 38, height: 38, borderRadius: 11,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
       </div>
     </div>
   );
 }
 
-function Row({ emoji, label, status, statusColor, index }: typeof ROWS[0] & { index: number }) {
+// Exact replication of TaskRow from life/[slug].tsx — rowWrap style
+function TaskRow({ emoji, title, status, sc }: typeof ROWS[0]) {
   return (
-    <div
-      style={{
-        height: 50,
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: 14,
-        paddingRight: 14,
-        borderBottom: "1px solid #1e1e1e",
-        gap: 10,
-        background: index % 2 === 0 ? "#0d0d0d" : "#111",
+    <div style={{
+      display: "flex", flexDirection: "row", alignItems: "center",
+      gap: 12, backgroundColor: C.cardBg,
+      border: `1px solid ${C.border}`,
+      paddingLeft: 14, paddingRight: 14,
+      height: ITEM_H, flexShrink: 0,
+      marginBottom: ITEM_GAP,
+      boxSizing: "border-box",
+    }}>
+      {/* Emoji */}
+      <span style={{ fontSize: 22, lineHeight: 1, minWidth: 28, textAlign: "center" }}>{emoji}</span>
+      {/* Title */}
+      <span style={{
+        flex: 1,
+        color: C.textPrimary, fontSize: 15,
+        fontFamily: "'Inter', sans-serif", fontWeight: 600, lineHeight: "21px",
+        overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+      }}>{title}</span>
+      {/* Status pill — epicPill style */}
+      <span style={{
+        fontSize: 11, fontFamily: "'Inter', sans-serif", fontWeight: 600, letterSpacing: 0.2,
+        color: sc,
+        backgroundColor: sc + "28",
+        border: `1px solid ${sc}55`,
+        borderRadius: 6,
+        padding: "3px 8px",
+        whiteSpace: "nowrap",
         flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: "#1a1a1a",
-          border: "1px solid #2a2a2a",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 15,
-          flexShrink: 0,
-        }}
-      >
-        {emoji}
-      </div>
-      <span
-        style={{
-          flex: 1,
-          color: "#fff",
-          fontSize: 13.5,
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 500,
-          letterSpacing: -0.1,
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 10.5,
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 600,
-          color: statusColor,
-          background: statusColor + "1A",
-          border: `1px solid ${statusColor}40`,
-          borderRadius: 5,
-          padding: "2px 7px",
-          whiteSpace: "nowrap",
-          letterSpacing: 0.2,
-        }}
-      >
-        {status}
+      }}>{status}</span>
+      {/* Checkbox — checkBox style */}
+      <div style={{
+        width: 24, height: 24, borderRadius: 6,
+        border: "2px solid #5a5a5a",
+        flexShrink: 0, backgroundColor: "transparent",
+      }} />
+    </div>
+  );
+}
+
+// Count row — sc.countRow / sc.countText
+function CountRow({ count }: { count: number }) {
+  return (
+    <div style={{ padding: "8px 16px", flexShrink: 0 }}>
+      <span style={{ fontSize: 12, color: C.textMuted, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>
+        {count} items
       </span>
     </div>
   );
 }
 
-function PhoneFrame({ children, label }: { children: React.ReactNode; label: string }) {
+// FAB — sc.fab
+function FAB() {
+  return (
+    <div style={{
+      position: "absolute", bottom: 32, right: 20,
+      width: 48, height: 48, borderRadius: 14,
+      backgroundColor: C.primary,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: `0 4px 12px ${C.primary}73`,
+    }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </div>
+  );
+}
+
+// A single screen column — label above, screen below
+function Screen({ label, gradient }: { label: string; gradient: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-      <span
-        style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 600,
-          fontSize: 12,
-          color: "#888",
-          letterSpacing: 1.2,
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </span>
-      <div
-        style={{
-          width: 320,
-          height: 620,
-          borderRadius: 32,
-          background: "#111",
-          border: "2px solid #2a2a2a",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.7)",
+      {/* Label */}
+      <span style={{
+        fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 11,
+        color: "#666", letterSpacing: 1.4, textTransform: "uppercase",
+      }}>{label}</span>
+
+      {/* Screen — exact darkBg, 390px wide */}
+      <div style={{
+        width: 390, height: 620,
+        backgroundColor: C.darkBg,
+        display: "flex", flexDirection: "column",
+        position: "relative", overflow: "hidden",
+        borderRadius: 8,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+        border: `1px solid ${C.border}`,
+      }}>
+        <ScreenHeader title="Life Admin" />
+        <CountRow count={ROWS.length} />
+
+        {/* List area */}
+        <div style={{
+          flex: 1, overflow: "hidden",
+          marginLeft: 16, marginRight: 16,
+          marginTop: 8,
           position: "relative",
-        }}
-      >
-        {/* Notch */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 90,
-            height: 24,
-            background: "#111",
-            borderRadius: "0 0 16px 16px",
-            zIndex: 10,
-            border: "2px solid #2a2a2a",
-            borderTop: "none",
-          }}
-        />
-        {/* Status bar space */}
-        <div style={{ height: 28, background: "#111", flexShrink: 0 }} />
-        {children}
+        }}>
+          {/* Gradient overlay — PROPOSED only */}
+          {gradient && (
+            <div style={{
+              position: "absolute", top: 0, left: 0, right: 0,
+              height: 70,
+              background: "linear-gradient(180deg, rgba(224,49,49,0.28) 0%, transparent 100%)",
+              zIndex: 2, pointerEvents: "none",
+            }} />
+          )}
+
+          {/* Task rows — pushed down 70px in proposed variant */}
+          <div style={{ paddingTop: gradient ? 70 : 0 }}>
+            {ROWS.map((r, i) => <TaskRow key={i} {...r} />)}
+          </div>
+        </div>
+
+        <FAB />
       </div>
     </div>
   );
@@ -164,66 +197,36 @@ function PhoneFrame({ children, label }: { children: React.ReactNode; label: str
 
 export function Preview() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "40px 32px",
-        gap: 32,
-        fontFamily: "'DM Sans', sans-serif",
-      }}
-    >
-      {/* Title */}
+    <div style={{
+      minHeight: "100vh",
+      background: "#000",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "40px 48px",
+      gap: 28,
+      fontFamily: "'Inter', sans-serif",
+    }}>
+      {/* Heading */}
       <div style={{ textAlign: "center" }}>
-        <p style={{ color: "#E03131", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", margin: 0 }}>
+        <p style={{ color: C.primary, fontSize: 10, fontWeight: 700, letterSpacing: 2.2, textTransform: "uppercase", margin: 0 }}>
           Design Exploration
         </p>
-        <h1 style={{ color: "#fff", fontSize: 20, fontWeight: 700, margin: "6px 0 0", letterSpacing: -0.5 }}>
+        <h1 style={{ color: "#fff", fontSize: 18, fontWeight: 700, margin: "6px 0 0", letterSpacing: -0.3 }}>
           Life Section — Gradient Header
         </h1>
       </div>
 
-      {/* Two phone frames */}
+      {/* Side-by-side screens */}
       <div style={{ display: "flex", gap: 40, alignItems: "flex-start" }}>
-        {/* LEFT: Current */}
-        <PhoneFrame label="Current">
-          <PhoneHeader title="Life Admin" />
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            {ROWS.map((r, i) => <Row key={i} {...r} index={i} />)}
-          </div>
-        </PhoneFrame>
-
-        {/* RIGHT: Proposed — gradient + items pushed down */}
-        <PhoneFrame label="Proposed">
-          <PhoneHeader title="Life Admin" />
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
-            {/* Gradient band */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 70,
-                background: "linear-gradient(180deg, rgba(224,49,49,0.28) 0%, transparent 100%)",
-                zIndex: 2,
-                pointerEvents: "none",
-              }}
-            />
-            {/* Spacer pushes items below the gradient */}
-            <div style={{ height: 70, flexShrink: 0 }} />
-            {ROWS.map((r, i) => <Row key={i} {...r} index={i} />)}
-          </div>
-        </PhoneFrame>
+        <Screen label="Current" gradient={false} />
+        <Screen label="Proposed" gradient={true} />
       </div>
 
       {/* Caption */}
-      <p style={{ color: "#555", fontSize: 12, textAlign: "center", maxWidth: 520, lineHeight: 1.6, margin: 0 }}>
-        Right: 70px red gradient (28% opacity → transparent) fades from the top of the list area. List items start 70px lower.
+      <p style={{ color: "#444", fontSize: 11, textAlign: "center", maxWidth: 600, lineHeight: 1.6, margin: 0 }}>
+        Proposed: 70px gradient (rgba(224,49,49,0.28) → transparent) overlays the top of the list. Items start 70px lower.
       </p>
     </div>
   );
