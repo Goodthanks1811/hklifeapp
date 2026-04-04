@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "v74cPSI_RPWQqjFufxY7F"
+uri = "file://artifacts/task-manager/assets/images/greek-flag.png"
+type = "image"
+title = "greek flag"
 
 [[outputs]]
 id = "tFUB6h_Yp63m6sZI7k08e"
