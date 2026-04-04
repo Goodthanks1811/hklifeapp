@@ -35,10 +35,13 @@ const buildHtml = () => `<!DOCTYPE html>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMacSystemFont,sans-serif; color:${C.text}; overflow:hidden; display:flex; flex-direction:column; }
 
-.bar { display:flex; gap:5px; padding:7px 10px; background:${C.surface}; flex-shrink:0; border-bottom:1px solid ${C.border}; align-items:center; }
+/* ── Toolbar — horizontally scrollable single row ─── */
+.bar { display:flex; gap:5px; padding:7px 10px; background:${C.surface}; flex-shrink:0; border-bottom:1px solid ${C.border}; align-items:center; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.bar::-webkit-scrollbar { display:none; }
 .img-btn { flex:0 0 72px; padding:10px 4px; border:none; border-radius:11px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity .2s; font-family:inherit; }
-.btn-icon { flex:0 0 38px; width:38px; font-size:15px; padding:10px 0; border:none; border-radius:10px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; text-align:center; }
+.btn-icon { flex:0 0 38px; width:38px; font-size:15px; padding:10px 0; border:none; border-radius:10px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; text-align:center; display:flex; align-items:center; justify-content:center; }
 
+/* Active states */
 .img1-active { background:${C.blue} !important; box-shadow:0 0 0 2px rgba(10,132,255,.45); opacity:1 !important; }
 .img2-active { background:${C.primary} !important; box-shadow:0 0 0 2px rgba(224,49,49,.45); opacity:1 !important; }
 .img1-loaded { background:${C.blue} !important; }
@@ -48,7 +51,28 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .slider-active{ background:${C.purple} !important; box-shadow:0 0 0 2px rgba(191,90,242,.45); }
 .undo-active  { background:#ff453a !important; }
 .eye-active   { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
+.brush-active-btn { background:${C.green} !important; box-shadow:0 0 8px rgba(48,168,48,.45) !important; }
+.erase-on  { background:${C.primary} !important; box-shadow:0 0 8px rgba(224,49,49,.45) !important; }
+.restore-on{ background:${C.green} !important; box-shadow:0 0 8px rgba(48,168,48,.45) !important; }
+.draw-on   { box-shadow:0 0 8px rgba(224,49,49,.35) !important; }
 
+/* Reset — always red */
+#btnReset { background:#ff453a !important; box-shadow:0 0 0 2px rgba(255,69,58,.25); }
+
+/* Colour swatch in main bar — hidden until a colour is picked */
+#colorSwatch { flex:0 0 28px; width:28px; height:28px; border-radius:8px; border:2px solid #555; cursor:pointer; background:rgb(224,49,49); transition:border-color .2s, box-shadow .2s; display:none; }
+#colorSwatch.picking { border-color:${C.orange}; box-shadow:0 0 0 2px rgba(255,159,10,.5); animation:pulse .7s ease-in-out infinite alternate; }
+#colorSwatch.swatch-active { border-color:${C.orange}; box-shadow:0 0 8px rgba(255,159,10,.65); }
+@keyframes pulse { from{opacity:1} to{opacity:.55} }
+
+/* Inline brush tools + picker — hidden until brush mode on */
+.brush-inline { display:none !important; }
+.brush-inline.bi-on { display:flex !important; }
+
+/* Bigger colour-picker pencil */
+.picker-btn { font-size:21px !important; }
+
+/* Opacity bar */
 .obar { display:flex; align-items:center; gap:10px; padding:8px 14px; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
 .obar label { font-size:12px; color:${C.muted}; white-space:nowrap; }
 .obar input[type=range] { flex:1; -webkit-appearance:none; height:4px; border-radius:2px; background:${C.border}; outline:none; }
@@ -56,38 +80,9 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .oval { font-size:12px; color:${C.muted}; width:36px; text-align:right; }
 
 #stage { flex:1; min-height:0; position:relative; touch-action:none; user-select:none; overflow:hidden; background:${C.bg}; cursor:none; }
-#stage.brush-active { cursor:none; }
 #stage.eye-cursor { cursor:crosshair; }
 canvas { position:absolute; top:0; left:0; display:block; }
 #divider { position:absolute; z-index:3; background:rgba(255,255,255,.85); box-shadow:0 0 8px rgba(0,0,0,.6); pointer-events:none; display:none; }
-
-/* ── Brush bar (compact) ─────────────────────────────── */
-#brush-bar { display:none; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
-#brush-bar.visible { display:block; }
-
-.bbar-row { display:flex; align-items:center; gap:5px; padding:7px 10px; }
-.mode-btn { flex:1; padding:8px 0; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
-.mode-btn.on { background:${C.green}; box-shadow:0 0 8px rgba(48,168,48,.45); }
-.mode-erase.on { background:${C.primary}; box-shadow:0 0 8px rgba(224,49,49,.45); }
-.mode-color.on { box-shadow:0 0 8px rgba(224,49,49,.35); }
-.mode-clear { flex:0.55 !important; font-size:11px; }
-
-/* Setting icon buttons — toggle individual slider rows */
-.bset-btn { flex:0 0 36px; height:36px; border:none; border-radius:9px; font-size:11px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
-.bset-btn.open { background:${C.purple}; box-shadow:0 0 6px rgba(191,90,242,.5); }
-
-/* Color swatch — tap to pick from canvas */
-#colorSwatch { flex:0 0 34px; height:34px; border-radius:9px; border:2px solid #555; cursor:pointer; background:rgb(224,49,49); transition:border-color .2s; }
-#colorSwatch.picking { border-color:${C.orange}; box-shadow:0 0 0 2px rgba(255,159,10,.5); animation:pulse .7s ease-in-out infinite alternate; }
-@keyframes pulse { from{opacity:1} to{opacity:.55} }
-
-/* Expandable slider row */
-.bpanel { display:none; align-items:center; gap:8px; padding:6px 12px 8px; }
-.bpanel.open { display:flex; }
-.bpanel-lbl { font-size:11px; color:${C.muted}; white-space:nowrap; min-width:28px; }
-.brush-range { flex:1; -webkit-appearance:none; height:4px; border-radius:2px; background:${C.border}; outline:none; }
-.brush-range::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.5); }
-.brush-lbl { font-size:11px; color:${C.muted}; width:30px; text-align:right; }
 
 /* ── Sheet ───────────────────────────────────────────── */
 #sheet-bg { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,0); pointer-events:none; transition:background 0.28s; }
@@ -123,54 +118,28 @@ input[type=file] { display:none; }
 </head>
 <body>
 
-<!-- ── Single toolbar ─────────────────────────────── -->
+<!-- ── Single scrollable toolbar ─────────────────── -->
 <div class="bar">
   <button class="img-btn" id="btn1" onclick="imgBtnTap(1)">Image 1</button>
   <button class="img-btn" id="btn2" onclick="imgBtnTap(2)">Image 2</button>
-  <button class="btn-icon" id="btnSlider" onclick="toggleSlider()">&#9474;</button>
-  <button class="btn-icon" id="btnZoom"   onclick="toggleZoom()">&#128269;</button>
-  <button class="btn-icon" id="btnFit"    onclick="fitActive()">&#10697;</button>
-  <button class="btn-icon" id="btnUndo"   onclick="undo()">&#8617;</button>
-  <button class="btn-icon" id="btnReset"  onclick="resetActive()">&#8634;</button>
-  <button class="btn-icon" id="btnEye"    onclick="toggleEyedrop()" title="Pick colour">&#9673;</button>
-  <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9998;</button>
+  <button class="btn-icon" id="btnSlider"  onclick="toggleSlider()">&#9474;</button>
+  <!-- fit: plus with 4 arrowheads -->
+  <button class="btn-icon" id="btnFit"     onclick="fitActive()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6.5" y1="1.5" x2="6.5" y2="11.5"/><polyline points="4,4 6.5,1.5 9,4"/><polyline points="4,9 6.5,11.5 9,9"/><line x1="1.5" y1="6.5" x2="11.5" y2="6.5"/><polyline points="4,4 1.5,6.5 4,9"/><polyline points="9,4 11.5,6.5 9,9"/></svg></button>
+  <button class="btn-icon" id="btnUndo"    onclick="undo()">&#8617;</button>
+  <button class="btn-icon" id="btnReset"   onclick="resetActive()">&#8634;</button>
+  <!-- colour swatch: hidden until a colour is picked; tap activates colour-draw mode -->
+  <div id="colorSwatch" onclick="swatchTap()"></div>
+  <!-- inline brush tools: only visible when brush mode is on -->
+  <button class="btn-icon brush-inline" id="btnErase"   onclick="setBrushMode('erase')"  >&#9675;</button>
+  <button class="btn-icon brush-inline" id="btnRestore" onclick="setBrushMode('restore')" >&#9679;</button>
+  <button class="btn-icon brush-inline" id="btnDraw"    onclick="setBrushMode('color')"  >&#9998;</button>
+  <!-- colour picker pencil: only visible in brush mode; bigger via .picker-btn -->
+  <button class="btn-icon brush-inline picker-btn" id="btnEye" onclick="toggleEyedrop()">&#9998;</button>
+  <!-- brush toggle: circle (no fill) -->
+  <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9675;</button>
   <button class="btn-icon" id="btnShare"  onclick="shareCanvas()">&#8679;</button>
-</div>
-
-<!-- ── Brush bar (compact): modes + setting icons ── -->
-<div id="brush-bar">
-  <div class="bbar-row">
-    <button class="mode-btn mode-erase on" id="btnErase"   onclick="setBrushMode('erase')">Erase</button>
-    <button class="mode-btn mode-restore"  id="btnRestore" onclick="setBrushMode('restore')">Restore</button>
-    <button class="mode-btn mode-color"    id="btnColor"   onclick="setBrushMode('color')">Color</button>
-    <button class="mode-btn mode-clear"    onclick="clearEffects()">Clear</button>
-    <!-- Setting toggles -->
-    <button class="bset-btn" id="bset-sz"   onclick="toggleBPanel('sz')"  title="Size">Sz</button>
-    <button class="bset-btn" id="bset-soft" onclick="toggleBPanel('soft')" title="Softness">&#9675;</button>
-    <button class="bset-btn" id="bset-p"    onclick="toggleBPanel('p')"   title="Pressure">P</button>
-    <!-- Picked colour swatch — tap to re-pick -->
-    <div id="colorSwatch" onclick="toggleEyedrop()" title="Pick colour from canvas"></div>
-  </div>
-
-  <!-- Expandable slider panels (one open at a time) -->
-  <div class="bpanel" id="bpanel-sz">
-    <span class="bpanel-lbl">Size</span>
-    <input class="brush-range" type="range" id="bsl" min="4" max="80" value="20"
-      oninput="brushSize=+this.value;document.getElementById('bval').textContent=this.value;">
-    <span class="brush-lbl" id="bval">20</span>
-  </div>
-  <div class="bpanel" id="bpanel-soft">
-    <span class="bpanel-lbl">Soft</span>
-    <input class="brush-range" type="range" id="bsoftsl" min="0" max="100" value="0"
-      oninput="brushSoft=this.value/100;document.getElementById('bsval').textContent=Math.round(this.value)+'%';">
-    <span class="brush-lbl" id="bsval">0%</span>
-  </div>
-  <div class="bpanel" id="bpanel-p">
-    <span class="bpanel-lbl">Press</span>
-    <input class="brush-range" type="range" id="bopsl" min="1" max="100" value="100"
-      oninput="brushOpacity=this.value/100;document.getElementById('bopval').textContent=Math.round(this.value)+'%';">
-    <span class="brush-lbl" id="bopval">100%</span>
-  </div>
+  <!-- zoom: pushed to far right -->
+  <button class="btn-icon" id="btnZoom"   onclick="toggleZoom()" style="margin-left:auto">&#128269;</button>
 </div>
 
 <!-- ── Opacity bar ───────────────────────────────── -->
@@ -255,7 +224,6 @@ var maskCanvas=null,offCanvas=null,offCtx=null;
 var colorCanvas=null;
 var pickedR=224,pickedG=49,pickedB=49; // default: brand red
 var eyedropMode=false;
-var openBPanel=null; // which slider panel is open: 'sz'|'soft'|'p'|null
 var hadPinch=false;  // guards against pinch-end triggering double-tap reset
 
 var rafPending=false;
@@ -500,10 +468,8 @@ stage.addEventListener('touchstart',function(e){
     if(t.length===1){
       var px=ctx.getImageData(Math.round(p.x),Math.round(p.y),1,1).data;
       pickedR=px[0];pickedG=px[1];pickedB=px[2];
-      applyPickedColor();
       eyedropMode=false;
-      document.getElementById('btnEye').className='btn-icon';
-      stage.classList.remove('eye-cursor');
+      applyPickedColor(); // shows swatch, clears eye-active + eye-cursor
     }
     return;
   }
@@ -551,8 +517,7 @@ stage.addEventListener('touchmove',function(e){
   var ax=zoomMode?gTx:(brushMode?tx2:activeTx());if(!ax)return;
   if(tMode==='pan'&&t.length===1){
     var p=stXY(t[0]);var dx=p.x-panLast.x,dy=p.y-panLast.y;
-    if(zoomMode&&gTx&&gTx.scale!==1){var f=1/(1-gTx.scale);ax.cx+=dx*f;ax.cy+=dy*f;}
-    else{ax.cx+=dx;ax.cy+=dy;}
+    ax.cx+=dx;ax.cy+=dy;
     panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();
   }else if(tMode==='pinch'&&t.length>=2){
     var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));
@@ -629,65 +594,81 @@ function initMask(){
   colorCanvas.width=img2.naturalWidth;colorCanvas.height=img2.naturalHeight;
   offCanvas=null;
 }
+
+function _setBrushInline(show){
+  var els=document.querySelectorAll('.brush-inline');
+  for(var i=0;i<els.length;i++){if(show)els[i].classList.add('bi-on');else els[i].classList.remove('bi-on');}
+}
+
 function toggleBrush(){
   if(!img2)return;
   if(!maskCanvas)initMask();
   brushMode=!brushMode;
-  document.getElementById('btnBrush').className='btn-icon'+(brushMode?' brush-active':'');
-  document.getElementById('brush-bar').className=brushMode?'visible':'';
-  // Apply brush-active CSS separately
-  if(brushMode)document.getElementById('btnBrush').style.background='${C.green}';
-  else{document.getElementById('btnBrush').style.background='';document.getElementById('btnBrush').style.boxShadow='';}
-  if(!brushMode)closeBPanel();
+  var bb=document.getElementById('btnBrush');
+  if(brushMode){
+    bb.classList.add('brush-active-btn');
+    _setBrushInline(true);
+    setBrushMode('erase'); // default to erase when opening
+  }else{
+    bb.classList.remove('brush-active-btn');
+    _setBrushInline(false);
+    // turn off eyedrop if on
+    if(eyedropMode){eyedropMode=false;stage.classList.remove('eye-cursor');colorSwatch.classList.remove('picking');}
+  }
   draw();
 }
+
 function setBrushMode(m){
   brushPaintMode=m;
   var eBtn=document.getElementById('btnErase');
   var rBtn=document.getElementById('btnRestore');
-  var cBtn=document.getElementById('btnColor');
-  eBtn.className='mode-btn mode-erase'+(m==='erase'?' on':'');
-  rBtn.className='mode-btn mode-restore'+(m==='restore'?' on':'');
-  cBtn.className='mode-btn mode-color'+(m==='color'?' on':'');
-  if(m==='color'){cBtn.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';}
-  else{cBtn.style.background='';}
-}
-
-// ── Setting panels (compact sliders) ───────────────────
-function toggleBPanel(name){
-  var panelId='bpanel-'+name,btnId='bset-'+name;
-  if(openBPanel===name){closeBPanel();return;}
-  if(openBPanel){
-    document.getElementById('bpanel-'+openBPanel).className='bpanel';
-    document.getElementById('bset-'+openBPanel).className='bset-btn';
+  var dBtn=document.getElementById('btnDraw');
+  // reset all
+  eBtn.className='btn-icon brush-inline bi-on';
+  rBtn.className='btn-icon brush-inline bi-on';
+  dBtn.className='btn-icon brush-inline bi-on';
+  dBtn.style.background='';
+  if(m==='erase'){eBtn.classList.add('erase-on');colorSwatch.classList.remove('swatch-active');}
+  else if(m==='restore'){rBtn.classList.add('restore-on');colorSwatch.classList.remove('swatch-active');}
+  else if(m==='color'){
+    dBtn.classList.add('draw-on');
+    dBtn.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';
+    colorSwatch.classList.add('swatch-active');
   }
-  openBPanel=name;
-  document.getElementById(panelId).className='bpanel open';
-  document.getElementById(btnId).className='bset-btn open';
-}
-function closeBPanel(){
-  if(!openBPanel)return;
-  document.getElementById('bpanel-'+openBPanel).className='bpanel';
-  document.getElementById('bset-'+openBPanel).className='bset-btn';
-  openBPanel=null;
 }
 
 // ── Eyedropper ─────────────────────────────────────────
 function toggleEyedrop(){
   if(!img1&&!img2)return;
   eyedropMode=!eyedropMode;
-  document.getElementById('btnEye').className='btn-icon'+(eyedropMode?' eye-active':'');
-  if(eyedropMode){stage.classList.add('eye-cursor');colorSwatch.classList.add('picking');}
-  else{stage.classList.remove('eye-cursor');colorSwatch.classList.remove('picking');}
+  var eBtn=document.getElementById('btnEye');
+  if(eyedropMode){eBtn.classList.add('eye-active');stage.classList.add('eye-cursor');colorSwatch.classList.add('picking');}
+  else{eBtn.classList.remove('eye-active');stage.classList.remove('eye-cursor');colorSwatch.classList.remove('picking');}
 }
+
 function applyPickedColor(){
+  // Show and update swatch in main toolbar
   colorSwatch.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';
+  colorSwatch.style.display='block';
   colorSwatch.classList.remove('picking');
-  // Update Color mode button if active
-  if(brushPaintMode==='color'){
-    var cBtn=document.getElementById('btnColor');
-    cBtn.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';
+  colorSwatch.classList.remove('swatch-active');
+  // turn off eyedrop state
+  var eBtn=document.getElementById('btnEye');
+  if(eBtn)eBtn.classList.remove('eye-active');
+  stage.classList.remove('eye-cursor');
+}
+
+// ── Colour swatch tap — activate colour draw mode ──────
+function swatchTap(){
+  if(!img2)return;
+  // activate brush if not on
+  if(!brushMode){
+    if(!maskCanvas)initMask();
+    brushMode=true;
+    document.getElementById('btnBrush').classList.add('brush-active-btn');
+    _setBrushInline(true);
   }
+  setBrushMode('color');
 }
 
 // ── Painting ───────────────────────────────────────────
