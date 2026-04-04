@@ -1,0 +1,190 @@
+ // HK Life Admin — Dark with Red Hint
+const IS_IPAD = Device.isPad();
+
+const ITEMS = [
+  { title: "Check suncorp origin",                          priority: "high",   done: false },
+  { title: "Video for Suegra",                              priority: "high",   done: false },
+  { title: "Make Tyga Playlist",                            priority: "high",   done: false },
+  { title: "Think about how to create a weekly reflection",  priority: "high",   done: false },
+  { title: "Make appointment with myself",                   priority: "high",   done: false },
+  { title: "Recommence Spanish Lessons",                     priority: "normal", done: false },
+  { title: "Book laser",                                     priority: "normal", done: false },
+  { title: "GP check Alice",                                 priority: "normal", done: false },
+  { title: "Email Alice with weekly check in 🧠",            priority: "normal", done: true  },
+  { title: "Cancel subscriptions",                           priority: "normal", done: false },
+  { title: "Danny GPT Instructions",                         priority: "normal", done: true  },
+  { title: "Research new running shoes",                     priority: "normal", done: false },
+  { title: "Sort tax documents",                             priority: "normal", done: true  },
+];
+
+function buildHTML(items) {
+  const total = items.length;
+  const doneCount = items.filter(i => i.done).length;
+
+  const rows = items.map((item, idx) => {
+    const icon = item.priority === "high" ? "🔥" : "🖥";
+    const labelClass = item.done ? "lbl done" : "lbl";
+    const chkClass = item.done ? "chk on" : "chk";
+    const chkContent = item.done ? "✓" : "";
+    return `<div class="row">
+      <div class="pill">${icon}</div>
+      <span class="${labelClass}">${item.title}</span>
+      <div class="${chkClass}" data-idx="${idx}">${chkContent}</div>
+    </div>`;
+  }).join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+    position: fixed; left: 0; right: 0; top: 0; height: 100vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  .header {
+    position: relative;
+    flex-shrink: 0;
+    background:
+      radial-gradient(ellipse 100% 100% at 50% 0%,
+        rgba(224,49,49,0.38) 0%,
+        rgba(180,20,20,0.16) 30%,
+        rgba(80,5,5,0.06) 54%,
+        transparent 70%),
+      radial-gradient(ellipse 60% 65% at 0% 0%, rgba(224,49,49,0.14) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 65% at 100% 0%, rgba(224,49,49,0.14) 0%, transparent 60%),
+      #0f0f0f;
+    padding: 52px 20px 42px;
+    -webkit-mask-image: linear-gradient(to bottom, black 58%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 58%, transparent 100%);
+  }
+
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -20px; left: 50%;
+    transform: translateX(-50%);
+    width: 280px; height: 200px;
+    background: radial-gradient(ellipse 60% 50% at 50% 0%,
+      rgba(224,49,49,0.42) 0%,
+      rgba(160,15,15,0.14) 45%,
+      transparent 68%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .header-title {
+    font-size: 20px; font-weight: 700;
+    text-align: center;
+    position: relative; z-index: 1;
+    margin-bottom: 4px;
+    text-shadow: 0 0 24px rgba(224,49,49,0.45);
+  }
+
+  .header-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.25);
+    text-align: center;
+    position: relative; z-index: 1;
+  }
+
+  .list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 32px;
+  }
+
+  .row {
+    display: flex; align-items: center;
+    padding: 13px 18px; gap: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .pill {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(224,49,49,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+
+  .lbl {
+    flex: 1; font-size: 15px;
+    color: rgba(255,255,255,0.82);
+    font-weight: 400; line-height: 1.35;
+  }
+
+  .lbl.done {
+    color: rgba(255,255,255,0.22);
+    text-decoration: line-through;
+  }
+
+  .chk {
+    width: 24px; height: 24px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .chk.on {
+    background: #E03131;
+    border-color: #E03131;
+    color: white;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">Life Admin</div>
+  <div class="header-sub">${doneCount} done · ${total} items</div>
+</div>
+
+<div class="list">${rows}</div>
+
+<script>
+  document.querySelectorAll('.chk').forEach(el => {
+    el.addEventListener('click', () => {
+      const isDone = el.classList.contains('on');
+      const lbl = el.closest('.row').querySelector('.lbl');
+      if (isDone) {
+        el.classList.remove('on');
+        el.textContent = '';
+        lbl.classList.remove('done');
+      } else {
+        el.classList.add('on');
+        el.textContent = '✓';
+        lbl.classList.add('done');
+      }
+    });
+  });
+
+  function onVP() {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    document.body.style.top = vp.offsetTop + 'px';
+    document.body.style.height = vp.height + 'px';
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onVP);
+    window.visualViewport.addEventListener('scroll', onVP);
+    onVP();
+  }
+</script>
+</body>
+</html>`;
+}
+
+const wv = new WebView();
+await wv.loadHTML(buildHTML(ITEMS));
+await wv.present(IS_IPAD);
