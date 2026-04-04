@@ -11,17 +11,16 @@ import {
 
 const { width: W, height: H } = Dimensions.get("window");
 const isTablet = W >= 768;
-// Scale factor: elements designed for ~390pt phone, scaled down on iPad
 const SF = isTablet ? 0.72 : 1;
 
 const PHOTO = "https://i.postimg.cc/gc3sgzzV/IMG-5286.jpg";
 
 const PHASES = [
-  ["Good Thanks",        ""],
-  ["Thanks For Asking",  ""],
+  ["Good Thanks",          ""],
+  ["Thanks For Asking",    ""],
   ["Don't Mind If You Do", ""],
-  ["Nah You're Right",   ""],
-  ["Almost There",       ""],
+  ["Nah You're Right",     ""],
+  ["Almost There",         ""],
 ] as const;
 
 function phaseFor(p: number) {
@@ -36,40 +35,44 @@ interface Props {
   onDone: () => void;
 }
 
+// Travel distance: from top:-H*0.12 (off-screen above) to bottom of screen
+const SCAN_TRAVEL = H * 1.12;
+
 export function StartupScan({ onDone }: Props) {
-  const fadeOut  = useRef(new Animated.Value(1)).current;
-  const scanY    = useRef(new Animated.Value(-H * 0.12)).current;
+  // All three now use useNativeDriver: true — they never touch layout
+  const fadeOut   = useRef(new Animated.Value(1)).current;
+  const scanY     = useRef(new Animated.Value(0)).current;       // translateY: 0 → SCAN_TRAVEL
   const blinkAnim = useRef(new Animated.Value(0.35)).current;
 
-  const [percent, setPercent]   = useState(0);
+  const [percent,  setPercent]  = useState(0);
   const [phaseIdx, setPhaseIdx] = useState(0);
 
-  // ── Scan line loops ─────────────────────────────────────────────────────
+  // ── Scan line — native thread via translateY ────────────────────────────
   useEffect(() => {
     const loop = Animated.loop(
       Animated.timing(scanY, {
-        toValue: H,
+        toValue: SCAN_TRAVEL,
         duration: 3200,
-        useNativeDriver: false,
+        useNativeDriver: true,   // ✓ transform only
       })
     );
     loop.start();
     return () => loop.stop();
   }, []);
 
-  // ── Blinking dot ─────────────────────────────────────────────────────────
+  // ── Blinking dot — native thread ────────────────────────────────────────
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(blinkAnim, { toValue: 1,    duration: 600, useNativeDriver: false }),
-        Animated.timing(blinkAnim, { toValue: 0.35, duration: 600, useNativeDriver: false }),
+        Animated.timing(blinkAnim, { toValue: 1,    duration: 600, useNativeDriver: true }),
+        Animated.timing(blinkAnim, { toValue: 0.35, duration: 600, useNativeDriver: true }),
       ])
     );
     loop.start();
     return () => loop.stop();
   }, []);
 
-  // ── Percent counter ──────────────────────────────────────────────────────
+  // ── Percent counter ─────────────────────────────────────────────────────
   useEffect(() => {
     let p = 0;
     const id = setInterval(() => {
@@ -78,12 +81,11 @@ export function StartupScan({ onDone }: Props) {
       setPhaseIdx(phaseFor(p));
       if (p >= 100) {
         clearInterval(id);
-        // brief pause then fade out
         setTimeout(() => {
           Animated.timing(fadeOut, {
             toValue: 0,
             duration: 600,
-            useNativeDriver: false,
+            useNativeDriver: true,   // ✓ opacity only
           }).start(onDone);
         }, 600);
       }
@@ -92,6 +94,9 @@ export function StartupScan({ onDone }: Props) {
   }, []);
 
   const pad = (n: number) => String(n).padStart(2, "0") + "%";
+
+  // Scan band + line share the same translateY; both start just off top
+  const scanTransform = [{ translateY: scanY }];
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeOut, zIndex: 9999 }]}>
@@ -133,10 +138,10 @@ export function StartupScan({ onDone }: Props) {
         ))}
       </View>
 
-      {/* ── Scan band (wide soft glow) ── */}
+      {/* ── Scan band (wide soft glow) — translateY, native driver ── */}
       <Animated.View
         pointerEvents="none"
-        style={[s.scanBand, { top: scanY }]}
+        style={[s.scanBand, { transform: scanTransform }]}
       >
         <LinearGradient
           colors={[
@@ -150,10 +155,10 @@ export function StartupScan({ onDone }: Props) {
         />
       </Animated.View>
 
-      {/* ── Scan line (sharp) ── */}
+      {/* ── Scan line (sharp) — translateY, native driver ── */}
       <Animated.View
         pointerEvents="none"
-        style={[s.scanLine, { top: scanY }]}
+        style={[s.scanLine, { transform: scanTransform }]}
       >
         <LinearGradient
           colors={[
@@ -225,14 +230,17 @@ const s = StyleSheet.create({
     width: 1,
     backgroundColor: "rgba(255,80,80,0.055)",
   },
+  // Positioned at top:-H*0.12 so translateY:0 = just off screen above
   scanBand: {
     position: "absolute",
+    top: -H * 0.12,
     left: 0,
     right: 0,
     height: 104,
   },
   scanLine: {
     position: "absolute",
+    top: -H * 0.12,
     left: 0,
     right: 0,
     height: 2,
@@ -242,7 +250,6 @@ const s = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
-  // corners
   corner: {
     position: "absolute",
     width: CORNER,
@@ -254,7 +261,6 @@ const s = StyleSheet.create({
   tr: { top: CORNER_INSET, right: CORNER_INSET, borderLeftWidth: 0, borderBottomWidth: 0 },
   bl: { bottom: CORNER_INSET, left: CORNER_INSET, borderRightWidth: 0, borderTopWidth: 0 },
   br: { bottom: CORNER_INSET, right: CORNER_INSET, borderLeftWidth: 0, borderTopWidth: 0 },
-  // top bar
   topbar: {
     position: "absolute",
     top: 52,
@@ -287,7 +293,6 @@ const s = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  // center status
   centerStatus: {
     position: "absolute",
     left: 0,
