@@ -622,16 +622,34 @@ export default function NRLScheduleScreen() {
   const [pickerMatches, setPickerMatches] = useState<Match[]>([]);
   const [pickerRound,   setPickerRound]   = useState(1);
   const [roundPicks,    setRoundPicks]    = useState<Record<string, string>>({});
+  const pickerRoundRef = useRef(1); // always-fresh copy of pickerRound
+  const pickerVisibleRef = useRef(false);
 
   useEffect(() => {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(PICKS_KEY);
+        console.log("[NRL_PICKS] load from storage:", raw ?? "null");
         if (raw) allPicksRef.current = JSON.parse(raw);
-      } catch {}
+      } catch (e) {
+        console.log("[NRL_PICKS] load ERROR:", e);
+      }
       loadInitial();
     })();
   }, []);
+
+  // Keep refs in sync with state so callbacks always see the latest values
+  useEffect(() => { pickerRoundRef.current   = pickerRound;   }, [pickerRound]);
+  useEffect(() => { pickerVisibleRef.current = pickerVisible; }, [pickerVisible]);
+
+  // Auto-save whenever roundPicks changes — but ONLY while the picker is open
+  useEffect(() => {
+    if (!pickerVisibleRef.current) return;
+    const round = pickerRoundRef.current;
+    console.log("[NRL_PICKS] auto-save effect, round:", round, "picks:", JSON.stringify(roundPicks));
+    savePicks(round, roundPicks);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundPicks]);
 
   // Re-inject picks display whenever the screen regains focus (handles navigation away/back)
   useFocusEffect(useCallback(() => {
@@ -681,13 +699,18 @@ export default function NRLScheduleScreen() {
   };
 
   const savePicks = useCallback(async (round: number, picks: Record<string, string>) => {
+    console.log("[NRL_PICKS] savePicks round:", round, "picks:", JSON.stringify(picks));
     try {
       allPicksRef.current = { ...allPicksRef.current, [String(round)]: picks };
       await AsyncStorage.setItem(PICKS_KEY, JSON.stringify(allPicksRef.current));
-    } catch {}
+      console.log("[NRL_PICKS] saved OK, allPicks:", JSON.stringify(allPicksRef.current));
+    } catch (e) {
+      console.log("[NRL_PICKS] save ERROR:", e);
+    }
   }, []);
 
   const togglePick = useCallback((matchId: string, team: string) => {
+    console.log("[NRL_PICKS] togglePick matchId:", matchId, "team:", team, "pickerRound:", pickerRoundRef.current);
     setRoundPicks((prev) => {
       const updated = { ...prev };
       if (updated[matchId] === team) {
@@ -695,10 +718,10 @@ export default function NRLScheduleScreen() {
       } else {
         updated[matchId] = team;
       }
-      savePicks(pickerRound, updated);
       return updated;
+      // saving is handled by the roundPicks useEffect above
     });
-  }, [pickerRound, savePicks]);
+  }, []);
 
   const injectPickMarkers = useCallback((round: number) => {
     const picks   = allPicksRef.current[String(round)] ?? {};
@@ -811,6 +834,7 @@ export default function NRLScheduleScreen() {
     if (msg.type === "logoLongPress") {
       const round = msg.round ?? currentRoundRef.current;
       const saved = allPicksRef.current[String(round)] ?? {};
+      console.log("[NRL_PICKS] picker open, round:", round, "allPicksRef:", JSON.stringify(allPicksRef.current), "saved:", JSON.stringify(saved));
       setPickerRound(round);
       setPickerMatches(currentMatchesRef.current.filter((m) => !m.isBye));
       setRoundPicks({ ...saved });
