@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { Audio, ResizeMode, Video } from "expo-av";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import * as FileSystem from "expo-file-system/legacy";
+import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -30,6 +31,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
 const STORAGE_KEY   = "mi_corazon_folders_v2";
+const MEDIA_DIR     = (FileSystem.documentDirectory ?? "") + "mi_corazon_media/";
 // FOLD_COLS is now dynamic — see folderCols below
 const GAP           = 2;
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
@@ -435,37 +437,39 @@ export default function MiNenaScreen() {
   const navigateBack = useCallback(() => setFolderStack((p) => p.slice(0, -1)), []);
   const navigateTo   = useCallback((idx: number) => setFolderStack((p) => p.slice(0, idx + 1)), []);
 
-  // Pick files into the current folder — uses ImagePicker so ph:// URIs are stored
-  // (persistent across reinstalls; no file copy needed)
+  // Pick files into the current folder — opens the Files app via DocumentPicker.
+  // Each file is copied into the app's permanent mi_corazon_media directory so
+  // the pruning logic keeps it across sessions.
   const pickIntoFolder = useCallback(async (folderId: string) => {
     setPicking(true);
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert("Permission needed", "Please allow photo library access in Settings.");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsMultipleSelection: true,
-        quality: 1,
-        orderedSelection: true,
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        multiple: true,
+        copyToCacheDirectory: true,
       });
-      if (result.canceled || !result.assets.length) return;
+      if (result.canceled || !result.assets?.length) return;
 
-      const picked: MediaItem[] = result.assets.map((asset) => {
-        // ph:// identifier survives app deletion + reinstall on iOS
-        const persistentUri = asset.assetId ? `ph://${asset.assetId}` : asset.uri;
-        const name = asset.fileName ?? asset.uri.split("/").pop() ?? `photo_${Date.now()}`;
-        return { uri: persistentUri, name, isVideo: asset.type === "video" };
-      });
+      // Ensure persistent storage directory exists
+      const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(MEDIA_DIR, { intermediates: true });
+      }
+
+      // Copy each picked file from cache → documents/mi_corazon_media/
+      const picked: MediaItem[] = await Promise.all(
+        result.assets.map(async (asset) => {
+          const ext  = asset.name.includes(".") ? asset.name.slice(asset.name.lastIndexOf(".")) : "";
+          const dest = MEDIA_DIR + uid() + ext;
+          await FileSystem.copyAsync({ from: asset.uri, to: dest });
+          return { uri: dest, name: asset.name, isVideo: isVideoFile(asset.name) };
+        })
+      );
 
       setFolders((prev) => {
         const next = prev.map((f) => {
           if (f.id !== folderId) return f;
-          const existing = new Set(f.items.map((i) => i.uri));
-          const fresh    = picked.filter((p) => !existing.has(p.uri));
-          return { ...f, items: [...f.items, ...fresh] };
+          return { ...f, items: [...f.items, ...picked] };
         });
         saveFolders(next).catch(() => {});
         return next;
