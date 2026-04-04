@@ -1484,10 +1484,10 @@ export default function LifeTaskScreen() {
   useEffect(() => {
     fetchTasks();
     if (!apiKey) return;
-    fetch(`${BASE_URL}/api/notion/schema/${LIFE_DB_ID}`, { headers: { "x-notion-key": apiKey } })
+    fetch(`${BASE_URL}/api/notion/schema/${LIFE_DB_ID}`, { headers: { "x-notion-key": apiKey }, cache: "no-store" })
       .then(r => r.json())
-      .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType, epicOptions: d.epicOptions ?? null, epicType: d.epicType ?? "select" }))
-      .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select", epicOptions: null, epicType: "select" }));
+      .then(d => setSchema({ priType: d.priType, priOptions: d.priOptions, categoryType: d.categoryType, epicOptions: d.epicOptions ?? null, epicType: d.epicType ?? "select", referenceType: d.referenceType ?? "url", referencePropertyName: d.referencePropertyName ?? null }))
+      .catch(() => setSchema({ priType: "select", priOptions: null, categoryType: "select", epicOptions: null, epicType: "select", referenceType: "url", referencePropertyName: null }));
   }, [fetchTasks]);
 
   const onRefresh = useCallback(async () => {
