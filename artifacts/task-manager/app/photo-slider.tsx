@@ -5,7 +5,6 @@ import React, { useRef } from "react";
 import {
   Alert,
   Platform,
-  Pressable,
   StyleSheet,
   View,
 } from "react-native";
@@ -13,7 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewMessageEvent } from "react-native-webview";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
-// ── App theme colours injected into the HTML ──────────────────────────────────
 const C = {
   bg:        "#0a0a0e",
   surface:   "#111111",
@@ -24,11 +22,11 @@ const C = {
   blue:      "#0a84ff",
   purple:    "#bf5af2",
   orange:    "#ff9f0a",
+  green:     "#30a830",
   text:      "#ffffff",
   muted:     "#8e8e93",
 };
 
-// ── HTML tool (reskinned to match the app) ────────────────────────────────────
 const buildHtml = () => `<!DOCTYPE html>
 <html>
 <head>
@@ -52,6 +50,7 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .zoom-active  { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
 .slider-active{ background:${C.purple} !important; box-shadow:0 0 0 2px rgba(191,90,242,.45); }
 .undo-active  { background:#ff453a !important; }
+.eye-active   { background:${C.orange} !important; box-shadow:0 0 0 2px rgba(255,159,10,.45); }
 
 .obar { display:flex; align-items:center; gap:10px; padding:8px 14px; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
 .obar label { font-size:12px; color:${C.muted}; white-space:nowrap; }
@@ -61,9 +60,39 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 
 #stage { flex:1; min-height:0; position:relative; touch-action:none; user-select:none; overflow:hidden; background:${C.bg}; cursor:none; }
 #stage.brush-active { cursor:none; }
+#stage.eye-cursor { cursor:crosshair; }
 canvas { position:absolute; top:0; left:0; display:block; }
 #divider { position:absolute; z-index:3; background:rgba(255,255,255,.85); box-shadow:0 0 8px rgba(0,0,0,.6); pointer-events:none; display:none; }
 
+/* ── Brush bar (compact) ─────────────────────────────── */
+#brush-bar { display:none; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
+#brush-bar.visible { display:block; }
+
+.bbar-row { display:flex; align-items:center; gap:5px; padding:7px 10px; }
+.mode-btn { flex:1; padding:8px 0; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
+.mode-btn.on { background:${C.green}; box-shadow:0 0 8px rgba(48,168,48,.45); }
+.mode-erase.on { background:${C.primary}; box-shadow:0 0 8px rgba(224,49,49,.45); }
+.mode-color.on { box-shadow:0 0 8px rgba(224,49,49,.35); }
+.mode-clear { flex:0.55 !important; font-size:11px; }
+
+/* Setting icon buttons — toggle individual slider rows */
+.bset-btn { flex:0 0 36px; height:36px; border:none; border-radius:9px; font-size:11px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
+.bset-btn.open { background:${C.purple}; box-shadow:0 0 6px rgba(191,90,242,.5); }
+
+/* Color swatch — tap to pick from canvas */
+#colorSwatch { flex:0 0 34px; height:34px; border-radius:9px; border:2px solid #555; cursor:pointer; background:rgb(224,49,49); transition:border-color .2s; }
+#colorSwatch.picking { border-color:${C.orange}; box-shadow:0 0 0 2px rgba(255,159,10,.5); animation:pulse .7s ease-in-out infinite alternate; }
+@keyframes pulse { from{opacity:1} to{opacity:.55} }
+
+/* Expandable slider row */
+.bpanel { display:none; align-items:center; gap:8px; padding:6px 12px 8px; }
+.bpanel.open { display:flex; }
+.bpanel-lbl { font-size:11px; color:${C.muted}; white-space:nowrap; min-width:28px; }
+.brush-range { flex:1; -webkit-appearance:none; height:4px; border-radius:2px; background:${C.border}; outline:none; }
+.brush-range::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+.brush-lbl { font-size:11px; color:${C.muted}; width:30px; text-align:right; }
+
+/* ── Sheet ───────────────────────────────────────────── */
 #sheet-bg { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,0); pointer-events:none; transition:background 0.28s; }
 #sheet-bg.open { background:rgba(0,0,0,.65); pointer-events:all; }
 #sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; background:${C.surface}; border-radius:20px 20px 0 0; padding:0 20px 48px; transform:translateY(100%); transition:transform 0.32s cubic-bezier(0.32,.72,0,1), bottom 0.22s ease; border-top:1px solid ${C.border}; }
@@ -86,65 +115,79 @@ canvas { position:absolute; top:0; left:0; display:block; }
 .sheet-btn.primary { background:${C.primary}; color:#fff; box-shadow:0 0 14px rgba(224,49,49,.35); }
 .sheet-btn.secondary { background:${C.card}; color:${C.text}; }
 
+/* ── Loader ──────────────────────────────────────────── */
 #loader { position:absolute; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(10,10,14,.85); opacity:0; pointer-events:none; }
 #loader-spw { position:absolute; opacity:0; }
 #loader-scw { position:absolute; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(0); }
 #loader-word { display:none; }
 @keyframes spin { to { transform:rotate(360deg); } }
 input[type=file] { display:none; }
-
-#brush-bar { display:none; flex-wrap:wrap; align-items:center; gap:6px; padding:7px 12px; background:${C.surface}; border-bottom:1px solid ${C.border}; flex-shrink:0; }
-#brush-bar.visible { display:flex; }
-.brush-row { display:flex; align-items:center; gap:6px; width:100%; }
-.brush-row-lbl { font-size:11px; color:${C.muted}; white-space:nowrap; width:24px; }
-.mode-btn { flex:1; padding:8px 0; border:none; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; transition:background .15s; }
-.mode-btn.on { background:#30a830; box-shadow:0 0 8px rgba(48,168,48,.45); }
-.mode-erase.on { background:#E03131; box-shadow:0 0 8px rgba(224,49,49,.45); }
-.brush-range { flex:3; -webkit-appearance:none; height:4px; border-radius:2px; background:${C.border}; outline:none; }
-.brush-range::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.5); }
-.brush-lbl { font-size:11px; color:${C.muted}; width:22px; text-align:right; }
-.brush-active { background:#30a830 !important; box-shadow:0 0 0 2px rgba(48,168,48,.45) !important; }
 </style>
 </head>
 <body>
+
+<!-- ── Top bar: image buttons + slider + zoom ─────── -->
 <div class="bar bar-top">
   <button class="img-btn" id="btn1" onclick="imgBtnTap(1)">Image 1</button>
   <button class="img-btn" id="btn2" onclick="imgBtnTap(2)">Image 2</button>
   <button class="btn-icon" id="btnSlider" onclick="toggleSlider()">&#9135;</button>
   <button class="btn-icon" id="btnZoom"   onclick="toggleZoom()">&#128269;</button>
 </div>
+
+<!-- ── Bottom bar: tools ──────────────────────────── -->
 <div class="bar bar-bot">
   <button class="btn-icon" id="btnFit"   onclick="fitActive()">&#10697;</button>
   <button class="btn-icon" id="btnUndo"  onclick="undo()">&#8617;</button>
   <button class="btn-icon" id="btnReset" onclick="resetActive()">&#8634;</button>
+  <button class="btn-icon" id="btnEye"   onclick="toggleEyedrop()" title="Pick colour">&#9673;</button>
   <button class="btn-icon" id="btnBrush" onclick="toggleBrush()">&#9998;</button>
   <button class="btn-icon" id="btnShare" onclick="shareCanvas()">&#8679;</button>
 </div>
+
+<!-- ── Brush bar (compact): modes + setting icons ── -->
 <div id="brush-bar">
-  <div class="brush-row">
+  <div class="bbar-row">
     <button class="mode-btn mode-erase on" id="btnErase"   onclick="setBrushMode('erase')">Erase</button>
     <button class="mode-btn mode-restore"  id="btnRestore" onclick="setBrushMode('restore')">Restore</button>
-    <button class="mode-btn" style="flex:0.7;font-size:11px;" onclick="clearMask()">Clear</button>
+    <button class="mode-btn mode-color"    id="btnColor"   onclick="setBrushMode('color')">Color</button>
+    <button class="mode-btn mode-clear"    onclick="clearEffects()">Clear</button>
+    <!-- Setting toggles -->
+    <button class="bset-btn" id="bset-sz"   onclick="toggleBPanel('sz')"  title="Size">Sz</button>
+    <button class="bset-btn" id="bset-soft" onclick="toggleBPanel('soft')" title="Softness">&#9675;</button>
+    <button class="bset-btn" id="bset-p"    onclick="toggleBPanel('p')"   title="Pressure">P</button>
+    <!-- Picked colour swatch — tap to re-pick -->
+    <div id="colorSwatch" onclick="toggleEyedrop()" title="Pick colour from canvas"></div>
   </div>
-  <div class="brush-row">
-    <span class="brush-row-lbl">Sz</span>
-    <input class="brush-range" type="range" id="bsl" min="4" max="80" value="20" oninput="brushSize=+this.value;document.getElementById('bval').textContent=this.value;">
+
+  <!-- Expandable slider panels (one open at a time) -->
+  <div class="bpanel" id="bpanel-sz">
+    <span class="bpanel-lbl">Size</span>
+    <input class="brush-range" type="range" id="bsl" min="4" max="80" value="20"
+      oninput="brushSize=+this.value;document.getElementById('bval').textContent=this.value;">
     <span class="brush-lbl" id="bval">20</span>
-    <span class="brush-row-lbl" style="margin-left:8px;">Soft</span>
-    <input class="brush-range" type="range" id="bsoftsl" min="0" max="100" value="0" oninput="brushSoft=this.value/100;document.getElementById('bsval').textContent=Math.round(this.value)+'%';">
+  </div>
+  <div class="bpanel" id="bpanel-soft">
+    <span class="bpanel-lbl">Soft</span>
+    <input class="brush-range" type="range" id="bsoftsl" min="0" max="100" value="0"
+      oninput="brushSoft=this.value/100;document.getElementById('bsval').textContent=Math.round(this.value)+'%';">
     <span class="brush-lbl" id="bsval">0%</span>
   </div>
-  <div class="brush-row">
-    <span class="brush-row-lbl" style="width:32px;">Press</span>
-    <input class="brush-range" type="range" id="bopsl" min="1" max="100" value="100" oninput="brushOpacity=this.value/100;document.getElementById('bopval').textContent=Math.round(this.value)+'%';">
+  <div class="bpanel" id="bpanel-p">
+    <span class="bpanel-lbl">Press</span>
+    <input class="brush-range" type="range" id="bopsl" min="1" max="100" value="100"
+      oninput="brushOpacity=this.value/100;document.getElementById('bopval').textContent=Math.round(this.value)+'%';">
     <span class="brush-lbl" id="bopval">100%</span>
   </div>
 </div>
+
+<!-- ── Opacity bar ───────────────────────────────── -->
 <div class="obar" id="obar" style="display:none;">
   <label>Image 2 opacity</label>
   <input type="range" id="osl" min="0" max="100" value="100" oninput="setOpacity(this.value)">
   <span class="oval" id="oval">100%</span>
 </div>
+
+<!-- ── Stage ─────────────────────────────────────── -->
 <div id="stage">
   <canvas id="cv"></canvas>
   <div id="divider"></div>
@@ -165,6 +208,7 @@ input[type=file] { display:none; }
   </div>
 </div>
 
+<!-- ── Sheets ─────────────────────────────────────── -->
 <div id="sheet-bg" onclick="bgTap()"></div>
 <div id="sheet">
   <div class="sheet-handle"></div>
@@ -197,9 +241,10 @@ input[type=file] { display:none; }
 <input type="file" id="filePick" accept="image/*" multiple onchange="filesChosen(event)">
 
 <script>
+// ── State ──────────────────────────────────────────────
 var img1=null,img2=null,tx1=null,tx2=null;
-var di1=null,di2=null; // prescaled display copies
-var DISP_MAX=2048;     // max side for display copy — keeps drawing fast on large canvases
+var di1=null,di2=null;
+var DISP_MAX=2048;
 var name1='Image 1',name2='Image 2';
 var active=0,zoomMode=false,sliderMode=false,sliderVert=true,sliderPos=0.5,opacity2=1.0;
 var gTx=null;
@@ -210,21 +255,26 @@ var undoStack=[];
 var MAX_UNDO=30;
 
 // ── Brush state ────────────────────────────────────────
-var brushMode=false,brushErase=true,brushSize=20,brushSoft=0,brushOpacity=1.0;
+var brushMode=false;
+var brushPaintMode='erase'; // 'erase' | 'restore' | 'color'
+var brushSize=20,brushSoft=0,brushOpacity=1.0;
 var maskCanvas=null,offCanvas=null,offCtx=null;
+var colorCanvas=null;
+var pickedR=224,pickedG=49,pickedB=49; // default: brand red
+var eyedropMode=false;
+var openBPanel=null; // which slider panel is open: 'sz'|'soft'|'p'|null
+var hadPinch=false;  // guards against pinch-end triggering double-tap reset
+
 var rafPending=false;
 function drawRaf(){if(rafPending)return;rafPending=true;requestAnimationFrame(function(){rafPending=false;draw();});}
 
 // ── Prescale ───────────────────────────────────────────
-// Creates a downsampled canvas copy for fast per-frame drawing.
-// Full-res image is kept for mask coordinate maths.
 function prescale(img){
   var s=Math.min(1,DISP_MAX/Math.max(img.naturalWidth,img.naturalHeight));
-  if(s>=0.98)return img; // already small — use original
+  if(s>=0.98)return img;
   var w=Math.round(img.naturalWidth*s),h=Math.round(img.naturalHeight*s);
   var c=document.createElement('canvas');c.width=w;c.height=h;
-  c.getContext('2d').drawImage(img,0,0,w,h);
-  return c;
+  c.getContext('2d').drawImage(img,0,0,w,h);return c;
 }
 
 var stage=document.getElementById('stage');
@@ -243,6 +293,7 @@ var panelLoad=document.getElementById('panel-load');
 var panelName=document.getElementById('panel-name');
 var btn1=document.getElementById('btn1');
 var btn2=document.getElementById('btn2');
+var colorSwatch=document.getElementById('colorSwatch');
 
 function W(){return stage.clientWidth;}
 function H(){return stage.clientHeight;}
@@ -255,12 +306,8 @@ function closeSheet(){sheetBg.classList.remove('open');sheet.classList.remove('o
 function bgTap(){if(img1||img2)closeSheet();}
 function triggerPick(){document.getElementById('filePick').click();}
 
-// ── Keyboard avoidance ──────────────────────────────────
 if(window.visualViewport){
-  function _onVV(){
-    var kb=Math.max(0,window.innerHeight-window.visualViewport.height);
-    sheet.style.bottom=kb>50?kb+'px':'';
-  }
+  function _onVV(){var kb=Math.max(0,window.innerHeight-window.visualViewport.height);sheet.style.bottom=kb>50?kb+'px':'';}
   window.visualViewport.addEventListener('resize',_onVV);
   window.visualViewport.addEventListener('scroll',_onVV);
 }
@@ -276,15 +323,21 @@ function imgBtnTap(n){
 function loadFile(file,cb){var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){cb(img);};img.src=ev.target.result;};reader.readAsDataURL(file);}
 
 function filesChosen(e){
-  var files=e.target.files;
-  if(!files||files.length===0){e.target.value='';return;}
+  var files=e.target.files;if(!files||files.length===0){e.target.value='';return;}
   var f1=files[0],f2=files[1]||null;
   loadFile(f1,function(imgA){
     img1=imgA;di1=prescale(imgA);tx1=defaultTx(img1,W(),H());
     if(f2){
-      loadFile(f2,function(imgB){img2=imgB;di2=prescale(imgB);tx2=defaultTx(img2,W(),H());initMask();active=2;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);});
-    } else {
-      active=1;draw();snapshot();document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
+      loadFile(f2,function(imgB){
+        img2=imgB;di2=prescale(imgB);tx2=defaultTx(img2,W(),H());
+        initMask();active=2;draw();snapshot();
+        document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';
+        showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
+      });
+    }else{
+      active=1;draw();snapshot();
+      document.getElementById('nameInput1').value='';document.getElementById('nameInput2').value='';
+      showNamePanel();setTimeout(function(){document.getElementById('nameInput1').focus();},350);
     }
   });
   e.target.value='';
@@ -309,21 +362,17 @@ function eob(t){var c=1.70158,c3=c+1;return 1+c3*Math.pow(t-1,3)+c*Math.pow(t-1,
 function eio(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
 function an(dur,fn,done,ease){ease=ease||eo;var s=performance.now();(function f(now){var raw=Math.min((now-s)/dur,1);fn(ease(raw));if(raw<1)requestAnimationFrame(f);else if(done)done();})(performance.now());}
 
-// ── Loader (Scriptable-style timings) ────────────────────
+// ── Loader ────────────────────────────────────────────
 var T_FI=200,T_SI=250,T_SPIN=1300,T_POP=420,T_TICK=400,T_WORD=280,T_HOLD=900,T_FO=450;
 var _spinDone=false,_saveOk=null;
 function _tryResolve(){if(_spinDone&&_saveOk!==null)resolveLoader(_saveOk);}
-
 function showLoader(onSpinVisible){
   _spinDone=false;_saveOk=null;
   var len=tkp.getTotalLength();tkp.style.strokeDasharray=len;tkp.style.strokeDashoffset=len;
   ldrScw.style.transform='scale(0)';ldrScw.style.opacity='0';ldrWord.style.opacity='0';ldrSpw.style.opacity='0';
   ldr.style.opacity='0';ldr.style.pointerEvents='all';
   an(T_FI,function(t){ldr.style.opacity=t;},function(){
-    an(T_SI,function(t){ldrSpw.style.opacity=t;},function(){
-      onSpinVisible();
-      setTimeout(function(){_spinDone=true;_tryResolve();},T_SPIN);
-    });
+    an(T_SI,function(t){ldrSpw.style.opacity=t;},function(){onSpinVisible();setTimeout(function(){_spinDone=true;_tryResolve();},T_SPIN);});
   });
 }
 function resolveLoader(success){
@@ -340,26 +389,26 @@ function resolveLoader(success){
 
 // ── Share ──────────────────────────────────────────────
 function shareCanvas(){
-  if(!img1&&!img2)return;if(loaderRunning)return;
-  loaderRunning=true;
+  if(!img1&&!img2)return;if(loaderRunning)return;loaderRunning=true;
   var b64=cv.toDataURL('image/png').split(',')[1];
-  showLoader(function(){
-    try{window.ReactNativeWebView.postMessage('save:'+b64);}
-    catch(e){_saveOk=false;_tryResolve();}
-  });
+  showLoader(function(){try{window.ReactNativeWebView.postMessage('save:'+b64);}catch(e){_saveOk=false;_tryResolve();}});
 }
-// Called from native after save resolves
 window.nativeSaveResult=function(ok){_saveOk=ok;_tryResolve();};
 
-// ── Canvas ────────────────────────────────────────────
+// ── Canvas helpers ────────────────────────────────────
 function cloneTx(t){return t?{scale:t.scale,cx:t.cx,cy:t.cy}:null;}
 function cloneMask(){
   if(!maskCanvas)return null;
   var c=document.createElement('canvas');c.width=maskCanvas.width;c.height=maskCanvas.height;
   c.getContext('2d').drawImage(maskCanvas,0,0);return c;
 }
+function cloneColor(){
+  if(!colorCanvas)return null;
+  var c=document.createElement('canvas');c.width=colorCanvas.width;c.height=colorCanvas.height;
+  c.getContext('2d').drawImage(colorCanvas,0,0);return c;
+}
 function snapshot(){
-  undoStack.push({tx1:cloneTx(tx1),tx2:cloneTx(tx2),gTx:cloneTx(gTx),sliderPos:sliderPos,mask:cloneMask()});
+  undoStack.push({tx1:cloneTx(tx1),tx2:cloneTx(tx2),gTx:cloneTx(gTx),sliderPos:sliderPos,mask:cloneMask(),color:cloneColor()});
   if(undoStack.length>MAX_UNDO)undoStack.shift();
   btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');
 }
@@ -367,6 +416,7 @@ function undo(){
   if(undoStack.length===0)return;
   var s=undoStack.pop();tx1=cloneTx(s.tx1);tx2=cloneTx(s.tx2);gTx=cloneTx(s.gTx);sliderPos=s.sliderPos;
   if(s.mask){maskCanvas=s.mask;offCanvas=null;}
+  if(s.color!==undefined)colorCanvas=s.color;
   btnUndo.className='btn-icon'+(undoStack.length>0?' undo-active':'');draw();
 }
 function defaultTx(img,w,h){var s=Math.min(w/img.naturalWidth,h/img.naturalHeight);return{scale:s,cx:w/2,cy:h/2};}
@@ -375,14 +425,13 @@ function setActiveTx(t){if(active===1)tx1=t;else tx2=t;}
 function applyGTx(tx){if(!gTx||!tx)return tx;return{scale:tx.scale*gTx.scale,cx:gTx.cx+(tx.cx-gTx.cx)*gTx.scale,cy:gTx.cy+(tx.cy-gTx.cy)*gTx.scale};}
 function bakeZoom(){if(!gTx)return;if(tx1)tx1=applyGTx(tx1);if(tx2)tx2=applyGTx(tx2);gTx=null;}
 
-// Cached offscreen canvas for img2+mask compositing
+// Cached offscreen for img2+mask compositing
 function getOff(w,h){
   if(!offCanvas||offCanvas.width!==w||offCanvas.height!==h){
     offCanvas=document.createElement('canvas');offCanvas.width=w;offCanvas.height=h;offCtx=offCanvas.getContext('2d');
   }return{c:offCanvas,x:offCtx};
 }
-// img  — original Image (natural dimensions, mask coords)
-// disp — prescaled display copy (canvas or image) for fast rasterisation
+
 function drawImg(img,disp,tx,alpha,useMask){
   if(!tx)return;
   var nw=img.naturalWidth,nh=img.naturalHeight;
@@ -399,11 +448,19 @@ function drawImg(img,disp,tx,alpha,useMask){
     off.x.drawImage(maskCanvas,dx,dy,dw,dh);
     off.x.globalCompositeOperation='source-over';
     ctx.drawImage(off.c,0,0);
-  } else {
+  }else{
     ctx.drawImage(disp,dx,dy,dw,dh);
   }
   ctx.restore();
 }
+
+// Draw colorCanvas overlay at img2's transform
+function drawColorOverlay(etx2){
+  if(!colorCanvas||!img2||!etx2)return;
+  var nw=img2.naturalWidth,nh=img2.naturalHeight;
+  ctx.drawImage(colorCanvas,etx2.cx-nw*etx2.scale/2,etx2.cy-nh*etx2.scale/2,nw*etx2.scale,nh*etx2.scale);
+}
+
 function draw(){
   var w=W(),h=H();if(!w||!h)return;
   if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;cv.style.width=w+'px';cv.style.height=h+'px';}
@@ -412,15 +469,22 @@ function draw(){
   if(sliderMode){drawWithSlider(w,h,etx1,etx2);}
   else{
     if(img1&&etx1)drawImg(img1,di1||img1,etx1,1,false);
-    if(img2&&etx2)drawImg(img2,di2||img2,etx2,opacity2,!!maskCanvas);
+    if(img2&&etx2){drawImg(img2,di2||img2,etx2,opacity2,!!maskCanvas);drawColorOverlay(etx2);}
   }
   updateSliderOverlay(w,h);
 }
+
 function drawWithSlider(w,h,etx1,etx2){
   var sp=sliderVert?sliderPos*w:sliderPos*h;
   if(img1&&etx1){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(0,0,sp,h);else ctx.rect(0,0,w,sp);ctx.clip();drawImg(img1,di1||img1,etx1,1,false);ctx.restore();}
-  if(img2&&etx2){ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(sp,0,w-sp,h);else ctx.rect(0,sp,w,h-sp);ctx.clip();drawImg(img2,di2||img2,etx2,1,!!maskCanvas);ctx.restore();}
+  if(img2&&etx2){
+    ctx.save();ctx.beginPath();if(sliderVert)ctx.rect(sp,0,w-sp,h);else ctx.rect(0,sp,w,h-sp);ctx.clip();
+    drawImg(img2,di2||img2,etx2,1,!!maskCanvas);
+    drawColorOverlay(etx2);
+    ctx.restore();
+  }
 }
+
 function updateSliderOverlay(w,h){
   if(!sliderMode||(!img1&&!img2)){dividerEl.style.display='none';return;}
   var sp=sliderVert?sliderPos*w:sliderPos*h;
@@ -428,7 +492,7 @@ function updateSliderOverlay(w,h){
   else{dividerEl.style.cssText='display:block;top:'+sp+'px;left:0;height:2px;width:100%;transform:translateY(-50%)';}
 }
 
-// ── Touch ─────────────────────────────────────────────
+// ── Touch helpers ──────────────────────────────────────
 function stXY(t){var r=stage.getBoundingClientRect();return{x:t.clientX-r.left,y:t.clientY-r.top};}
 function tDist(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
 function tMid(a,b){var r=stage.getBoundingClientRect();return{x:(a.clientX+b.clientX)/2-r.left,y:(a.clientY+b.clientY)/2-r.top};}
@@ -437,46 +501,114 @@ function nearSlider(p){if(!sliderMode)return false;return sliderVert?Math.abs(p.
 stage.addEventListener('touchstart',function(e){
   e.preventDefault();
   var t=e.touches,p=stXY(t[0]);
-  if(brushMode&&img2&&maskCanvas){
-    if(t.length===1){tMode='brush';panLast=p;paintMask(p.x,p.y);draw();}
-    else if(t.length>=2){
-      // two-finger pinch still zooms in brush mode
-      tMode='pinch';var ax=activeTx()||tx2;psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;
+
+  // ── Eyedropper: sample pixel on tap ────────────────
+  if(eyedropMode){
+    if(t.length===1){
+      var px=ctx.getImageData(Math.round(p.x),Math.round(p.y),1,1).data;
+      pickedR=px[0];pickedG=px[1];pickedB=px[2];
+      applyPickedColor();
+      eyedropMode=false;
+      document.getElementById('btnEye').className='btn-icon';
+      stage.classList.remove('eye-cursor');
     }
     return;
   }
-  if(t.length===1){if(nearSlider(p)){tMode='slider';}else if(zoomMode||active!==0){tMode='pan';panLast=p;}}
-  else if(t.length>=2){tMode='pinch';var ax=zoomMode?gTx:activeTx();psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;}
+
+  // Reset hadPinch on fresh single-touch start
+  if(t.length===1)hadPinch=false;
+
+  // ── Brush mode ─────────────────────────────────────
+  if(brushMode&&img2){
+    if(t.length===1){
+      tMode='brush';panLast=p;
+      paintAt(p.x,p.y);draw();
+    }else if(t.length>=2){
+      // Two-finger pinch zooms even in brush mode
+      tMode='pinch';hadPinch=true;
+      var ax=tx2||activeTx();
+      psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;
+      var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;
+    }
+    return;
+  }
+
+  if(t.length===1){
+    if(nearSlider(p)){tMode='slider';}
+    else if(zoomMode||active!==0){tMode='pan';panLast=p;}
+  }else if(t.length>=2){
+    tMode='pinch';hadPinch=true;
+    var ax=zoomMode?gTx:activeTx();
+    psDist=tDist(t[0],t[1]);psScale=ax?ax.scale:1;
+    var m=tMid(t[0],t[1]);psMidX=m.x;psMidY=m.y;psCx=ax?ax.cx:W()/2;psCy=ax?ax.cy:H()/2;
+  }
 },{passive:false});
+
 stage.addEventListener('touchmove',function(e){
   e.preventDefault();
   var t=e.touches;
   if(tMode==='brush'&&t.length===1){
-    var p=stXY(t[0]);
-    paintMaskLine(panLast.x,panLast.y,p.x,p.y);
-    panLast=p;drawRaf();return;
+    var p=stXY(t[0]);paintLine(panLast.x,panLast.y,p.x,p.y);panLast=p;drawRaf();return;
   }
-  if(tMode==='slider'&&t.length>=1){var p=stXY(t[0]);sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));drawRaf();return;}
+  if(tMode==='slider'&&t.length>=1){
+    var p=stXY(t[0]);
+    sliderPos=sliderVert?Math.min(1,Math.max(0,p.x/W())):Math.min(1,Math.max(0,p.y/H()));
+    drawRaf();return;
+  }
   var ax=zoomMode?gTx:(brushMode?tx2:activeTx());if(!ax)return;
-  if(tMode==='pan'&&t.length===1){var p=stXY(t[0]);var dx=p.x-panLast.x,dy=p.y-panLast.y;if(zoomMode&&gTx&&gTx.scale!==1){var f=1/(1-gTx.scale);ax.cx+=dx*f;ax.cy+=dy*f;}else{ax.cx+=dx;ax.cy+=dy;}panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
-  else if(tMode==='pinch'&&t.length>=2){var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));var cm=tMid(t[0],t[1]);var imgX=(psMidX-psCx)/psScale,imgY=(psMidY-psCy)/psScale;ax.cx=cm.x-imgX*ns;ax.cy=cm.y-imgY*ns;ax.scale=ns;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();}
+  if(tMode==='pan'&&t.length===1){
+    var p=stXY(t[0]);var dx=p.x-panLast.x,dy=p.y-panLast.y;
+    if(zoomMode&&gTx&&gTx.scale!==1){var f=1/(1-gTx.scale);ax.cx+=dx*f;ax.cy+=dy*f;}
+    else{ax.cx+=dx;ax.cy+=dy;}
+    panLast=p;if(zoomMode)gTx=ax;else setActiveTx(ax);drawRaf();
+  }else if(tMode==='pinch'&&t.length>=2){
+    var nd=tDist(t[0],t[1]);var ns=Math.min(20,Math.max(0.05,psScale*(nd/psDist)));
+    var cm=tMid(t[0],t[1]);var imgX=(psMidX-psCx)/psScale,imgY=(psMidY-psCy)/psScale;
+    ax.cx=cm.x-imgX*ns;ax.cy=cm.y-imgY*ns;ax.scale=ns;
+    if(zoomMode)gTx=ax;else if(brushMode){tx2=ax;}else setActiveTx(ax);
+    drawRaf();
+  }
 },{passive:false});
+
 stage.addEventListener('touchend',function(e){
   e.preventDefault();
   var rem=e.touches.length;
   if(rem===0){
     if(tMode==='brush'){snapshot();tMode='none';draw();return;}
     if(tMode==='pan'||tMode==='pinch'||tMode==='slider'){snapshot();}
-    if(tMode==='pan'){var now=Date.now();if(now-lastTap<280){if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};}else if(active!==0){var img=active===1?img1:img2;if(img)setActiveTx(defaultTx(img,W(),H()));}draw();snapshot();}lastTap=now;}
+    if(tMode==='pan'){
+      var now=Date.now();
+      // Only trigger double-tap reset if this was a genuine single-touch (not pinch release)
+      if(now-lastTap<280&&!hadPinch){
+        if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};}
+        else if(active!==0){var img=active===1?img1:img2;if(img)setActiveTx(defaultTx(img,W(),H()));}
+        draw();snapshot();
+      }
+      lastTap=now;hadPinch=false;
+    }
     tMode='none';
-  }else if(rem===1){tMode=(tMode==='brush')?'brush':'pan';panLast=stXY(e.touches[0]);}
+  }else if(rem===1){
+    // Going from 2→1 finger: in brush mode go back to brushing, otherwise pan
+    tMode=brushMode?'brush':'pan';
+    panLast=stXY(e.touches[0]);
+  }
 },{passive:false});
 
 // ── Controls ──────────────────────────────────────────
-function fitActive(){snapshot();if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};draw();return;}if(active===0)return;var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}}
+function fitActive(){
+  snapshot();
+  if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};draw();return;}
+  if(active===0)return;
+  var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}
+}
 function toggleZoom(){
   if(zoomMode){bakeZoom();zoomMode=false;document.getElementById('btnZoom').className='btn-icon';updateActiveUI();}
-  else{zoomMode=true;active=0;if(!gTx)gTx={scale:1,cx:W()/2,cy:H()/2};document.getElementById('btnZoom').className='btn-icon zoom-active';btn1.className='img-btn'+(img1?' img1-loaded':'');btn2.className='img-btn'+(img2?' img2-loaded':'');btn1.textContent=name1;btn2.textContent=name2;}
+  else{
+    zoomMode=true;active=0;if(!gTx)gTx={scale:1,cx:W()/2,cy:H()/2};
+    document.getElementById('btnZoom').className='btn-icon zoom-active';
+    btn1.className='img-btn'+(img1?' img1-loaded':'');btn2.className='img-btn'+(img2?' img2-loaded':'');
+    btn1.textContent=name1;btn2.textContent=name2;
+  }
   draw();
 }
 function toggleSlider(){
@@ -485,7 +617,12 @@ function toggleSlider(){
   else{sliderMode=false;document.getElementById('btnSlider').className='btn-icon';dividerEl.style.display='none';}
   draw();
 }
-function resetActive(){snapshot();if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};draw();return;}if(active===0)return;var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}}
+function resetActive(){
+  snapshot();
+  if(zoomMode){gTx={scale:1,cx:W()/2,cy:H()/2};draw();return;}
+  if(active===0)return;
+  var img=active===1?img1:img2;if(img){setActiveTx(defaultTx(img,W(),H()));draw();}
+}
 function setOpacity(v){opacity2=v/100;document.getElementById('oval').textContent=v+'%';drawRaf();}
 window.addEventListener('resize',function(){var w=W(),h=H();if(img1)tx1=defaultTx(img1,w,h);if(img2)tx2=defaultTx(img2,w,h);gTx=null;draw();});
 
@@ -495,20 +632,81 @@ function initMask(){
   maskCanvas=document.createElement('canvas');
   maskCanvas.width=img2.naturalWidth;maskCanvas.height=img2.naturalHeight;
   var m=maskCanvas.getContext('2d');m.fillStyle='#fff';m.fillRect(0,0,maskCanvas.width,maskCanvas.height);
+  colorCanvas=document.createElement('canvas');
+  colorCanvas.width=img2.naturalWidth;colorCanvas.height=img2.naturalHeight;
   offCanvas=null;
 }
 function toggleBrush(){
-  if(!img2||!maskCanvas){return;}
+  if(!img2)return;
+  if(!maskCanvas)initMask();
   brushMode=!brushMode;
   document.getElementById('btnBrush').className='btn-icon'+(brushMode?' brush-active':'');
   document.getElementById('brush-bar').className=brushMode?'visible':'';
+  // Apply brush-active CSS separately
+  if(brushMode)document.getElementById('btnBrush').style.background='${C.green}';
+  else{document.getElementById('btnBrush').style.background='';document.getElementById('btnBrush').style.boxShadow='';}
+  if(!brushMode)closeBPanel();
   draw();
 }
 function setBrushMode(m){
-  brushErase=(m==='erase');
-  document.getElementById('btnErase').className='mode-btn mode-erase'+(brushErase?' on':'');
-  document.getElementById('btnRestore').className='mode-btn mode-restore'+(brushErase?'':' on');
+  brushPaintMode=m;
+  var eBtn=document.getElementById('btnErase');
+  var rBtn=document.getElementById('btnRestore');
+  var cBtn=document.getElementById('btnColor');
+  eBtn.className='mode-btn mode-erase'+(m==='erase'?' on':'');
+  rBtn.className='mode-btn mode-restore'+(m==='restore'?' on':'');
+  cBtn.className='mode-btn mode-color'+(m==='color'?' on':'');
+  if(m==='color'){cBtn.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';}
+  else{cBtn.style.background='';}
 }
+
+// ── Setting panels (compact sliders) ───────────────────
+function toggleBPanel(name){
+  var panelId='bpanel-'+name,btnId='bset-'+name;
+  if(openBPanel===name){closeBPanel();return;}
+  if(openBPanel){
+    document.getElementById('bpanel-'+openBPanel).className='bpanel';
+    document.getElementById('bset-'+openBPanel).className='bset-btn';
+  }
+  openBPanel=name;
+  document.getElementById(panelId).className='bpanel open';
+  document.getElementById(btnId).className='bset-btn open';
+}
+function closeBPanel(){
+  if(!openBPanel)return;
+  document.getElementById('bpanel-'+openBPanel).className='bpanel';
+  document.getElementById('bset-'+openBPanel).className='bset-btn';
+  openBPanel=null;
+}
+
+// ── Eyedropper ─────────────────────────────────────────
+function toggleEyedrop(){
+  if(!img1&&!img2)return;
+  eyedropMode=!eyedropMode;
+  document.getElementById('btnEye').className='btn-icon'+(eyedropMode?' eye-active':'');
+  if(eyedropMode){stage.classList.add('eye-cursor');colorSwatch.classList.add('picking');}
+  else{stage.classList.remove('eye-cursor');colorSwatch.classList.remove('picking');}
+}
+function applyPickedColor(){
+  colorSwatch.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';
+  colorSwatch.classList.remove('picking');
+  // Update Color mode button if active
+  if(brushPaintMode==='color'){
+    var cBtn=document.getElementById('btnColor');
+    cBtn.style.background='rgb('+pickedR+','+pickedG+','+pickedB+')';
+  }
+}
+
+// ── Painting ───────────────────────────────────────────
+function paintAt(sx,sy){
+  if(brushPaintMode==='color')paintColorAt(sx,sy);
+  else paintMask(sx,sy);
+}
+function paintLine(sx1,sy1,sx2,sy2){
+  if(brushPaintMode==='color')paintColorLine(sx1,sy1,sx2,sy2);
+  else paintMaskLine(sx1,sy1,sx2,sy2);
+}
+
 function paintMask(sx,sy){
   if(!maskCanvas||!img2||!tx2)return;
   var etx=gTx?applyGTx(tx2):tx2;
@@ -517,21 +715,19 @@ function paintMask(sx,sy){
   var ir=Math.max(2,brushSize/etx.scale);
   var m=maskCanvas.getContext('2d');
   if(brushSoft>0){
-    // Radial gradient — hard core fades to transparent at edge
     var hardR=ir*(1-brushSoft);
     var grad=m.createRadialGradient(ix,iy,hardR,ix,iy,ir);
-    if(brushErase){
+    if(brushPaintMode==='erase'){
       m.globalCompositeOperation='destination-out';
       grad.addColorStop(0,'rgba(0,0,0,'+brushOpacity+')');grad.addColorStop(1,'rgba(0,0,0,0)');
     }else{
       m.globalCompositeOperation='source-over';
       grad.addColorStop(0,'rgba(255,255,255,'+brushOpacity+')');grad.addColorStop(1,'rgba(255,255,255,0)');
     }
-    m.fillStyle=grad;
-    m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
+    m.fillStyle=grad;m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
   }else{
-    m.globalCompositeOperation=brushErase?'destination-out':'source-over';
-    m.fillStyle=brushErase?'rgba(0,0,0,'+brushOpacity+')':'rgba(255,255,255,'+brushOpacity+')';
+    m.globalCompositeOperation=brushPaintMode==='erase'?'destination-out':'source-over';
+    m.fillStyle=brushPaintMode==='erase'?'rgba(0,0,0,'+brushOpacity+')':'rgba(255,255,255,'+brushOpacity+')';
     m.beginPath();m.arc(ix,iy,ir,0,Math.PI*2);m.fill();
   }
   m.globalCompositeOperation='source-over';
@@ -539,29 +735,49 @@ function paintMask(sx,sy){
 function paintMaskLine(sx1,sy1,sx2,sy2){
   var dist=Math.hypot(sx2-sx1,sy2-sy1);
   var steps=Math.max(1,Math.floor(dist/(brushSize*0.35)));
-  for(var i=1;i<=steps;i++){
-    var t=i/steps;
-    paintMask(sx1+(sx2-sx1)*t,sy1+(sy2-sy1)*t);
-  }
+  for(var i=1;i<=steps;i++){var t=i/steps;paintMask(sx1+(sx2-sx1)*t,sy1+(sy2-sy1)*t);}
 }
-function clearMask(){snapshot();initMask();draw();}
+
+function paintColorAt(sx,sy){
+  if(!colorCanvas||!img2||!tx2)return;
+  var etx=gTx?applyGTx(tx2):tx2;
+  var ix=(sx-etx.cx)/etx.scale+img2.naturalWidth/2;
+  var iy=(sy-etx.cy)/etx.scale+img2.naturalHeight/2;
+  var ir=Math.max(2,brushSize/etx.scale);
+  var c=colorCanvas.getContext('2d');
+  var colStr='rgba('+pickedR+','+pickedG+','+pickedB+','+brushOpacity+')';
+  if(brushSoft>0){
+    var hardR=ir*(1-brushSoft);
+    var grad=c.createRadialGradient(ix,iy,hardR,ix,iy,ir);
+    grad.addColorStop(0,colStr);
+    grad.addColorStop(1,'rgba('+pickedR+','+pickedG+','+pickedB+',0)');
+    c.fillStyle=grad;
+  }else{
+    c.fillStyle=colStr;
+  }
+  c.beginPath();c.arc(ix,iy,ir,0,Math.PI*2);c.fill();
+}
+function paintColorLine(sx1,sy1,sx2,sy2){
+  var dist=Math.hypot(sx2-sx1,sy2-sy1);
+  var steps=Math.max(1,Math.floor(dist/(brushSize*0.35)));
+  for(var i=1;i<=steps;i++){var t=i/steps;paintColorAt(sx1+(sx2-sx1)*t,sy1+(sy2-sy1)*t);}
+}
+
+function clearEffects(){snapshot();initMask();draw();}
 
 openLoadSheet();
 </script>
 </body>
 </html>`;
 
-// ── Screen ────────────────────────────────────────────────────────────────────
 export default function PhotoSlider() {
-  const insets   = useSafeAreaInsets();
-  const webRef   = useRef<WebView>(null);
-
+  const insets = useSafeAreaInsets();
+  const webRef = useRef<WebView>(null);
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
   const onMessage = async (e: WebViewMessageEvent) => {
     const msg = e.nativeEvent.data as string;
     if (!msg.startsWith("save:")) return;
-
     const b64 = msg.slice(5);
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -570,12 +786,9 @@ export default function PhotoSlider() {
         webRef.current?.injectJavaScript("window.nativeSaveResult(false);true;");
         return;
       }
-      // Write to a temp file then save via MediaLibrary
       const FileSystem = require("expo-file-system/legacy");
       const tmp = `${FileSystem.cacheDirectory}photo_slider_export_${Date.now()}.png`;
-      await FileSystem.writeAsStringAsync(tmp, b64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
       await MediaLibrary.saveToLibraryAsync(tmp);
       webRef.current?.injectJavaScript("window.nativeSaveResult(true);true;");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -588,8 +801,6 @@ export default function PhotoSlider() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       <ScreenHeader title="Photo Slider" />
-
-      {/* WebView tool */}
       <WebView
         ref={webRef}
         source={{ html: buildHtml() }}
@@ -607,24 +818,7 @@ export default function PhotoSlider() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#0a0a0e",
-  },
-  hamburgerBtn: {
-    position: "absolute",
-    left: 16,
-    width: 38,
-    height: 38,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: "#0a0a0e",
-  },
+  root:    { flex: 1, backgroundColor: "#0a0a0e" },
+  webview: { flex: 1, backgroundColor: "#0a0a0e" },
 });
