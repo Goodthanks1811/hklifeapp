@@ -1097,24 +1097,8 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         </View>
       )}
 
-      {/* Epic row (Automation) OR Category row (all other screens) */}
-      {showEpic && epicOptions && epicOptions.length > 0 ? (
-        <View style={[s.dsMetaRow, { marginTop: 16 }]}>
-          {epicOptions.map(ep => {
-            const selected = ep === selEpic;
-            const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
-            return (
-              <Pressable
-                key={`qa-ep-${ep}`}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
-                style={[s.dsEpicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
-              >
-                <Text style={[s.dsEpicText, { color: selected ? colours.text : Colors.textMuted }, isTablet && { fontSize: 14 }]}>{ep}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : !showEpic && allCategories.length > 0 ? (
+      {/* Category row — always shown */}
+      {allCategories.length > 0 && (
         <View style={[s.dsMetaRow, { marginTop: 16 }]}>
           {allCategories.map(cat => {
             const selected = cat === localCat;
@@ -1129,7 +1113,26 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
             );
           })}
         </View>
-      ) : null}
+      )}
+
+      {/* Epic row — shown additionally for Automation */}
+      {showEpic && epicOptions && epicOptions.length > 0 && (
+        <View style={[s.dsMetaRow, { marginTop: 8 }]}>
+          {epicOptions.map(ep => {
+            const selected = ep === selEpic;
+            const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
+            return (
+              <Pressable
+                key={`qa-ep-${ep}`}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
+                style={[s.dsEpicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
+              >
+                <Text style={[s.dsEpicText, { color: selected ? colours.text : Colors.textMuted }, isTablet && { fontSize: 14 }]}>{ep}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       <View style={[s.dsDivider, { marginTop: 20 }]} />
       <FormattingToolbar onFormat={handleFormatQA} link={linkUrl} onLinkChange={setLinkUrl} />
