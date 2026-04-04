@@ -139,6 +139,14 @@ export function Drawer() {
   const isOpenRef = useRef(isOpen);
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
+  // Phone: close drawer on any route change (handles deep-link arrivals where
+  // the internal navigate() helper is bypassed, e.g. Apple Shortcuts URLs)
+  useEffect(() => {
+    if (isTablet) return;
+    closeDrawer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, isTablet]);
+
   // Scroll drawer back to top each time it opens
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
