@@ -57,10 +57,12 @@ function WorkloadBarChart({
   weeks,
   visibleWeeks,
   maxVal,
+  availableWidth,
 }: {
   weeks: Record<string, WeekData>;
   visibleWeeks: string[];
   maxVal: number;
+  availableWidth?: number;
 }) {
   const chartH = 180, barW = 22, barGap = 6, groupGap = 24;
   const pL = 32, pR = 20, pT = 28, pB = 34;
@@ -68,16 +70,19 @@ function WorkloadBarChart({
   const totalW = pL + visibleWeeks.length * (groupW + groupGap) - groupGap + pR;
   const svgH = chartH + pT + pB;
 
+  // Scale SVG to fill card width on tablet when content is narrower
+  const fillWidth = availableWidth != null && availableWidth > totalW;
+  const renderW   = fillWidth ? availableWidth! : totalW;
+  const renderH   = fillWidth ? Math.round(svgH * (availableWidth! / totalW)) : svgH;
+
   const gridLines = [0, 1, 2, 3, 4].map((i) => {
     const y = pT + (chartH / 4) * i;
     const val = Math.round(maxVal - (maxVal / 4) * i);
     return { y, val };
   });
 
-  return (
-    <View style={{ height: svgH }}>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-      <Svg width={totalW} height={svgH} viewBox={`0 0 ${totalW} ${svgH}`}>
+  const svgEl = (
+    <Svg width={renderW} height={renderH} viewBox={`0 0 ${totalW} ${svgH}`}>
         {gridLines.map(({ y, val }) => (
           <G key={y}>
             <Line
@@ -138,7 +143,15 @@ function WorkloadBarChart({
           );
         })}
       </Svg>
-    </ScrollView>
+  );
+
+  return (
+    <View style={{ height: renderH }}>
+      {fillWidth ? svgEl : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+          {svgEl}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -253,6 +266,7 @@ function CategoryRow({ cat, maxVal }: { cat: CategoryData; maxVal: number }) {
 function MonthView({ month }: { month: MonthData }) {
   const { width } = useWindowDimensions();
   const isTablet  = width >= 768;
+  const [chartCardW, setChartCardW] = useState(0);
 
   const ratio = month.totalCreated > 0
     ? Math.round((month.totalDone / month.totalCreated) * 100)
@@ -260,12 +274,16 @@ function MonthView({ month }: { month: MonthData }) {
   const ratioColor = ratio >= 80 ? DONE_CLR : ratio >= 50 ? "#FFC107" : HK_RED;
 
   const barChartCard = month.visibleWeeks.length > 0 ? (
-    <View style={[styles.card, isTablet && { flex: 1 }]}>
-      <View style={isTablet ? { flex: 1, justifyContent: "flex-end", alignItems: "center" } : undefined}>
+    <View
+      style={[styles.card, isTablet && { flex: 1 }]}
+      onLayout={(e) => { if (isTablet) setChartCardW(e.nativeEvent.layout.width - 24); }}
+    >
+      <View style={isTablet ? { flex: 1, justifyContent: "flex-end" } : undefined}>
         <WorkloadBarChart
           weeks={month.weeks}
           visibleWeeks={month.visibleWeeks}
           maxVal={month.maxWeekVal}
+          availableWidth={isTablet && chartCardW > 0 ? chartCardW : undefined}
         />
         <View style={styles.chartLegend}>
           <View style={styles.legendItem}>
