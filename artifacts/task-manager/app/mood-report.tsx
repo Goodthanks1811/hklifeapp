@@ -412,8 +412,9 @@ const s = StyleSheet.create({
     backgroundColor: SURFACE,
   },
   cardMonth: {
-    fontSize: 10, fontFamily: "Inter_700Bold",
+    fontSize: 13, fontFamily: "Inter_700Bold",
     color: "#fff", letterSpacing: 2, textTransform: "uppercase",
+    fontWeight: "800",
   },
   cardTotal: {
     fontSize: 13, fontFamily: "Inter_700Bold", color: RED,
