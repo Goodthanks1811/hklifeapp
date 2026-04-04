@@ -126,7 +126,6 @@ input[type=file] { display:none; }
   <!-- fit: plus with 4 arrowheads -->
   <button class="btn-icon" id="btnFit"     onclick="fitActive()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6.5" y1="1.5" x2="6.5" y2="11.5"/><polyline points="4,4 6.5,1.5 9,4"/><polyline points="4,9 6.5,11.5 9,9"/><line x1="1.5" y1="6.5" x2="11.5" y2="6.5"/><polyline points="4,4 1.5,6.5 4,9"/><polyline points="9,4 11.5,6.5 9,9"/></svg></button>
   <button class="btn-icon" id="btnUndo"    onclick="undo()">&#8617;</button>
-  <button class="btn-icon" id="btnReset"   onclick="resetActive()">&#8634;</button>
   <!-- colour swatch: hidden until a colour is picked; tap activates colour-draw mode -->
   <div id="colorSwatch" onclick="swatchTap()"></div>
   <!-- inline brush tools: only visible when brush mode is on -->
@@ -138,8 +137,9 @@ input[type=file] { display:none; }
   <!-- brush toggle: circle (no fill) -->
   <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9675;</button>
   <button class="btn-icon" id="btnShare"  onclick="shareCanvas()">&#8679;</button>
-  <!-- zoom: pushed to far right -->
-  <button class="btn-icon" id="btnZoom"   onclick="toggleZoom()" style="margin-left:auto">&#128269;</button>
+  <!-- reset + zoom: pushed to far right together -->
+  <button class="btn-icon" id="btnReset" onclick="resetActive()" style="margin-left:auto"><svg width="14" height="14" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 4.25,2.6 A 4.5,4.5 0 1 1 8.75,2.6"/><polyline points="7,1 8.75,2.6 7.5,4.2"/></svg></button>
+  <button class="btn-icon" id="btnZoom"  onclick="toggleZoom()">&#128269;</button>
 </div>
 
 <!-- ── Opacity bar ───────────────────────────────── -->
