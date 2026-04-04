@@ -1940,7 +1940,7 @@ export default function LifeTaskScreen() {
         {/* Soft fade-to-background at the header's bottom edge */}
         <LinearGradient
           colors={["transparent", "#0f0f0f"]}
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 12 }}
+          style={{ position: "absolute", bottom: -6, left: 0, right: 0, height: 16 }}
           pointerEvents="none"
         />
       </View>
@@ -2259,7 +2259,7 @@ const sc = StyleSheet.create({
   headerBannerImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
 
   gradHeader: {
-    paddingHorizontal: 20, paddingBottom: 56, overflow: "hidden",
+    paddingHorizontal: 20, paddingBottom: 56,
     backgroundColor: "#0f0f0f",
   },
   gradNav: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
