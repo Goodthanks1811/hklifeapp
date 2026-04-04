@@ -160,9 +160,12 @@ input[type=file] { display:none; }
   <label>Size</label>
   <input type="range" id="bszsl" min="2" max="120" value="20" oninput="setBrushSize(this.value)">
   <span class="oval" id="bszval">20</span>
-  <label style="margin-left:8px;">Soft</label>
+  <label style="margin-left:6px;">Soft</label>
   <input type="range" id="bsfsl" min="0" max="100" value="0" oninput="setBrushSoft(this.value)">
   <span class="oval" id="bsfval">0%</span>
+  <label style="margin-left:6px;">Press</label>
+  <input type="range" id="bopsl" min="1" max="100" value="100" oninput="setBrushOpacity(this.value)">
+  <span class="oval" id="bopval">100%</span>
 </div>
 
 <!-- ── Stage ─────────────────────────────────────── -->
@@ -502,7 +505,7 @@ stage.addEventListener('touchstart',function(e){
   gestureStart=captureState();brushDirty=false;
 
   // ── Brush mode ─────────────────────────────────────
-  if(brushMode&&img2&&!sliderMode){
+  if(brushMode&&img2&&!sliderMode&&!zoomMode){
     if(t.length===1){
       tMode='brush';panLast=p;
       paintAt(p.x,p.y);draw();
@@ -622,6 +625,7 @@ function resetActive(){
 function setOpacity(v){opacity2=v/100;document.getElementById('oval').textContent=v+'%';drawRaf();}
 function setBrushSize(v){brushSize=parseInt(v);document.getElementById('bszval').textContent=v;}
 function setBrushSoft(v){brushSoft=parseInt(v)/100;document.getElementById('bsfval').textContent=v+'%';}
+function setBrushOpacity(v){brushOpacity=parseInt(v)/100;document.getElementById('bopval').textContent=v+'%';}
 window.addEventListener('resize',function(){var w=W(),h=H();if(img1)tx1=defaultTx(img1,w,h);if(img2)tx2=defaultTx(img2,w,h);gTx=null;draw();});
 
 // ── Brush controls ─────────────────────────────────────
