@@ -259,19 +259,21 @@ function MonthView({ month }: { month: MonthData }) {
 
   const barChartCard = month.visibleWeeks.length > 0 ? (
     <View style={[styles.card, isTablet && { flex: 1 }]}>
-      <WorkloadBarChart
-        weeks={month.weeks}
-        visibleWeeks={month.visibleWeeks}
-        maxVal={month.maxWeekVal}
-      />
-      <View style={styles.chartLegend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: HK_RED }]} />
-          <Text style={styles.legendText}>Created</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: DONE_CLR }]} />
-          <Text style={styles.legendText}>Done</Text>
+      <View style={isTablet ? { flex: 1, justifyContent: "flex-end" } : undefined}>
+        <WorkloadBarChart
+          weeks={month.weeks}
+          visibleWeeks={month.visibleWeeks}
+          maxVal={month.maxWeekVal}
+        />
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: HK_RED }]} />
+            <Text style={styles.legendText}>Created</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: DONE_CLR }]} />
+            <Text style={styles.legendText}>Done</Text>
+          </View>
         </View>
       </View>
     </View>
