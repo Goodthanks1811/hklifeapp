@@ -77,6 +77,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Colour Explorer", icon: "droplet", route: "/ui-kit/colours",       description: "Swatches & tint scales"},
     { label: "Loaders",        icon: "loader",  route: "/ui-kit/loaders",       description: "Save states"        },
     { label: "Modals",         icon: "layers",  route: "/ui-kit/modals",        description: "Overlays & alerts"  },
+    { label: "Gradient Header",icon: "sunset",  route: "/ui-kit/gradient-header",description: "Section top accent" },
   ],
 };
 
