@@ -16,30 +16,30 @@ import { Colors } from "@/constants/colors";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const ALPHABET = [
-  { char: "Α α", sound: "alpha" },
-  { char: "Β β", sound: "beta" },
-  { char: "Γ γ", sound: "gamma" },
-  { char: "Δ δ", sound: "delta" },
-  { char: "Ε ε", sound: "epsilon" },
-  { char: "Ζ ζ", sound: "zeta" },
-  { char: "Η η", sound: "eta" },
-  { char: "Θ θ", sound: "theta" },
-  { char: "Ι ι", sound: "iota" },
-  { char: "Κ κ", sound: "kappa" },
-  { char: "Λ λ", sound: "lambda" },
-  { char: "Μ μ", sound: "mu" },
-  { char: "Ν ν", sound: "nu" },
-  { char: "Ξ ξ", sound: "xi" },
-  { char: "Ο ο", sound: "omicron" },
-  { char: "Π π", sound: "pi" },
-  { char: "Ρ ρ", sound: "rho" },
-  { char: "Σ σ", sound: "sigma" },
-  { char: "Τ τ", sound: "tau" },
-  { char: "Υ υ", sound: "upsilon" },
-  { char: "Φ φ", sound: "phi" },
-  { char: "Χ χ", sound: "chi" },
-  { char: "Ψ ψ", sound: "psi" },
-  { char: "Ω ω", sound: "omega" },
+  { char: "Α α", sound: "a" },
+  { char: "Β β", sound: "v" },
+  { char: "Γ γ", sound: "g" },
+  { char: "Δ δ", sound: "th" },
+  { char: "Ε ε", sound: "e" },
+  { char: "Ζ ζ", sound: "z" },
+  { char: "Η η", sound: "i" },
+  { char: "Θ θ", sound: "th" },
+  { char: "Ι ι", sound: "i" },
+  { char: "Κ κ", sound: "k" },
+  { char: "Λ λ", sound: "l" },
+  { char: "Μ μ", sound: "m" },
+  { char: "Ν ν", sound: "n" },
+  { char: "Ξ ξ", sound: "ks" },
+  { char: "Ο ο", sound: "o" },
+  { char: "Π π", sound: "p" },
+  { char: "Ρ ρ", sound: "r" },
+  { char: "Σ σ", sound: "s" },
+  { char: "Τ τ", sound: "t" },
+  { char: "Υ υ", sound: "i" },
+  { char: "Φ φ", sound: "f" },
+  { char: "Χ χ", sound: "kh" },
+  { char: "Ψ ψ", sound: "ps" },
+  { char: "Ω ω", sound: "o" },
 ];
 
 const SIZES = [5, 10, 15, 20, 24] as const;
@@ -189,7 +189,7 @@ export default function GreekFlashcardsScreen() {
         <ScrollView contentContainerStyle={s.centerContainer} keyboardShouldPersistTaps="handled">
           <Text style={s.flag}>🇬🇷</Text>
           <Text style={s.bigTitle}>Greek Alphabet</Text>
-          <Text style={s.subtitle}>24 letters · type the name</Text>
+          <Text style={s.subtitle}>24 letters · type the sound</Text>
           <Text style={s.sectionLabel}>CARDS PER SESSION</Text>
           <PillBar selected={sessionSize} onSelect={setSessionSize} />
           <Pressable style={s.btnPrimary} onPress={startSession}>
@@ -251,7 +251,7 @@ export default function GreekFlashcardsScreen() {
       <Animated.View style={[{ flex: 1 }, { transform: [{ translateY: Animated.multiply(kbOffset, -1) }] }]}>
         <ScrollView contentContainerStyle={s.quizContainer} keyboardShouldPersistTaps="handled" scrollEnabled={false}>
           <View style={s.card}>
-            <Text style={s.cardLabel}>WHAT IS THIS LETTER CALLED?</Text>
+            <Text style={s.cardLabel}>WHAT SOUND DOES THIS MAKE?</Text>
             <Text style={s.cardChar}>{card.char}</Text>
             <Text style={s.cardCounter}>{idx + 1} / {session.length}</Text>
           </View>
@@ -261,7 +261,7 @@ export default function GreekFlashcardsScreen() {
             style={s.input}
             value={answer}
             onChangeText={setAnswer}
-            placeholder="Type the name…"
+            placeholder="Type the sound…"
             placeholderTextColor="rgba(255,255,255,0.25)"
             autoCorrect={false}
             autoCapitalize="none"
