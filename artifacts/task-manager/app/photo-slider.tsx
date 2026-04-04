@@ -35,12 +35,9 @@ const buildHtml = () => `<!DOCTYPE html>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMacSystemFont,sans-serif; color:${C.text}; overflow:hidden; display:flex; flex-direction:column; }
 
-.bar { display:flex; gap:6px; padding:8px 12px; background:${C.surface}; flex-shrink:0; }
-.bar-top { border-bottom:1px solid ${C.border}; padding-bottom:6px; }
-.bar-bot { border-bottom:1px solid ${C.border}; padding-top:4px; }
-.bar-top .img-btn { flex:1; padding:11px 0; border:none; border-radius:11px; font-size:13px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity .2s; font-family:inherit; }
-.btn-icon { flex:0 0 44px; font-size:16px; padding:11px 0; border:none; border-radius:11px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; }
-.bar-bot .btn-icon { flex:1; }
+.bar { display:flex; gap:5px; padding:7px 10px; background:${C.surface}; flex-shrink:0; border-bottom:1px solid ${C.border}; align-items:center; }
+.img-btn { flex:1; min-width:0; padding:10px 6px; border:none; border-radius:11px; font-size:13px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity .2s; font-family:inherit; }
+.btn-icon { flex:0 0 38px; width:38px; font-size:15px; padding:10px 0; border:none; border-radius:10px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; text-align:center; }
 
 .img1-active { background:${C.blue} !important; box-shadow:0 0 0 2px rgba(10,132,255,.45); opacity:1 !important; }
 .img2-active { background:${C.primary} !important; box-shadow:0 0 0 2px rgba(224,49,49,.45); opacity:1 !important; }
@@ -126,22 +123,18 @@ input[type=file] { display:none; }
 </head>
 <body>
 
-<!-- ── Top bar: image buttons + slider + zoom ─────── -->
-<div class="bar bar-top">
+<!-- ── Single toolbar ─────────────────────────────── -->
+<div class="bar">
   <button class="img-btn" id="btn1" onclick="imgBtnTap(1)">Image 1</button>
   <button class="img-btn" id="btn2" onclick="imgBtnTap(2)">Image 2</button>
   <button class="btn-icon" id="btnSlider" onclick="toggleSlider()">&#9135;</button>
   <button class="btn-icon" id="btnZoom"   onclick="toggleZoom()">&#128269;</button>
-</div>
-
-<!-- ── Bottom bar: tools ──────────────────────────── -->
-<div class="bar bar-bot">
-  <button class="btn-icon" id="btnFit"   onclick="fitActive()">&#10697;</button>
-  <button class="btn-icon" id="btnUndo"  onclick="undo()">&#8617;</button>
-  <button class="btn-icon" id="btnReset" onclick="resetActive()">&#8634;</button>
-  <button class="btn-icon" id="btnEye"   onclick="toggleEyedrop()" title="Pick colour">&#9673;</button>
-  <button class="btn-icon" id="btnBrush" onclick="toggleBrush()">&#9998;</button>
-  <button class="btn-icon" id="btnShare" onclick="shareCanvas()">&#8679;</button>
+  <button class="btn-icon" id="btnFit"    onclick="fitActive()">&#10697;</button>
+  <button class="btn-icon" id="btnUndo"   onclick="undo()">&#8617;</button>
+  <button class="btn-icon" id="btnReset"  onclick="resetActive()">&#8634;</button>
+  <button class="btn-icon" id="btnEye"    onclick="toggleEyedrop()" title="Pick colour">&#9673;</button>
+  <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9998;</button>
+  <button class="btn-icon" id="btnShare"  onclick="shareCanvas()">&#8679;</button>
 </div>
 
 <!-- ── Brush bar (compact): modes + setting icons ── -->
