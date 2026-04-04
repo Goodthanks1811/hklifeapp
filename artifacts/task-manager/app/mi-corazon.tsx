@@ -29,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
-const STORAGE_KEY   = "mi_nena_folders_v2";
+const STORAGE_KEY   = "mi_corazon_folders_v2";
 // FOLD_COLS is now dynamic — see folderCols below
 const GAP           = 2;
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
@@ -398,7 +398,7 @@ export default function MiNenaScreen() {
                   if (item.uri.startsWith("ph://")) {
                     // Persistent photo library reference — always valid
                     alive.push(item);
-                  } else if (item.uri.includes("mi_nena_media")) {
+                  } else if (item.uri.includes("mi_corazon_media")) {
                     const info = await FileSystem.getInfoAsync(item.uri);
                     if (info.exists) alive.push(item);
                   }
