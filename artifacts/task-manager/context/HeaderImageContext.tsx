@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const KEY = "@hk_header_image_v1";
@@ -28,7 +29,17 @@ export function HeaderImageProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     AsyncStorage.getItem(KEY)
-      .then(raw => { if (raw) setState({ ...DEFAULT, ...JSON.parse(raw) }); })
+      .then(raw => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as Partial<State>;
+        // Normalise file:// URIs — the app container UUID changes on reinstall,
+        // so reconstruct the full path from the current documentDirectory.
+        if (parsed.uri && parsed.uri.startsWith("file://")) {
+          const filename = parsed.uri.split("/").pop() ?? "hk_life_banner.jpg";
+          parsed.uri = (FileSystem.documentDirectory ?? "") + filename;
+        }
+        setState({ ...DEFAULT, ...parsed });
+      })
       .catch(() => {});
   }, []);
 

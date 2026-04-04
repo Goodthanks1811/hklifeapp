@@ -31,7 +31,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 import { useAnthropic } from "@/context/AnthropicContext";
 import { useBiometric } from "@/context/BiometricContext";
-import { useHeaderImage, type ResizeMode } from "@/context/HeaderImageContext";
+import { useHeaderImage } from "@/context/HeaderImageContext";
 import {
   SECTION_LABELS,
   useDrawerConfig,
@@ -291,7 +291,7 @@ export default function SettingsScreen() {
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection, sidebarAlwaysOpen, setSidebarAlwaysOpen } = useDrawerConfig();
 
-  const { uri: headerUri, resizeMode: headerResizeMode, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
+  const { uri: headerUri, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
   const [draft,        setDraft]        = useState(apiKey ?? "");
   const [saved,        setSaved]        = useState(false);
@@ -303,10 +303,13 @@ export default function SettingsScreen() {
   const [activeMove,   setActiveMove]   = useState<ActiveMove | null>(null);
   const [bioToggling,  setBioToggling]  = useState(false);
   const [imgDisplay,   setImgDisplay]   = useState({ x: headerOffX, y: headerOffY });
+  const [boxDims,      setBoxDims]      = useState({ w: 300, h: 170 });
 
+  const BANNER_SCALE = 1.6;
   const tickOpacity  = useRef(new Animated.Value(0)).current;
   const savedOffRef  = useRef({ x: headerOffX, y: headerOffY });
   const headerUpdRef = useRef(headerUpdate);
+  const boxDimsRef   = useRef({ w: 300, h: 170 });
   headerUpdRef.current = headerUpdate;
 
   useEffect(() => {
@@ -320,15 +323,19 @@ export default function SettingsScreen() {
       savedOffRef.current = { ...savedOffRef.current };
     },
     onPanResponderMove: (_, gs) => {
+      const maxX = boxDimsRef.current.w * (BANNER_SCALE - 1) / 2;
+      const maxY = boxDimsRef.current.h * (BANNER_SCALE - 1) / 2;
       setImgDisplay({
-        x: Math.max(-300, Math.min(300, savedOffRef.current.x + gs.dx)),
-        y: Math.max(-200, Math.min(200, savedOffRef.current.y + gs.dy)),
+        x: Math.max(-maxX, Math.min(maxX, savedOffRef.current.x + gs.dx)),
+        y: Math.max(-maxY, Math.min(maxY, savedOffRef.current.y + gs.dy)),
       });
     },
     onPanResponderRelease: (_, gs) => {
+      const maxX = boxDimsRef.current.w * (BANNER_SCALE - 1) / 2;
+      const maxY = boxDimsRef.current.h * (BANNER_SCALE - 1) / 2;
       const final = {
-        x: Math.max(-300, Math.min(300, savedOffRef.current.x + gs.dx)),
-        y: Math.max(-200, Math.min(200, savedOffRef.current.y + gs.dy)),
+        x: Math.max(-maxX, Math.min(maxX, savedOffRef.current.x + gs.dx)),
+        y: Math.max(-maxY, Math.min(maxY, savedOffRef.current.y + gs.dy)),
       };
       savedOffRef.current = final;
       setImgDisplay(final);
@@ -610,35 +617,28 @@ export default function SettingsScreen() {
                 <View
                   style={imgSt.previewBox}
                   {...previewPan.panHandlers}
+                  onLayout={(e) => {
+                    const { width: w, height: h } = e.nativeEvent.layout;
+                    boxDimsRef.current = { w, h };
+                    setBoxDims({ w, h });
+                  }}
                 >
                   <Image
                     source={{ uri: headerUri }}
-                    style={[
-                      imgSt.previewImg,
-                      { transform: [{ translateX: imgDisplay.x }, { translateY: imgDisplay.y }] },
-                    ]}
-                    resizeMode={headerResizeMode}
+                    style={{
+                      position: "absolute",
+                      width:  boxDims.w * BANNER_SCALE,
+                      height: boxDims.h * BANNER_SCALE,
+                      top:  -(boxDims.h * (BANNER_SCALE - 1) / 2),
+                      left: -(boxDims.w * (BANNER_SCALE - 1) / 2),
+                      transform: [{ translateX: imgDisplay.x }, { translateY: imgDisplay.y }],
+                    }}
+                    resizeMode="cover"
                   />
                   <View style={imgSt.previewHint}>
                     <Feather name="move" size={11} color="rgba(255,255,255,0.7)" />
                     <Text style={imgSt.previewHintText}>Drag to reposition</Text>
                   </View>
-                </View>
-
-                {/* Display mode */}
-                <Text style={styles.fieldLabel}>DISPLAY MODE</Text>
-                <View style={imgSt.modeRow}>
-                  {(["cover", "contain", "center", "stretch"] as ResizeMode[]).map(mode => (
-                    <Pressable
-                      key={mode}
-                      onPress={() => headerUpdate({ resizeMode: mode })}
-                      style={[imgSt.modePill, headerResizeMode === mode && imgSt.modePillActive]}
-                    >
-                      <Text style={[imgSt.modePillText, headerResizeMode === mode && imgSt.modePillTextActive]}>
-                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                      </Text>
-                    </Pressable>
-                  ))}
                 </View>
 
                 <View style={styles.divider} />

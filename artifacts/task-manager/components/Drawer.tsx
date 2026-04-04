@@ -209,7 +209,7 @@ export function Drawer() {
     },
   })).current;
 
-  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
+  const { uri: bannerUri, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
 
   const pickBannerImage = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -228,6 +228,7 @@ export function Drawer() {
   }, [bannerUpdate]);
 
   const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
+  const BANNER_SCALE    = 1.6;
   const insets = useSafeAreaInsets();
 
   const sectionOrder = getSectionOrder();
@@ -275,14 +276,29 @@ export function Drawer() {
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 12, paddingBottom: 12 }}>
         <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 150 : 100 }]}>
-          <Image
-            source={{ uri: bannerUri ?? FALLBACK_BANNER }}
-            style={[
-              StyleSheet.absoluteFill,
-              bannerUri ? { transform: [{ translateX: bannerOffX }, { translateY: bannerOffY }] } : undefined,
-            ]}
-            resizeMode={bannerUri ? bannerResizeMode : "cover"}
-          />
+          {(() => {
+            const bW = DRAWER_WIDTH;
+            const bH = isTablet ? 150 : 100;
+            const uri = bannerUri ?? FALLBACK_BANNER;
+            const iw = bW * BANNER_SCALE;
+            const ih = bH * BANNER_SCALE;
+            return (
+              <Image
+                source={{ uri }}
+                style={{
+                  position: "absolute",
+                  width:  iw,
+                  height: ih,
+                  top:  -(bH * (BANNER_SCALE - 1) / 2),
+                  left: -(bW * (BANNER_SCALE - 1) / 2),
+                  transform: bannerUri
+                    ? [{ translateX: bannerOffX }, { translateY: bannerOffY }]
+                    : undefined,
+                }}
+                resizeMode="cover"
+              />
+            );
+          })()}
           {/* bottom fade into drawer bg */}
           <LinearGradient
             colors={["transparent", "#111111"]}
