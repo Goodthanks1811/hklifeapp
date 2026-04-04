@@ -454,7 +454,7 @@ var dragonsLoaded=false;
 var ladderLoaded=false;
 var currentRound=${selRound};
 var nrlLogoTimer=null;
-var picksShowing=false;
+var picksState=0; // 0=hidden 1=markers(yellow) 2=results(check/cross)
 function postMsg(o){if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(o));}
 function switchTab(tab){
   currentTab=tab;
@@ -470,7 +470,7 @@ function switchTab(tab){
 }
 function handleRound(round){
   currentRound=round;
-  picksShowing=false;
+  picksState=0;
   clearPickResults();
   document.querySelectorAll('.round-pill').forEach(function(p){p.classList.remove('active');});
   var pill=document.getElementById('pill-'+round);
@@ -490,26 +490,35 @@ function revealScore(id){
 function clearPickResults(){
   document.querySelectorAll('.pick-chip').forEach(function(el){el.remove();});
 }
+function placeChip(chip,matchId,isHome){
+  if(isHome){
+    var el=document.getElementById('hn-'+matchId);
+    if(el){chip.style.marginLeft='5px';el.appendChild(chip);}
+  } else {
+    var el=document.getElementById('an-'+matchId);
+    if(el){chip.style.marginRight='5px';el.insertBefore(chip,el.firstChild);}
+  }
+}
+function showPickMarkers(markers){
+  clearPickResults();
+  markers.forEach(function(r){
+    var chip=document.createElement('span');
+    chip.className='pick-chip';
+    chip.textContent='\uD83D\uDFE1';
+    placeChip(chip,r.matchId,r.isHome);
+  });
+}
 function showPickResults(results){
   clearPickResults();
   results.forEach(function(r){
     if(r.result!=='win'&&r.result!=='loss') return;
-    var emoji=r.result==='win'?'\u2705':'\u274C';
     var chip=document.createElement('span');
     chip.className='pick-chip';
-    chip.textContent=emoji;
-    if(r.isHome){
-      // Home team is on the LEFT — append chip after the name text (chip appears to the right of name)
-      var el=document.getElementById('hn-'+r.matchId);
-      if(el){chip.style.marginLeft='5px';el.appendChild(chip);}
-    } else {
-      // Away team is on the RIGHT — prepend chip before the name text (chip appears to the left of name)
-      var el=document.getElementById('an-'+r.matchId);
-      if(el){chip.style.marginRight='5px';el.insertBefore(chip,el.firstChild);}
-    }
+    chip.textContent=r.result==='win'?'\u2705':'\u274C';
+    placeChip(chip,r.matchId,r.isHome);
   });
 }
-function setPicksShowing(v){picksShowing=v;}
+function setPicksShowing(v){picksState=v;}
 function attachNrlLogo(){
   var img=document.getElementById('nrl-logo');
   if(!img||img._picksAttached) return;
@@ -527,8 +536,9 @@ function attachNrlLogo(){
     if(nrlLogoTimer!==null){
       clearTimeout(nrlLogoTimer);
       nrlLogoTimer=null;
-      if(picksShowing){picksShowing=false;clearPickResults();}
-      else{postMsg({type:'logoTap',round:currentRound});}
+      if(picksState===2){picksState=0;clearPickResults();}
+      else if(picksState===1){postMsg({type:'logoTap',round:currentRound,mode:'results'});}
+      else{postMsg({type:'logoTap',round:currentRound,mode:'picks'});}
     }
   },{passive:false});
   img.addEventListener('touchmove',function(){
@@ -672,6 +682,17 @@ export default function NRLScheduleScreen() {
     });
   }, [pickerRound, savePicks]);
 
+  const injectPickMarkers = useCallback((round: number) => {
+    const picks   = allPicksRef.current[String(round)] ?? {};
+    const matches = currentMatchesRef.current;
+    const markers = matches
+      .filter((m) => picks[m.id])
+      .map((m) => ({ matchId: m.id, isHome: m.homeTeam === picks[m.id] }));
+    webViewRef.current?.injectJavaScript(
+      `setPicksShowing(1); showPickMarkers(${JSON.stringify(markers)}); true;`
+    );
+  }, []);
+
   const injectPickResults = useCallback((round: number) => {
     const picks   = allPicksRef.current[String(round)] ?? {};
     const matches = currentMatchesRef.current;
@@ -689,7 +710,7 @@ export default function NRLScheduleScreen() {
         return { matchId: m.id, pick: pickedTeam, isHome, result };
       });
     webViewRef.current?.injectJavaScript(
-      `setPicksShowing(true); showPickResults(${JSON.stringify(results)}); true;`
+      `setPicksShowing(2); showPickResults(${JSON.stringify(results)}); true;`
     );
   }, []);
 
@@ -737,9 +758,13 @@ export default function NRLScheduleScreen() {
       const round = msg.round ?? currentRoundRef.current;
       const picks = allPicksRef.current[String(round)] ?? {};
       if (Object.keys(picks).length === 0) return;
-      injectPickResults(round);
+      if (msg.mode === "results") {
+        injectPickResults(round);
+      } else {
+        injectPickMarkers(round);
+      }
     }
-  }, [injectPickResults]);
+  }, [injectPickMarkers, injectPickResults]);
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
