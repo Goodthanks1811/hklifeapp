@@ -410,7 +410,8 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .day-divider{height:1px;background:linear-gradient(to right,transparent,#2a3a2a 30%,#2a3a2a 70%,transparent);margin:10px 20px 14px}
 .cards-col{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
 .match-card{background:${NRL_CARD};border:1px solid ${NRL_BORDER};border-radius:12px;overflow:hidden;}
-.pick-chip{display:inline;font-size:18px;line-height:1;pointer-events:none;vertical-align:middle;}
+.pick-chip{display:inline;font-size:16px;line-height:1;pointer-events:none;vertical-align:middle;}
+.pick-dot{display:inline-block;width:7px;height:7px;background:${NRL_GREEN};border-radius:50%;vertical-align:middle;pointer-events:none;flex-shrink:0;}
 .match-body{padding:14px;display:flex;align-items:center;gap:8px}
 .team-block{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
 .team-colour-bar{height:3px;width:32px;border-radius:2px}
@@ -488,23 +489,22 @@ function revealScore(id){
   if(r)r.style.display='flex';
 }
 function clearPickResults(){
-  document.querySelectorAll('.pick-chip').forEach(function(el){el.remove();});
+  document.querySelectorAll('.pick-chip,.pick-dot').forEach(function(el){el.remove();});
 }
 function placeChip(chip,matchId,isHome){
   if(isHome){
     var el=document.getElementById('hn-'+matchId);
-    if(el){chip.style.marginLeft='5px';el.appendChild(chip);}
+    if(el){chip.style.marginLeft='6px';el.appendChild(chip);}
   } else {
     var el=document.getElementById('an-'+matchId);
-    if(el){chip.style.marginRight='5px';el.insertBefore(chip,el.firstChild);}
+    if(el){chip.style.marginRight='6px';el.insertBefore(chip,el.firstChild);}
   }
 }
 function showPickMarkers(markers){
   clearPickResults();
   markers.forEach(function(r){
     var chip=document.createElement('span');
-    chip.className='pick-chip';
-    chip.textContent='\uD83D\uDFE1';
+    chip.className='pick-dot';
     placeChip(chip,r.matchId,r.isHome);
   });
 }
@@ -752,6 +752,8 @@ export default function NRLScheduleScreen() {
       setPickerMatches(currentMatchesRef.current.filter((m) => !m.isBye));
       setRoundPicks({ ...saved });
       setPickerVisible(true);
+      // Reset display cycle so next tap always starts with marker (dot) first
+      webViewRef.current?.injectJavaScript(`setPicksShowing(0); clearPickResults(); true;`);
     }
 
     if (msg.type === "logoTap") {
