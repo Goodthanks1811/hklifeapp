@@ -166,7 +166,7 @@ function WorkloadBarChart({
   );
 }
 
-// ── Week Row ──────────────────────────────────────────────────────────────────
+// ── Week Row (compact — no expand, items live in the bottom section) ───────────
 function WeekRow({
   week,
   data,
@@ -176,30 +176,18 @@ function WeekRow({
   data: WeekData;
   maxVal: number;
 }) {
-  const [open, setOpen] = useState(false);
-  const hasItems = data.createdItems.length > 0 || data.doneItems.length > 0;
   const cp = maxVal > 0 ? (data.created / maxVal) * 100 : 0;
   const dp = maxVal > 0 ? (data.done / maxVal) * 100 : 0;
 
   return (
     <View style={styles.weekRow}>
-      <Pressable
-        style={styles.weekHead}
-        onPress={hasItems ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOpen((v) => !v); } : undefined}
-        disabled={!hasItems}
-      >
+      <View style={styles.weekHead}>
         <Text style={styles.weekName}>{week}</Text>
-        <View style={styles.weekRight}>
-          <View style={styles.weekBadges}>
-            <View style={styles.createdBadge}><Text style={styles.createdBadgeText}>{data.created}</Text></View>
-            <View style={styles.doneBadge}><Text style={styles.doneBadgeText}>{data.done}</Text></View>
-          </View>
-          {hasItems && (
-            <Text style={[styles.weekChevron, open && styles.weekChevronOpen]}>▶</Text>
-          )}
+        <View style={styles.weekBadges}>
+          <View style={styles.createdBadge}><Text style={styles.createdBadgeText}>{data.created}</Text></View>
+          <View style={styles.doneBadge}><Text style={styles.doneBadgeText}>{data.done}</Text></View>
         </View>
-      </Pressable>
-
+      </View>
       <View style={styles.weekBars}>
         <View style={styles.barLine}>
           <Text style={styles.barLabel}>Created</Text>
@@ -214,33 +202,55 @@ function WeekRow({
           </View>
         </View>
       </View>
+    </View>
+  );
+}
 
-      {open && (
-        <View style={styles.expandArea}>
-          {data.createdItems.length > 0 && (
-            <View>
-              <Text style={[styles.expandSectionLabel, { color: HK_RED }]}>Created</Text>
-              {data.createdItems.map((t, i) => (
-                <View key={i} style={styles.expandItem}>
-                  <View style={[styles.expandDot, { backgroundColor: HK_RED }]} />
-                  <Text style={styles.expandText}>{t}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          {data.doneItems.length > 0 && (
-            <View style={data.createdItems.length > 0 ? { marginTop: 8 } : undefined}>
-              <Text style={[styles.expandSectionLabel, { color: DONE_CLR }]}>Completed</Text>
-              {data.doneItems.map((t, i) => (
-                <View key={i} style={styles.expandItem}>
-                  <View style={[styles.expandDot, { backgroundColor: DONE_CLR }]} />
-                  <Text style={styles.expandText}>{t}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
+// ── Items by Week (bottom section) ────────────────────────────────────────────
+function WeekItemsSection({ month }: { month: MonthData }) {
+  const hasAnyItems = month.visibleWeeks.some((w) => {
+    const d = month.weeks[w];
+    return d && (d.createdItems.length > 0 || d.doneItems.length > 0);
+  });
+  if (!hasAnyItems) return null;
+
+  return (
+    <View style={[styles.card, { marginBottom: 24 }]}>
+      <View style={styles.cardSectionHeader}>
+        <Text style={styles.cardSectionTitle}>Items by Week</Text>
+      </View>
+      <View style={styles.cardSectionDivider} />
+      {month.visibleWeeks.map((w) => {
+        const d = month.weeks[w] || { created: 0, done: 0, createdItems: [], doneItems: [] };
+        if (d.createdItems.length === 0 && d.doneItems.length === 0) return null;
+        return (
+          <View key={w} style={styles.weekItemsGroup}>
+            <Text style={styles.weekItemsWeekLabel}>{w}</Text>
+            {d.createdItems.length > 0 && (
+              <View style={styles.weekItemsList}>
+                <Text style={[styles.expandSectionLabel, { color: HK_RED }]}>Created</Text>
+                {d.createdItems.map((t, i) => (
+                  <View key={i} style={styles.expandItem}>
+                    <View style={[styles.expandDot, { backgroundColor: HK_RED }]} />
+                    <Text style={styles.expandText}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {d.doneItems.length > 0 && (
+              <View style={[styles.weekItemsList, d.createdItems.length > 0 && { marginTop: 8 }]}>
+                <Text style={[styles.expandSectionLabel, { color: DONE_CLR }]}>Completed</Text>
+                {d.doneItems.map((t, i) => (
+                  <View key={i} style={styles.expandItem}>
+                    <View style={[styles.expandDot, { backgroundColor: DONE_CLR }]} />
+                    <Text style={styles.expandText}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -272,8 +282,8 @@ function CategoryRow({ cat, maxVal }: { cat: CategoryData; maxVal: number }) {
   );
 }
 
-// Fixed height for the tablet two-column top row — never changes between months
-const TABLET_ROW_H = 350;
+// Fixed height for the tablet two-column top row — enough for 5 compact week rows
+const TABLET_ROW_H = 500;
 
 // ── Month View ────────────────────────────────────────────────────────────────
 function MonthView({ month }: { month: MonthData }) {
@@ -381,19 +391,20 @@ function MonthView({ month }: { month: MonthData }) {
 
       {isTablet ? (
         <>
-          {/* iPad: bar chart left, weekly breakdown right */}
+          {/* iPad: bar chart left, weekly breakdown right — fixed height */}
           <View style={styles.tabletTopRow}>
             <View style={styles.tabletLeft}>{barChartCard}</View>
             <View style={styles.tabletRight}>{weeklyCard}</View>
           </View>
-          {/* iPad: category breakdown full width */}
           {categoryCard}
+          <WeekItemsSection month={month} />
         </>
       ) : (
         <>
           {barChartCard}
           {weeklyCard}
           {categoryCard}
+          <WeekItemsSection month={month} />
         </>
       )}
     </View>
@@ -556,24 +567,23 @@ const styles = StyleSheet.create({
   weekRow: { backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 10, marginBottom: 8 },
   weekHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   weekName: { fontSize: 15, fontWeight: "900", color: "#fff", fontFamily: "Inter_700Bold" },
-  weekRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   weekBadges: { flexDirection: "row", gap: 6 },
   createdBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: "rgba(255,30,30,0.1)" },
   createdBadgeText: { fontSize: 12, fontWeight: "800", color: HK_RED, fontFamily: "Inter_700Bold" },
   doneBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: "rgba(76,175,80,0.1)" },
   doneBadgeText: { fontSize: 12, fontWeight: "800", color: DONE_CLR, fontFamily: "Inter_700Bold" },
-  weekChevron: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
-  weekChevronOpen: { transform: [{ rotate: "90deg" }] },
   weekBars: { gap: 6 },
   barLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   barLabel: { width: 48, fontSize: 10, fontWeight: "700", color: MUTED, textTransform: "uppercase", letterSpacing: 0.2, fontFamily: "Inter_600SemiBold" },
   barBg: { flex: 1, height: 6, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" },
   barFg: { height: "100%", borderRadius: 4 },
-  expandArea: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", gap: 2 },
   expandSectionLabel: { fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4, fontFamily: "Inter_600SemiBold" },
   expandItem: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 2 },
   expandDot: { width: 5, height: 5, borderRadius: 3, marginTop: 5, flexShrink: 0 },
   expandText: { flex: 1, fontSize: 13, color: "rgba(255,255,255,0.72)", lineHeight: 19, fontFamily: "Inter_400Regular" },
+  weekItemsGroup: { paddingBottom: 14, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
+  weekItemsWeekLabel: { fontSize: 13, fontWeight: "900", color: "#fff", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, fontFamily: "Inter_700Bold" },
+  weekItemsList: {},
   catRow: { paddingBottom: 10, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,30,30,0.05)" },
   catName: { fontSize: 13, fontWeight: "800", color: "#fff", marginBottom: 6, fontFamily: "Inter_700Bold" },
   catBars: { gap: 5 },
