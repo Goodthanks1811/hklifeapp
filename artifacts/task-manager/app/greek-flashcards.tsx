@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 
-const greekFlag = require("../assets/images/greek-flag.png");
+const greekFlag = require("../assets/images/greek-flag.jpg");
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Colors } from "@/constants/colors";

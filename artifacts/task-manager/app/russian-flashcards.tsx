@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 
-const russianFlag = require("../assets/images/russian-flag.png");
+const russianFlag = require("../assets/images/russian-flag.jpg");
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Colors } from "@/constants/colors";
