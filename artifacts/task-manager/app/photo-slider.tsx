@@ -122,7 +122,7 @@ input[type=file] { display:none; }
   <button class="btn-icon" id="btnSlider"  onclick="toggleSlider()">&#9474;</button>
   <!-- fit: plus with 4 arrowheads -->
   <button class="btn-icon" id="btnFit"     onclick="fitActive()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6.5" y1="1.5" x2="6.5" y2="11.5"/><polyline points="4,4 6.5,1.5 9,4"/><polyline points="4,9 6.5,11.5 9,9"/><line x1="1.5" y1="6.5" x2="11.5" y2="6.5"/><polyline points="4,4 1.5,6.5 4,9"/><polyline points="9,4 11.5,6.5 9,9"/></svg></button>
-  <button class="btn-icon" id="btnUndo"    onclick="undo()"><svg width="14" height="14" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 8.75,2.6 A 4.5,4.5 0 1 0 4.25,2.6"/><polyline points="6.2,0.8 4.25,2.6 6.2,4.4"/></svg></button>
+  <button class="btn-icon" id="btnUndo"    onclick="undo()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3 A9,9 0 1 0 9,3.5"/><polyline points="11,1.5 9,3.5 11,5.5"/></svg></button>
   <!-- colour swatch: hidden until a colour is picked; tap activates colour-draw mode -->
   <div id="colorSwatch" onclick="swatchTap()"></div>
   <!-- inline brush tools: only visible when brush mode is on -->
@@ -135,7 +135,7 @@ input[type=file] { display:none; }
   <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9675;</button>
   <button class="btn-icon" id="btnShare"  onclick="shareCanvas()">&#8679;</button>
   <!-- reset + zoom: pushed to far right together -->
-  <button class="btn-icon" id="btnReset" onclick="resetActive()" style="margin-left:auto"><svg width="14" height="14" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 4.25,2.6 A 4.5,4.5 0 1 1 8.75,2.6"/><polyline points="7,1 8.75,2.6 7.5,4.2"/></svg></button>
+  <button class="btn-icon" id="btnReset" onclick="resetActive()" style="margin-left:auto"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3 A9,9 0 1 1 15,3.5"/><polyline points="13,1.5 15,3.5 13,5.5"/></svg></button>
   <button class="btn-icon" id="btnZoom"  onclick="toggleZoom()">&#128269;</button>
 </div>
 
