@@ -2,8 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { PageLoader } from "@/components/PageLoader";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -384,10 +384,7 @@ export default function MyWorkloadScreen() {
       <ScreenHeader title="My Workload" />
 
       {loading ? (
-        <View style={styles.centred}>
-          <ActivityIndicator size="large" color={HK_RED} />
-          <Text style={styles.loadingText}>Loading workload…</Text>
-        </View>
+        <PageLoader />
       ) : !apiKey ? (
         <View style={styles.centred}>
           <Feather name="alert-circle" size={32} color="#607D8B" />
