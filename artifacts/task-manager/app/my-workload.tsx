@@ -226,7 +226,7 @@ function CategoryRow({ cat, maxVal }: { cat: CategoryData; maxVal: number }) {
   const dp = Math.min(100, maxVal > 0 ? (cat.done / maxVal) * 100 : 0);
   return (
     <View style={styles.catRow}>
-      <Text style={styles.catName}>{cat.name}</Text>
+      <Text style={styles.catName}>{cat.name.trim()}</Text>
       <View style={styles.catBars}>
         <View style={styles.catBarLine}>
           <Text style={styles.barLabel}>Created</Text>
