@@ -36,7 +36,7 @@ const buildHtml = () => `<!DOCTYPE html>
 html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMacSystemFont,sans-serif; color:${C.text}; overflow:hidden; display:flex; flex-direction:column; }
 
 .bar { display:flex; gap:5px; padding:7px 10px; background:${C.surface}; flex-shrink:0; border-bottom:1px solid ${C.border}; align-items:center; }
-.img-btn { flex:1; min-width:0; padding:10px 6px; border:none; border-radius:11px; font-size:13px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity .2s; font-family:inherit; }
+.img-btn { flex:0 0 72px; padding:10px 4px; border:none; border-radius:11px; font-size:12px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity .2s; font-family:inherit; }
 .btn-icon { flex:0 0 38px; width:38px; font-size:15px; padding:10px 0; border:none; border-radius:10px; font-weight:700; cursor:pointer; color:${C.text}; background:${C.card}; font-family:inherit; text-align:center; }
 
 .img1-active { background:${C.blue} !important; box-shadow:0 0 0 2px rgba(10,132,255,.45); opacity:1 !important; }
@@ -127,7 +127,7 @@ input[type=file] { display:none; }
 <div class="bar">
   <button class="img-btn" id="btn1" onclick="imgBtnTap(1)">Image 1</button>
   <button class="img-btn" id="btn2" onclick="imgBtnTap(2)">Image 2</button>
-  <button class="btn-icon" id="btnSlider" onclick="toggleSlider()">&#9135;</button>
+  <button class="btn-icon" id="btnSlider" onclick="toggleSlider()">&#9474;</button>
   <button class="btn-icon" id="btnZoom"   onclick="toggleZoom()">&#128269;</button>
   <button class="btn-icon" id="btnFit"    onclick="fitActive()">&#10697;</button>
   <button class="btn-icon" id="btnUndo"   onclick="undo()">&#8617;</button>
