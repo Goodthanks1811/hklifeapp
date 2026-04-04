@@ -63,15 +63,15 @@ export function Preview() {
       {/* ── Gradient header ───────────────────────────── */}
       <div style={{ position: "relative", flexShrink: 0, overflow: "visible" }}>
         <div style={{
-          padding: "52px 20px 36px",
+          padding: "52px 20px 56px",
           background: [
             `radial-gradient(ellipse 100% 100% at 50% 0%, rgba(224,49,49,0.72) 0%, rgba(180,20,20,0.28) 45%, transparent 70%)`,
             `radial-gradient(ellipse 60% 65% at 0% 0%, rgba(224,49,49,0.22) 0%, transparent 60%)`,
             `radial-gradient(ellipse 60% 65% at 100% 0%, rgba(224,49,49,0.22) 0%, transparent 60%)`,
             BG,
           ].join(", "),
-          WebkitMaskImage: "linear-gradient(to bottom, black 62%, transparent 100%)",
-          maskImage: "linear-gradient(to bottom, black 62%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 72%, transparent 100%)",
+          maskImage: "linear-gradient(to bottom, black 72%, transparent 100%)",
         }}>
           {/* Top halo */}
           <div style={{

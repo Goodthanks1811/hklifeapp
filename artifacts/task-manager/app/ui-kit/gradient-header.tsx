@@ -97,7 +97,7 @@ const s = StyleSheet.create({
   header: {
     backgroundColor: BG,
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 56,
     overflow: "hidden",
   },
 
