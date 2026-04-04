@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -636,11 +636,18 @@ function showResults() {
 
 export default function ApiQuizScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const maxW = isTablet ? Math.min(Math.round(width * 0.82), 900) : 560;
+  const src = HTML.replace(
+    '.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 560px; }',
+    `.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: ${maxW}px; }`,
+  );
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScreenHeader title="API Fundamentals" />
       <WebView
-        source={{ html: HTML, baseUrl: '' }}
+        source={{ html: src, baseUrl: '' }}
         style={styles.web}
         originWhitelist={['*']}
         scrollEnabled
