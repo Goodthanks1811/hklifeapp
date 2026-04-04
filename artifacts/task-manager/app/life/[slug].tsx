@@ -1965,7 +1965,7 @@ export default function LifeTaskScreen() {
           showsVerticalScrollIndicator={false}
           onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: bottomPad + 100, paddingTop: 12 }}
+          contentContainerStyle={{ paddingBottom: bottomPad + 100, paddingTop: 4 }}
           onScrollBeginDrag={closeActiveSwipe}
           refreshControl={
             <RefreshControl
