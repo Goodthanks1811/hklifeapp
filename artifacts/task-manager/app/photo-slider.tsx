@@ -144,7 +144,6 @@ input[type=file] { display:none; }
   <button class="btn-icon" id="btnBrush"  onclick="toggleBrush()">&#9675;</button>
   <!-- download + reset + zoom: pushed to far right together -->
   <button class="btn-icon" id="btnShare" onclick="shareCanvas()" style="margin-left:auto"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="15"/><polyline points="7,10 12,15 17,10"/><path d="M5,18 L5,20 Q5,22 7,22 L17,22 Q19,22 19,20 L19,18"/></svg></button>
-  <button class="btn-icon" id="btnReset" onclick="resetActive()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.1"/></svg></button>
   <button class="btn-icon" id="btnZoom"  onclick="toggleZoom()">&#128269;</button>
 </div>
 
