@@ -2,10 +2,9 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
   Image,
   PanResponder,
   Platform,
@@ -23,374 +22,84 @@ import { useHeaderImage } from "@/context/HeaderImageContext";
 import {
   SECTION_ORDER,
   SECTION_LABELS,
+  SECTION_ICONS,
   useDrawerConfig,
   type SectionKey,
   type MenuItem,
 } from "@/context/DrawerConfigContext";
 
-const ITEM_HEIGHT = 50;
-
-// ── Accordion hook ────────────────────────────────────────────────────────────
-function useAccordion(initialOpen: boolean, itemCount: number) {
-  const openRef = useRef(initialOpen);
-  const locked  = useRef(false);
-  const anim    = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
-  const chevron = useRef(new Animated.Value(initialOpen ? 1 : 0)).current;
-
-  const toggle = () => {
-    if (locked.current) return;
-    locked.current = true;
-    openRef.current = !openRef.current;
-    const toValue = openRef.current ? 1 : 0;
-    Animated.parallel([
-      Animated.timing(anim,    { toValue, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(chevron, { toValue, duration: 220, easing: Easing.out(Easing.quad),  useNativeDriver: true }),
-    ]).start(() => { locked.current = false; });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const close = () => {
-    if (!openRef.current) return;
-    if (locked.current) return;
-    locked.current = true;
-    openRef.current = false;
-    Animated.parallel([
-      Animated.timing(anim,    { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(chevron, { toValue: 0, duration: 220, easing: Easing.out(Easing.quad),  useNativeDriver: true }),
-    ]).start(() => { locked.current = false; });
-  };
-
-  const listHeight = anim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: [0, itemCount * ITEM_HEIGHT],
-  });
-
-  // Content fades in after height is mostly open, fades out before height collapses
-  // This prevents the "partially rendered clipped items" look
-  const contentOpacity = anim.interpolate({
-    inputRange:  [0, 0.3, 1],
-    outputRange: [0, 0,   1],
-    extrapolate: "clamp",
-  });
-
-  const chevronRotate = chevron.interpolate({
-    inputRange:  [0, 1],
-    outputRange: ["0deg", "90deg"],
-  });
-
-  return { toggle, close, listHeight, contentOpacity, chevronRotate };
-}
-
-// ── Accordion section ─────────────────────────────────────────────────────────
-function AccordionSection({
-  label,
-  items,
-  accordion,
-  navigate,
-  permanentlyOpen,
-  pathname,
+// ── Root section row ───────────────────────────────────────────────────────────
+function SectionRow({
+  sectionKey,
+  onPress,
 }: {
-  label:           string;
-  items:           MenuItem[];
-  accordion:       ReturnType<typeof useAccordion>;
-  navigate:        (route: string) => void;
-  permanentlyOpen?: boolean;
-  pathname:        string;
+  sectionKey: SectionKey;
+  onPress:    () => void;
 }) {
   return (
-    <View style={styles.section}>
-      <TouchableOpacity
-        style={styles.accordionHeader}
-        onPress={permanentlyOpen ? undefined : accordion.toggle}
-        activeOpacity={permanentlyOpen ? 1 : 0.7}
-      >
-        <Text style={styles.sectionLabel}>{label}</Text>
-        {!permanentlyOpen && (
-          <Animated.View style={{ transform: [{ rotate: accordion.chevronRotate }] }}>
-            <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
-          </Animated.View>
-        )}
-      </TouchableOpacity>
-      <Animated.View style={{ height: accordion.listHeight, overflow: "hidden", backgroundColor: "#111111" }}>
-        <Animated.View style={{ opacity: accordion.contentOpacity }}>
-          {items.map((item, i) => (
-            <DrawerMenuItem
-              key={`${item.label}-${i}`}
-              item={item}
-              onPress={item.route ? () => navigate(item.route!) : undefined}
-              dimmed={!item.route}
-              isActive={!!item.route && pathname === item.route}
-            />
-          ))}
-        </Animated.View>
-      </Animated.View>
-    </View>
+    <Pressable
+      style={({ pressed }) => [
+        styles.sectionRow,
+        pressed && styles.sectionRowPressed,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.menuIcon}>
+        <Feather name={SECTION_ICONS[sectionKey] as any} size={17} color={Colors.primary} />
+      </View>
+      <Text style={styles.sectionRowLabel}>{SECTION_LABELS[sectionKey]}</Text>
+      <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+    </Pressable>
   );
 }
 
-// ── Drawer ────────────────────────────────────────────────────────────────────
-export function Drawer() {
-  const {
-    isOpen, drawerAnim, overlayAnim, spacerWidth,
-    openDrawer, closeDrawer,
-    drawerMode, drawerModeRef, setDrawerMode,
-    skipAutoCloseRef,
-    DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
-  } = useDrawer();
-
-  const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
-
-  const pathname     = usePathname();
-  // Life routes: /life/* and /calendar (calendar is in the Life section)
-  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/") || r === "/ui-kit/gradient-header";
-  const onLifeScreen = isLifeRoute(pathname);
-
-  // Keep a ref so gesture handlers can read isOpen without stale closure
-  const isOpenRef = useRef(isOpen);
-  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
-
-  // Phone: close drawer on any route change (handles deep-link arrivals where
-  // the internal navigate() helper is bypassed, e.g. Apple Shortcuts URLs).
-  // skipAutoCloseRef lets callers suppress one automatic close (e.g. launch nav).
-  useEffect(() => {
-    if (isTablet) return;
-    if (skipAutoCloseRef.current) { skipAutoCloseRef.current = false; return; }
-    closeDrawer();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, isTablet]);
-
-  // Close drawer when a deep-link URL arrives even if the route doesn't change
-  // (e.g. shortcut fires while already on /calendar — pathname stays the same
-  // so the effect above doesn't re-run, but the drawer should still close)
-  useEffect(() => {
-    if (isTablet) return undefined;
-    const sub = Linking.addEventListener("url", () => { closeDrawer(); });
-    return () => sub.remove();
-  }, [isTablet, closeDrawer]);
-
-  // Scroll drawer back to top each time it opens
-  const scrollRef = useRef<ScrollView>(null);
-  useEffect(() => {
-    if (isOpen) scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [isOpen]);
-
-  // iPad: set mode then auto-open/close based on screen type.
-  // Life screens → sidebar mode (pushes content right).
-  // All others   → overlay mode (floats over content, scrim dims behind).
-  useEffect(() => {
-    if (!isTablet) return;
-    if (onLifeScreen || sidebarAlwaysOpen) {
-      setDrawerMode("sidebar");
-      openDrawer();
-    } else {
-      setDrawerMode("overlay");
-      closeDrawer();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
-
-  // Track animated values in sync during gesture.
-  // Sidebar mode on iPad: sync spacerWidth (pushes content).
-  // Overlay mode on iPad + iPhone: sync overlayAnim (scrim opacity).
-  const syncGesture = (newX: number) => {
-    drawerAnim.setValue(newX);
-    if (isTablet && drawerModeRef.current === "sidebar") {
-      spacerWidth.value = Math.max(0, SIDEBAR_WIDTH + newX);
-    } else {
-      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
-    }
-  };
-
-  // ── Drawer panel: swipe left to close ─────────────────────────────────────
-  const drawerPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-      isOpenRef.current && dx < -6 && Math.abs(dx) > Math.abs(dy) * 1.5,
-    onPanResponderGrant: () => {
-      drawerAnim.stopAnimation();
-      overlayAnim.stopAnimation();
-      // Note: no stopAnimation for spacerWidth — Reanimated SharedValue,
-      // just override by setting .value directly in syncGesture
-    },
-    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, dx))),
-    // Released: if dragged far enough or fast enough → close; else snap back open
-    onPanResponderRelease: (_, { dx, vx }) => {
-      if (dx < -(DRAWER_WIDTH * 0.3) || vx < -0.4) closeDrawer();
-      else openDrawer();
-    },
-  })).current;
-
-  // ── Left-edge zone: swipe right to open ───────────────────────────────────
-  const edgePan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-      !isOpenRef.current && dx > 6 && Math.abs(dx) > Math.abs(dy) * 1.5,
-    onPanResponderGrant: () => {
-      drawerAnim.stopAnimation();
-      overlayAnim.stopAnimation();
-      // spacerWidth is a Reanimated SharedValue — cancelled implicitly when we set .value
-    },
-    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx))),
-    // Released: if dragged far enough or fast enough → open; else snap back closed
-    onPanResponderRelease: (_, { dx, vx }) => {
-      if (dx > DRAWER_WIDTH * 0.3 || vx > 0.4) openDrawer();
-      else closeDrawer();
-    },
-  })).current;
-
-  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, scale: bannerScale } = useHeaderImage();
-
-  const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
-  const insets = useSafeAreaInsets();
-
-  const sectionOrder = getSectionOrder();
-
-  const visibleItems: Record<SectionKey, MenuItem[]> = {} as any;
-  for (const key of SECTION_ORDER) {
-    visibleItems[key] = getVisible(key);
-  }
-
-  const reports   = useAccordion(false, visibleItems.reports.length);
-  const life      = useAccordion(true,  visibleItems.life.length);
-  const apps      = useAccordion(false, visibleItems.apps.length);
-  const footy     = useAccordion(false, visibleItems.footy.length);
-  const tools     = useAccordion(false, visibleItems.tools.length);
-  const knowledge = useAccordion(false, visibleItems.knowledge.length);
-  const uiKit     = useAccordion(false, visibleItems.uikit.length);
-
-  const accordions: Record<SectionKey, ReturnType<typeof useAccordion>> = {
-    reports, life, apps, footy, tools, knowledge, uikit: uiKit,
-  };
-
-  const collapseAll = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    reports.close(); life.close(); apps.close();
-    footy.close(); tools.close(); knowledge.close(); uiKit.close();
-  };
-
-  const navigate = (route: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isTablet) {
-      if (isLifeRoute(route) || sidebarAlwaysOpen) {
-        // Life route: keep/open drawer alongside content. Route useEffect will ensure it's open.
-        router.replace(route as any);
-      } else {
-        // Non-life route: navigate immediately — translateX approach means zero layout
-        // cost, so sidebar slide + screen slide-in run together without jank.
-        closeDrawer();
-        router.replace(route as any);
-      }
-    } else {
-      // Phone: small head-start before React mounts the new screen.
-      closeDrawer();
-      setTimeout(() => router.replace(route as any), 20);
-    }
-  };
-
-  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
-  const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
-
-  const drawerContent = (
-    <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
-      {/* Banner extends from y=0 (covers safe area) so it fills the full top */}
-      <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? topPad + 150 : topPad + 122 }]}>
-        {(() => {
-          const uri = bannerUri ?? FALLBACK_BANNER;
-          // Clamp to 1.0: any stale value < 1 would leave blank areas in the banner.
-          const sc  = Math.max(1.0, bannerScale ?? 1.0);
-          return (
-            <Image
-              source={{ uri }}
-              style={{
-                position: "absolute",
-                top: 0, left: 0, right: 0, bottom: 0,
-                transform: bannerUri ? [
-                  { scale:      sc },
-                  { translateX: bannerOffX },
-                  { translateY: bannerOffY },
-                ] : [{ scale: 1 }],
-              }}
-              resizeMode="cover"
-            />
-          );
-        })()}
-      </Pressable>
+// ── Section children view ──────────────────────────────────────────────────────
+function SectionChildrenView({
+  sectionKey,
+  items,
+  onBack,
+  navigate,
+  pathname,
+  bottomPad,
+}: {
+  sectionKey: SectionKey;
+  items:      MenuItem[];
+  onBack:     () => void;
+  navigate:   (route: string) => void;
+  pathname:   string;
+  bottomPad:  number;
+}) {
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {/* Header */}
+      <View style={styles.sectionHeader}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={10}>
+          <Feather name="chevron-left" size={22} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={styles.sectionHeaderTitle}>
+          <View style={styles.sectionHeaderIcon}>
+            <Feather name={SECTION_ICONS[sectionKey] as any} size={16} color={Colors.primary} />
+          </View>
+          <Text style={styles.sectionHeaderLabel}>{SECTION_LABELS[sectionKey]}</Text>
+        </View>
+      </View>
 
       <ScrollView
-        ref={scrollRef}
         style={styles.scrollArea}
-        contentContainerStyle={{ paddingBottom: bottomPad + 100 }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: bottomPad + 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {sectionOrder.filter((key) => !isSectionHidden(key)).map((key) => (
-          <React.Fragment key={key}>
-            <AccordionSection
-              label={SECTION_LABELS[key]}
-              items={visibleItems[key]}
-              accordion={accordions[key]}
-              navigate={navigate}
-              permanentlyOpen={false}
-              pathname={pathname}
-            />
-            <View style={styles.divider} />
-          </React.Fragment>
+        {items.map((item, i) => (
+          <DrawerMenuItem
+            key={`${item.label}-${i}`}
+            item={item}
+            onPress={item.route ? () => navigate(item.route!) : undefined}
+            dimmed={!item.route}
+            isActive={!!item.route && pathname === item.route}
+          />
         ))}
-
-        <View style={styles.settingsSection}>
-          <Pressable
-            style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed, pressed && { transform: [{ translateY: 2 }] }]}
-            onPress={() => navigate("/settings")}
-          >
-            <View style={styles.menuIcon}>
-              <Feather name="settings" size={18} color={Colors.textSecondary} />
-            </View>
-            <Text style={styles.settingsLabel}>Settings</Text>
-          </Pressable>
-          <View style={styles.badgeRow}>
-            <View style={styles.badge}>
-              <View style={styles.badgeDot} />
-              <Text style={styles.badgeText}>Built on Replit</Text>
-            </View>
-            {__DEV__ && (
-              <View style={styles.devBadge}>
-                <Text style={styles.devBadgeText}>DEV</Text>
-              </View>
-            )}
-          </View>
-        </View>
       </ScrollView>
     </View>
-  );
-
-  // iPhone scrim opacity only — on iPad the drawer is beside content, no overlay needed
-  const overlayOpacity = overlayAnim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: [0, 0.6],
-  });
-
-  return (
-    <>
-      {/* Invisible left-edge zone — captures right-swipe to open */}
-      <View style={styles.edgeZone} {...edgePan.panHandlers} />
-
-      {/* Scrim — iPhone always; iPad only in overlay mode (not sidebar) */}
-      {(!isTablet || drawerMode === "overlay") && (
-        <Animated.View
-          style={[styles.overlay, { opacity: overlayOpacity }]}
-          pointerEvents={isOpen ? "auto" : "none"}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
-        </Animated.View>
-      )}
-
-      {/* Drawer panel — always mounted, slides off-screen when closed */}
-      <Animated.View
-        style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] }]}
-        {...drawerPan.panHandlers}
-      >
-        {drawerContent}
-      </Animated.View>
-    </>
   );
 }
 
@@ -418,7 +127,7 @@ function DrawerMenuItem({
       onPress={onPress}
       disabled={!onPress}
     >
-      <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed, isActive && styles.menuIconActive]}>
+      <View style={[styles.menuIcon, dimmed && styles.menuIconDimmed]}>
         <Feather name={item.icon as any} size={16} color={dimmed ? Colors.textMuted : Colors.primary} />
       </View>
       <View style={styles.menuText}>
@@ -430,6 +139,294 @@ function DrawerMenuItem({
         <Feather name="chevron-right" size={13} color={isActive ? Colors.primary : Colors.textMuted} />
       )}
     </Pressable>
+  );
+}
+
+// ── Drawer ────────────────────────────────────────────────────────────────────
+export function Drawer() {
+  const {
+    isOpen, drawerAnim, overlayAnim, spacerWidth,
+    openDrawer, closeDrawer,
+    drawerMode, drawerModeRef, setDrawerMode,
+    skipAutoCloseRef,
+    DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
+  } = useDrawer();
+
+  const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
+
+  const pathname     = usePathname();
+  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/") || r === "/ui-kit/gradient-header";
+  const onLifeScreen = isLifeRoute(pathname);
+
+  const isOpenRef = useRef(isOpen);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+
+  // Phone: close drawer on route change
+  useEffect(() => {
+    if (isTablet) return;
+    if (skipAutoCloseRef.current) { skipAutoCloseRef.current = false; return; }
+    closeDrawer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, isTablet]);
+
+  useEffect(() => {
+    if (isTablet) return undefined;
+    const sub = Linking.addEventListener("url", () => { closeDrawer(); });
+    return () => sub.remove();
+  }, [isTablet, closeDrawer]);
+
+  // ── Two-panel slide navigation ─────────────────────────────────────────────
+  const slideAnim        = useRef(new Animated.Value(0)).current;
+  const [activeSectionKey,  setActiveSectionKey]  = useState<SectionKey | null>(null);
+  const [renderSectionKey,  setRenderSectionKey]  = useState<SectionKey | null>(null);
+
+  const enterSection = useCallback((key: SectionKey) => {
+    setRenderSectionKey(key);
+    setActiveSectionKey(key);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.spring(slideAnim, {
+      toValue: 1,
+      tension: 220,
+      friction: 26,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
+  const exitSection = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      tension: 220,
+      friction: 26,
+      useNativeDriver: true,
+    }).start(() => {
+      setActiveSectionKey(null);
+      setRenderSectionKey(null);
+    });
+  }, [slideAnim]);
+
+  // Reset to root panel when drawer closes
+  const scrollRootRef    = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (isOpen) {
+      scrollRootRef.current?.scrollTo({ y: 0, animated: false });
+    } else {
+      const t = setTimeout(() => {
+        slideAnim.setValue(0);
+        setActiveSectionKey(null);
+        setRenderSectionKey(null);
+      }, 320);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, slideAnim]);
+
+  // iPad sidebar logic
+  useEffect(() => {
+    if (!isTablet) return;
+    if (onLifeScreen || sidebarAlwaysOpen) {
+      setDrawerMode("sidebar");
+      openDrawer();
+    } else {
+      setDrawerMode("overlay");
+      closeDrawer();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTablet, onLifeScreen, sidebarAlwaysOpen]);
+
+  // Gesture sync
+  const syncGesture = (newX: number) => {
+    drawerAnim.setValue(newX);
+    if (isTablet && drawerModeRef.current === "sidebar") {
+      spacerWidth.value = Math.max(0, SIDEBAR_WIDTH + newX);
+    } else {
+      overlayAnim.setValue(1 + newX / DRAWER_WIDTH);
+    }
+  };
+
+  const drawerPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+      isOpenRef.current && dx < -6 && Math.abs(dx) > Math.abs(dy) * 1.5,
+    onPanResponderGrant: () => {
+      drawerAnim.stopAnimation();
+      overlayAnim.stopAnimation();
+    },
+    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, dx))),
+    onPanResponderRelease: (_, { dx, vx }) => {
+      if (dx < -(DRAWER_WIDTH * 0.3) || vx < -0.4) closeDrawer();
+      else openDrawer();
+    },
+  })).current;
+
+  const edgePan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+      !isOpenRef.current && dx > 6 && Math.abs(dx) > Math.abs(dy) * 1.5,
+    onPanResponderGrant: () => {
+      drawerAnim.stopAnimation();
+      overlayAnim.stopAnimation();
+    },
+    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx))),
+    onPanResponderRelease: (_, { dx, vx }) => {
+      if (dx > DRAWER_WIDTH * 0.3 || vx > 0.4) openDrawer();
+      else closeDrawer();
+    },
+  })).current;
+
+  const { uri: bannerUri, offsetX: bannerOffX, offsetY: bannerOffY, scale: bannerScale } = useHeaderImage();
+
+  const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
+  const insets   = useSafeAreaInsets();
+  const topPad   = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
+  const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
+
+  const sectionOrder   = getSectionOrder();
+  const visibleItems: Record<SectionKey, MenuItem[]> = {} as any;
+  for (const key of SECTION_ORDER) {
+    visibleItems[key] = getVisible(key);
+  }
+
+  const navigate = (route: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isTablet) {
+      if (isLifeRoute(route) || sidebarAlwaysOpen) {
+        router.replace(route as any);
+      } else {
+        closeDrawer();
+        router.replace(route as any);
+      }
+    } else {
+      closeDrawer();
+      setTimeout(() => router.replace(route as any), 20);
+    }
+  };
+
+  // Panel translate values
+  const rootTranslate = slideAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [0, -DRAWER_WIDTH],
+  });
+  const childTranslate = slideAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [DRAWER_WIDTH, 0],
+  });
+
+  const drawerContent = (
+    <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
+      {/* Banner — tap goes back to root if in a section */}
+      <Pressable
+        onPress={activeSectionKey ? exitSection : undefined}
+        style={[styles.bannerContainer, { height: isTablet ? topPad + 150 : topPad + 122 }]}
+      >
+        {(() => {
+          const uri = bannerUri ?? FALLBACK_BANNER;
+          const sc  = Math.max(1.0, bannerScale ?? 1.0);
+          return (
+            <Image
+              source={{ uri }}
+              style={{
+                position: "absolute",
+                top: 0, left: 0, right: 0, bottom: 0,
+                transform: bannerUri ? [
+                  { scale:      sc },
+                  { translateX: bannerOffX },
+                  { translateY: bannerOffY },
+                ] : [{ scale: 1 }],
+              }}
+              resizeMode="cover"
+            />
+          );
+        })()}
+      </Pressable>
+
+      {/* Sliding panel container */}
+      <View style={styles.panelClip}>
+        {/* Root panel — all sections */}
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: rootTranslate }] }]}>
+          <ScrollView
+            ref={scrollRootRef}
+            style={styles.scrollArea}
+            contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: bottomPad + 100 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {sectionOrder
+              .filter((key) => !isSectionHidden(key))
+              .map((key) => (
+                <SectionRow
+                  key={key}
+                  sectionKey={key}
+                  onPress={() => enterSection(key)}
+                />
+              ))}
+
+            <View style={styles.settingsSection}>
+              <Pressable
+                style={({ pressed }) => [styles.settingsRow, pressed && styles.menuItemPressed]}
+                onPress={() => navigate("/settings")}
+              >
+                <View style={styles.menuIcon}>
+                  <Feather name="settings" size={17} color={Colors.primary} />
+                </View>
+                <Text style={styles.sectionRowLabel}>Settings</Text>
+                <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+              </Pressable>
+              <View style={styles.badgeRow}>
+                <View style={styles.badge}>
+                  <View style={styles.badgeDot} />
+                  <Text style={styles.badgeText}>Built on Replit</Text>
+                </View>
+                {__DEV__ && (
+                  <View style={styles.devBadge}>
+                    <Text style={styles.devBadgeText}>DEV</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </ScrollView>
+        </Animated.View>
+
+        {/* Section panel — children of selected section */}
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: childTranslate }] }]}>
+          {renderSectionKey && (
+            <SectionChildrenView
+              sectionKey={renderSectionKey}
+              items={visibleItems[renderSectionKey]}
+              onBack={exitSection}
+              navigate={navigate}
+              pathname={pathname}
+              bottomPad={bottomPad}
+            />
+          )}
+        </Animated.View>
+      </View>
+    </View>
+  );
+
+  const overlayOpacity = overlayAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [0, 0.6],
+  });
+
+  return (
+    <>
+      <View style={styles.edgeZone} {...edgePan.panHandlers} />
+
+      {(!isTablet || drawerMode === "overlay") && (
+        <Animated.View
+          style={[styles.overlay, { opacity: overlayOpacity }]}
+          pointerEvents={isOpen ? "auto" : "none"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
+        </Animated.View>
+      )}
+
+      <Animated.View
+        style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX: drawerAnim }] }]}
+        {...drawerPan.panHandlers}
+      >
+        {drawerContent}
+      </Animated.View>
+    </>
   );
 }
 
@@ -467,26 +464,64 @@ const styles = StyleSheet.create({
     width: "100%",
     overflow: "hidden",
   },
+  panelClip: {
+    flex: 1,
+    overflow: "hidden",
+  },
   scrollArea: { flex: 1 },
-  section: { paddingHorizontal: 12, marginBottom: 2 },
-  accordionHeader: {
+
+  // ── Root section rows ──────────────────────────────────────────────────────
+  sectionRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 7,
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    borderRadius: 10,
+    height: 50,
   },
-  sectionLabel: {
+  sectionRowPressed: { backgroundColor: Colors.cardBg },
+  sectionRowLabel: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+  },
+
+  // ── Section detail header ──────────────────────────────────────────────────
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 10,
+  },
+  backBtn: {
+    width: 32, height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionHeaderTitle: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sectionHeaderIcon: {
+    width: 30, height: 30,
+    backgroundColor: "rgba(224,49,49,0.1)",
+    borderRadius: 8,
+    alignItems: "center", justifyContent: "center",
+  },
+  sectionHeaderLabel: {
     color: Colors.textPrimary,
     fontSize: 16,
     fontFamily: "Inter_700Bold",
   },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 20,
-    marginVertical: 4,
-  },
+
+  // ── Child menu items ───────────────────────────────────────────────────────
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -494,7 +529,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 10,
     borderRadius: 10,
-    height: ITEM_HEIGHT,
+    height: 50,
   },
   menuItemPressed:  { backgroundColor: Colors.cardBg },
   menuItemDimmed:   { opacity: 0.45 },
@@ -506,23 +541,25 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   menuIconDimmed:  { backgroundColor: "rgba(255,255,255,0.05)" },
-  menuIconActive:  {},
   menuText:        { flex: 1 },
   menuLabel:       { color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   menuLabelDimmed: { color: Colors.textMuted },
   menuLabelActive: { color: Colors.primary },
-  menuDesc:        { color: Colors.textMuted,   fontSize: 12, fontFamily: "Inter_400Regular" },
-  settingsSection: { paddingHorizontal: 20, paddingTop: 8 },
+
+  // ── Settings row ──────────────────────────────────────────────────────────
+  settingsSection: { paddingHorizontal: 8, paddingTop: 8 },
   settingsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    gap: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     borderRadius: 10,
+    height: 50,
     marginBottom: 12,
   },
-  settingsLabel: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_500Medium" },
+
+  // ── Badge ─────────────────────────────────────────────────────────────────
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   badge: {
     flexDirection: "row",

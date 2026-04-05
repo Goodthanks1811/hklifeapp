@@ -27,6 +27,16 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   uikit:     "UI Kit",
 };
 
+export const SECTION_ICONS: Record<SectionKey, string> = {
+  life:      "home",
+  reports:   "trending-up",
+  apps:      "grid",
+  footy:     "shield",
+  tools:     "tool",
+  knowledge: "book-open",
+  uikit:     "layers",
+};
+
 export const SECTION_ORDER: SectionKey[] = [
   "life", "reports", "apps", "footy", "tools", "knowledge", "uikit",
 ];
