@@ -70,7 +70,6 @@ const PLAYLISTS: { name: string; color: string }[] = [
   { name: "Old School RnB",    color: "#2a2a3a" },
 ];
 
-const LETTERS = ["H", "M", "S", "C", "K", "O", "J", "U", "T", "R"];
 
 export default function MusicSpotifyScreen() {
   const insets = useSafeAreaInsets();
@@ -108,7 +107,7 @@ export default function MusicSpotifyScreen() {
             <View style={[s.artwork, { backgroundColor: p.color }]}>
               {i === 0
                 ? <Feather name="heart" size={18} color="#fff" />
-                : <Text style={s.artworkLetter}>{LETTERS[i]}</Text>
+                : <Feather name="headphones" size={18} color={GREEN} />
               }
             </View>
             <Text style={s.rowName}>{p.name}</Text>

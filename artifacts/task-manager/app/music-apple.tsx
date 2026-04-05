@@ -105,7 +105,7 @@ export default function MusicAppleScreen() {
             onPress={openAppleMusic}
           >
             <View style={s.iconCell}>
-              <Feather name="music" size={18} color={RED} />
+              <Feather name="headphones" size={18} color={RED} />
             </View>
             <Text style={s.rowName}>{name}</Text>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.2)" />
