@@ -30,12 +30,15 @@ const SHAZAM_IMG  = require("../assets/images/shazam-icon.png");
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Song { id: string; title: string; }
 
-// ── Pulsing Shazam loader (identical heartbeat to UI Kit loaders screen) ───────
-function ShazamLoader({ size = 110 }: { size?: number }) {
-  const scale = useRef(new Animated.Value(1)).current;
+// ── Pulsing Shazam loader ──────────────────────────────────────────────────────
+// Uses Image (not Animated.Image) inside an Animated.View so the pulse starts
+// only after onLoadEnd — prevents the "static logo" flash from a mid-cycle start.
+function ShazamLoader({ size = 110, onReady }: { size?: number; onReady: () => void }) {
+  const scale   = useRef(new Animated.Value(1)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  useEffect(() => {
-    const loop = Animated.loop(
+  const handleLoadEnd = useCallback(() => {
+    loopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(scale, { toValue: 1.18, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
         Animated.timing(scale, { toValue: 0.96, duration: 180, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
@@ -44,16 +47,21 @@ function ShazamLoader({ size = 110 }: { size?: number }) {
         Animated.delay(1400),
       ])
     );
-    loop.start();
-    return () => loop.stop();
-  }, []);
+    loopRef.current.start();
+    onReady();
+  }, [scale, onReady]);
+
+  useEffect(() => () => { loopRef.current?.stop(); }, []);
 
   return (
-    <Animated.Image
-      source={SHAZAM_IMG}
-      style={{ width: size, height: size, borderRadius: size * 0.22, transform: [{ scale }] }}
-      resizeMode="contain"
-    />
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Image
+        source={SHAZAM_IMG}
+        style={{ width: size, height: size, borderRadius: size * 0.22 }}
+        resizeMode="contain"
+        onLoadEnd={handleLoadEnd}
+      />
+    </Animated.View>
   );
 }
 
@@ -191,33 +199,52 @@ export default function ShazamScreen() {
   const [errorMsg,   setErrorMsg]   = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Both loader and content are ALWAYS mounted — opacity-switched so the image
-  // asset is decoded once in the loader and reused instantly in the list header.
-  const loaderOpacity  = useRef(new Animated.Value(1)).current;
+  // Loader starts INVISIBLE — fades in only after the image has decoded.
+  // Content starts invisible — fades in after all three gates pass.
+  const loaderOpacity  = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
+  // Three gates that must ALL resolve before content is revealed:
+  // imgReady (image decoded), dataReady (fetch done), timerDone (2s minimum)
+  const imgReady   = useRef(false);
+  const dataReady  = useRef(false);
+  const timerDone  = useRef(false);
+  const revealed   = useRef(false);
+
   const reveal = useCallback(() => {
+    if (revealed.current) return;
+    if (!imgReady.current || !dataReady.current || !timerDone.current) return;
+    revealed.current = true;
     Animated.parallel([
       Animated.timing(loaderOpacity,  { toValue: 0, duration: 260, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
       Animated.timing(contentOpacity, { toValue: 1, duration: 320, useNativeDriver: true, easing: Easing.out(Easing.quad), delay: 80 }),
     ]).start();
   }, [loaderOpacity, contentOpacity]);
 
+  // Called by ShazamLoader once the image has finished decoding — fade in the
+  // pulsing icon (already animating) and attempt reveal.
+  const handleImgReady = useCallback(() => {
+    imgReady.current = true;
+    Animated.timing(loaderOpacity, { toValue: 1, duration: 180, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
+    reveal();
+  }, [loaderOpacity, reveal]);
+
+  // 2-second minimum timer — starts on mount alongside the fetch
+  useEffect(() => {
+    const t = setTimeout(() => { timerDone.current = true; reveal(); }, 2000);
+    return () => clearTimeout(t);
+  }, [reveal]);
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchSongs = useCallback(async (silent = false) => {
     if (!apiKey) {
       setStatus("error");
       setErrorMsg("Notion API key not set in Settings.");
+      dataReady.current = true;
       if (!silent) reveal();
       return;
     }
-    if (!silent) {
-      loaderOpacity.setValue(1);
-      contentOpacity.setValue(0);
-      setStatus("loading");
-    }
-    // Minimum 2s loader display — race the fetch against the timer
-    const minDelay = silent ? Promise.resolve() : new Promise<void>(r => setTimeout(r, 2000));
+    if (!silent) setStatus("loading");
     try {
       const res = await fetch(
         `${BASE_URL}/api/notion/life-tasks?category=${encodeURIComponent(SHAZAM_CAT)}`,
@@ -231,9 +258,9 @@ export default function ShazamScreen() {
       setStatus("error");
       setErrorMsg(e?.message || "Failed to load songs");
     } finally {
-      if (!silent) { await minDelay; reveal(); }
+      if (!silent) { dataReady.current = true; reveal(); }
     }
-  }, [apiKey, loaderOpacity, contentOpacity, reveal]);
+  }, [apiKey, reveal]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
 
@@ -276,9 +303,9 @@ export default function ShazamScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {/* ── Loader — always mounted, fades out when data arrives ─── */}
+      {/* ── Loader — always mounted, invisible until image decodes ─── */}
       <Animated.View style={[styles.loaderLayer, { opacity: loaderOpacity }]} pointerEvents="none">
-        <ShazamLoader size={110} />
+        <ShazamLoader size={110} onReady={handleImgReady} />
       </Animated.View>
 
       {/* ── Content — always mounted, fades in when data arrives ─── */}
