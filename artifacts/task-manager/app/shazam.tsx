@@ -1,10 +1,14 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   FlatList,
   Image,
   Platform,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -13,9 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
-import * as Haptics from "expo-haptics";
-import { Feather } from "@expo/vector-icons";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
@@ -23,82 +25,143 @@ import { Colors } from "@/constants/colors";
 const SHAZAM_CAT = "\uD83C\uDFB6Shazam";
 const BASE_URL   = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
+const ITEM_H     = 48;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface ShazamSong {
-  id:      string;
-  title:   string;
-  created: string | null;
-}
+interface Song { id: string; title: string; }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function fmtCreated(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const mon  = months[d.getMonth()];
-  const day  = d.getDate();
-  let   hr   = d.getHours();
-  const min  = String(d.getMinutes()).padStart(2, "0");
-  const ampm = hr >= 12 ? "PM" : "AM";
-  hr = hr % 12 || 12;
-  return `${mon} ${day}  ${hr}:${min} ${ampm}`;
-}
+// ── SongRow — exact Life row style, simplified (no drag, no emoji picker) ─────
+function SongRow({ song, onChecked, onDelete, onStartDelete }: {
+  song:          Song;
+  onChecked:     () => void;
+  onDelete:      () => void;
+  onStartDelete: (collapseDuration: number) => void;
+}) {
+  const swipeableRef = useRef<Swipeable>(null);
+  const checkScale   = useRef(new Animated.Value(0)).current;
+  const opacityAnim  = useRef(new Animated.Value(1)).current;
+  const rowHeight    = useRef(new Animated.Value(ITEM_H)).current;
+  const pressOverlay = useRef(new Animated.Value(0)).current;
+  const deletingRef  = useRef(false);
+  const revealedRef  = useRef(false);
+  const [checked, setChecked] = useState(false);
 
-// ── SongRow ────────────────────────────────────────────────────────────────────
-function SongRow({ song, onDone }: { song: ShazamSong; onDone: (id: string) => void }) {
-  const swipeRef = useRef<Swipeable>(null);
+  const onPressIn  = useCallback(() => {
+    Animated.timing(pressOverlay, { toValue: 0.28, duration: 60,  useNativeDriver: true }).start();
+  }, [pressOverlay]);
+  const onPressOut = useCallback(() => {
+    Animated.timing(pressOverlay, { toValue: 0,    duration: 130, useNativeDriver: true }).start();
+  }, [pressOverlay]);
 
-  const renderRight = useCallback((_prog: Animated.AnimatedInterpolation<number>, drag: Animated.AnimatedInterpolation<number>) => {
-    const scale = drag.interpolate({ inputRange: [-80, 0], outputRange: [1, 0.85], extrapolate: "clamp" });
-    return (
-      <Animated.View style={[styles.deleteAction, { transform: [{ scale }] }]}>
-        <Feather name="check" size={18} color="#fff" />
-        <Text style={styles.deleteActionText}>Done</Text>
-      </Animated.View>
-    );
+  const triggerDelete = useCallback(() => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    swipeableRef.current?.close();
+    onStartDelete(260);
+    Animated.parallel([
+      Animated.timing(opacityAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
+      Animated.timing(rowHeight,   { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+    ]).start(() => onDelete());
+  }, [onDelete, onStartDelete, opacityAnim, rowHeight]);
+
+  const handleCheck = useCallback(() => {
+    if (checked) return;
+    setChecked(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Animated.spring(checkScale, { toValue: 1, useNativeDriver: false, tension: 240, friction: 8 }).start();
+    setTimeout(() => {
+      onStartDelete(340);
+      Animated.parallel([
+        Animated.timing(opacityAnim, { toValue: 0, duration: 380, useNativeDriver: false }),
+        Animated.timing(rowHeight,   { toValue: 0, duration: 340, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      ]).start(() => onChecked());
+    }, 320);
+  }, [checked, checkScale, opacityAnim, rowHeight, onChecked, onStartDelete]);
+
+  const handleRowTap = useCallback((action: () => void) => {
+    if (revealedRef.current) {
+      swipeableRef.current?.close();
+    } else {
+      action();
+    }
   }, []);
 
-  const handleSwipeOpen = useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    swipeRef.current?.close();
-    onDone(song.id);
-  }, [song.id, onDone]);
+  const renderRightActions = useCallback(() => (
+    <Pressable style={styles.deleteAction} onPress={triggerDelete}>
+      <Feather name="trash-2" size={16} color="#fff" />
+      <Text style={styles.deletePillTx}>Delete</Text>
+    </Pressable>
+  ), [triggerDelete]);
 
   return (
-    <Swipeable
-      ref={swipeRef}
-      renderRightActions={renderRight}
-      onSwipeableOpen={handleSwipeOpen}
-      rightThreshold={60}
-      overshootRight={false}
-      friction={2}
-    >
-      <View style={styles.songRow}>
-        <View style={styles.songIcon}>
-          <Feather name="music" size={14} color={Colors.primary} />
-        </View>
-        <View style={styles.songInfo}>
-          <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
-          {!!song.created && (
-            <Text style={styles.songDate}>{fmtCreated(song.created)}</Text>
-          )}
-        </View>
-      </View>
-    </Swipeable>
+    <Animated.View style={[styles.rowOuter, { height: rowHeight, opacity: opacityAnim }]}>
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={renderRightActions}
+        overshootLeft={false}
+        overshootRight={false}
+        rightThreshold={40}
+        friction={3}
+        onSwipeableWillOpen={() => { pressOverlay.setValue(0); }}
+        onSwipeableOpen={() => { revealedRef.current = true; }}
+        onSwipeableClose={() => { revealedRef.current = false; }}
+        containerStyle={{ borderRadius: 14, overflow: "hidden" }}
+      >
+        <Animated.View style={styles.rowWrap}>
+          {/* Emoji slot — shows dash since Shazam items have no emoji */}
+          <View style={styles.emojiBtn}>
+            <Text style={styles.rowEmoji}>—</Text>
+          </View>
+
+          {/* Title */}
+          <Pressable
+            style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
+            onPress={() => handleRowTap(() => {})}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+          >
+            <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
+          </Pressable>
+
+          {/* Checkbox */}
+          <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={styles.checkBtn}>
+            <Animated.View style={[styles.checkBox, checked && styles.checkBoxDone]}>
+              <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+                <Feather name="check" size={12} color="#fff" />
+              </Animated.View>
+            </Animated.View>
+          </Pressable>
+
+          {/* Press feedback overlay */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              backgroundColor: "#000",
+              borderRadius: 14,
+              opacity: pressOverlay,
+            }}
+          />
+        </Animated.View>
+      </Swipeable>
+    </Animated.View>
   );
 }
 
 // ── ShazamScreen ───────────────────────────────────────────────────────────────
 export default function ShazamScreen() {
   const insets = useSafeAreaInsets();
+  const { toggleDrawer } = useDrawer();
   const { apiKey } = useNotion();
+
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const botPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
-  const [songs,     setSongs]     = useState<ShazamSong[]>([]);
-  const [status,    setStatus]    = useState<"idle" | "loading" | "error" | "done">("idle");
-  const [errorMsg,  setErrorMsg]  = useState("");
+  const [songs,      setSongs]      = useState<Song[]>([]);
+  const [status,     setStatus]     = useState<"idle"|"loading"|"error"|"done">("idle");
+  const [errorMsg,   setErrorMsg]   = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -112,18 +175,7 @@ export default function ShazamScreen() {
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const mapped: ShazamSong[] = (data.tasks || []).map((t: any) => ({
-        id:      t.id,
-        title:   t.title,
-        created: t.created ?? null,
-      }));
-      mapped.sort((a, b) => {
-        if (!a.created && !b.created) return 0;
-        if (!a.created) return 1;
-        if (!b.created) return -1;
-        return new Date(b.created).getTime() - new Date(a.created).getTime();
-      });
-      setSongs(mapped);
+      setSongs((data.tasks || []).map((t: any) => ({ id: t.id, title: t.title })));
       setStatus("done");
     } catch (e: any) {
       setStatus("error");
@@ -139,8 +191,8 @@ export default function ShazamScreen() {
     setRefreshing(false);
   }, [fetchSongs]);
 
-  // ── Mark done ──────────────────────────────────────────────────────────────
-  const handleDone = useCallback(async (id: string) => {
+  // ── Mark done (checkbox) ───────────────────────────────────────────────────
+  const handleChecked = useCallback(async (id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
     try {
       await fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
@@ -153,20 +205,45 @@ export default function ShazamScreen() {
     }
   }, [apiKey, fetchSongs]);
 
-  // ── Header icon ────────────────────────────────────────────────────────────
-  const headerRight = (
-    <Image
-      source={require("../assets/images/shazam-icon.png")}
-      style={{ width: 30, height: 30, borderRadius: 8 }}
-      resizeMode="contain"
-    />
-  );
+  // ── Delete (swipe) ─────────────────────────────────────────────────────────
+  const handleDelete = useCallback(async (id: string) => {
+    setSongs(prev => prev.filter(s => s.id !== id));
+    try {
+      await fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
+        method:  "DELETE",
+        headers: { "x-notion-key": apiKey ?? "" },
+      });
+    } catch {
+      fetchSongs(true);
+    }
+  }, [apiKey, fetchSongs]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      <ScreenHeader title="Shazam" right={headerRight} />
 
+      {/* ── Minimal header — menu left, Shazam icon centred, spacer right ─── */}
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }}
+          style={styles.menuBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name="menu" size={20} color={Colors.textPrimary} />
+        </Pressable>
+
+        <View style={styles.headerCenter}>
+          <Image
+            source={require("../assets/images/shazam-icon.png")}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+        </View>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
+      {/* ── States ─────────────────────────────────────────────────────────── */}
       {status === "loading" && (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -183,11 +260,11 @@ export default function ShazamScreen() {
         </View>
       )}
 
-      {(status === "done" || status === "idle") && songs.length === 0 && status === "done" && (
+      {status === "done" && songs.length === 0 && (
         <View style={styles.center}>
           <Image
             source={require("../assets/images/shazam-icon.png")}
-            style={{ width: 56, height: 56, borderRadius: 16, opacity: 0.35, marginBottom: 12 }}
+            style={{ width: 56, height: 56, borderRadius: 16, opacity: 0.35, marginBottom: 8 }}
           />
           <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
         </View>
@@ -197,8 +274,12 @@ export default function ShazamScreen() {
         <FlatList
           data={songs}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingTop: 10, paddingHorizontal: 16, paddingBottom: botPad + 24 }}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: botPad + 24,
+            gap: 8,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -207,7 +288,12 @@ export default function ShazamScreen() {
             />
           }
           renderItem={({ item }) => (
-            <SongRow song={item} onDone={handleDone} />
+            <SongRow
+              song={item}
+              onChecked={() => handleChecked(item.id)}
+              onDelete={() => handleDelete(item.id)}
+              onStartDelete={() => {}}
+            />
           )}
         />
       )}
@@ -217,92 +303,56 @@ export default function ShazamScreen() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#0f0f0f",
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 32,
-  },
-  errText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-  },
-  retryBtn: {
-    marginTop: 4,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-  },
-  retryTxt: {
-    color: "#fff",
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-  },
-  emptyTxt: {
-    color: Colors.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-  },
-  sep: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    marginLeft: 52,
-  },
-  songRow: {
+  root:    { flex: 1, backgroundColor: "#0f0f0f" },
+  center:  { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+
+  // ── Header
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: "#0f0f0f",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
     gap: 12,
   },
-  songIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(224,49,49,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(224,49,49,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
+  menuBtn: {
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: Colors.cardBg,
+    alignItems: "center", justifyContent: "center",
   },
-  songInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  songTitle: {
-    color: Colors.textPrimary,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  songDate: {
-    color: Colors.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  headerCenter: { flex: 1, alignItems: "center" },
+  headerLogo:   { width: 34, height: 34, borderRadius: 9 },
+  headerSpacer: { width: 38 },
+
+  // ── States
+  errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptyTxt: { color: Colors.textMuted, fontFamily: "Inter_400Regular", fontSize: 15 },
+  retryBtn: { marginTop: 4, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: Colors.primary, borderRadius: 10 },
+  retryTxt: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
+
+  // ── Life-identical row styles ─────────────────────────────────────────────
+  rowOuter: { height: ITEM_H },
   deleteAction: {
-    backgroundColor: "#27AE60",
-    borderRadius: 12,
-    marginLeft: 8,
-    marginVertical: 2,
-    width: 72,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
+    width: 110, height: ITEM_H,
+    backgroundColor: Colors.primary,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
   },
-  deleteActionText: {
-    color: "#fff",
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 11,
+  deletePillTx: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  rowWrap: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#0f0f0f", borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14, height: ITEM_H,
   },
+  emojiBtn:     { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
+  rowEmoji:     { fontSize: 24 },
+  rowTitle:     { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
+  checkBtn:     { padding: 10, margin: -6 },
+  checkBox: {
+    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",
+    alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
+  },
+  checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
 });
