@@ -149,11 +149,12 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             />
           </View>
 
-          {/* View owns flex-1 layout; GHTouchable sits on top absolutely so layout isn't disrupted */}
+          {/* Text in a plain View for layout; GHTouchable sits absolutely on top as invisible hit area */}
           <View style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}>
+            <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
             <GHTouchable
-              style={[StyleSheet.absoluteFill, { justifyContent: "center" }]}
-              activeOpacity={0.65}
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
               onPressIn={() => {
                 Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
                 if (!revealedRef.current) onPress();
@@ -163,9 +164,7 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
               }}
               onPressOut={onPressOut}
               hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
-            >
-              <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
-            </GHTouchable>
+            />
           </View>
 
           <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={styles.checkBtn}>
