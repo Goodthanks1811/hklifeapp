@@ -438,13 +438,27 @@ Things that only work in a native EAS build (not Expo Go):
 - Face ID (`expo-local-authentication`) — add `NSFaceIDUsageDescription` to `app.json` first
 - Splash screen and app icon rendering
 
-### 12. Future Scripts to Port
+### 12. Porting from Scriptable
 
-The user has more Scriptable scripts to port — all are Notion integrations, none are widgets. Each new script follows the same structure as IR Quick Add:
-- Navy/gold theme
-- `runLoader(apiPromise)` pattern for saves
-- Keyboard + footer pattern
-- Tablet responsive column
+Scriptable is **not** the permanent home — it is a proof-of-concept prototyping environment. Every script Harry builds in Scriptable is intended to be ported into this Expo app as a proper native screen. When a Scriptable script is shared, treat it as the design spec / behaviour reference for the React Native port.
+
+Completed ports so far: HK Quick Add, IR Quick Add, Mood Log, Win Of The Day, Shazam.
+
+Each port follows the same structure:
+- `runLoader(apiPromise)` pattern for saves (spinner → success circle → tick)
+- `Keyboard.addListener` + `Animated.Value` for keyboard handling (never KeyboardAvoidingView)
+- Absolute-positioned footer driven by `onLayout`
+- `ScreenHeader` with native title (no custom red/white header text unless specified)
+
+### 13. URL / Deep Link Preference
+
+When the user asks for URLs (deep links, API endpoints, EAS artifact links, etc.), always present each URL in its own copy-paste code block:
+
+```
+hk-life-app://some-screen
+```
+
+Never inline URLs as plain text in a sentence when the user has asked for them.
 
 ---
 
