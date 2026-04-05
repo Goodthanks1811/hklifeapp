@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,10 +13,47 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 
 const RED    = "#E03131";
-const BG     = "#111111";
+const BG     = "#0b0b0c";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#A0A0A0";
+
+const BAR_COUNT   = 7;
+const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
+const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
+const MAX_H = 42;
+const MIN_H = 5;
+
+function EqBar({ index }: { index: number }) {
+  const height = useRef(new Animated.Value(MIN_H)).current;
+
+  useEffect(() => {
+    const dur = 900 + index * 120;
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(height, {
+          toValue: MAX_H * BAR_HEIGHTS[index],
+          duration: dur,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(height, {
+          toValue: MIN_H,
+          duration: dur,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    const tid = setTimeout(() => anim.start(), BAR_DELAYS[index]);
+    return () => {
+      clearTimeout(tid);
+      anim.stop();
+    };
+  }, []);
+
+  return <Animated.View style={[s.eqBar, { height }]} />;
+}
 
 const TRACKS = [
   "Zack Knight - Impossible",
@@ -38,15 +77,23 @@ export default function MusicMyMusicScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <View style={s.header}>
-        <Pressable style={s.back} onPress={() => router.back()}>
-          <Feather name="chevron-left" size={20} color={RED} />
-          <Text style={s.backText}>Music</Text>
-        </Pressable>
-        <Text style={s.title}>My Music</Text>
-        <Pressable style={s.addBtn}>
-          <Feather name="plus" size={20} color="#fff" />
-        </Pressable>
+      <View style={s.headerArea}>
+        <View style={s.navRow}>
+          <Pressable style={s.back} onPress={() => router.back()}>
+            <Feather name="chevron-left" size={20} color={RED} />
+            <Text style={s.backText}>Music</Text>
+          </Pressable>
+          <View style={{ flex: 1 }} />
+          <Pressable style={s.addBtn}>
+            <Feather name="plus" size={20} color="#fff" />
+          </Pressable>
+        </View>
+        <View style={s.eqWrap}>
+          {Array.from({ length: BAR_COUNT }).map((_, i) => (
+            <EqBar key={i} index={i} />
+          ))}
+        </View>
+        <Text style={s.pageTitle}>My Music</Text>
       </View>
 
       <ScrollView style={s.list} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
@@ -73,7 +120,7 @@ export default function MusicMyMusicScreen() {
         ))}
       </ScrollView>
 
-      <View style={[s.player, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[s.player, { paddingBottom: insets.bottom + 8 }]}>
         <View style={s.playerTrack}>
           <View style={s.playerArt}>
             <Feather name="music" size={18} color={RED} />
@@ -88,13 +135,13 @@ export default function MusicMyMusicScreen() {
         </View>
         <View style={s.controls}>
           <Pressable style={s.ctrlBtn}>
-            <Feather name="skip-back" size={22} color="rgba(255,255,255,0.6)" />
+            <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
           </Pressable>
           <Pressable style={s.playBtn}>
-            <Feather name="play" size={18} color="#fff" />
+            <Feather name="play" size={22} color="#fff" />
           </Pressable>
           <Pressable style={s.ctrlBtn}>
-            <Feather name="skip-forward" size={22} color="rgba(255,255,255,0.6)" />
+            <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
           </Pressable>
         </View>
       </View>
@@ -105,15 +152,31 @@ export default function MusicMyMusicScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
 
-  header: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8,
+  headerArea: {
+    backgroundColor: BG,
     borderBottomWidth: 1, borderBottomColor: BORDER,
+    paddingBottom: 10,
   },
-  back:     { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
+  navRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4,
+  },
+  back:     { flexDirection: "row", alignItems: "center", gap: 2 },
   backText: { color: RED, fontSize: 15, fontWeight: "500", fontFamily: "Inter_500Medium" },
-  title:    { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
   addBtn:   { width: 36, height: 36, borderRadius: 10, backgroundColor: RED, alignItems: "center", justifyContent: "center" },
+
+  eqWrap: {
+    flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
+    gap: 5, height: 62, paddingBottom: 4,
+  },
+  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
+
+  pageTitle: {
+    textAlign: "center", color: "#fff",
+    fontSize: 17, fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+    paddingTop: 8,
+  },
 
   list:        { flex: 1 },
   listContent: { padding: 16, gap: 8 },
@@ -136,9 +199,9 @@ const s = StyleSheet.create({
 
   player: {
     backgroundColor: ROW, borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 12,
+    paddingHorizontal: 20, paddingTop: 10,
   },
-  playerTrack: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+  playerTrack: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
   playerArt: {
     width: 42, height: 42, borderRadius: 9,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
@@ -147,15 +210,15 @@ const s = StyleSheet.create({
   playerName:   { fontSize: 13, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
   playerArtist: { fontSize: 11, color: GREY, marginTop: 1, fontFamily: "Inter_400Regular" },
   progressWrap: {
-    height: 2, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 1, marginBottom: 12, overflow: "hidden",
+    height: 3, backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 2, marginBottom: 10, overflow: "hidden",
   },
-  progressFill: { width: "32%", height: "100%", backgroundColor: RED, borderRadius: 1 },
-  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 32 },
-  ctrlBtn:  { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  progressFill: { width: "32%", height: "100%", backgroundColor: RED, borderRadius: 2 },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36 },
+  ctrlBtn:  { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   playBtn: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: RED,
+    width: 56, height: 56, borderRadius: 28, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, shadowOpacity: 0.35,
+    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, shadowOpacity: 0.38,
   },
 });

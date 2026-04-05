@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
+  Animated,
+  Easing,
   Linking,
   Pressable,
   ScrollView,
@@ -12,9 +14,46 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 
 const RED    = "#E03131";
-const BG     = "#111111";
+const BG     = "#0b0b0c";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
+
+const BAR_COUNT   = 7;
+const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
+const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
+const MAX_H = 42;
+const MIN_H = 5;
+
+function EqBar({ index }: { index: number }) {
+  const height = useRef(new Animated.Value(MIN_H)).current;
+
+  useEffect(() => {
+    const dur = 900 + index * 120;
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(height, {
+          toValue: MAX_H * BAR_HEIGHTS[index],
+          duration: dur,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(height, {
+          toValue: MIN_H,
+          duration: dur,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    const tid = setTimeout(() => anim.start(), BAR_DELAYS[index]);
+    return () => {
+      clearTimeout(tid);
+      anim.stop();
+    };
+  }, []);
+
+  return <Animated.View style={[s.eqBar, { height }]} />;
+}
 
 const PLAYLISTS = [
   "Bone Greatest Hits",
@@ -40,16 +79,19 @@ export default function MusicAppleScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <View style={s.header}>
-        <Pressable style={s.back} onPress={() => router.back()}>
-          <Feather name="chevron-left" size={20} color={RED} />
-          <Text style={s.backText}>Music</Text>
-        </Pressable>
-        <Text style={s.title}>Apple Music</Text>
-        <View style={s.badge}>
-          <Feather name="music" size={12} color={RED} />
-          <Text style={s.badgeText}>Apple</Text>
+      <View style={s.headerArea}>
+        <View style={s.navRow}>
+          <Pressable style={s.back} onPress={() => router.back()}>
+            <Feather name="chevron-left" size={20} color={RED} />
+            <Text style={s.backText}>Music</Text>
+          </Pressable>
         </View>
+        <View style={s.eqWrap}>
+          {Array.from({ length: BAR_COUNT }).map((_, i) => (
+            <EqBar key={i} index={i} />
+          ))}
+        </View>
+        <Text style={s.pageTitle}>Apple Music</Text>
       </View>
 
       <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
@@ -74,20 +116,30 @@ export default function MusicAppleScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
 
-  header: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8,
+  headerArea: {
+    backgroundColor: BG,
     borderBottomWidth: 1, borderBottomColor: BORDER,
+    paddingBottom: 10,
   },
-  back:     { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
+  navRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4,
+  },
+  back:     { flexDirection: "row", alignItems: "center", gap: 2 },
   backText: { color: RED, fontSize: 15, fontWeight: "500", fontFamily: "Inter_500Medium" },
-  title:    { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
-  badge: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: "rgba(224,49,49,0.08)", borderWidth: 1,
-    borderColor: "rgba(224,49,49,0.18)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+
+  eqWrap: {
+    flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
+    gap: 5, height: 62, paddingBottom: 4,
   },
-  badgeText: { fontSize: 12, color: RED, fontWeight: "500", fontFamily: "Inter_500Medium" },
+  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
+
+  pageTitle: {
+    textAlign: "center", color: "#fff",
+    fontSize: 17, fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+    paddingTop: 8,
+  },
 
   listContent: { padding: 16, gap: 8 },
 

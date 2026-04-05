@@ -92,8 +92,6 @@ export default function MusicScreen() {
           ))}
         </View>
 
-        <Text style={s.sectionLabel}>SOURCES</Text>
-
         <View style={s.cards}>
           <ProviderRow
             iconName="music"
@@ -119,12 +117,13 @@ export default function MusicScreen() {
         </View>
 
         <View style={s.divider} />
-        <Text style={s.sectionLabel}>NOW PLAYING</Text>
+
+        <Text style={s.npHeading}>NOW PLAYING</Text>
 
         <View style={s.npCard}>
           <View style={s.npTop}>
             <View style={s.npArt}>
-              <Feather name="music" size={20} color={RED} />
+              <Feather name="music" size={30} color={RED} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.npTitle} numberOfLines={1}>Regulate Remix</Text>
@@ -136,13 +135,13 @@ export default function MusicScreen() {
           </View>
           <View style={s.controls}>
             <Pressable style={s.ctrlBtn}>
-              <Feather name="skip-back" size={20} color="rgba(255,255,255,0.6)" />
+              <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
             </Pressable>
             <Pressable style={s.playBtn}>
-              <Feather name="play" size={18} color="#fff" />
+              <Feather name="play" size={24} color="#fff" />
             </Pressable>
             <Pressable style={s.ctrlBtn}>
-              <Feather name="skip-forward" size={20} color="rgba(255,255,255,0.6)" />
+              <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
         </View>
@@ -153,21 +152,15 @@ export default function MusicScreen() {
 
 const s = StyleSheet.create({
   root:   { flex: 1, backgroundColor: BG },
-  scroll: { paddingBottom: 40 },
+  scroll: { paddingBottom: 48 },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
-    gap: 5, height: 100, paddingTop: 44, paddingBottom: 0,
+    gap: 5, height: 100, paddingTop: 44,
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
-  sectionLabel: {
-    paddingHorizontal: 16, paddingTop: 24, paddingBottom: 10,
-    fontSize: 11, letterSpacing: 3, color: GREY,
-    fontFamily: "Inter_500Medium",
-  },
-
-  cards:     { paddingHorizontal: 16, gap: 10 },
+  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 16 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
@@ -189,31 +182,38 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  divider: { height: 1, backgroundColor: BORDER, marginHorizontal: 16, marginTop: 24 },
+  divider: { height: 1, backgroundColor: BORDER, marginHorizontal: 16, marginTop: 28 },
+
+  npHeading: {
+    textAlign: "center", color: "#fff",
+    fontSize: 13, fontWeight: "700", letterSpacing: 3,
+    paddingTop: 22, paddingBottom: 14,
+    fontFamily: "Inter_700Bold",
+  },
 
   npCard: {
     marginHorizontal: 16, backgroundColor: ROW,
-    borderWidth: 1, borderColor: BORDER, borderRadius: 16,
-    padding: 16,
+    borderWidth: 1, borderColor: BORDER, borderRadius: 20,
+    padding: 22,
   },
-  npTop:   { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 18 },
   npArt: {
-    width: 44, height: 44, borderRadius: 10,
+    width: 80, height: 80, borderRadius: 14,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
-  npTitle:  { fontSize: 14, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
-  npArtist: { fontSize: 12, color: GREY, marginTop: 2, fontFamily: "Inter_400Regular" },
+  npTitle:  { fontSize: 18, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  npArtist: { fontSize: 14, color: GREY, fontFamily: "Inter_400Regular" },
   progressWrap: {
-    height: 2, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 1, marginBottom: 14, overflow: "hidden",
+    height: 4, backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 2, marginBottom: 22, overflow: "hidden",
   },
-  progressFill: { width: "38%", height: "100%", backgroundColor: RED, borderRadius: 1 },
-  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 28 },
-  ctrlBtn:  { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  progressFill: { width: "38%", height: "100%", backgroundColor: RED, borderRadius: 2 },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36 },
+  ctrlBtn:  { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: RED,
+    width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, shadowOpacity: 0.4,
+    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, shadowOpacity: 0.45,
   },
 });
