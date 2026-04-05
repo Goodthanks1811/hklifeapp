@@ -26,6 +26,7 @@ import { NotionProvider } from "@/context/NotionContext";
 import { AnthropicProvider } from "@/context/AnthropicContext";
 import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
 import { HeaderImageProvider } from "@/context/HeaderImageContext";
+import { GoogleCalendarProvider } from "@/context/GoogleCalendarContext";
 
 const apiDomain = process.env.EXPO_PUBLIC_DOMAIN || "814374fd-199d-4ed7-9a1e-8e8568da7f50-00-1sgtb2onftd5g.spock.replit.dev";
 setBaseUrl(`https://${apiDomain}`);
@@ -119,6 +120,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
+          <GoogleCalendarProvider>
           <NotionProvider>
             <AnthropicProvider>
               <HeaderImageProvider>
@@ -133,6 +135,7 @@ export default function RootLayout() {
               </HeaderImageProvider>
             </AnthropicProvider>
           </NotionProvider>
+          </GoogleCalendarProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

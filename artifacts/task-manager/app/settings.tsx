@@ -41,6 +41,7 @@ import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 import { useAnthropic } from "@/context/AnthropicContext";
+import { useGoogleCalendar } from "@/context/GoogleCalendarContext";
 import { useBiometric } from "@/context/BiometricContext";
 import { useHeaderImage } from "@/context/HeaderImageContext";
 import {
@@ -739,6 +740,7 @@ export default function SettingsScreen() {
   const { apiKey: anthropicKey, setApiKey: setAnthropicKey, clearKey: clearAnthropicKey } = useAnthropic();
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection } = useDrawerConfig();
+  const { isConnected: gcalConnected, signIn: gcalSignIn, signOut: gcalSignOut } = useGoogleCalendar();
 
   const { uri: headerUri, offsetX: headerOffX, offsetY: headerOffY, scale: headerScale, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
@@ -956,6 +958,49 @@ export default function SettingsScreen() {
             }}
           />
         )}
+
+        {/* ══ GOOGLE CALENDAR ══════════════════════════════════════════════════ */}
+        <Accordion title="Google Calendar" icon="calendar" defaultOpen={false}>
+          <View style={styles.accordionBody}>
+
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleIcon}>
+                <Feather name="calendar" size={16} color={gcalConnected ? Colors.success : Colors.textMuted} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text style={styles.toggleLabel}>Google Calendar</Text>
+                <Text style={styles.toggleDesc}>
+                  {gcalConnected
+                    ? "Connected — events sync on all devices"
+                    : "Connect to sync calendar events on iPad and iPhone"}
+                </Text>
+              </View>
+              <View style={[styles.statusDot, { backgroundColor: gcalConnected ? Colors.success : Colors.textMuted }]} />
+            </View>
+
+            <View style={styles.divider} />
+
+            {gcalConnected ? (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={styles.clearBtn}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); gcalSignOut(); }}
+              >
+                <Feather name="log-out" size={14} color={Colors.textSecondary} />
+                <Text style={styles.clearBtnText}>Disconnect Google Account</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.saveBtn}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); gcalSignIn(); }}
+              >
+                <Text style={styles.saveBtnText}>Connect Google Calendar</Text>
+              </TouchableOpacity>
+            )}
+
+          </View>
+        </Accordion>
 
         {/* ══ SECURITY ════════════════════════════════════════════════════════ */}
         <Accordion title="Security" icon="shield" defaultOpen={false}>

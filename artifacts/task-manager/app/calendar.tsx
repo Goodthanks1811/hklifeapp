@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useDrawer } from "@/context/DrawerContext";
 import { Colors } from "@/constants/colors";
+import { useGoogleCalendar } from "@/context/GoogleCalendarContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -692,6 +693,7 @@ export default function CalendarScreen() {
   const { add } = useLocalSearchParams<{ add?: string }>();
   const insets = useSafeAreaInsets();
   const { toggleDrawer } = useDrawer();
+  const { isConnected: gcalConnected, fetchCalendars: fetchGCals, fetchEvents: fetchGEvents } = useGoogleCalendar();
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const botPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
@@ -731,30 +733,53 @@ export default function CalendarScreen() {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const { status: perm } = await Calendar.requestCalendarPermissionsAsync();
-      if (perm !== "granted") { setErrorMsg("Calendar access required. Enable in Settings."); setStatus("error"); return; }
-
-      const allCals  = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      const hkCals   = allCals.filter(c => keepCal(c.title));
-      if (!hkCals.length) { setSections([]); setStatus("done"); return; }
-
       const today    = new Date(); today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
       const endDate  = new Date(today); endDate.setDate(today.getDate() + DAYS_AHEAD);
 
-      const raw = await Calendar.getEventsAsync(hkCals.map(c => c.id), today, endDate);
-      raw.sort((a, b) => new Date(a.startDate as any).getTime() - new Date(b.startDate as any).getTime());
+      type RawItem = { id: string; title: string; startDate: Date; endDate: Date; allDay: boolean; calName: string; };
+      let rawItems: RawItem[] = [];
+
+      if (gcalConnected) {
+        // ── Google Calendar API path (works on all devices) ──────────────────
+        const allCals = await fetchGCals();
+        const hkCals  = allCals.filter(c => keepCal(c.summary));
+        if (hkCals.length) {
+          const gEvents = await fetchGEvents(hkCals.map(c => c.id), today, endDate);
+          rawItems = gEvents.map(gev => {
+            const isAllDay  = !gev.start.dateTime;
+            const startDate = isAllDay ? new Date(gev.start.date! + "T00:00:00") : new Date(gev.start.dateTime!);
+            const endDate2  = isAllDay ? new Date((gev.end.date ?? gev.start.date)! + "T00:00:00") : new Date(gev.end.dateTime!);
+            return { id: gev.id, title: gev.summary, startDate, endDate: endDate2, allDay: isAllDay, calName: gev.calendarSummary.toLowerCase() };
+          });
+        }
+      } else {
+        // ── Native calendar path (iPhone with Google Calendar synced) ────────
+        const { status: perm } = await Calendar.requestCalendarPermissionsAsync();
+        if (perm !== "granted") { setErrorMsg("Calendar access required. Enable in Settings."); setStatus("error"); return; }
+        const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        const hkCals  = allCals.filter(c => keepCal(c.title));
+        if (!hkCals.length) { setSections([]); setStatus("done"); return; }
+        const raw = await Calendar.getEventsAsync(hkCals.map(c => c.id), today, endDate);
+        rawItems = raw.map(ev => ({
+          id: ev.id, title: ev.title,
+          startDate: new Date(ev.startDate as any), endDate: new Date(ev.endDate as any),
+          allDay: ev.allDay ?? false,
+          calName: hkCals.find(c => c.id === ev.calendarId)?.title.toLowerCase() ?? "",
+        }));
+      }
+
+      rawItems.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
       const dayMap = new Map<string, DaySection>();
-      for (const ev of raw) {
-        if (!ev.title) continue;
-        const start      = new Date(ev.startDate as any);
+      for (const item of rawItems) {
+        if (!item.title) continue;
+        const start      = item.startDate;
         const key        = isoDay(start);
-        const calName    = hkCals.find(c => c.id === ev.calendarId)?.title.toLowerCase() ?? "";
-        const isBirthday = calName === "birthday";
-        const isSticky   = calName === "sticky";
-        const isTraining = ev.title.toLowerCase().includes("training");
-        const title      = isBirthday ? `🎂 ${ev.title}` : ev.title;
+        const isBirthday = item.calName === "birthday";
+        const isSticky   = item.calName === "sticky";
+        const isTraining = item.title.toLowerCase().includes("training");
+        const title      = isBirthday ? `🎂 ${item.title}` : item.title;
         const dotColor   = isTraining ? "#2ecc71" : isSticky ? "#ff5555" : "#5aa5ff";
 
         if (!dayMap.has(key)) {
@@ -769,12 +794,13 @@ export default function CalendarScreen() {
             data:     [],
           });
         }
-        dayMap.get(key)!.data.push({ id: ev.id, title, timeStr: ev.allDay ? "All Day" : fmt12(start), dotColor, startDate: start, endDate: new Date(ev.endDate as any), allDay: ev.allDay ?? false });
+        dayMap.get(key)!.data.push({ id: item.id, title, timeStr: item.allDay ? "All Day" : fmt12(start), dotColor, startDate: start, endDate: item.endDate, allDay: item.allDay });
       }
+
       const sorted = Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
       sorted.forEach((sec, i) => {
         const dow = new Date(sec.dateKey + "T00:00:00").getDay();
-        sec.weekStart = i > 0 && dow === 1; // Monday = 1
+        sec.weekStart = i > 0 && dow === 1;
       });
       setSections(sorted);
       setStatus("done");
@@ -782,7 +808,7 @@ export default function CalendarScreen() {
       setErrorMsg(e?.message || "Failed to load events");
       setStatus("error");
     }
-  }, []);
+  }, [gcalConnected, fetchGCals, fetchGEvents]);
 
   useEffect(() => { setStatus("loading"); fetchEvents(); }, [fetchEvents]);
 
