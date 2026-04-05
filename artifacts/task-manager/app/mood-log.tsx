@@ -60,6 +60,7 @@ export default function MoodLog() {
   const [footerH,      setFooterH]      = useState(90);
 
   const kbOffset        = useRef(new Animated.Value(0)).current;
+  const moodShakeAnim   = useRef(new Animated.Value(0)).current;
   const overlayOpacity  = useRef(new Animated.Value(0)).current;
   const spinnerOpacity  = useRef(new Animated.Value(0)).current;
   const spinnerRotation = useRef(new Animated.Value(0)).current;
@@ -84,6 +85,18 @@ export default function MoodLog() {
     const s4 = Keyboard.addListener("keyboardDidHide",  onHide);
     return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
   }, [kbOffset]);
+
+  const shake = useCallback((anim: Animated.Value) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    anim.setValue(0);
+    Animated.sequence([
+      Animated.timing(anim, { toValue:  1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue:  1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue:  0, duration: 55, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const resetLoader = useCallback(() => {
     overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
@@ -139,7 +152,8 @@ export default function MoodLog() {
   );
 
   const handleSave = useCallback(async () => {
-    if (!selMood || saving || !apiKey) return;
+    if (!selMood) { shake(moodShakeAnim); return; }
+    if (saving || !apiKey) return;
     setSaving(true);
     setErrorMsg(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -174,9 +188,10 @@ export default function MoodLog() {
       setNotes("");
     }
     setSaving(false);
-  }, [selMood, notes, apiKey, saving, runLoader]);
+  }, [selMood, notes, apiKey, saving, shake, moodShakeAnim, runLoader]);
 
-  const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const moodShakeX = moodShakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });
+  const spinDeg    = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
     <View style={[st.root, { paddingTop: topPad }]}>
@@ -196,7 +211,7 @@ export default function MoodLog() {
           )}
 
           <Text style={st.fieldLabel}>How are you feeling?</Text>
-          <View style={st.moodGrid}>
+          <Animated.View style={[st.moodGrid, { transform: [{ translateX: moodShakeX }] }]}>
             {MOODS.map((m) => {
               const active = selMood?.value === m.value;
               return (
@@ -213,7 +228,7 @@ export default function MoodLog() {
                 </Pressable>
               );
             })}
-          </View>
+          </Animated.View>
 
           <Text style={[st.fieldLabel, { marginTop: 24 }]}>Note</Text>
           <TextInput
@@ -239,9 +254,9 @@ export default function MoodLog() {
               <Text style={st.cancelTx}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[st.saveBtn, (!selMood || saving) && st.saveBtnDisabled]}
+              style={[st.saveBtn, saving && st.saveBtnDisabled]}
               onPress={handleSave}
-              disabled={!selMood || saving}
+              disabled={saving}
             >
               <Text style={st.saveTx}>Log Mood</Text>
             </TouchableOpacity>
