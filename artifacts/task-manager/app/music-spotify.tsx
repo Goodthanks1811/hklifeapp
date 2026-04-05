@@ -120,11 +120,10 @@ export default function MusicSpotifyScreen() {
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: BG },
   inner:       { flex: 1 },
-  innerTablet: { maxWidth: 520, alignSelf: "center", width: "100%" },
+  innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
   headerArea: {
     backgroundColor: BG,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
     paddingBottom: 10,
   },
   navRow: {

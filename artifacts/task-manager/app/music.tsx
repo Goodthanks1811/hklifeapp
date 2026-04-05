@@ -92,6 +92,8 @@ export default function MusicScreen() {
             ))}
           </View>
 
+          <Text style={s.hubTitle}>MUSIC</Text>
+
           <View style={s.cards}>
             <ProviderRow
               icon={<Feather name="music" size={32} color={RED} />}
@@ -148,7 +150,7 @@ export default function MusicScreen() {
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: BG },
   inner:       { flex: 1 },
-  innerTablet: { maxWidth: 520, alignSelf: "center", width: "100%" },
+  innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
   scroll: { paddingBottom: 20 },
 
@@ -158,7 +160,18 @@ const s = StyleSheet.create({
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
-  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 44 },
+  hubTitle: {
+    textAlign: "center",
+    fontSize: 52, fontWeight: "900", fontStyle: "italic",
+    color: RED,
+    letterSpacing: 3,
+    marginTop: 10, marginBottom: 4,
+    textShadowColor: "rgba(232,35,10,0.55)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 18,
+  },
+
+  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 28 },
   appleEmoji: { fontSize: 30, lineHeight: 34 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
