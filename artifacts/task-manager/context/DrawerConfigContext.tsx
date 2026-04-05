@@ -61,6 +61,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   ],
   apps: [
     { label: "Mi Corazon",       icon: "heart",  route: "/mi-corazon",        description: "Photo & video gallery" },
+    { label: "Photo Editor",     icon: "image",  route: "/photo-slider",      description: "Compare & export photos"},
     { label: "Time Burn",        icon: "clock",  route: "/time-burn",         description: "Budget burn rate timer" },
     { label: "Caffeine Counter", icon: "coffee", route: "/caffeine-counter",  description: "Daily caffeine tracker" },
   ],
@@ -74,7 +75,6 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Win Of The Day", icon: "award",     route: "/win-of-the-day",  description: "Log your daily win"     },
     { label: "HK Quick Add",   icon: "zap",       route: "/hk-quick-add",    description: "Add HK Life tasks fast" },
     { label: "IR Quick Add",   icon: "send",      route: "/ir-quick-add",    description: "Add IR App tasks fast"  },
-    { label: "Photo Editor",   icon: "image",     route: "/photo-slider",    description: "Compare & export photos"},
   ],
   knowledge: [
     { label: "API's",              icon: "code",     route: "/api-quiz",           description: "Learn & quiz API fundamentals" },
