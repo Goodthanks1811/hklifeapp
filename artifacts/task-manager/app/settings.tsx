@@ -331,12 +331,20 @@ function BannerEditorModal({
   const sc      = useSharedValue(initialScale);
   const savedSc = useSharedValue(initialScale);
 
-  // Re-init if modal re-opens with different values
-  const prevUri = useRef(uri);
-  if (uri !== prevUri.current) {
-    prevUri.current = uri;
-    tx.value = 0; ty.value = 0; sc.value = 1.0;
-  }
+  // Reset to center / no-zoom when a brand-new image URI is passed in
+  const prevUri = useRef<string | null>(null);
+  useEffect(() => {
+    if (uri && uri !== prevUri.current) {
+      prevUri.current = uri;
+      tx.value      = initialOffX * editorW / DRAWER_WIDTH;
+      ty.value      = initialOffY * editorH / PREVIEW_H;
+      sc.value      = initialScale;
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+      savedSc.value = initialScale;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uri]);
 
   // max pan travel keeps the image covering the container at all times
   const maxPan = (containerSize: number, scale: number) =>
