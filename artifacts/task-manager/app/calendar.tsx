@@ -319,7 +319,7 @@ const cg = StyleSheet.create({
   grid:     { flexDirection: "row", flexWrap: "wrap" },
   cell:     { width: DAY_W, height: Math.round(DAY_W * 0.78), borderRadius: 10, alignItems: "center", justifyContent: "center" },
   cellSel:  { backgroundColor: RED },
-  cellTxt:      { color: TEXT, fontSize: 15, fontFamily: "Inter_700Bold" },
+  cellTxt:      { color: "#FFFFFF", fontSize: 17, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
   cellTxtSel:   { color: "#fff", fontFamily: "Inter_700Bold" },
   cellTxtToday: { color: RED, fontFamily: "Inter_700Bold" },
   todayDot: { position: "absolute", bottom: 5, width: 4, height: 4, borderRadius: 2, backgroundColor: RED },

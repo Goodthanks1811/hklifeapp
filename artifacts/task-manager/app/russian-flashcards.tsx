@@ -102,8 +102,7 @@ export default function RussianFlashcardsScreen() {
   const [mistakes,    setMistakes]    = useState<Mistake[]>([]);
   const [hintShown,   setHintShown]   = useState(false);
 
-  const inputRef     = useRef<TextInput
-              keyboardAppearance="dark">(null);
+  const inputRef     = useRef<TextInput>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const kbOffset     = useRef(new Animated.Value(0)).current;
 
