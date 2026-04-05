@@ -455,16 +455,24 @@ function BannerEditorModal({
           savedTx.value = 0;
           savedTy.value = 0;
         } else {
-          // Reopen to reposition: convert stored drawer-space offsets to editor-space
-          // Also update minSc so zoom-out works correctly on reopen.
-          const initX = initialOffX / coverRatioSv.value;
-          const initY = initialOffY / coverRatioSv.value;
+          // Reopen to reposition: invert the save formula to recover editor-space offsets.
+          // Save formula: bannerOffX = editor_tx * coverRatioSv * (drawSc / editorSc)
+          //   where drawSc = max(1.0, editorSc)
+          // Invert: editor_tx = bannerOffX * editorSc / (coverRatioSv * drawSc)
+          const editorSc = Math.max(minSc, initialScale);
+          const drawSc   = Math.max(1.0, editorSc);
+          const initX = coverRatioSv.value > 0
+            ? (initialOffX * editorSc) / (coverRatioSv.value * drawSc)
+            : 0;
+          const initY = coverRatioSv.value > 0
+            ? (initialOffY * editorSc) / (coverRatioSv.value * drawSc)
+            : 0;
           tx.value      = initX;
           ty.value      = initY;
-          sc.value      = Math.max(minSc, initialScale);
+          sc.value      = editorSc;
           savedTx.value = initX;
           savedTy.value = initY;
-          savedSc.value = Math.max(minSc, initialScale);
+          savedSc.value = editorSc;
         }
       },
       () => {
@@ -528,20 +536,33 @@ function BannerEditorModal({
     ],
   }));
 
-  const previewImgStyle = useAnimatedStyle(() => ({
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
-    transform: [
-      { scale: sc.value },
-      { translateX: tx.value * coverRatioSv.value },
-      { translateY: ty.value * coverRatioSv.value },
-    ],
-  }));
+  // Preview mirrors the drawer exactly, including the Math.max(1.0,...) clamp.
+  // When sc < 1.0 the drawer still shows cover-fill (sc clamped to 1.0), so the
+  // offset must be scaled up by (1.0/sc) to keep the same image center.
+  const previewImgStyle = useAnimatedStyle(() => {
+    const drawSc    = Math.max(1.0, sc.value);
+    const offFactor = sc.value > 0 ? drawSc / sc.value : 1.0;
+    return {
+      position: "absolute",
+      top: 0, left: 0, right: 0, bottom: 0,
+      transform: [
+        { scale:      drawSc },
+        { translateX: tx.value * coverRatioSv.value * offFactor },
+        { translateY: ty.value * coverRatioSv.value * offFactor },
+      ],
+    };
+  });
 
   const doSave = () => {
+    // Offsets must account for scale clamping in the drawer.
+    // The drawer renders at drawSc = max(1.0, sc), so offsets must satisfy:
+    //   bannerOffX / (drawSc × coverZoomD) = tx / (sc × coverZoomE)
+    //   bannerOffX = tx × coverRatioSv × (drawSc / sc)
+    const drawSc    = Math.max(1.0, sc.value);
+    const offFactor = sc.value > 0 ? drawSc / sc.value : 1.0;
     onSave(
-      tx.value * coverRatioSv.value,
-      ty.value * coverRatioSv.value,
+      tx.value * coverRatioSv.value * offFactor,
+      ty.value * coverRatioSv.value * offFactor,
       sc.value,
     );
   };
