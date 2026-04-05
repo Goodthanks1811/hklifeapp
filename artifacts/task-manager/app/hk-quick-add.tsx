@@ -33,7 +33,7 @@ const CATS: CatConfig[] = [
   { label: "Music",       catValue: "\uD83C\uDFA7 Music",          emojis: ["🎧"] },
   { label: "Reference",   catValue: "\uD83D\uDCCC Reference",      emojis: ["📌"] },
   { label: "To Read",     catValue: "\uD83D\uDCD5 Read",           emojis: ["📕"] },
-  { label: "Development", catValue: "\u26A1\uFE0F   Automation",   emojis: ["🔥", "🚆", "🏡", "👀", "💡"] },
+  { label: "Development", catValue: "⚡️Development",              emojis: ["🔥", "🚆", "🏡", "👀", "💡"] },
 ];
 
 const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string }> = {
@@ -45,7 +45,7 @@ const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string
 };
 const EPIC_OPTIONS = ["Enhancement", "HK Life", "IR App", "General", "New App"];
 
-const DEV_CAT_VALUE = "\u26A1\uFE0F   Automation";
+const DEV_CAT_VALUE = "⚡️Development";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";

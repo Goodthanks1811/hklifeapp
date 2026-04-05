@@ -61,7 +61,7 @@ const SLUG_MAP: Record<string, SlugConfig> = {
   "to-read":     { title: "To Read",     catValue: "\uD83D\uDCD5 Read",             emojis: ["📕"] },
   "automation":  {
     title: "Development",
-    catValue: "⚡️   Automation",
+    catValue: "⚡️Development",
     emojis:     ["🔥","🚆","🏡","👀","💡","👎"],
     sortEmojis: ["-","🔥","🚆","🏡","👀","💡"],
     showEpic: true,
