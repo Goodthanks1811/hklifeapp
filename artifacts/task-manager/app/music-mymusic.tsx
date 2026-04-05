@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
+  Dimensions,
   Easing,
   Pressable,
   ScrollView,
@@ -74,9 +75,11 @@ const NOW_PLAYING = 3;
 
 export default function MusicMyMusicScreen() {
   const insets = useSafeAreaInsets();
+  const isTablet = Dimensions.get("window").width >= 768;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
+      <View style={[s.inner, isTablet && s.innerTablet]}>
       <View style={s.headerArea}>
         <View style={s.navRow}>
           <Pressable style={s.back} onPress={() => router.back()}>
@@ -145,12 +148,15 @@ export default function MusicMyMusicScreen() {
           </Pressable>
         </View>
       </View>
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root:        { flex: 1, backgroundColor: BG },
+  inner:       { flex: 1 },
+  innerTablet: { maxWidth: 520, alignSelf: "center", width: "100%" },
 
   headerArea: {
     backgroundColor: BG,

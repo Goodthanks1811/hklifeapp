@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
+  Dimensions,
   Easing,
   Pressable,
   ScrollView,
@@ -82,9 +83,11 @@ function ProviderRow({
 
 export default function MusicScreen() {
   const insets = useSafeAreaInsets();
+  const isTablet = Dimensions.get("window").width >= 768;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
+      <View style={[s.inner, isTablet && s.innerTablet]}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <View style={s.eqWrap}>
           {Array.from({ length: BAR_COUNT }).map((_, i) => (
@@ -146,12 +149,15 @@ export default function MusicScreen() {
           </View>
         </View>
       </ScrollView>
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: BG },
+  root:        { flex: 1, backgroundColor: BG },
+  inner:       { flex: 1 },
+  innerTablet: { maxWidth: 520, alignSelf: "center", width: "100%" },
   scroll: { paddingBottom: 48 },
 
   eqWrap: {
@@ -160,7 +166,7 @@ const s = StyleSheet.create({
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
-  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 16 },
+  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 32 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
+  Dimensions,
   Easing,
   Linking,
   Pressable,
@@ -72,6 +73,7 @@ const PLAYLISTS = [
 
 export default function MusicAppleScreen() {
   const insets = useSafeAreaInsets();
+  const isTablet = Dimensions.get("window").width >= 768;
 
   const openAppleMusic = () => {
     Linking.openURL("music://").catch(() => Linking.openURL("https://music.apple.com"));
@@ -79,6 +81,7 @@ export default function MusicAppleScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
+      <View style={[s.inner, isTablet && s.innerTablet]}>
       <View style={s.headerArea}>
         <View style={s.navRow}>
           <Pressable style={s.back} onPress={() => router.back()}>
@@ -109,12 +112,15 @@ export default function MusicAppleScreen() {
           </Pressable>
         ))}
       </ScrollView>
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root:        { flex: 1, backgroundColor: BG },
+  inner:       { flex: 1 },
+  innerTablet: { maxWidth: 520, alignSelf: "center", width: "100%" },
 
   headerArea: {
     backgroundColor: BG,
