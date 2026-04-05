@@ -324,24 +324,52 @@ function BannerEditorModal({
   // Shared values (editor-space pixels) — never read .value during render
   const initTx = initialOffX * editorW / DRAWER_WIDTH;
   const initTy = initialOffY * editorH / PREVIEW_H;
-  const tx     = useSharedValue(initTx);
-  const ty     = useSharedValue(initTy);
+  const tx      = useSharedValue(initTx);
+  const ty      = useSharedValue(initTy);
   const savedTx = useSharedValue(initTx);
   const savedTy = useSharedValue(initTy);
   const sc      = useSharedValue(initialScale);
   const savedSc = useSharedValue(initialScale);
+  // Minimum scale = the "contain" level for this image (set after getSize resolves)
+  const minScaleSv = useSharedValue(0.3);
 
-  // Reset shared values whenever the editor opens (or a new URI arrives)
-  // so re-opening after a cancelled edit always starts from the committed position
+  // Reset shared values on open/URI change; auto-compute contain scale for new images
   const prevVisible = useRef(false);
   const prevUri     = useRef<string | null>(null);
   useEffect(() => {
-    const justOpened   = visible && !prevVisible.current;
-    const newUri       = uri !== prevUri.current;
+    const justOpened    = visible && !prevVisible.current;
+    const newUri        = uri !== prevUri.current;
     prevVisible.current = visible;
     prevUri.current     = uri;
 
-    if ((justOpened || newUri) && uri) {
+    if (!((justOpened || newUri) && uri)) return;
+
+    if (newUri) {
+      // For a freshly picked image: compute the "contain" scale so the user
+      // sees the whole image on load and can pinch in/out from there.
+      Image.getSize(
+        uri,
+        (imgW, imgH) => {
+          const coverZoom   = Math.max(editorW / imgW, editorH / imgH);
+          const containZoom = Math.min(editorW / imgW, editorH / imgH);
+          const ms = Math.max(0.1, containZoom / coverZoom);
+          minScaleSv.value = ms;
+          // Only auto-apply if opening a brand-new image (no stored offset)
+          if (initialScale <= 1.0) {
+            sc.value      = ms;
+            savedSc.value = ms;
+            tx.value      = 0;
+            ty.value      = 0;
+            savedTx.value = 0;
+            savedTy.value = 0;
+          }
+        },
+        () => { minScaleSv.value = 0.3; },
+      );
+    }
+
+    // Restore stored position (for reopen / reposition flow)
+    if (!newUri || initialScale > 1.0) {
       const initX = initialOffX * editorW / DRAWER_WIDTH;
       const initY = initialOffY * editorH / PREVIEW_H;
       tx.value      = initX;
@@ -360,8 +388,9 @@ function BannerEditorModal({
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      const mX = editorW * (sc.value - 1) / 2;
-      const mY = editorH * (sc.value - 1) / 2;
+      // When scale < 1 the image is smaller than the container — lock to centre
+      const mX = Math.max(0, editorW * (sc.value - 1) / 2);
+      const mY = Math.max(0, editorH * (sc.value - 1) / 2);
       tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
       ty.value = Math.max(-mY, Math.min(mY, savedTy.value + e.translationY));
     });
@@ -369,10 +398,10 @@ function BannerEditorModal({
   const pinch = Gesture.Pinch()
     .onStart(() => { savedSc.value = sc.value; })
     .onUpdate((e) => {
-      const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
+      const newSc = Math.max(minScaleSv.value, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
-      const mX = editorW * (newSc - 1) / 2;
-      const mY = editorH * (newSc - 1) / 2;
+      const mX = Math.max(0, editorW * (newSc - 1) / 2);
+      const mY = Math.max(0, editorH * (newSc - 1) / 2);
       tx.value = Math.max(-mX, Math.min(mX, tx.value));
       ty.value = Math.max(-mY, Math.min(mY, ty.value));
     });
@@ -428,7 +457,7 @@ function BannerEditorModal({
         {/* Hint */}
         <View style={[edSt.hintRow, { height: HINT_H }]}>
           <Feather name="zoom-in" size={12} color={Colors.textMuted} />
-          <Text style={edSt.hintText}>Pinch to zoom, drag to reposition</Text>
+          <Text style={edSt.hintText}>Pinch to zoom in/out, drag to reposition</Text>
         </View>
 
         {/* Editor — full-width, flex fill */}
