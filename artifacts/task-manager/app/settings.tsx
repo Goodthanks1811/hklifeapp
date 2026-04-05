@@ -120,32 +120,45 @@ function Accordion({
 
 const acc = StyleSheet.create({
   wrapper: {
-    backgroundColor: Colors.cardBg,
+    backgroundColor: "#17171a",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: "rgba(255,255,255,0.07)",
     overflow: "hidden",
     marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 6,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 15,
+    paddingVertical: 13,
+    backgroundColor: "rgba(255,255,255,0.025)",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
   iconBox: {
     width: 28, height: 28,
-    backgroundColor: "rgba(224,49,49,0.12)",
-    borderRadius: 8,
+    backgroundColor: "rgba(224,49,49,0.15)",
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(224,49,49,0.30)",
     alignItems: "center", justifyContent: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   title: {
-    color: Colors.textPrimary,
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: -0.1,
+    color: "rgba(255,255,255,0.48)",
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
   },
 });
 
@@ -210,7 +223,7 @@ function SubAccordion({
 const sacc = StyleSheet.create({
   wrapper: {
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: "rgba(255,255,255,0.06)",
     marginTop: 4,
   },
   header: {
@@ -223,8 +236,10 @@ const sacc = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   iconBox: {
     width: 36, height: 36,
-    backgroundColor: "rgba(224,49,49,0.1)",
+    backgroundColor: "rgba(224,49,49,0.12)",
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(224,49,49,0.25)",
     alignItems: "center", justifyContent: "center",
   },
   title: {
@@ -1104,12 +1119,17 @@ export default function SettingsScreen() {
 // ── Menu card styles ──────────────────────────────────────────────────────────
 const mStyles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBgElevated,
+    backgroundColor: "#141416",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: "rgba(255,255,255,0.06)",
     overflow: "hidden",
     marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 4,
   },
   cardHidden: { opacity: 0.5 },
 
@@ -1120,7 +1140,8 @@ const mStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.025)",
   },
   sectionTitle: {
     color: Colors.textSecondary,
@@ -1140,17 +1161,19 @@ const mStyles = StyleSheet.create({
     paddingVertical: 10,
     gap: 9,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: "rgba(255,255,255,0.04)",
   },
   itemRowHidden: { opacity: 0.4 },
 
   iconBox: {
-    width: 26, height: 26,
-    backgroundColor: "rgba(224,49,49,0.1)",
+    width: 28, height: 28,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
     alignItems: "center", justifyContent: "center",
   },
-  iconBoxHidden: { backgroundColor: "rgba(255,255,255,0.05)" },
+  iconBoxHidden: { backgroundColor: "rgba(255,255,255,0.03)", opacity: 0.5 },
 
   itemText: { flex: 1 },
   itemLabel: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
@@ -1201,9 +1224,9 @@ const imgSt = StyleSheet.create({
     height: 170,
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: Colors.cardBgElevated,
+    backgroundColor: "#141416",
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: "rgba(255,255,255,0.07)",
     position: "relative",
   },
   previewImg: {
@@ -1246,14 +1269,14 @@ const imgSt = StyleSheet.create({
 
 // ── Screen styles ─────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.darkBg },
-  content: { padding: 20, gap: 8 },
+  root: { flex: 1, backgroundColor: "#0b0b0c" },
+  content: { padding: 16, gap: 16 },
 
   accordionBody: {
     padding: 18,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: "rgba(255,255,255,0.06)",
   },
 
   sectionHint: {
@@ -1268,13 +1291,13 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 
-  divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: -18 },
+  divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginHorizontal: -18 },
 
   fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4, marginBottom: 6 },
   inputRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.cardBgElevated, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.borderLight, paddingRight: 10,
+    backgroundColor: "#141416", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", paddingRight: 10,
   },
   input: {
     flex: 1, color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
@@ -1342,8 +1365,10 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   toggleIcon: {
     width: 36, height: 36,
-    backgroundColor: "rgba(224,49,49,0.1)",
+    backgroundColor: "rgba(224,49,49,0.12)",
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(224,49,49,0.25)",
     alignItems: "center", justifyContent: "center",
   },
   toggleText: { flex: 1 },
