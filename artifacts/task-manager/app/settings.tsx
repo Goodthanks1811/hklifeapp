@@ -321,19 +321,23 @@ function BannerEditorModal({
   const editorH = Math.max(180,
     screenH - insets.top - insets.bottom - HEADER_H - HINT_H - PREVIEW_SECTION_H);
 
-  // Shared values (editor-space pixels) — never read .value during render
-  const initTx = initialOffX * editorW / DRAWER_WIDTH;
-  const initTy = initialOffY * editorH / PREVIEW_H;
-  const tx      = useSharedValue(initTx);
-  const ty      = useSharedValue(initTy);
-  const savedTx = useSharedValue(initTx);
-  const savedTy = useSharedValue(initTy);
-  const sc      = useSharedValue(initialScale);
-  const savedSc = useSharedValue(initialScale);
-  // Minimum scale = the "contain" level for this image (set after getSize resolves)
-  const minScaleSv = useSharedValue(0.3);
+  // Shared values (editor-space pixels) — initialised to 0; set correctly after Image.getSize
+  const tx           = useSharedValue(0);
+  const ty           = useSharedValue(0);
+  const savedTx      = useSharedValue(0);
+  const savedTy      = useSharedValue(0);
+  const sc           = useSharedValue(initialScale);
+  const savedSc      = useSharedValue(initialScale);
+  // Minimum editor scale = "contain" fit for this image
+  const minScaleSv   = useSharedValue(0.3);
+  // Ratio used to map editor-space offsets to drawer-space offsets.
+  // = coverZoomDrawer / coverZoomEditor (computed per-image via getSize)
+  // When both containers are constrained on the same axis this simplifies to
+  // DRAWER_WIDTH/editorW, but for mismatched aspect ratios (e.g. portrait image
+  // in the wide-short drawer) the Y axis needs the same scalar, not PREVIEW_H/editorH.
+  const coverRatioSv = useSharedValue(DRAWER_WIDTH / editorW);
 
-  // Reset shared values on open/URI change; auto-compute contain scale for new images
+  // On every open / URI change: resolve image dimensions, then set transforms
   const prevVisible = useRef(false);
   const prevUri     = useRef<string | null>(null);
   useEffect(() => {
@@ -344,41 +348,50 @@ function BannerEditorModal({
 
     if (!((justOpened || newUri) && uri)) return;
 
-    if (newUri) {
-      // For a freshly picked image: compute the "contain" scale so the user
-      // sees the whole image on load and can pinch in/out from there.
-      Image.getSize(
-        uri,
-        (imgW, imgH) => {
-          const coverZoom   = Math.max(editorW / imgW, editorH / imgH);
-          const containZoom = Math.min(editorW / imgW, editorH / imgH);
-          const ms = Math.max(0.1, containZoom / coverZoom);
-          minScaleSv.value = ms;
-          // Only auto-apply if opening a brand-new image (no stored offset)
-          if (initialScale <= 1.0) {
-            sc.value      = ms;
-            savedSc.value = ms;
-            tx.value      = 0;
-            ty.value      = 0;
-            savedTx.value = 0;
-            savedTy.value = 0;
-          }
-        },
-        () => { minScaleSv.value = 0.3; },
-      );
-    }
+    Image.getSize(
+      uri,
+      (imgW, imgH) => {
+        const coverZoomE  = Math.max(editorW / imgW, editorH / imgH);
+        const coverZoomD  = Math.max(DRAWER_WIDTH / imgW, PREVIEW_H / imgH);
+        const containZoom = Math.min(editorW / imgW, editorH / imgH);
 
-    // Restore stored position (for reopen / reposition flow)
-    if (!newUri || initialScale > 1.0) {
-      const initX = initialOffX * editorW / DRAWER_WIDTH;
-      const initY = initialOffY * editorH / PREVIEW_H;
-      tx.value      = initX;
-      ty.value      = initY;
-      sc.value      = initialScale;
-      savedTx.value = initX;
-      savedTy.value = initY;
-      savedSc.value = initialScale;
-    }
+        minScaleSv.value   = Math.max(0.1, containZoom / coverZoomE);
+        coverRatioSv.value = coverZoomD / coverZoomE;
+
+        if (newUri && initialScale <= 1.0) {
+          // Brand-new pick: start at full "contain" view, centred
+          sc.value      = minScaleSv.value;
+          savedSc.value = minScaleSv.value;
+          tx.value      = 0;
+          ty.value      = 0;
+          savedTx.value = 0;
+          savedTy.value = 0;
+        } else {
+          // Reopen to reposition: convert stored drawer-space offsets to editor-space
+          const initX = initialOffX / coverRatioSv.value;
+          const initY = initialOffY / coverRatioSv.value;
+          tx.value      = initX;
+          ty.value      = initY;
+          sc.value      = initialScale;
+          savedTx.value = initX;
+          savedTy.value = initY;
+          savedSc.value = initialScale;
+        }
+      },
+      () => {
+        // getSize failed - fall back to simple proportional mapping
+        coverRatioSv.value = DRAWER_WIDTH / editorW;
+        minScaleSv.value   = 0.3;
+        const initX = initialOffX / (DRAWER_WIDTH / editorW);
+        const initY = initialOffY / (PREVIEW_H / editorH);
+        tx.value      = initX;
+        ty.value      = initY;
+        sc.value      = initialScale;
+        savedTx.value = initX;
+        savedTy.value = initY;
+        savedSc.value = initialScale;
+      },
+    );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, uri]);
 
@@ -425,15 +438,15 @@ function BannerEditorModal({
     top: 0, left: 0, right: 0, bottom: 0,
     transform: [
       { scale: sc.value },
-      { translateX: tx.value * DRAWER_WIDTH / editorW },
-      { translateY: ty.value * PREVIEW_H / editorH },
+      { translateX: tx.value * coverRatioSv.value },
+      { translateY: ty.value * coverRatioSv.value },
     ],
   }));
 
   const doSave = () => {
     onSave(
-      tx.value * DRAWER_WIDTH / editorW,
-      ty.value * PREVIEW_H / editorH,
+      tx.value * coverRatioSv.value,
+      ty.value * coverRatioSv.value,
       sc.value,
     );
   };
