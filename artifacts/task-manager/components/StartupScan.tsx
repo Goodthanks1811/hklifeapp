@@ -52,7 +52,7 @@ export function StartupScan({ onDone }: Props) {
     const loop = Animated.loop(
       Animated.timing(scanY, {
         toValue: SCAN_TRAVEL,
-        duration: 3200,
+        duration: 2200,
         useNativeDriver: true,   // ✓ transform only
       })
     );
@@ -84,12 +84,12 @@ export function StartupScan({ onDone }: Props) {
         setTimeout(() => {
           Animated.timing(fadeOut, {
             toValue: 0,
-            duration: 600,
+            duration: 400,
             useNativeDriver: true,   // ✓ opacity only
           }).start(onDone);
-        }, 600);
+        }, 350);
       }
-    }, 36);
+    }, 26);
     return () => clearInterval(id);
   }, []);
 
