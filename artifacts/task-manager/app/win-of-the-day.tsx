@@ -7,6 +7,7 @@ import {
   Easing,
   Keyboard,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
