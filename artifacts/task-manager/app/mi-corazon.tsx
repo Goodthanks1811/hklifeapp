@@ -300,19 +300,21 @@ function FolderCard({
   onPress,
   onLongPress,
   onOptions,
-  isDragging   = false,
+  isDragging    = false,
   isAnyDragging = false,
-  noTouchable  = false,
+  noTouchable   = false,
+  inReorderMode = false,
 }: {
-  folder:        Folder;
-  cardSize:      number;
-  subCount:      number;
-  onPress:       () => void;
-  onLongPress:   () => void;
-  onOptions?:    () => void;
-  isDragging?:   boolean;
+  folder:         Folder;
+  cardSize:       number;
+  subCount:       number;
+  onPress:        () => void;
+  onLongPress:    () => void;
+  onOptions?:     () => void;
+  isDragging?:    boolean;
   isAnyDragging?: boolean;
-  noTouchable?:  boolean;
+  noTouchable?:   boolean;
+  inReorderMode?: boolean;
 }) {
   const autoCover    = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
   const coverUri     = folder.coverUri ?? autoCover?.uri;
@@ -361,11 +363,15 @@ function FolderCard({
         )}
         {/* Options button — stays as TouchableOpacity so it can still claim its own
             touch in the bubble phase even when the parent Animated.View has a PanResponder */}
-        {onOptions && (
+        {inReorderMode ? (
+          <View style={s.dragHandle}>
+            <Feather name="menu" size={14} color="rgba(255,255,255,0.7)" />
+          </View>
+        ) : onOptions ? (
           <TouchableOpacity style={s.folderOptionsBtn} onPress={onOptions} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
             <Feather name="more-horizontal" size={15} color="#fff" />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
       <View style={s.folderMeta}>
         <Text style={s.folderName} numberOfLines={1}>{folder.name}</Text>
@@ -477,9 +483,11 @@ export default function MiNenaScreen() {
   const cardWRef        = useRef(0);
   const [dragActiveIdx, setDragActiveIdx]       = useState(-1);
   const [gridScrollEnabled, setGridScrollEnabled] = useState(true);
+  const [reorderMode,   setReorderMode]         = useState(false);
+  const reorderModeRef  = useRef(false);
+  reorderModeRef.current = reorderMode;
 
-  // Per-card drag detection (replaces container PanResponder)
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Per-card drag detection
   const cardPans          = useRef<Record<string, ReturnType<typeof PanResponder.create>>>({});
   const folderIdxMapRef   = useRef<Record<string, number>>({});
   // Always-fresh callbacks (updated every render so PanResponder closures are never stale)
@@ -718,46 +726,35 @@ export default function MiNenaScreen() {
     }
 
     // One PanResponder per card, created once (closure captures folderId, not idx).
-    // Uses a manual setTimeout for long-press detection, so the ScrollView can still
-    // scroll (onPanResponderTerminationRequest returns true while not dragging).
+    // Only activates when reorderMode is on — uses reorderModeRef so it never goes stale.
     if (!cardPans.current[f.id]) {
       const folderId = f.id;
       cardPans.current[folderId] = PanResponder.create({
-        // Claim the touch immediately so we can start the long-press timer.
-        onStartShouldSetPanResponder: () => true,
+        // Only claim the touch in reorder mode
+        onStartShouldSetPanResponder: () => reorderModeRef.current,
+        onMoveShouldSetPanResponder:  () => reorderModeRef.current,
 
         onPanResponderGrant: () => {
-          longPressTimerRef.current = setTimeout(() => {
-            const idx = folderIdxMapRef.current[folderId] ?? -1;
-            if (idx < 0) return;
-            isDraggingRef.current   = true;
-            draggingIdxRef.current  = idx;
-            hoverIdxRef.current     = idx;
-            dragOccurredRef.current = true;
-            dragPanX.setValue(0);
-            dragPanY.setValue(0);
-            setDragActiveIdx(idx);
-            setGridScrollEnabled(false);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            startScrollRef.current = scrollOffRef.current;
-            gridContainerRef.current?.measure((_fx, _fy, _w, _h, _px, py) => {
-              containerTopRef.current = py;
-            });
-          }, 250);
+          if (!reorderModeRef.current) return;
+          const idx = folderIdxMapRef.current[folderId] ?? -1;
+          if (idx < 0) return;
+          isDraggingRef.current   = true;
+          draggingIdxRef.current  = idx;
+          hoverIdxRef.current     = idx;
+          dragOccurredRef.current = true;
+          dragPanX.setValue(0);
+          dragPanY.setValue(0);
+          setDragActiveIdx(idx);
+          setGridScrollEnabled(false);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          startScrollRef.current = scrollOffRef.current;
+          gridContainerRef.current?.measure((_fx, _fy, _w, _h, _px, py) => {
+            containerTopRef.current = py;
+          });
         },
 
         onPanResponderMove: (_e, gs) => {
-          if (!isDraggingRef.current) {
-            // If user moves before long-press fires → cancel timer (becomes a scroll/no-op)
-            if (Math.abs(gs.dx) > 8 || Math.abs(gs.dy) > 8) {
-              if (longPressTimerRef.current) {
-                clearTimeout(longPressTimerRef.current);
-                longPressTimerRef.current = null;
-              }
-            }
-            return;
-          }
-          // Dragging — update pan position and check hover cell
+          if (!isDraggingRef.current) return;
           dragPanX.setValue(gs.dx);
           dragPanY.setValue(gs.dy);
           const di = draggingIdxRef.current;
@@ -776,30 +773,18 @@ export default function MiNenaScreen() {
           }
         },
 
-        onPanResponderRelease: (_e, gs) => {
-          if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-          }
+        onPanResponderRelease: () => {
           if (isDraggingRef.current) {
             endFolderDragRef.current();
-          } else if (Math.abs(gs.dx) < 8 && Math.abs(gs.dy) < 8 && !dragOccurredRef.current) {
-            // Short tap with no movement → navigate into folder
-            navigateInto(folderId);
           }
           setTimeout(() => { dragOccurredRef.current = false; }, 80);
         },
 
         onPanResponderTerminate: () => {
-          if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-          }
           if (isDraggingRef.current) endFolderDragRef.current();
         },
 
-        // Allow the ScrollView to steal the touch while we are NOT dragging,
-        // so normal scrolling still works.
+        // Never let scroll steal the touch while we're dragging
         onPanResponderTerminationRequest: () => !isDraggingRef.current,
       });
     }
@@ -893,7 +878,7 @@ export default function MiNenaScreen() {
           </View>
         ) : (
           <ScrollView
-            scrollEnabled={gridScrollEnabled}
+            scrollEnabled={gridScrollEnabled && !reorderMode}
             onScroll={(e) => { scrollOffRef.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
@@ -907,9 +892,34 @@ export default function MiNenaScreen() {
               <Text style={s.pageSubtitle}>
                 {visibleFolders.length} folder{visibleFolders.length !== 1 ? "s" : ""}
               </Text>
-              <TouchableOpacity style={s.addFolderBtn} onPress={() => setShowNewFolder(true)} activeOpacity={0.8}>
-                <Feather name="folder-plus" size={18} color="#fff" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {visibleFolders.length > 1 && (
+                  reorderMode ? (
+                    <TouchableOpacity
+                      style={s.reorderDoneBtn}
+                      onPress={() => { setReorderMode(false); setGridScrollEnabled(true); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={s.reorderDoneTxt}>Done</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={s.reorderIconBtn}
+                      onPress={() => setReorderMode(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="list" size={16} color="#666" />
+                    </TouchableOpacity>
+                  )
+                )}
+                <TouchableOpacity
+                  style={[s.addFolderBtn, reorderMode && { opacity: 0.3 }]}
+                  onPress={() => { if (!reorderMode) setShowNewFolder(true); }}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="folder-plus" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {visibleFolders.length === 0 ? (
@@ -957,12 +967,13 @@ export default function MiNenaScreen() {
                         folder={folder}
                         cardSize={folderCardSize}
                         subCount={subCountMap[folder.id] ?? 0}
-                        onPress={() => {}}
-                        onLongPress={() => {}}
-                        onOptions={() => handleFolderLongPress(folder.id)}
+                        onPress={() => navigateInto(folder.id)}
+                        onLongPress={() => handleFolderLongPress(folder.id)}
+                        onOptions={reorderMode ? undefined : () => handleFolderLongPress(folder.id)}
                         isDragging={isDragging}
                         isAnyDragging={dragActiveIdx !== -1}
-                        noTouchable
+                        noTouchable={reorderMode}
+                        inReorderMode={reorderMode}
                       />
                     </Animated.View>
                   );
@@ -1230,6 +1241,40 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  dragHandle: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#1a1a1a",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  reorderDoneBtn: {
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 17,
+    backgroundColor: "#1a1a1a",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  reorderDoneTxt: {
+    fontSize: 14,
+    color: "#E03131",
+    fontFamily: "Inter_600SemiBold",
   },
   folderMeta:  { paddingTop: 7, paddingHorizontal: 2, paddingBottom: 4 },
   folderName:  { fontSize: 13, fontWeight: "700", color: "#fff", fontFamily: "Inter_600SemiBold" },
