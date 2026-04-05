@@ -1221,13 +1221,40 @@ export default function MiNenaScreen() {
           })}
         </ScrollView>
 
-        <View style={s.breadcrumbActions}>
-          <TouchableOpacity onPress={() => setShowNewFolder(true)} style={[s.iconBtn, fileReorderMode && { opacity: 0.3 }]} activeOpacity={0.8} disabled={fileReorderMode}>
+      </View>
+
+      {/* On-page row: file count + all action buttons */}
+      <View style={s.listHeader}>
+        <Text style={s.pageSubtitle}>
+          {currentFolder.items.length} file{currentFolder.items.length !== 1 ? "s" : ""}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {currentFolder.items.length > 0 && (
+            fileReorderMode ? (
+              <TouchableOpacity
+                style={s.reorderDoneBtn}
+                onPress={() => { setFileReorderMode(false); setFileGridScrollEnabled(true); }}
+                activeOpacity={0.8}
+              >
+                <Feather name="check" size={18} color="#E03131" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={s.reorderIconBtn} onPress={() => setFileReorderMode(true)} activeOpacity={0.8}>
+                <Feather name="list" size={16} color="#666" />
+              </TouchableOpacity>
+            )
+          )}
+          <TouchableOpacity
+            onPress={() => setShowNewFolder(true)}
+            style={[s.reorderIconBtn, fileReorderMode && { opacity: 0.3 }]}
+            activeOpacity={0.8}
+            disabled={fileReorderMode}
+          >
             <Feather name="folder-plus" size={17} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => pickIntoFolder(currentFolderId!)}
-            style={[s.iconBtn, s.iconBtnRed, fileReorderMode && { opacity: 0.3 }]}
+            style={[s.addFolderBtn, fileReorderMode && { opacity: 0.3 }]}
             activeOpacity={0.8}
             disabled={picking || fileReorderMode}
           >
@@ -1237,28 +1264,6 @@ export default function MiNenaScreen() {
             }
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* On-page row: file count + reorder button */}
-      <View style={s.listHeader}>
-        <Text style={s.pageSubtitle}>
-          {currentFolder.items.length} file{currentFolder.items.length !== 1 ? "s" : ""}
-        </Text>
-        {currentFolder.items.length > 0 && (
-          fileReorderMode ? (
-            <TouchableOpacity
-              style={s.reorderDoneBtn}
-              onPress={() => { setFileReorderMode(false); setFileGridScrollEnabled(true); }}
-              activeOpacity={0.8}
-            >
-              <Feather name="check" size={18} color="#E03131" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={s.reorderIconBtn} onPress={() => setFileReorderMode(true)} activeOpacity={0.8}>
-              <Feather name="list" size={16} color="#666" />
-            </TouchableOpacity>
-          )
-        )}
       </View>
 
       {isEmpty ? (
