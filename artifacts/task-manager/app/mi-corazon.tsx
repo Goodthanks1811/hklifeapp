@@ -29,7 +29,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { useDrawer } from "@/context/DrawerContext";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
 const STORAGE_KEY   = "mi_corazon_folders_v2";
@@ -459,9 +459,10 @@ function Thumbnail({ item, size, onPress }: { item: MediaItem; size: number; onP
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function MiNenaScreen() {
-  const insets         = useSafeAreaInsets();
-  const { width }      = useWindowDimensions();
-  const topPad         = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const insets           = useSafeAreaInsets();
+  const { width }        = useWindowDimensions();
+  const topPad           = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const { toggleDrawer } = useDrawer();
 
   const [folders,       setFolders]       = useState<Folder[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -1057,7 +1058,47 @@ export default function MiNenaScreen() {
   if (!currentFolder) {
     return (
       <View style={[s.screen, { paddingTop: topPad }]}>
-        <ScreenHeader title="Mi Corazon" />
+        {/* Top nav — matches file-screen breadcrumbBar for consistency */}
+        <View style={s.breadcrumbBar}>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }}
+            style={s.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="menu" size={20} color="#fff" />
+          </Pressable>
+          <View style={{ flex: 1, paddingLeft: 4 }}>
+            <Text style={[s.breadcrumbItem, s.breadcrumbActive]}>Mi Corazon</Text>
+            {!loading && (
+              <Text style={s.pageSubtitle}>
+                {visibleFolders.length} folder{visibleFolders.length !== 1 ? "s" : ""}
+              </Text>
+            )}
+          </View>
+          <View style={s.breadcrumbActions}>
+            {reorderMode ? (
+              <TouchableOpacity
+                style={s.iconBtn}
+                onPress={() => { setReorderMode(false); setGridScrollEnabled(true); }}
+                activeOpacity={0.8}
+              >
+                <Feather name="check" size={18} color="#E03131" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={s.iconBtn} onPress={() => setReorderMode(true)} activeOpacity={0.8}>
+                <Feather name="list" size={16} color="#666" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[s.iconBtn, s.iconBtnRed, reorderMode && { opacity: 0.3 }]}
+              onPress={() => { if (!reorderMode) setShowNewFolder(true); }}
+              activeOpacity={0.8}
+              disabled={reorderMode}
+            >
+              <Feather name="folder-plus" size={17} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {loading ? (
           <View style={s.centred}>
@@ -1074,38 +1115,6 @@ export default function MiNenaScreen() {
               paddingBottom: insets.bottom + 24,
             }}
           >
-            {/* List header */}
-            <View style={s.listHeader}>
-              <Text style={s.pageSubtitle}>
-                {visibleFolders.length} folder{visibleFolders.length !== 1 ? "s" : ""}
-              </Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                {reorderMode ? (
-                  <TouchableOpacity
-                    style={s.reorderDoneBtn}
-                    onPress={() => { setReorderMode(false); setGridScrollEnabled(true); }}
-                    activeOpacity={0.8}
-                  >
-                    <Feather name="check" size={18} color="#E03131" />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={s.reorderIconBtn}
-                    onPress={() => setReorderMode(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Feather name="list" size={16} color="#666" />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={[s.addFolderBtn, reorderMode && { opacity: 0.3 }]}
-                  onPress={() => { if (!reorderMode) setShowNewFolder(true); }}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="folder-plus" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
 
             {visibleFolders.length === 0 ? (
               <View style={s.emptyWrap}>
