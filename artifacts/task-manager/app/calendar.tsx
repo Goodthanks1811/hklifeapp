@@ -815,10 +815,13 @@ export default function CalendarScreen() {
       style={({ pressed }) => [s.evRow, index > 0 && s.evRowBorder, pressed && { backgroundColor: "rgba(255,255,255,0.04)" }]}
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedEvent(item); setStep("actions"); }}
     >
-      <Text style={s.tStart}>{item.timeStr}</Text>
       <View style={s.evMain}>
         <View style={[s.evDot, { backgroundColor: item.dotColor }]} />
         <Text style={s.evTitle}>{item.title}</Text>
+      </View>
+      {/* Absolutely positioned after evMain so it renders on top */}
+      <View style={s.tStartWrap}>
+        <Text style={s.tStart}>{item.timeStr}</Text>
       </View>
     </Pressable>
   ), []);
@@ -1148,9 +1151,10 @@ const s = StyleSheet.create({
   dlDate:     { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dayFooter:  { height: 10, backgroundColor: BG },
   weekDivider:{ height: 1, backgroundColor: "rgba(255,255,255,0.18)", marginHorizontal: 22, marginTop: 4, marginBottom: 2 },
-  evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG, gap: 12 },
+  evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
-  tStart:     { width: 58, flexShrink: 0, fontSize: 12, fontFamily: "Inter_500Medium", color: TEXT },
+  tStartWrap: { position: "absolute", left: 0, top: 0, bottom: 0, paddingLeft: 22, justifyContent: "center" },
+  tStart:     { width: 58, fontSize: 12, fontFamily: "Inter_500Medium", color: TEXT },
   evMain:     { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   evDot:      { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   evTitle:    { flexShrink: 1, fontSize: 15, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 20 },
