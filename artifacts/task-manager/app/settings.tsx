@@ -346,30 +346,31 @@ function BannerEditorModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uri]);
 
-  // max pan travel keeps the image covering the container at all times
-  const maxPan = (containerSize: number, scale: number) =>
-    containerSize * (scale - 1) / 2;
-
   const pan = Gesture.Pan()
     .onStart(() => {
+      'worklet';
       savedTx.value = tx.value;
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      const mX = maxPan(editorW, sc.value);
-      const mY = maxPan(editorH, sc.value);
+      'worklet';
+      const mX = editorW * (sc.value - 1) / 2;
+      const mY = editorH * (sc.value - 1) / 2;
       tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
       ty.value = Math.max(-mY, Math.min(mY, savedTy.value + e.translationY));
     });
 
   const pinch = Gesture.Pinch()
-    .onStart(() => { savedSc.value = sc.value; })
+    .onStart(() => {
+      'worklet';
+      savedSc.value = sc.value;
+    })
     .onUpdate((e) => {
+      'worklet';
       const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
-      // Re-clamp translation when scale changes
-      const mX = maxPan(editorW, newSc);
-      const mY = maxPan(editorH, newSc);
+      const mX = editorW * (newSc - 1) / 2;
+      const mY = editorH * (newSc - 1) / 2;
       tx.value = Math.max(-mX, Math.min(mX, tx.value));
       ty.value = Math.max(-mY, Math.min(mY, ty.value));
     });
