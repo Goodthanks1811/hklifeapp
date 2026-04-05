@@ -5,7 +5,8 @@ import * as VideoThumbnails from "expo-video-thumbnails";
 import * as FileSystem from "expo-file-system/legacy";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import * as Haptics from "expo-haptics";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   ActivityIndicator,
@@ -23,6 +24,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -34,6 +36,16 @@ const STORAGE_KEY   = "mi_corazon_folders_v2";
 const MEDIA_DIR     = (FileSystem.documentDirectory ?? "") + "mi_corazon_media/";
 // FOLD_COLS is now dynamic — see folderCols below
 const GAP           = 2;
+// Height of the text area below each folder cover thumbnail (name + count + padding)
+const CARD_META_H   = 50;
+
+// Compute the x/y position of a folder at index i in a numCols-wide grid
+function gridPos(i: number, numCols: number, cardW: number) {
+  const cardH = cardW * 0.75 + CARD_META_H;
+  const col   = i % numCols;
+  const row   = Math.floor(i / numCols);
+  return { x: GAP + col * (cardW + GAP), y: row * (cardH + GAP) };
+}
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
 // Store paths relative to documentDirectory so they survive reinstalls (iOS
@@ -93,7 +105,18 @@ function Viewer({
   const insets             = useSafeAreaInsets();
   const videoH             = height - insets.bottom - VIDEO_BOTTOM_LIFT;
   const [idx, setIdx]      = useState(startIndex);
-  const listRef            = useRef<FlatList>(null);
+  const listRef            = useRef<FlatList<MediaItem>>(null);
+
+  // ── Tap → show/hide close button ─────────────────────────────────────────────
+  const showControlsRef = useRef(false);
+  const ctrlOpacity     = useRef(new Animated.Value(0)).current;
+  const toggleControls  = useCallback(() => {
+    const next = !showControlsRef.current;
+    showControlsRef.current = next;
+    Animated.timing(ctrlOpacity, {
+      toValue: next ? 1 : 0, duration: 180, useNativeDriver: true,
+    }).start();
+  }, [ctrlOpacity]);
 
   // ── Dismiss gesture ──────────────────────────────────────────────────────────
   const dragY      = useRef(new Animated.Value(0)).current;
@@ -175,32 +198,46 @@ function Viewer({
           keyExtractor={(item) => item.uri}
           onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / width))}
           renderItem={({ item, index }) => (
-            <ScrollView
-              style={{ width, height }}
-              contentContainerStyle={{ width, height, alignItems: "center", justifyContent: "center" }}
-              minimumZoomScale={1}
-              maximumZoomScale={item.isVideo ? 3 : 6}
-              centerContent
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              bouncesZoom
-            >
-              {item.isVideo ? (
-                <Video
-                  source={{ uri: toAbs(item.uri) }}
-                  style={{ width, height: videoH }}
-                  useNativeControls
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay={index === idx}
-                  isLooping
-                  volume={1}
-                />
-              ) : (
-                <Image source={{ uri: toAbs(item.uri) }} style={{ width, height }} resizeMode="contain" />
-              )}
-            </ScrollView>
+            <TouchableWithoutFeedback onPress={toggleControls}>
+              <View style={{ width, height }}>
+                <ScrollView
+                  style={{ width, height }}
+                  contentContainerStyle={{ width, height, alignItems: "center", justifyContent: "center" }}
+                  minimumZoomScale={1}
+                  maximumZoomScale={item.isVideo ? 3 : 6}
+                  centerContent
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
+                  bouncesZoom
+                >
+                  {item.isVideo ? (
+                    <Video
+                      source={{ uri: toAbs(item.uri) }}
+                      style={{ width, height: videoH }}
+                      useNativeControls
+                      resizeMode={ResizeMode.CONTAIN}
+                      shouldPlay={index === idx}
+                      isLooping
+                      volume={1}
+                    />
+                  ) : (
+                    <Image source={{ uri: toAbs(item.uri) }} style={{ width, height }} resizeMode="contain" />
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
           )}
         />
+      </Animated.View>
+
+      {/* Close button — fades in on tap */}
+      <Animated.View
+        style={[s.viewerControls, { opacity: ctrlOpacity, paddingTop: insets.top + 8 }]}
+        pointerEvents="box-none"
+      >
+        <TouchableOpacity style={s.viewerCloseBtn} onPress={onClose} activeOpacity={0.8}>
+          <Feather name="x" size={22} color="#fff" />
+        </TouchableOpacity>
       </Animated.View>
     </Modal>
   );
@@ -262,12 +299,18 @@ function FolderCard({
   subCount,
   onPress,
   onLongPress,
+  onOptions,
+  isDragging   = false,
+  isAnyDragging = false,
 }: {
-  folder:      Folder;
-  cardSize:    number;
-  subCount:    number;
-  onPress:     () => void;
-  onLongPress: () => void;
+  folder:        Folder;
+  cardSize:      number;
+  subCount:      number;
+  onPress:       () => void;
+  onLongPress:   () => void;
+  onOptions?:    () => void;
+  isDragging?:   boolean;
+  isAnyDragging?: boolean;
 }) {
   const autoCover    = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
   const coverUri     = folder.coverUri ?? autoCover?.uri;
@@ -288,9 +331,15 @@ function FolderCard({
 
   return (
     <TouchableOpacity
-      style={[s.folderCard, { width: cardSize }]}
+      style={[
+        s.folderCard,
+        { width: cardSize },
+        isDragging    && { opacity: 0.92, transform: [{ scale: 1.06 }] },
+        isAnyDragging && !isDragging && { opacity: 0.6 },
+      ]}
       onPress={onPress}
       onLongPress={onLongPress}
+      delayLongPress={300}
       activeOpacity={0.85}
     >
       <View style={[s.folderCover, { height: cardSize * 0.75 }]}>
@@ -310,6 +359,12 @@ function FolderCard({
           <View style={s.customCoverBadge}>
             <Feather name="camera" size={10} color="#fff" />
           </View>
+        )}
+        {/* Options button — top-right corner */}
+        {onOptions && (
+          <TouchableOpacity style={s.folderOptionsBtn} onPress={onOptions} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <Feather name="more-horizontal" size={15} color="#fff" />
+          </TouchableOpacity>
         )}
       </View>
       <View style={s.folderMeta}>
@@ -384,6 +439,27 @@ export default function MiNenaScreen() {
   const [folderStack,   setFolderStack]   = useState<string[]>([]); // navigation stack of folder IDs
   const [viewerIndex,   setViewerIndex]   = useState<number | null>(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
+
+  // ── Folder drag-reorder state ─────────────────────────────────────────────
+  const posXAnims       = useRef<Record<string, Animated.Value>>({});
+  const posYAnims       = useRef<Record<string, Animated.Value>>({});
+  const addedX          = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const addedY          = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const dragPanX        = useRef(new Animated.Value(0)).current;
+  const dragPanY        = useRef(new Animated.Value(0)).current;
+  const isDraggingRef   = useRef(false);
+  const draggingIdxRef  = useRef(-1);
+  const hoverIdxRef     = useRef(-1);
+  const dragOccurredRef = useRef(false);
+  const scrollOffRef    = useRef(0);
+  const startScrollRef  = useRef(0);
+  const containerTopRef = useRef(0);
+  const gridContainerRef = useRef<View>(null);
+  const vFoldersRef     = useRef<Folder[]>([]);    // stale-closure-safe visible folders
+  const folderColsRef   = useRef(2);
+  const cardWRef        = useRef(0);
+  const [dragActiveIdx, setDragActiveIdx]       = useState(-1);
+  const [gridScrollEnabled, setGridScrollEnabled] = useState(true);
 
   // Derived from stack
   const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1] : null;
@@ -595,6 +671,128 @@ export default function MiNenaScreen() {
   const folderCardSize = (width - GAP * (folderCols + 1)) / folderCols;
   const thumbSize      = (width - GAP * (gridCols + 1)) / gridCols;
 
+  // ── Keep refs in sync for stale-closure-safe drag callbacks ──────────────
+  useEffect(() => { vFoldersRef.current  = visibleFolders;  }, [visibleFolders]);
+  useEffect(() => { folderColsRef.current = folderCols; cardWRef.current = folderCardSize; }, [folderCols, folderCardSize]);
+
+  // Initialize / sync position anims whenever order or grid dimensions change
+  useEffect(() => {
+    if (isDraggingRef.current) return;
+    visibleFolders.forEach((f, i) => {
+      const { x, y } = gridPos(i, folderCols, folderCardSize);
+      if (!posXAnims.current[f.id]) {
+        posXAnims.current[f.id] = new Animated.Value(x);
+        posYAnims.current[f.id] = new Animated.Value(y);
+        addedX.current[f.id]    = Animated.add(posXAnims.current[f.id], dragPanX);
+        addedY.current[f.id]    = Animated.add(posYAnims.current[f.id], dragPanY);
+      } else {
+        posXAnims.current[f.id].setValue(x);
+        posYAnims.current[f.id].setValue(y);
+      }
+    });
+  }, [visibleFolders, folderCols, folderCardSize]);
+
+  // ── Drag callbacks ────────────────────────────────────────────────────────
+  const animateFolderPositions = useCallback((dragIdx: number, hoverIdx: number) => {
+    const folds = vFoldersRef.current;
+    const nc    = folderColsRef.current;
+    const cw    = cardWRef.current;
+    folds.forEach((f, i) => {
+      if (i === dragIdx) return;
+      let target = i;
+      if (dragIdx < hoverIdx && i > dragIdx && i <= hoverIdx) target = i - 1;
+      else if (dragIdx > hoverIdx && i >= hoverIdx && i < dragIdx) target = i + 1;
+      const { x, y } = gridPos(target, nc, cw);
+      posXAnims.current[f.id]?.stopAnimation();
+      posYAnims.current[f.id]?.stopAnimation();
+      Animated.timing(posXAnims.current[f.id], { toValue: x, duration: 120, useNativeDriver: true, easing: (t) => t }).start();
+      Animated.timing(posYAnims.current[f.id], { toValue: y, duration: 120, useNativeDriver: true, easing: (t) => t }).start();
+    });
+  }, []);
+
+  const startFolderDrag = useCallback((idx: number) => {
+    isDraggingRef.current   = true;
+    draggingIdxRef.current  = idx;
+    hoverIdxRef.current     = idx;
+    dragOccurredRef.current = true;
+    dragPanX.setValue(0);
+    dragPanY.setValue(0);
+    setDragActiveIdx(idx);
+    setGridScrollEnabled(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    startScrollRef.current = scrollOffRef.current;
+    gridContainerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
+      containerTopRef.current = py;
+    });
+  }, [dragPanX, dragPanY]);
+
+  const endFolderDrag = useCallback(() => {
+    const di = draggingIdxRef.current;
+    const hi = hoverIdxRef.current;
+    isDraggingRef.current  = false;
+    draggingIdxRef.current = -1;
+    hoverIdxRef.current    = -1;
+    dragPanX.setValue(0);
+    dragPanY.setValue(0);
+    setGridScrollEnabled(true);
+    setDragActiveIdx(-1);
+
+    if (di >= 0 && hi >= 0 && di !== hi) {
+      setFolders((prev) => {
+        // Reorder among the visible (root-level) folders only
+        const visible = prev.filter((f) => (f.parentId ?? null) === null);
+        const others  = prev.filter((f) => (f.parentId ?? null) !== null);
+        const next    = [...visible];
+        const [moved] = next.splice(di, 1);
+        next.splice(hi, 0, moved);
+        // Snap anims to final grid positions
+        const nc = folderColsRef.current;
+        const cw = cardWRef.current;
+        next.forEach((f, i) => {
+          const { x, y } = gridPos(i, nc, cw);
+          posXAnims.current[f.id]?.setValue(x);
+          posYAnims.current[f.id]?.setValue(y);
+        });
+        const result = [...next, ...others];
+        saveFolders(result).catch(() => {});
+        return result;
+      });
+    } else {
+      // Snap everything back
+      vFoldersRef.current.forEach((f, i) => {
+        const { x, y } = gridPos(i, folderColsRef.current, cardWRef.current);
+        posXAnims.current[f.id]?.setValue(x);
+        posYAnims.current[f.id]?.setValue(y);
+      });
+    }
+    setTimeout(() => { dragOccurredRef.current = false; }, 80);
+  }, [dragPanX, dragPanY]);
+
+  const folderGridPan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: () => isDraggingRef.current,
+    onPanResponderMove: (_, gs) => {
+      if (!isDraggingRef.current) return;
+      dragPanX.setValue(gs.dx);
+      dragPanY.setValue(gs.dy);
+      const di  = draggingIdxRef.current;
+      const nc  = folderColsRef.current;
+      const cw  = cardWRef.current;
+      const ch  = cw * 0.75 + CARD_META_H;
+      const relY     = gs.moveY - containerTopRef.current + (scrollOffRef.current - startScrollRef.current);
+      const relX     = gs.moveX;
+      const hoverCol = Math.max(0, Math.min(nc - 1, Math.floor((relX - GAP) / (cw + GAP))));
+      const hoverRow = Math.max(0, Math.floor(relY / (ch + GAP)));
+      const newHover = Math.min(vFoldersRef.current.length - 1, hoverRow * nc + hoverCol);
+      if (newHover !== hoverIdxRef.current) {
+        hoverIdxRef.current = newHover;
+        animateFolderPositions(di, newHover);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    onPanResponderEnd:       () => endFolderDrag(),
+    onPanResponderTerminate: () => endFolderDrag(),
+  }), [animateFolderPositions, endFolderDrag, dragPanX, dragPanY]);
+
   // ── Root folder grid ───────────────────────────────────────────────────────
   if (!currentFolder) {
     return (
@@ -606,30 +804,27 @@ export default function MiNenaScreen() {
             <ActivityIndicator size="large" color="#E03131" />
           </View>
         ) : (
-          <FlatList
-            key={`folder-grid-${folderCols}`}
-            data={visibleFolders}
-            numColumns={folderCols}
-            keyExtractor={(f) => f.id}
+          <ScrollView
+            scrollEnabled={gridScrollEnabled}
+            onScroll={(e) => { scrollOffRef.current = e.nativeEvent.contentOffset.y; }}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingTop: 8,
-              paddingBottom: insets.bottom + 16,
-              paddingHorizontal: GAP,
-              gap: GAP,
+              paddingBottom: insets.bottom + 24,
             }}
-            columnWrapperStyle={{ gap: GAP }}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={
-              <View style={s.listHeader}>
-                <Text style={s.pageSubtitle}>
-                  {visibleFolders.length} folder{visibleFolders.length !== 1 ? "s" : ""}
-                </Text>
-                <TouchableOpacity style={s.addFolderBtn} onPress={() => setShowNewFolder(true)} activeOpacity={0.8}>
-                  <Feather name="folder-plus" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            }
-            ListEmptyComponent={
+          >
+            {/* List header */}
+            <View style={s.listHeader}>
+              <Text style={s.pageSubtitle}>
+                {visibleFolders.length} folder{visibleFolders.length !== 1 ? "s" : ""}
+              </Text>
+              <TouchableOpacity style={s.addFolderBtn} onPress={() => setShowNewFolder(true)} activeOpacity={0.8}>
+                <Feather name="folder-plus" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {visibleFolders.length === 0 ? (
               <View style={s.emptyWrap}>
                 <View style={s.emptyIcon}>
                   <Feather name="folder" size={36} color="#E03131" />
@@ -637,17 +832,55 @@ export default function MiNenaScreen() {
                 <Text style={s.emptyTitle}>No Folders Yet</Text>
                 <Text style={s.emptySubtitle}>Tap the folder icon above to create your first album.</Text>
               </View>
-            }
-            renderItem={({ item }) => (
-              <FolderCard
-                folder={item}
-                cardSize={folderCardSize}
-                subCount={subCountMap[item.id] ?? 0}
-                onPress={() => navigateInto(item.id)}
-                onLongPress={() => handleFolderLongPress(item.id)}
-              />
+            ) : (
+              /* Absolute-position grid — enables live drag animation */
+              <View
+                ref={gridContainerRef}
+                {...folderGridPan.panHandlers}
+                style={{
+                  height: Math.ceil(visibleFolders.length / folderCols) * (folderCardSize * 0.75 + CARD_META_H + GAP),
+                }}
+              >
+                {/* Overlay to cancel drag on tap-outside */}
+                {dragActiveIdx !== -1 && (
+                  <Pressable
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => endFolderDrag()}
+                  />
+                )}
+                {visibleFolders.map((folder, idx) => {
+                  const isDragging = dragActiveIdx === idx;
+                  const txAnim = isDragging
+                    ? (addedX.current[folder.id] ?? posXAnims.current[folder.id])
+                    : posXAnims.current[folder.id];
+                  const tyAnim = isDragging
+                    ? (addedY.current[folder.id] ?? posYAnims.current[folder.id])
+                    : posYAnims.current[folder.id];
+                  if (!txAnim || !tyAnim) return null;
+                  return (
+                    <Animated.View
+                      key={folder.id}
+                      style={[
+                        { position: "absolute", width: folderCardSize, zIndex: isDragging ? 100 : 1 },
+                        { transform: [{ translateX: txAnim }, { translateY: tyAnim }] },
+                      ]}
+                    >
+                      <FolderCard
+                        folder={folder}
+                        cardSize={folderCardSize}
+                        subCount={subCountMap[folder.id] ?? 0}
+                        onPress={() => { if (!dragOccurredRef.current) navigateInto(folder.id); }}
+                        onLongPress={() => startFolderDrag(idx)}
+                        onOptions={() => handleFolderLongPress(folder.id)}
+                        isDragging={isDragging}
+                        isAnyDragging={dragActiveIdx !== -1}
+                      />
+                    </Animated.View>
+                  );
+                })}
+              </View>
             )}
-          />
+          </ScrollView>
         )}
 
         <NewFolderModal
@@ -898,9 +1131,40 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  folderOptionsBtn: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   folderMeta:  { paddingTop: 7, paddingHorizontal: 2, paddingBottom: 4 },
   folderName:  { fontSize: 13, fontWeight: "700", color: "#fff", fontFamily: "Inter_600SemiBold" },
   folderCount: { fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular", marginTop: 1 },
+
+  // Viewer close button overlay
+  viewerControls: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    pointerEvents: "box-none",
+  },
+  viewerCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   // File grid header
   folderGridHeader: { paddingHorizontal: 4, paddingBottom: 8, gap: 2 },
