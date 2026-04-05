@@ -11,7 +11,6 @@ import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as MediaLibrary from "expo-media-library";
-import * as FileSystem from "expo-file-system/legacy";
 import { Feather } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { PageLoader } from "@/components/PageLoader";
@@ -123,7 +122,6 @@ function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
 <title>Psychology Daily</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 :root {
   --bg:      #080808;
@@ -305,14 +303,6 @@ body {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-const CAPTURE_JS = `(function(){
-  if(window.__cap)return;
-  window.__cap=true;
-  html2canvas(document.documentElement,{backgroundColor:'#080808',scale:2,useCORS:true,allowTaint:true,logging:false})
-    .then(function(c){window.__cap=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'capture',data:c.toDataURL('image/jpeg',0.93)}));})
-    .catch(function(e){window.__cap=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'captureError',error:e.message}));});
-})();true;`;
-
 export default function PsychologyDailyScreen() {
   const insets        = useSafeAreaInsets();
   const { width }     = useWindowDimensions();
@@ -354,30 +344,21 @@ export default function PsychologyDailyScreen() {
   }, [apiKey]);
 
   const handleSaveImage = async () => {
-    if (saving) return;
+    if (saving || !webViewRef.current) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission needed", "Allow photo library access to save images.");
       return;
     }
     setSaving(true);
-    webViewRef.current?.injectJavaScript(CAPTURE_JS);
-  };
-
-  const handleMessage = async (event: any) => {
     try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type !== "capture") { setSaving(false); return; }
-      const base64 = (msg.data as string).replace(/^data:image\/\w+;base64,/, "");
-      const uri = FileSystem.cacheDirectory + `psych_${Date.now()}.jpg`;
-      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
+      const uri = await (webViewRef.current as any).takeSnapshot({ format: "jpeg", quality: 0.95, result: "file" });
       await MediaLibrary.saveToLibraryAsync(uri);
-      await FileSystem.deleteAsync(uri, { idempotent: true });
-      setSaving(false);
       Alert.alert("Saved!", "Image saved to your camera roll.");
     } catch {
-      setSaving(false);
       Alert.alert("Error", "Couldn't save image. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -421,7 +402,6 @@ export default function PsychologyDailyScreen() {
             scrollEnabled
             showsVerticalScrollIndicator={false}
             javaScriptEnabled
-            onMessage={handleMessage}
           />
           <View style={[styles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
             <TouchableOpacity style={[styles.shareBtn, saving && { opacity: 0.5 }]} activeOpacity={0.8} onPress={handleSaveImage} disabled={saving}>
