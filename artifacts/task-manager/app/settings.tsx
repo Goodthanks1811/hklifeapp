@@ -154,7 +154,7 @@ const acc = StyleSheet.create({
     shadowRadius: 6,
   },
   title: {
-    color: "rgba(255,255,255,0.48)",
+    color: "#ffffff",
     fontSize: 11,
     fontFamily: "Inter_700Bold",
     letterSpacing: 1.2,
