@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 import React, {
   createContext, useCallback, useContext, useEffect, useState,
 } from "react";
@@ -58,10 +59,11 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading,    setIsLoading]    = useState(true);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: IOS_CLIENT_ID,
-    scopes: SCOPES,
-  });
+  const [request, response, promptAsync] = Google.useAuthRequest(
+    Platform.OS === "web"
+      ? { webClientId: "web-not-supported", scopes: SCOPES }
+      : { iosClientId: IOS_CLIENT_ID, scopes: SCOPES },
+  );
 
   // ── Load persisted token on mount ─────────────────────────────────────────
   useEffect(() => {
