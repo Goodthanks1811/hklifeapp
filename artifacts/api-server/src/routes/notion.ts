@@ -431,6 +431,57 @@ router.post("/pages", async (req, res) => {
   }
 });
 
+// ── Generic Log Entry ─────────────────────────────────────────────────────────
+// POST /api/notion/log
+// Body: { dbId, titleProp, titleValue, date?, notesProp?, notesValue? }
+router.post("/log", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { dbId, titleProp, titleValue, date, notesProp, notesValue } = req.body;
+  if (!apiKey)      { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  if (!dbId || !titleProp || !titleValue) {
+    res.status(400).json({ message: "Missing dbId, titleProp or titleValue" }); return;
+  }
+
+  try {
+    const today = date || new Date().toISOString().slice(0, 10);
+    const body: any = {
+      parent: { database_id: dbId },
+      properties: {
+        [titleProp]: { title: [{ type: "text", text: { content: String(titleValue) } }] },
+        Date: { date: { start: today } },
+      },
+    };
+
+    if (notesProp && notesValue && String(notesValue).trim()) {
+      body.properties[notesProp] = {
+        rich_text: [{ type: "text", text: { content: String(notesValue) } }],
+      };
+      body.children = [{
+        object: "block", type: "paragraph",
+        paragraph: { rich_text: [{ type: "text", text: { content: String(notesValue) } }] },
+      }];
+    }
+
+    const response = await fetch("https://api.notion.com/v1/pages", {
+      method: "POST",
+      headers: notionHeaders(apiKey),
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      console.error("[POST /log] Notion error:", JSON.stringify(err));
+      res.status(response.status).json({ message: err.message || "Notion error" });
+      return;
+    }
+    const page = await response.json();
+    res.json({ success: true, id: page.id });
+  } catch (e: any) {
+    console.error("[POST /log] error:", e.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 // ── Life Tasks ────────────────────────────────────────────────────────────────
 const LIFE_DB_ID = "2c8b7eba3523802abbe2e934df42a4e2";
 
