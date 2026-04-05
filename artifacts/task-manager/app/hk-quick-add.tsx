@@ -459,11 +459,11 @@ const st = StyleSheet.create({
   warnText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 
   fieldLabel: {
-    color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold",
+    color: "#ffffff", fontSize: 10, fontFamily: "Inter_700Bold",
     letterSpacing: 1, marginBottom: 8, textTransform: "uppercase",
   },
   sectionLabel: {
-    color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold",
+    color: "#ffffff", fontSize: 10, fontFamily: "Inter_700Bold",
     letterSpacing: 1, marginBottom: 8, textTransform: "uppercase",
   },
 

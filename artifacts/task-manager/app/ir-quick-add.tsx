@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 24, elevation: 8,
   },
   fieldLabel: {
-    color: IR.text, fontSize: 10, fontFamily: "Inter_700Bold",
+    color: "#ffffff", fontSize: 10, fontFamily: "Inter_700Bold",
     letterSpacing: 0.85, textTransform: "uppercase",
     marginBottom: 8, marginTop: 6,
   },
