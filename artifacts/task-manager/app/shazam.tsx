@@ -151,8 +151,15 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
 
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
-            onPress={() => handleRowTap(onPress)}
-            onPressIn={onPressIn}
+            onPressIn={() => {
+              Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
+              // Fire Spotify the instant the finger lands — no gesture-confirmation delay
+              if (!revealedRef.current) onPress();
+            }}
+            onPress={() => {
+              // Only used when the swipeable is open — closes it on confirmed tap
+              if (revealedRef.current) swipeableRef.current?.close();
+            }}
             onPressOut={onPressOut}
             hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
           >
