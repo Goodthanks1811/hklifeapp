@@ -348,12 +348,10 @@ function BannerEditorModal({
 
   const pan = Gesture.Pan()
     .onStart(() => {
-      'worklet';
       savedTx.value = tx.value;
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      'worklet';
       const mX = editorW * (sc.value - 1) / 2;
       const mY = editorH * (sc.value - 1) / 2;
       tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
@@ -361,12 +359,8 @@ function BannerEditorModal({
     });
 
   const pinch = Gesture.Pinch()
-    .onStart(() => {
-      'worklet';
-      savedSc.value = sc.value;
-    })
+    .onStart(() => { savedSc.value = sc.value; })
     .onUpdate((e) => {
-      'worklet';
       const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
       const mX = editorW * (newSc - 1) / 2;
