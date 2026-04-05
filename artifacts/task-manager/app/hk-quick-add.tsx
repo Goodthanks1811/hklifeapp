@@ -44,8 +44,8 @@ const HK_CATEGORY = " ".repeat(22) + "\u26A1\uFE0F   Automation";
 
 const EPICS: { label: string; bg: string; bgA: string; tx: string }[] = [
   { label: "Enhancement", bg: "rgba(64,192,87,0.14)",   bgA: "rgba(64,192,87,0.34)",   tx: "#40C057" },
-  { label: "Bug",         bg: "rgba(224,49,49,0.14)",   bgA: "rgba(224,49,49,0.34)",   tx: "#E03131" },
-  { label: "Research",    bg: "rgba(51,154,240,0.14)",  bgA: "rgba(51,154,240,0.34)",  tx: "#339AF0" },
+  { label: "HK Life",     bg: "rgba(224,49,49,0.14)",   bgA: "rgba(224,49,49,0.34)",   tx: "#E03131" },
+  { label: "IR App",      bg: "rgba(51,154,240,0.14)",  bgA: "rgba(51,154,240,0.34)",  tx: "#339AF0" },
   { label: "General",     bg: "rgba(134,142,150,0.14)", bgA: "rgba(134,142,150,0.34)", tx: "#868E96" },
   { label: "New App",     bg: "rgba(250,176,5,0.14)",   bgA: "rgba(250,176,5,0.34)",   tx: "#FAB005" },
 ];
