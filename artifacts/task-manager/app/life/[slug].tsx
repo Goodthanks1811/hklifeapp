@@ -1690,6 +1690,19 @@ export default function LifeTaskScreen() {
   const [emojiAnchor,  setEmojiAnchor]  = useState<EmojiAnchor | null>(null);
   const [epicAnchor,   setEpicAnchor]   = useState<EpicAnchor  | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  const [activeEpic, setActiveEpic] = useState<string | null>(null);
+  useEffect(() => { setActiveEpic(null); }, [slug]);
+
+  const epicPillOptions = useMemo(
+    () => config?.showEpic ? filterEpics(schema?.epicOptions) : [],
+    [config?.showEpic, schema?.epicOptions],
+  );
+
+  const displayedTasks = useMemo(
+    () => activeEpic ? tasks.filter(t => t.epic === activeEpic) : tasks,
+    [tasks, activeEpic],
+  );
   const hasAutoOpened = useRef(false);
   useEffect(() => {
     if (add === "true" && !hasAutoOpened.current) {
@@ -1959,6 +1972,46 @@ export default function LifeTaskScreen() {
         <Text style={sc.gradTitle}>{config.title}</Text>
       </View>
 
+      {/* ── Epic filter pills (Development only) ────────────────────────────── */}
+      {config.showEpic && epicPillOptions.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}
+        >
+          {epicPillOptions.map(ep => {
+            const ec       = epicColor(ep);
+            const isActive = activeEpic === ep;
+            const anyActive = activeEpic !== null;
+            const dimmed   = anyActive && !isActive;
+            return (
+              <Pressable
+                key={ep}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setActiveEpic(prev => prev === ep ? null : ep);
+                }}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  backgroundColor: ec.bg,
+                  borderColor: isActive ? ec.border : dimmed ? "rgba(255,255,255,0.08)" : ec.border,
+                  opacity: dimmed ? 0.35 : 1,
+                }}
+              >
+                <Text style={{
+                  fontSize: 13,
+                  fontFamily: isActive ? "Inter_700Bold" : "Inter_500Medium",
+                  color: dimmed ? "rgba(255,255,255,0.45)" : ec.text,
+                }}>{ep}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       {loading ? (
         <ListLoader />
@@ -1993,23 +2046,23 @@ export default function LifeTaskScreen() {
         >
           <View
               ref={containerRef}
-              {...panResponder.panHandlers}
-              style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
+              {...(activeEpic ? {} : panResponder.panHandlers)}
+              style={{ height: Math.max(displayedTasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
             >
               {/* Tap-anywhere-to-cancel overlay — sits above non-dragging rows (z:1) but below the dragging row (z:100) */}
-              {dragActiveIdx !== -1 && (
+              {!activeEpic && dragActiveIdx !== -1 && (
                 <Pressable
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
                   onPress={() => endDrag()}
                 />
               )}
-              {tasks.map((task, idx) => {
-                const isDragging = dragActiveIdx === idx;
+              {displayedTasks.map((task, idx) => {
+                const globalIdx  = activeEpic ? -1 : tasks.indexOf(task);
+                const isDragging = !activeEpic && dragActiveIdx === globalIdx;
                 const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
-                // Only the actively-dragged row uses posAnim+panY; all others just use posAnim
-                const translateY = isDragging
-                  ? (addedAnims.current[task.id] ?? posAnim)
-                  : posAnim;
+                const translateY = activeEpic
+                  ? idx * SLOT_H
+                  : (isDragging ? (addedAnims.current[task.id] ?? posAnim) : posAnim);
                 return (
                   <Animated.View
                     key={task.id}
@@ -2025,7 +2078,7 @@ export default function LifeTaskScreen() {
                       onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
                       onEpicPress={config?.showEpic ? (px, py, w, h) => setEpicAnchor({ taskId: task.id, x: px, y: py, w, h }) : undefined}
                       onPress={() => openDetail(task)}
-                      onLongPress={() => startDrag(idx)}
+                      onLongPress={activeEpic ? () => {} : () => startDrag(globalIdx === -1 ? idx : globalIdx)}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onStartDelete={(d) => handleStartDelete(task.id, d)}
