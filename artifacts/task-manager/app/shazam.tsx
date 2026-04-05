@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, height: ITEM_H,
   },
   emojiBtn:    { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
-  spotifyIcon: { width: 32, height: 32, borderRadius: 16 },
+  spotifyIcon: { width: 36, height: 36, borderRadius: 18 },
   rowTitle:    { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
   checkBtn:    { padding: 10, margin: -6 },
   checkBox: {
