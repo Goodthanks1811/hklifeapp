@@ -11,6 +11,7 @@ import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system/legacy";
 import { Feather } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { PageLoader } from "@/components/PageLoader";
@@ -126,6 +127,7 @@ function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
 <title>Philosophy Daily</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 :root {
   --bg:      #080808;
@@ -320,6 +322,17 @@ body {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
+const CAPTURE_JS = `(function(){
+  if(window.__cap)return;window.__cap=true;
+  var s=document.createElement('style');s.id='__nocap';
+  s.textContent='*,*::before,*::after{animation:none!important;transition:none!important;font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif!important;}';
+  document.head.appendChild(s);
+  var el=document.querySelector('.wrap')||document.body;
+  html2canvas(el,{backgroundColor:'#080808',scale:2,useCORS:false,allowTaint:false,logging:false})
+    .then(function(c){var st=document.getElementById('__nocap');if(st&&st.parentNode)st.parentNode.removeChild(st);window.__cap=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'capture',data:c.toDataURL('image/jpeg',0.93)}));})
+    .catch(function(e){var st=document.getElementById('__nocap');if(st&&st.parentNode)st.parentNode.removeChild(st);window.__cap=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'captureError',error:e.message}));});
+})();true;`;
+
 export default function PhilosophyDailyScreen() {
   const insets     = useSafeAreaInsets();
   const { width }  = useWindowDimensions();
@@ -361,21 +374,30 @@ export default function PhilosophyDailyScreen() {
   }, [apiKey]);
 
   const handleSaveImage = async () => {
-    if (saving || !webViewRef.current) return;
+    if (saving) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission needed", "Allow photo library access to save images.");
       return;
     }
     setSaving(true);
+    webViewRef.current?.injectJavaScript(CAPTURE_JS);
+  };
+
+  const handleMessage = async (event: any) => {
     try {
-      const uri = await (webViewRef.current as any).takeSnapshot({ format: "jpeg", quality: 0.95, result: "file" });
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type !== "capture") { setSaving(false); return; }
+      const base64 = (msg.data as string).replace(/^data:image\/\w+;base64,/, "");
+      const uri = FileSystem.cacheDirectory + `phil_${Date.now()}.jpg`;
+      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
       await MediaLibrary.saveToLibraryAsync(uri);
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      setSaving(false);
       Alert.alert("Saved!", "Image saved to your camera roll.");
     } catch {
-      Alert.alert("Error", "Couldn't save image. Please try again.");
-    } finally {
       setSaving(false);
+      Alert.alert("Error", "Couldn't save image. Please try again.");
     }
   };
 
@@ -415,6 +437,7 @@ export default function PhilosophyDailyScreen() {
             scrollEnabled
             showsVerticalScrollIndicator={false}
             javaScriptEnabled
+            onMessage={handleMessage}
           />
           <View style={[styles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
             <TouchableOpacity style={[styles.shareBtn, saving && { opacity: 0.5 }]} activeOpacity={0.8} onPress={handleSaveImage} disabled={saving}>
