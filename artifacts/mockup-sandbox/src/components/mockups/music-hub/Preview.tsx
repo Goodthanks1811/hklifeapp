@@ -21,7 +21,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 
 /* logo — takes over top padding since no header */
 .music-logo{position:relative;z-index:10;text-align:center;padding:60px 0 6px;}
-.music-logo-text{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:6px;background:linear-gradient(160deg,#fff 30%,var(--red) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;}
+.music-logo-text{font-family:'DM Sans',sans-serif;font-size:44px;font-weight:600;letter-spacing:2px;color:#fff;line-height:1;}
 .music-logo-sub{font-size:11px;letter-spacing:4px;color:var(--grey);text-transform:uppercase;margin-top:4px;}
 
 /* eq bars */
@@ -97,7 +97,7 @@ svg{display:block;}
   <div class="ambient"></div>
 
   <div class="music-logo">
-    <div class="music-logo-text">HK MUSIC</div>
+    <div class="music-logo-text">HK Music</div>
 
     <div class="eq-bars">
       <div class="eq-bar"></div>
@@ -115,10 +115,8 @@ svg{display:block;}
     <!-- My Music -->
     <div class="provider-card card-local">
       <div class="card-logo">
-        <svg class="local-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 18V5l12-2v13"/>
-          <circle cx="6" cy="18" r="3"/>
-          <circle cx="18" cy="16" r="3"/>
+        <svg class="local-icon" width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 3.01L9 5v9.73C8.39 14.27 7.72 14 7 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V9.06l10-1.67v5.34c-.61-.46-1.36-.73-2.18-.73-1.78 0-3.22 1.34-3.22 3s1.44 3 3.22 3 3.18-1.34 3.18-3V3.01z"/>
         </svg>
       </div>
       <div class="card-info">
