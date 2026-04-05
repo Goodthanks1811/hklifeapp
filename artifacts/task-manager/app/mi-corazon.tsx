@@ -1086,7 +1086,7 @@ export default function MiNenaScreen() {
                     onPress={() => { setReorderMode(false); setGridScrollEnabled(true); }}
                     activeOpacity={0.8}
                   >
-                    <Text style={s.reorderDoneTxt}>Done</Text>
+                    <Feather name="check" size={18} color="#E03131" />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -1227,7 +1227,7 @@ export default function MiNenaScreen() {
                 onPress={() => { setFileReorderMode(false); setFileGridScrollEnabled(true); }}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: "#E03131", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Done</Text>
+                <Feather name="check" size={18} color="#E03131" />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={s.iconBtn} onPress={() => setFileReorderMode(true)} activeOpacity={0.8}>
@@ -1410,7 +1410,7 @@ const s = StyleSheet.create({
   addFolderBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 10,
     backgroundColor: "#E03131",
     alignItems: "center",
     justifyContent: "center",
@@ -1449,7 +1449,7 @@ const s = StyleSheet.create({
   iconBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 9,
     backgroundColor: "#1e1e1e",
     alignItems: "center",
     justifyContent: "center",
@@ -1523,27 +1523,22 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   reorderIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: "#1a1a1a",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 2,
   },
   reorderDoneBtn: {
-    height: 34,
-    paddingHorizontal: 14,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: "#1a1a1a",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 2,
-  },
-  reorderDoneTxt: {
-    fontSize: 14,
-    color: "#E03131",
-    fontFamily: "Inter_600SemiBold",
   },
   folderMeta:  { paddingTop: 7, paddingHorizontal: 2, paddingBottom: 4 },
   folderName:  { fontSize: 13, fontWeight: "700", color: "#fff", fontFamily: "Inter_600SemiBold" },
