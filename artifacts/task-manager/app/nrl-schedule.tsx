@@ -947,6 +947,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingHorizontal: 20,
     paddingTop: 12,
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
   },
   pickerHandle: {
     width: 38,
