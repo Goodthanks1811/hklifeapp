@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable, TouchableOpacity as GHTouchable } from "react-native-gesture-handler";
+import { Swipeable } from "react-native-gesture-handler";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
@@ -149,23 +149,20 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             />
           </View>
 
-          {/* Text in a plain View for layout; GHTouchable sits absolutely on top as invisible hit area */}
-          <View style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}>
+          <Pressable
+            style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
+            onPressIn={() => {
+              Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
+              if (!revealedRef.current) onPress();
+            }}
+            onPress={() => {
+              if (revealedRef.current) swipeableRef.current?.close();
+            }}
+            onPressOut={onPressOut}
+            hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+          >
             <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
-            <GHTouchable
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPressIn={() => {
-                Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
-                if (!revealedRef.current) onPress();
-              }}
-              onPress={() => {
-                if (revealedRef.current) swipeableRef.current?.close();
-              }}
-              onPressOut={onPressOut}
-              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
-            />
-          </View>
+          </Pressable>
 
           <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={styles.checkBtn}>
             <Animated.View style={[styles.checkBox, checked && styles.checkBoxDone]}>
