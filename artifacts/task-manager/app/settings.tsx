@@ -490,9 +490,11 @@ function BannerEditorModal({
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      // Correct physics: how many pixels of image extend past each edge of the container
-      const mX = Math.max(0, (coverImgWSv.value * sc.value - editorW) / 2);
-      const mY = Math.max(0, (coverImgHSv.value * sc.value - editorH) / 2);
+      // Math.abs works for both directions:
+      //   scale > 1: image overflows container → clamp so no background shows
+      //   scale < 1: image smaller than container → allow sliding within container
+      const mX = Math.abs(coverImgWSv.value * sc.value - editorW) / 2;
+      const mY = Math.abs(coverImgHSv.value * sc.value - editorH) / 2;
       tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
       ty.value = Math.max(-mY, Math.min(mY, savedTy.value + e.translationY));
     });
@@ -500,12 +502,13 @@ function BannerEditorModal({
   const pinch = Gesture.Pinch()
     .onStart(() => { savedSc.value = sc.value; })
     .onUpdate((e) => {
-      // Min scale = contain (full image visible); user can zoom out to see the full
-      // image and zoom in to crop. The drawer always clamps to cover-fill on save.
+      // Min = contain scale (full image visible); max = 4x zoom in.
+      // Drawer always clamps to cover-fill via Math.max(1.0, bannerScale).
       const newSc = Math.max(minScSv.value, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
-      const mX = Math.max(0, (coverImgWSv.value * newSc - editorW) / 2);
-      const mY = Math.max(0, (coverImgHSv.value * newSc - editorH) / 2);
+      // Same Math.abs logic as pan: works whether image overflows or is smaller
+      const mX = Math.abs(coverImgWSv.value * newSc - editorW) / 2;
+      const mY = Math.abs(coverImgHSv.value * newSc - editorH) / 2;
       tx.value = Math.max(-mX, Math.min(mX, tx.value));
       ty.value = Math.max(-mY, Math.min(mY, ty.value));
     });
