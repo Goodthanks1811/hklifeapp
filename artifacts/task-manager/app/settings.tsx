@@ -194,7 +194,7 @@ function SubAccordion({
       >
         <View style={sacc.headerLeft}>
           <View style={sacc.iconBox}>
-            <Feather name={icon as any} size={16} color={Colors.textMuted} />
+            <Feather name={icon as any} size={16} color={Colors.primary} />
           </View>
           <Text style={sacc.title}>{title}</Text>
         </View>
@@ -223,7 +223,7 @@ const sacc = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   iconBox: {
     width: 36, height: 36,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(224,49,49,0.1)",
     borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
