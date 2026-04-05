@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useDrawer } from "@/context/DrawerContext";
 import React, {
   useCallback, useEffect, useRef, useState,
 } from "react";
@@ -22,6 +21,7 @@ import {
 } from "react-native";
 import Svg, { Defs, Line, Pattern, Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
 const T = {
@@ -193,7 +193,6 @@ const ps = StyleSheet.create({
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function TimeBurnScreen() {
-  const { openDrawer } = useDrawer();
   const insets             = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const isTablet           = screenW >= 768;
@@ -442,21 +441,7 @@ export default function TimeBurnScreen() {
 
       {/* ── App content ─────────────────────────────────────────────────── */}
       <View style={[s.app, { paddingTop: topPad }]}>
-        {/* Header */}
-        <View style={s.hdr}>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
-            style={s.hamburger}
-            hitSlop={12}
-          >
-            <Feather name="menu" size={18} color={T.sub} />
-          </Pressable>
-          <Text style={s.hdrTitle}>◆  Burn Rate</Text>
-          <View style={s.hdrRight}>
-            <BlinkDot active={status === "LIVE"} />
-            <Text style={[s.statusLbl, { color: statusColor }]}>{status}</Text>
-          </View>
-        </View>
+        <ScreenHeader title="Time Burn" />
 
         {/* Content */}
         <ScrollView

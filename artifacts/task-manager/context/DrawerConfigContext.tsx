@@ -61,7 +61,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   tools: [
     { label: "HK Quick Add", icon: "zap",        route: "/hk-quick-add", description: "Add HK Life tasks fast"  },
     { label: "IR Quick Add", icon: "send",        route: "/ir-quick-add", description: "Add IR App tasks fast"   },
-    { label: "Photo Slider", icon: "image",       route: "/photo-slider", description: "Compare & export photos" },
+    { label: "Photo Editor", icon: "image",       route: "/photo-slider", description: "Compare & export photos" },
   ],
   knowledge: [
     { label: "API's",              icon: "code",     route: "/api-quiz",           description: "Learn & quiz API fundamentals" },

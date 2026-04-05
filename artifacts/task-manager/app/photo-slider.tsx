@@ -831,7 +831,7 @@ export default function PhotoSlider() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      <ScreenHeader title="Photo Slider" />
+      <ScreenHeader title="Photo Editor" />
       <WebView
         ref={webRef}
         source={{ html: buildHtml() }}

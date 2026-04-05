@@ -465,30 +465,32 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
   },
 
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
 
   chip: {
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    height: 40, paddingHorizontal: 14, borderRadius: 10,
     borderWidth: 1, borderColor: Colors.border, backgroundColor: "transparent",
+    alignItems: "center", justifyContent: "center",
   },
-  chipActive:     { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.35)" },
-  chipText:       { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted, letterSpacing: 0.2 },
+  chipActive:     { backgroundColor: "rgba(255,255,255,0.10)", borderColor: "rgba(255,255,255,0.35)" },
+  chipText:       { fontSize: 11, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 0.2 },
   chipTextActive: { color: Colors.textPrimary },
 
   epicChip: {
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    height: 40, paddingHorizontal: 14, borderRadius: 10,
     borderWidth: 1, borderColor: Colors.border,
+    alignItems: "center", justifyContent: "center",
   },
-  epicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  epicText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
 
   emojiChip: {
-    width: 44, height: 44, borderRadius: 10,
-    backgroundColor: Colors.cardBgElevated,
+    width: 48, height: 48, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: Colors.border,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  emojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
-  emojiText: { fontSize: 22 },
+  emojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.22)" },
+  emojiText: { fontSize: 24 },
 
   divider: { height: 1, backgroundColor: Colors.border },
 
