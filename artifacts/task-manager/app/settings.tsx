@@ -407,16 +407,17 @@ function BannerEditorModal({
   const sc           = useSharedValue(initialScale);
   const savedSc      = useSharedValue(initialScale);
   // Cover-scaled image size in editor pixels (= imgDim * coverZoomEditor).
-  // Used to compute the correct pan limit:
-  //   maxPan = max(0, (coverImgSize * scale - containerSize) / 2)
-  // At scale=1 this equals the pixels of image that overflow the container edge.
-  // min scale is always 1.0 — below that the image doesn't fill the container
-  // and would show blank areas in the drawer.
+  // Pan limit: maxPan = max(0, (coverImgSize * scale - containerSize) / 2)
   const coverImgWSv  = useSharedValue(editorW);
   const coverImgHSv  = useSharedValue(editorH);
   // Ratio to convert editor-space offsets to drawer-space offsets.
   // = coverZoomDrawer / coverZoomEditor  (a single scalar for both axes)
   const coverRatioSv = useSharedValue(DRAWER_WIDTH / editorW);
+  // Minimum editor scale = contain scale in cover-space (containZoom / coverZoom).
+  // At this scale the full image is visible (may show black bars around it).
+  // The drawer always renders with Math.max(1.0, bannerScale) so blank areas
+  // only appear in the editor preview — never in the live drawer.
+  const minScSv = useSharedValue(1.0);
 
   // On every open / URI change: resolve image dimensions, then set transforms
   const prevVisible = useRef(false);
@@ -432,31 +433,37 @@ function BannerEditorModal({
     Image.getSize(
       uri,
       (imgW, imgH) => {
-        const coverZoomE = Math.max(editorW / imgW, editorH / imgH);
-        const coverZoomD = Math.max(DRAWER_WIDTH / imgW, PREVIEW_H / imgH);
+        const coverZoomE   = Math.max(editorW / imgW, editorH / imgH);
+        const containZoomE = Math.min(editorW / imgW, editorH / imgH);
+        const coverZoomD   = Math.max(DRAWER_WIDTH / imgW, PREVIEW_H / imgH);
+        // Contain scale in cover-space: at this editor scale the full image is visible
+        const minSc = containZoomE / coverZoomE;
 
         coverImgWSv.value  = imgW * coverZoomE;
         coverImgHSv.value  = imgH * coverZoomE;
         coverRatioSv.value = coverZoomD / coverZoomE;
+        minScSv.value      = minSc;
 
         if (newUri && initialScale <= 1.0) {
-          // Brand-new pick: cover fill (scale=1), centred — no blank areas in drawer
-          sc.value      = 1.0;
-          savedSc.value = 1.0;
+          // Brand-new pick: start at contain (full image visible) so user can see
+          // what they are cropping. They can zoom in from here.
+          sc.value      = minSc;
+          savedSc.value = minSc;
           tx.value      = 0;
           ty.value      = 0;
           savedTx.value = 0;
           savedTy.value = 0;
         } else {
           // Reopen to reposition: convert stored drawer-space offsets to editor-space
+          // Also update minSc so zoom-out works correctly on reopen.
           const initX = initialOffX / coverRatioSv.value;
           const initY = initialOffY / coverRatioSv.value;
           tx.value      = initX;
           ty.value      = initY;
-          sc.value      = initialScale;
+          sc.value      = Math.max(minSc, initialScale);
           savedTx.value = initX;
           savedTy.value = initY;
-          savedSc.value = initialScale;
+          savedSc.value = Math.max(minSc, initialScale);
         }
       },
       () => {
@@ -493,8 +500,9 @@ function BannerEditorModal({
   const pinch = Gesture.Pinch()
     .onStart(() => { savedSc.value = sc.value; })
     .onUpdate((e) => {
-      // min=1.0: image always fills the container so no blank areas appear in the drawer
-      const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
+      // Min scale = contain (full image visible); user can zoom out to see the full
+      // image and zoom in to crop. The drawer always clamps to cover-fill on save.
+      const newSc = Math.max(minScSv.value, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
       const mX = Math.max(0, (coverImgWSv.value * newSc - editorW) / 2);
       const mY = Math.max(0, (coverImgHSv.value * newSc - editorH) / 2);
@@ -553,7 +561,7 @@ function BannerEditorModal({
         {/* Hint */}
         <View style={[edSt.hintRow, { height: HINT_H }]}>
           <Feather name="zoom-in" size={12} color={Colors.textMuted} />
-          <Text style={edSt.hintText}>Pinch to zoom in/out, drag to reposition</Text>
+          <Text style={edSt.hintText}>Pinch to zoom, drag to reposition. Zoom in to crop.</Text>
         </View>
 
         {/* Editor — full-width, flex fill */}
