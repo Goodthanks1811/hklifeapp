@@ -14,9 +14,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hklife.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSFaceIDUsageDescription": "HK Life uses Face ID to lock the app."
+        "NSFaceIDUsageDescription": "HK Life uses Face ID to lock the app.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.282558278089-o57471aniechfolmfsvhbfghiljct4d6"
+            ]
+          }
+        ]
       }
     },
     "android": {
