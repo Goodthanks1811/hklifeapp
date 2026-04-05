@@ -3,6 +3,7 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   Modal,
   Platform,
@@ -13,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { isTablet } from "@/context/DrawerContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewMessageEvent } from "react-native-webview";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -603,6 +605,66 @@ function attachNrlLogo(){
 </html>`;
 }
 
+// ── Picker content (shared between iPad modal and iPhone bottom sheet) ─────────
+function PickerContent({
+  round, matches, picks, onClose, onToggle,
+}: {
+  round: number;
+  matches: Match[];
+  picks: Record<string, string>;
+  onClose: () => void;
+  onToggle: (matchId: string, team: string) => void;
+}) {
+  return (
+    <>
+      <View style={styles.pickerHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.pickerTitle}>Round {round} Tips</Text>
+          <Text style={styles.pickerSub}>Tap a team to pick — tap again to clear</Text>
+        </View>
+        <TouchableOpacity style={styles.pickerCloseBtn} onPress={onClose} hitSlop={12}>
+          <Text style={styles.pickerCloseTx}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.pickerScroll} contentContainerStyle={styles.pickerList} showsVerticalScrollIndicator={false}>
+        {matches.map((m) => {
+          const pick = picks[m.id] ?? null;
+          return (
+            <View key={m.id} style={styles.pickerRow}>
+              <TouchableOpacity
+                style={[styles.pickerTeamBtn, pick === m.homeTeam && styles.pickerTeamBtnActive]}
+                activeOpacity={0.75}
+                onPress={() => onToggle(m.id, m.homeTeam)}
+              >
+                {getTeamLogo(m.homeTeam) ? (
+                  <Image source={{ uri: getTeamLogo(m.homeTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
+                ) : null}
+                <Text style={[styles.pickerTeamTx, pick === m.homeTeam && styles.pickerTeamTxActive]}>{m.homeTeam}</Text>
+              </TouchableOpacity>
+              <Text style={styles.pickerVs}>vs</Text>
+              <TouchableOpacity
+                style={[styles.pickerTeamBtn, pick === m.awayTeam && styles.pickerTeamBtnActive]}
+                activeOpacity={0.75}
+                onPress={() => onToggle(m.id, m.awayTeam)}
+              >
+                {getTeamLogo(m.awayTeam) ? (
+                  <Image source={{ uri: getTeamLogo(m.awayTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
+                ) : null}
+                <Text style={[styles.pickerTeamTx, pick === m.awayTeam && styles.pickerTeamTxActive]}>{m.awayTeam}</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={onClose}>
+        <Text style={styles.pickerDoneTx}>Done</Text>
+      </TouchableOpacity>
+    </>
+  );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function NRLScheduleScreen() {
   const insets    = useSafeAreaInsets();
@@ -623,8 +685,21 @@ export default function NRLScheduleScreen() {
   const [pickerMatches, setPickerMatches] = useState<Match[]>([]);
   const [pickerRound,   setPickerRound]   = useState(1);
   const [roundPicks,    setRoundPicks]    = useState<Record<string, string>>({});
-  const pickerRoundRef = useRef(1); // always-fresh copy of pickerRound
+  const pickerRoundRef   = useRef(1);
   const pickerVisibleRef = useRef(false);
+
+  // iPhone bottom-sheet animation (slides up from off-screen bottom)
+  const slideAnim = useRef(new Animated.Value(700)).current;
+
+  const openPhonePicker = () => {
+    setPickerVisible(true);
+    slideAnim.setValue(700);
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, bounciness: 3, speed: 14 }).start();
+  };
+
+  const closePhonePicker = () => {
+    Animated.timing(slideAnim, { toValue: 700, duration: 220, useNativeDriver: true }).start(() => setPickerVisible(false));
+  };
 
   useEffect(() => {
     (async () => {
@@ -827,7 +902,12 @@ export default function NRLScheduleScreen() {
       setPickerRound(round);
       setPickerMatches(currentMatchesRef.current.filter((m) => !m.isBye));
       setRoundPicks({ ...saved });
-      setPickerVisible(true);
+      // iPad: centered modal overlay. iPhone: bottom sheet slide-up.
+      if (isTablet) {
+        setPickerVisible(true);
+      } else {
+        openPhonePicker();
+      }
       // Reset display cycle so next tap always starts with marker (dot) first
       picksDisplayState.current = 0;
       webViewRef.current?.injectJavaScript(`setPicksShowing(0); clearPickResults(); true;`);
@@ -872,73 +952,40 @@ export default function NRLScheduleScreen() {
         />
       )}
 
-      {/* ── Picks Picker Modal ─────────────────────────────────────────────── */}
-      <Modal
-        visible={pickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPickerVisible(false)}
-      >
-        <Pressable style={styles.pickerOverlay} onPress={() => setPickerVisible(false)}>
-          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <View style={styles.pickerHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pickerTitle}>Round {pickerRound} Tips</Text>
-                <Text style={styles.pickerSub}>Tap a team to pick — tap again to clear</Text>
-              </View>
-              <TouchableOpacity style={styles.pickerCloseBtn} onPress={() => setPickerVisible(false)} hitSlop={12}>
-                <Text style={styles.pickerCloseTx}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Match list */}
-            <ScrollView
-              style={styles.pickerScroll}
-              contentContainerStyle={styles.pickerList}
-              showsVerticalScrollIndicator={false}
-            >
-              {pickerMatches.map((m) => {
-                const pick = roundPicks[m.id] ?? null;
-                return (
-                  <View key={m.id} style={styles.pickerRow}>
-                    <TouchableOpacity
-                      style={[styles.pickerTeamBtn, pick === m.homeTeam && styles.pickerTeamBtnActive]}
-                      activeOpacity={0.75}
-                      onPress={() => togglePick(m.id, m.homeTeam)}
-                    >
-                      {getTeamLogo(m.homeTeam) ? (
-                        <Image source={{ uri: getTeamLogo(m.homeTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
-                      ) : null}
-                      <Text style={[styles.pickerTeamTx, pick === m.homeTeam && styles.pickerTeamTxActive]}>
-                        {m.homeTeam}
-                      </Text>
-                    </TouchableOpacity>
-                    <Text style={styles.pickerVs}>vs</Text>
-                    <TouchableOpacity
-                      style={[styles.pickerTeamBtn, pick === m.awayTeam && styles.pickerTeamBtnActive]}
-                      activeOpacity={0.75}
-                      onPress={() => togglePick(m.id, m.awayTeam)}
-                    >
-                      {getTeamLogo(m.awayTeam) ? (
-                        <Image source={{ uri: getTeamLogo(m.awayTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
-                      ) : null}
-                      <Text style={[styles.pickerTeamTx, pick === m.awayTeam && styles.pickerTeamTxActive]}>
-                        {m.awayTeam}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
-
-            {/* Done button */}
-            <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={() => setPickerVisible(false)}>
-              <Text style={styles.pickerDoneTx}>Done</Text>
-            </TouchableOpacity>
+      {/* ── Picks Picker — iPad: centered modal, iPhone: bottom sheet ───────── */}
+      {isTablet ? (
+        <Modal
+          visible={pickerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPickerVisible(false)}
+        >
+          <Pressable style={styles.pickerOverlay} onPress={() => setPickerVisible(false)}>
+            <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+              <PickerContent
+                round={pickerRound}
+                matches={pickerMatches}
+                picks={roundPicks}
+                onClose={() => setPickerVisible(false)}
+                onToggle={togglePick}
+              />
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      ) : pickerVisible ? (
+        <>
+          <Pressable style={styles.pickerOverlayPhone} onPress={closePhonePicker} />
+          <Animated.View style={[styles.pickerSheetPhone, { transform: [{ translateY: slideAnim }] }]}>
+            <PickerContent
+              round={pickerRound}
+              matches={pickerMatches}
+              picks={roundPicks}
+              onClose={closePhonePicker}
+              onToggle={togglePick}
+            />
+          </Animated.View>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -951,7 +998,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     backgroundColor: NRL_DARK, zIndex: 10,
   },
-  // Picker modal
+  // Picker — iPad centered modal
   pickerOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.72)",
@@ -969,6 +1016,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     paddingTop: 18,
+  },
+  // Picker — iPhone bottom sheet
+  pickerOverlayPhone: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.60)",
+    zIndex: 50,
+  },
+  pickerSheetPhone: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#141414",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "88%",
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 18,
+    zIndex: 51,
   },
   pickerHeader: {
     flexDirection: "row",
