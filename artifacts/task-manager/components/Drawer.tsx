@@ -293,51 +293,48 @@ export function Drawer() {
 
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
-      <View style={{ paddingTop: topPad + 12, paddingBottom: 12 }}>
-        <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? 120 : 70 }]}>
-          {(() => {
-            const bW  = DRAWER_WIDTH;
-            const bH  = isTablet ? 120 : 70;
-            const uri = bannerUri ?? FALLBACK_BANNER;
-            const sc  = bannerScale ?? 1.0;
-            return (
-              <Image
-                source={{ uri }}
-                style={{
-                  position: "absolute",
-                  top: 0, left: 0, right: 0, bottom: 0,
-                  transform: bannerUri ? [
-                    { scale:      sc },
-                    { translateX: bannerOffX },
-                    { translateY: bannerOffY },
-                  ] : [{ scale: 1 }],
-                }}
-                resizeMode="cover"
-              />
-            );
-          })()}
-          {/* bottom fade into drawer bg */}
-          <LinearGradient
-            colors={["transparent", "#111111"]}
-            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 52 }}
-            pointerEvents="none"
-          />
-          {/* left fade */}
-          <LinearGradient
-            colors={["#111111", "transparent"]}
-            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-            style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 48 }}
-            pointerEvents="none"
-          />
-          {/* right fade */}
-          <LinearGradient
-            colors={["transparent", "#111111"]}
-            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-            style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 48 }}
-            pointerEvents="none"
-          />
-        </Pressable>
-      </View>
+      {/* Banner extends from y=0 (covers safe area) so it fills the full top */}
+      <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? topPad + 150 : topPad + 110 }]}>
+        {(() => {
+          const uri = bannerUri ?? FALLBACK_BANNER;
+          const sc  = bannerScale ?? 1.0;
+          return (
+            <Image
+              source={{ uri }}
+              style={{
+                position: "absolute",
+                top: 0, left: 0, right: 0, bottom: 0,
+                transform: bannerUri ? [
+                  { scale:      sc },
+                  { translateX: bannerOffX },
+                  { translateY: bannerOffY },
+                ] : [{ scale: 1 }],
+              }}
+              resizeMode="cover"
+            />
+          );
+        })()}
+        {/* bottom fade into drawer bg */}
+        <LinearGradient
+          colors={["transparent", "#111111"]}
+          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 70 }}
+          pointerEvents="none"
+        />
+        {/* left fade */}
+        <LinearGradient
+          colors={["#111111", "transparent"]}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 48 }}
+          pointerEvents="none"
+        />
+        {/* right fade */}
+        <LinearGradient
+          colors={["transparent", "#111111"]}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 48 }}
+          pointerEvents="none"
+        />
+      </Pressable>
 
       <ScrollView
         ref={scrollRef}
@@ -488,7 +485,6 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     width: "100%",
-    height: 100,
     overflow: "hidden",
   },
   scrollArea: { flex: 1 },
