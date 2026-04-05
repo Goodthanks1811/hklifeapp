@@ -87,10 +87,6 @@ svg{display:block;}
       </div>
       <div class="pl-info">
         <div class="pl-name">${p.name}</div>
-        <div class="pl-sub">
-          ${p.dot ? '<div class="pl-dot"></div>' : ''}
-          ${p.sub}
-        </div>
       </div>
       <div class="pl-chevron">
         <svg width="8" height="13" viewBox="0 0 8 14" fill="none">

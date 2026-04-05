@@ -90,13 +90,12 @@ svg{display:block;}
     ${TRACKS.map((t, i) => `
     <div class="track-row${i === 3 ? ' playing' : ''}">
       <div class="track-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="${i === 3 ? '#E03131' : 'rgba(255,255,255,0.35)'}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#E03131">
           <path d="M21 3.01L9 5v9.73C8.39 14.27 7.72 14 7 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V9.06l10-1.67v5.34c-.61-.46-1.36-.73-2.18-.73-1.78 0-3.22 1.34-3.22 3s1.44 3 3.22 3 3.18-1.34 3.18-3V3.01z"/>
         </svg>
       </div>
       <div class="track-info">
         <div class="track-name">${t.name}</div>
-        <div class="track-meta">MP3 · ${t.size} · 3/10/2024</div>
       </div>
       <div class="track-dots">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
