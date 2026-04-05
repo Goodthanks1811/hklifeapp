@@ -893,24 +893,22 @@ export default function MiNenaScreen() {
                 {visibleFolders.length} folder{visibleFolders.length !== 1 ? "s" : ""}
               </Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                {visibleFolders.length > 1 && (
-                  reorderMode ? (
-                    <TouchableOpacity
-                      style={s.reorderDoneBtn}
-                      onPress={() => { setReorderMode(false); setGridScrollEnabled(true); }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={s.reorderDoneTxt}>Done</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={s.reorderIconBtn}
-                      onPress={() => setReorderMode(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Feather name="list" size={16} color="#666" />
-                    </TouchableOpacity>
-                  )
+                {reorderMode ? (
+                  <TouchableOpacity
+                    style={s.reorderDoneBtn}
+                    onPress={() => { setReorderMode(false); setGridScrollEnabled(true); }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={s.reorderDoneTxt}>Done</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={s.reorderIconBtn}
+                    onPress={() => setReorderMode(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="list" size={16} color="#666" />
+                  </TouchableOpacity>
                 )}
                 <TouchableOpacity
                   style={[s.addFolderBtn, reorderMode && { opacity: 0.3 }]}
