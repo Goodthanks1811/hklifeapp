@@ -29,8 +29,8 @@ const IR = {
   goldDark:  "#d97f00",
   text:      "#f2f2f7",
   textMuted: "#7a8aaa",
-  inputBg:   "rgba(255,255,255,0.08)",
-  inputBdr:  "rgba(255,255,255,0.25)",
+  inputBg:   "#132060",
+  inputBdr:  "rgba(60,100,220,0.45)",
   cancelBg:  "rgba(255,255,255,0.08)",
   cancelBdr: "rgba(255,255,255,0.12)",
   success:   "#40C057",
@@ -44,14 +44,14 @@ const IR_HEADER_LOGO =
   "https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png";
 
 const EPIC_PALETTE: Record<string, { bg: string; border: string; text: string }> = {
-  Admin:     { bg: "rgba(40,160,40,0.14)",   border: "rgba(40,160,40,0.45)",   text: "#34a834" },
-  Testing:   { bg: "rgba(220,20,20,0.14)",   border: "rgba(220,20,20,0.45)",   text: "#e03131" },
-  Release:   { bg: "rgba(200,200,220,0.10)", border: "rgba(200,200,220,0.35)", text: "#b0b0cc" },
-  Review:    { bg: "rgba(255,200,0,0.14)",   border: "rgba(255,200,0,0.45)",   text: "#FEC800" },
-  Project:   { bg: "rgba(255,200,0,0.14)",   border: "rgba(255,200,0,0.45)",   text: "#FEC800" },
-  Tool:      { bg: "rgba(134,142,150,0.14)", border: "rgba(134,142,150,0.45)", text: "#8e98a2" },
-  Reporting: { bg: "rgba(220,20,20,0.14)",   border: "rgba(220,20,20,0.45)",   text: "#e03131" },
-  Knowledge: { bg: "rgba(40,160,40,0.14)",   border: "rgba(40,160,40,0.45)",   text: "#34a834" },
+  Admin:     { bg: "rgba(40,160,40,0.14)",  border: "rgba(40,160,40,0.45)",  text: "#ffffff" },
+  Testing:   { bg: "rgba(220,20,20,0.14)",  border: "rgba(220,20,20,0.45)",  text: "#ffffff" },
+  Release:   { bg: "rgba(75,85,96,0.18)",   border: "rgba(110,120,132,0.40)", text: "#ffffff" },
+  Review:    { bg: "rgba(255,200,0,0.14)",  border: "rgba(255,200,0,0.45)",  text: "#ffffff" },
+  Project:   { bg: "rgba(255,200,0,0.14)",  border: "rgba(255,200,0,0.45)",  text: "#ffffff" },
+  Tool:      { bg: "rgba(75,85,96,0.18)",   border: "rgba(110,120,132,0.40)", text: "#ffffff" },
+  Reporting: { bg: "rgba(220,20,20,0.14)",  border: "rgba(220,20,20,0.45)",  text: "#ffffff" },
+  Knowledge: { bg: "rgba(40,160,40,0.14)",  border: "rgba(40,160,40,0.45)",  text: "#ffffff" },
 };
 
 const EPICS_ORDER = ["Admin", "Testing", "Release", "Review", "Project", "Tool", "Reporting", "Knowledge"];
@@ -533,9 +533,9 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: { paddingHorizontal: 18, paddingBottom: 16 },
-  logoWrap: { alignItems: "center", marginBottom: 24, marginTop: 10 },
-  logo: { width: 300, height: 160 },
-  logoTablet: { width: 420, height: 220 },
+  logoWrap: { alignItems: "center", marginBottom: 10, marginTop: 4 },
+  logo: { width: 280, height: 130 },
+  logoTablet: { width: 400, height: 200 },
 
   warningBox: {
     flexDirection: "row", alignItems: "center", gap: 8,
