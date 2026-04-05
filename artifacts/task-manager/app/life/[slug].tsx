@@ -106,9 +106,19 @@ const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(ma
 const ZERO_ANIM = new Animated.Value(0);
 
 // ── Epics that exist in Notion but should not appear in the picker ────────────
-const BLOCKED_EPICS = new Set(["Redesign", "Spike", "Redesign / Rebuild"]);
-const filterEpics = (opts: string[] | null | undefined): string[] =>
-  (opts ?? []).filter(e => !BLOCKED_EPICS.has(e));
+const BLOCKED_EPICS   = new Set(["Redesign", "Spike", "Redesign / Rebuild"]);
+const EPIC_ORDER      = ["HK Life", "IR App", "Enhancement", "New App", "General"];
+const filterEpics = (opts: string[] | null | undefined): string[] => {
+  const allowed = (opts ?? []).filter(e => !BLOCKED_EPICS.has(e));
+  return [...allowed].sort((a, b) => {
+    const ai = EPIC_ORDER.indexOf(a);
+    const bi = EPIC_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+};
 
 // ── Inline markdown helpers ───────────────────────────────────────────────────
 type MdSeg = { text: string; bold?: boolean; italic?: boolean; underline?: boolean; code?: boolean };

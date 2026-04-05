@@ -43,7 +43,7 @@ const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string
   "General":     { bg: "rgba(134,142,150,0.14)", border: "rgba(134,142,150,0.40)", text: "#868E96" },
   "New App":     { bg: "rgba(250,176,5,0.14)",   border: "rgba(250,176,5,0.40)",   text: "#FAB005" },
 };
-const EPIC_OPTIONS = ["Enhancement", "HK Life", "IR App", "General", "New App"];
+const EPIC_OPTIONS = ["HK Life", "IR App", "Enhancement", "New App", "General"];
 
 const DEV_CAT_VALUE = "⚡️Development";
 
