@@ -24,15 +24,17 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 .music-logo-text{font-family:'DM Sans',sans-serif;font-size:44px;font-weight:600;letter-spacing:2px;color:#fff;line-height:1;}
 .music-logo-sub{font-size:11px;letter-spacing:4px;color:var(--grey);text-transform:uppercase;margin-top:4px;}
 
-/* eq bars */
-.eq-bars{display:flex;align-items:flex-end;gap:3px;height:18px;justify-content:center;margin:10px auto 0;}
-.eq-bar{width:3px;background:var(--red);border-radius:2px;animation:eq 1.2s ease-in-out infinite;}
-.eq-bar:nth-child(1){animation-delay:0s;}
-.eq-bar:nth-child(2){animation-delay:.2s;}
-.eq-bar:nth-child(3){animation-delay:.4s;}
-.eq-bar:nth-child(4){animation-delay:.1s;}
-.eq-bar:nth-child(5){animation-delay:.3s;}
-@keyframes eq{0%,100%{height:4px;}50%{height:18px;}}
+/* eq bars — used as the page header */
+.eq-bars{display:flex;align-items:flex-end;gap:5px;height:56px;justify-content:center;margin:0 auto;}
+.eq-bar{width:5px;background:var(--red);border-radius:3px;animation:eq 1.2s ease-in-out infinite;}
+.eq-bar:nth-child(1){animation-delay:0s;animation-duration:1.1s;}
+.eq-bar:nth-child(2){animation-delay:.18s;animation-duration:1.3s;}
+.eq-bar:nth-child(3){animation-delay:.36s;animation-duration:1.0s;}
+.eq-bar:nth-child(4){animation-delay:.08s;animation-duration:1.4s;}
+.eq-bar:nth-child(5){animation-delay:.27s;animation-duration:1.2s;}
+.eq-bar:nth-child(6){animation-delay:.14s;animation-duration:1.05s;}
+.eq-bar:nth-child(7){animation-delay:.42s;animation-duration:1.35s;}
+@keyframes eq{0%,100%{height:8px;}50%{height:56px;}}
 
 /* section label */
 .section-label{position:relative;z-index:10;padding:24px 20px 10px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--grey);}
@@ -97,9 +99,9 @@ svg{display:block;}
   <div class="ambient"></div>
 
   <div class="music-logo">
-    <div class="music-logo-text">My Music</div>
-
     <div class="eq-bars">
+      <div class="eq-bar"></div>
+      <div class="eq-bar"></div>
       <div class="eq-bar"></div>
       <div class="eq-bar"></div>
       <div class="eq-bar"></div>
