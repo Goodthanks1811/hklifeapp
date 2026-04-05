@@ -171,8 +171,8 @@ function RichBodyView({ markdown }: { markdown: string }) {
         if (/^- /.test(line))
           return (
             <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start", paddingLeft: 2 }}>
-              <Text style={{ color: "#fff", fontSize: 15, lineHeight: 22, marginTop: 1 }}>•</Text>
-              <RichLine text={line.slice(2)} style={{ fontSize: 15, color: "#fff", lineHeight: 22 }} flex={1} />
+              <Text style={{ color: "#fff", fontSize: 16, lineHeight: 24, marginTop: 1 }}>•</Text>
+              <RichLine text={line.slice(2)} style={{ fontSize: 16, color: "#fff", lineHeight: 24 }} flex={1} />
             </View>
           );
         if (/^\d+\. /.test(line)) {
@@ -180,12 +180,12 @@ function RichBodyView({ markdown }: { markdown: string }) {
           const num = mm?.[1] ?? "1"; const rest = mm?.[2] ?? line;
           return (
             <View key={i} style={{ flexDirection: "row", gap: 6, alignItems: "flex-start", paddingLeft: 2 }}>
-              <Text style={{ color: Colors.textMuted, fontSize: 15, lineHeight: 22, minWidth: 18 }}>{num}.</Text>
-              <RichLine text={rest} style={{ fontSize: 15, color: "#fff", lineHeight: 22 }} flex={1} />
+              <Text style={{ color: Colors.textMuted, fontSize: 16, lineHeight: 24, minWidth: 18 }}>{num}.</Text>
+              <RichLine text={rest} style={{ fontSize: 16, color: "#fff", lineHeight: 24 }} flex={1} />
             </View>
           );
         }
-        return <RichLine key={i} text={line} style={{ fontSize: 15, color: "#fff", lineHeight: 22 }} />;
+        return <RichLine key={i} text={line} style={{ fontSize: 16, color: "#fff", lineHeight: 24 }} />;
       })}
     </View>
   );
@@ -2213,8 +2213,8 @@ const s = StyleSheet.create({
     color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_400Regular",
     lineHeight: 24, paddingVertical: 0, minHeight: 80,
   },
-  dsBodyText: { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginBottom: 4 },
-  dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
+  dsBodyText: { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22, marginBottom: 4 },
+  dsBodyPlaceholder: { color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 4 },
   dsUrlText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, textDecorationLine: "underline" },
   dsLinkRow:    { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
   dsLinkEmoji:  { fontSize: 15, lineHeight: 20 },
