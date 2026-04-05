@@ -1291,7 +1291,7 @@ const styles = StyleSheet.create({
 
   divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: -18 },
 
-  fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4, marginBottom: 6 },
   inputRow: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: Colors.cardBgElevated, borderRadius: 12,
