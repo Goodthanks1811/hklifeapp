@@ -671,7 +671,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
               <Pressable
                 key={`cat-${cat}`}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChange(cat); }}
-                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
+                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, height: 46 }]}
               >
                 <Text style={[s.dsCatText, selected && s.dsCatTextActive, isTablet && { fontSize: 14 }]}>{cat}</Text>
               </Pressable>
@@ -1099,7 +1099,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
               <Pressable
                 key={`qa-cat-${cat}`}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCatChangeQA(cat); }}
-                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
+                style={[s.dsCatChip, selected && s.dsCatChipActive, isTablet && { paddingHorizontal: 16, height: 46 }]}
               >
                 <Text style={[s.dsCatText, selected && s.dsCatTextActive, isTablet && { fontSize: 14 }]}>{cat}</Text>
               </Pressable>
@@ -2180,11 +2180,12 @@ const s = StyleSheet.create({
   },
   dsEpicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
   dsCatChip: {
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    height: 40, paddingHorizontal: 14, borderRadius: 10,
     borderWidth: 1, borderColor: Colors.border, backgroundColor: "transparent",
+    alignItems: "center", justifyContent: "center",
   },
-  dsCatChipActive: { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.35)" },
-  dsCatText: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted, letterSpacing: 0.2 },
+  dsCatChipActive: { backgroundColor: "rgba(255,255,255,0.10)", borderColor: "rgba(255,255,255,0.35)" },
+  dsCatText: { fontSize: 11, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 0.2 },
   dsCatTextActive: { color: Colors.textPrimary },
   dsDivider: { height: 1, backgroundColor: Colors.border },
   dsBodyScroll: { flexShrink: 1 },
