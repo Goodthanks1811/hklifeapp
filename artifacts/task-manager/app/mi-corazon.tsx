@@ -302,6 +302,7 @@ function FolderCard({
   onOptions,
   isDragging   = false,
   isAnyDragging = false,
+  noTouchable  = false,
 }: {
   folder:        Folder;
   cardSize:      number;
@@ -311,6 +312,7 @@ function FolderCard({
   onOptions?:    () => void;
   isDragging?:   boolean;
   isAnyDragging?: boolean;
+  noTouchable?:  boolean;
 }) {
   const autoCover    = folder.items.find((i) => !i.isVideo) ?? folder.items[0];
   const coverUri     = folder.coverUri ?? autoCover?.uri;
@@ -329,19 +331,16 @@ function FolderCard({
     countParts.push(`${subCount} folder${subCount !== 1 ? "s" : ""}`);
   const countLabel = countParts.length > 0 ? countParts.join(" · ") : "Empty";
 
-  return (
-    <TouchableOpacity
-      style={[
-        s.folderCard,
-        { width: cardSize },
-        isDragging    && { opacity: 0.92, transform: [{ scale: 1.06 }] },
-        isAnyDragging && !isDragging && { opacity: 0.6 },
-      ]}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={250}
-      activeOpacity={0.85}
-    >
+  const cardStyle = [
+    s.folderCard,
+    { width: cardSize },
+    isDragging    && { opacity: 0.92, transform: [{ scale: 1.06 }] },
+    isAnyDragging && !isDragging && { opacity: 0.6 },
+  ];
+
+  // Shared inner content used by both wrapper variants
+  const inner = (
+    <>
       <View style={[s.folderCover, { height: cardSize * 0.75 }]}>
         {coverUri ? (
           isCoverVideo ? (
@@ -360,7 +359,8 @@ function FolderCard({
             <Feather name="camera" size={10} color="#fff" />
           </View>
         )}
-        {/* Options button — top-right corner */}
+        {/* Options button — stays as TouchableOpacity so it can still claim its own
+            touch in the bubble phase even when the parent Animated.View has a PanResponder */}
         {onOptions && (
           <TouchableOpacity style={s.folderOptionsBtn} onPress={onOptions} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
             <Feather name="more-horizontal" size={15} color="#fff" />
@@ -371,6 +371,23 @@ function FolderCard({
         <Text style={s.folderName} numberOfLines={1}>{folder.name}</Text>
         <Text style={s.folderCount}>{countLabel}</Text>
       </View>
+    </>
+  );
+
+  // noTouchable=true → Animated.View wrapper owns the PanResponder; use plain View
+  //   here so we don't compete with (and lose to) the outer responder in bubble phase.
+  // noTouchable=false (sub-folder context) → standard TouchableOpacity press handling.
+  return noTouchable ? (
+    <View style={cardStyle}>{inner}</View>
+  ) : (
+    <TouchableOpacity
+      style={cardStyle}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={250}
+      activeOpacity={0.85}
+    >
+      {inner}
     </TouchableOpacity>
   );
 }
@@ -460,6 +477,14 @@ export default function MiNenaScreen() {
   const cardWRef        = useRef(0);
   const [dragActiveIdx, setDragActiveIdx]       = useState(-1);
   const [gridScrollEnabled, setGridScrollEnabled] = useState(true);
+
+  // Per-card drag detection (replaces container PanResponder)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardPans          = useRef<Record<string, ReturnType<typeof PanResponder.create>>>({});
+  const folderIdxMapRef   = useRef<Record<string, number>>({});
+  // Always-fresh callbacks (updated every render so PanResponder closures are never stale)
+  const endFolderDragRef          = useRef<() => void>(() => {});
+  const animateFolderPositionsRef = useRef<(di: number, hi: number) => void>(() => {});
 
   // Derived from stack
   const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1] : null;
@@ -678,15 +703,105 @@ export default function MiNenaScreen() {
   useEffect(() => { vFoldersRef.current  = visibleFolders;  }, [visibleFolders]);
   useEffect(() => { folderColsRef.current = folderCols; cardWRef.current = folderCardSize; }, [folderCols, folderCardSize]);
 
-  // Initialize anims during render so cards are never null on first paint
-  // (same pattern used by the life task list). Guards against re-init on every render.
+  // Initialize anims and per-card PanResponders during render so cards are never null
+  // on first paint (same pattern as the life task list). Guards against re-init.
   visibleFolders.forEach((f, i) => {
+    // Keep index map fresh for stale-closure-safe lookups inside PanResponder callbacks
+    folderIdxMapRef.current[f.id] = i;
+
     if (!posXAnims.current[f.id]) {
       const { x, y } = gridPos(i, folderCols, folderCardSize);
       posXAnims.current[f.id] = new Animated.Value(x);
       posYAnims.current[f.id] = new Animated.Value(y);
       addedX.current[f.id]    = Animated.add(posXAnims.current[f.id], dragPanX);
       addedY.current[f.id]    = Animated.add(posYAnims.current[f.id], dragPanY);
+    }
+
+    // One PanResponder per card, created once (closure captures folderId, not idx).
+    // Uses a manual setTimeout for long-press detection, so the ScrollView can still
+    // scroll (onPanResponderTerminationRequest returns true while not dragging).
+    if (!cardPans.current[f.id]) {
+      const folderId = f.id;
+      cardPans.current[folderId] = PanResponder.create({
+        // Claim the touch immediately so we can start the long-press timer.
+        onStartShouldSetPanResponder: () => true,
+
+        onPanResponderGrant: () => {
+          longPressTimerRef.current = setTimeout(() => {
+            const idx = folderIdxMapRef.current[folderId] ?? -1;
+            if (idx < 0) return;
+            isDraggingRef.current   = true;
+            draggingIdxRef.current  = idx;
+            hoverIdxRef.current     = idx;
+            dragOccurredRef.current = true;
+            dragPanX.setValue(0);
+            dragPanY.setValue(0);
+            setDragActiveIdx(idx);
+            setGridScrollEnabled(false);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            startScrollRef.current = scrollOffRef.current;
+            gridContainerRef.current?.measure((_fx, _fy, _w, _h, _px, py) => {
+              containerTopRef.current = py;
+            });
+          }, 250);
+        },
+
+        onPanResponderMove: (_e, gs) => {
+          if (!isDraggingRef.current) {
+            // If user moves before long-press fires → cancel timer (becomes a scroll/no-op)
+            if (Math.abs(gs.dx) > 8 || Math.abs(gs.dy) > 8) {
+              if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            }
+            return;
+          }
+          // Dragging — update pan position and check hover cell
+          dragPanX.setValue(gs.dx);
+          dragPanY.setValue(gs.dy);
+          const di = draggingIdxRef.current;
+          const nc = folderColsRef.current;
+          const cw = cardWRef.current;
+          const ch = cw * 0.75 + CARD_META_H;
+          const relY     = gs.moveY - containerTopRef.current + (scrollOffRef.current - startScrollRef.current);
+          const relX     = gs.moveX;
+          const hoverCol = Math.max(0, Math.min(nc - 1, Math.floor((relX - GAP) / (cw + GAP))));
+          const hoverRow = Math.max(0, Math.floor(relY / (ch + GAP)));
+          const newHover = Math.min(vFoldersRef.current.length - 1, hoverRow * nc + hoverCol);
+          if (newHover !== hoverIdxRef.current) {
+            hoverIdxRef.current = newHover;
+            animateFolderPositionsRef.current(di, newHover);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        },
+
+        onPanResponderRelease: (_e, gs) => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          if (isDraggingRef.current) {
+            endFolderDragRef.current();
+          } else if (Math.abs(gs.dx) < 8 && Math.abs(gs.dy) < 8 && !dragOccurredRef.current) {
+            // Short tap with no movement → navigate into folder
+            navigateInto(folderId);
+          }
+          setTimeout(() => { dragOccurredRef.current = false; }, 80);
+        },
+
+        onPanResponderTerminate: () => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          if (isDraggingRef.current) endFolderDragRef.current();
+        },
+
+        // Allow the ScrollView to steal the touch while we are NOT dragging,
+        // so normal scrolling still works.
+        onPanResponderTerminationRequest: () => !isDraggingRef.current,
+      });
     }
   });
 
@@ -718,21 +833,6 @@ export default function MiNenaScreen() {
     });
   }, []);
 
-  const startFolderDrag = useCallback((idx: number) => {
-    isDraggingRef.current   = true;
-    draggingIdxRef.current  = idx;
-    hoverIdxRef.current     = idx;
-    dragOccurredRef.current = true;
-    dragPanX.setValue(0);
-    dragPanY.setValue(0);
-    setDragActiveIdx(idx);
-    setGridScrollEnabled(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    startScrollRef.current = scrollOffRef.current;
-    gridContainerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
-      containerTopRef.current = py;
-    });
-  }, [dragPanX, dragPanY]);
 
   const endFolderDrag = useCallback(() => {
     const di = draggingIdxRef.current;
@@ -776,32 +876,10 @@ export default function MiNenaScreen() {
     setTimeout(() => { dragOccurredRef.current = false; }, 80);
   }, [dragPanX, dragPanY]);
 
-  const folderGridPan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder:        () => false,
-    onStartShouldSetPanResponderCapture: () => false,
-    onMoveShouldSetPanResponderCapture:  () => isDraggingRef.current,
-    onPanResponderMove: (_, gs) => {
-      if (!isDraggingRef.current) return;
-      dragPanX.setValue(gs.dx);
-      dragPanY.setValue(gs.dy);
-      const di  = draggingIdxRef.current;
-      const nc  = folderColsRef.current;
-      const cw  = cardWRef.current;
-      const ch  = cw * 0.75 + CARD_META_H;
-      const relY     = gs.moveY - containerTopRef.current + (scrollOffRef.current - startScrollRef.current);
-      const relX     = gs.moveX;
-      const hoverCol = Math.max(0, Math.min(nc - 1, Math.floor((relX - GAP) / (cw + GAP))));
-      const hoverRow = Math.max(0, Math.floor(relY / (ch + GAP)));
-      const newHover = Math.min(vFoldersRef.current.length - 1, hoverRow * nc + hoverCol);
-      if (newHover !== hoverIdxRef.current) {
-        hoverIdxRef.current = newHover;
-        animateFolderPositions(di, newHover);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    },
-    onPanResponderEnd:       () => endFolderDrag(),
-    onPanResponderTerminate: () => endFolderDrag(),
-  }), [animateFolderPositions, endFolderDrag, dragPanX, dragPanY]);
+  // Keep callback refs fresh every render so stale closures inside
+  // once-created per-card PanResponders always call the latest version.
+  endFolderDragRef.current          = endFolderDrag;
+  animateFolderPositionsRef.current = animateFolderPositions;
 
   // ── Root folder grid ───────────────────────────────────────────────────────
   if (!currentFolder) {
@@ -819,7 +897,6 @@ export default function MiNenaScreen() {
             onScroll={(e) => { scrollOffRef.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
-            canCancelContentTouches={false}
             contentContainerStyle={{
               paddingTop: 8,
               paddingBottom: insets.bottom + 24,
@@ -847,7 +924,6 @@ export default function MiNenaScreen() {
               /* Absolute-position grid — enables live drag animation */
               <View
                 ref={gridContainerRef}
-                {...folderGridPan.panHandlers}
                 style={{
                   height: Math.ceil(visibleFolders.length / folderCols) * (folderCardSize * 0.75 + CARD_META_H + GAP),
                 }}
@@ -871,6 +947,7 @@ export default function MiNenaScreen() {
                   return (
                     <Animated.View
                       key={folder.id}
+                      {...(cardPans.current[folder.id]?.panHandlers ?? {})}
                       style={[
                         { position: "absolute", left: 0, top: 0, width: folderCardSize, zIndex: isDragging ? 100 : 1 },
                         { transform: [{ translateX: txAnim }, { translateY: tyAnim }] },
@@ -880,11 +957,12 @@ export default function MiNenaScreen() {
                         folder={folder}
                         cardSize={folderCardSize}
                         subCount={subCountMap[folder.id] ?? 0}
-                        onPress={() => { if (!dragOccurredRef.current) navigateInto(folder.id); }}
-                        onLongPress={() => startFolderDrag(idx)}
+                        onPress={() => {}}
+                        onLongPress={() => {}}
                         onOptions={() => handleFolderLongPress(folder.id)}
                         isDragging={isDragging}
                         isAnyDragging={dragActiveIdx !== -1}
+                        noTouchable
                       />
                     </Animated.View>
                   );
