@@ -205,17 +205,12 @@ export default function ShazamScreen() {
   }, [fetchSongs]);
 
   // ── Open Spotify search ────────────────────────────────────────────────────
-  const openSpotify = useCallback(async (title: string) => {
+  const openSpotify = useCallback((title: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const q        = encodeURIComponent(title);
     const deepLink = `spotify:search:${q}`;
     const webUrl   = `https://open.spotify.com/search/${q}`;
-    try {
-      const can = await Linking.canOpenURL(deepLink);
-      await Linking.openURL(can ? deepLink : webUrl);
-    } catch {
-      await Linking.openURL(webUrl);
-    }
+    Linking.openURL(deepLink).catch(() => Linking.openURL(webUrl));
   }, []);
 
   // ── Mark done ──────────────────────────────────────────────────────────────
