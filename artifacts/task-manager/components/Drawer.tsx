@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
 import React, { useCallback, useEffect, useRef } from "react";
@@ -315,12 +314,6 @@ export function Drawer() {
             />
           );
         })()}
-        {/* bottom fade into drawer bg */}
-        <LinearGradient
-          colors={["transparent", "#111111"]}
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 50 }}
-          pointerEvents="none"
-        />
       </Pressable>
 
       <ScrollView

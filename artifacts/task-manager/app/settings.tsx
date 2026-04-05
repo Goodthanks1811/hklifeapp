@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -604,11 +603,6 @@ function BannerEditorModal({
           <Text style={edSt.previewLabel}>DRAWER PREVIEW</Text>
           <View style={[edSt.previewBox, { width: DRAWER_WIDTH, height: PREVIEW_H }]}>
             <Reanimated.Image source={{ uri }} style={previewImgStyle} resizeMode="cover" />
-            <LinearGradient
-              colors={["transparent", "#111111"]}
-              style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 24 }}
-              pointerEvents="none"
-            />
           </View>
           <Text style={edSt.previewNote}>This is how it will look in the side drawer</Text>
         </View>
@@ -673,7 +667,7 @@ const edSt = StyleSheet.create({
   },
   editorBox: {
     overflow: "hidden",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#0f0f0f",
   },
   crossH: {
     position: "absolute",
@@ -707,8 +701,6 @@ const edSt = StyleSheet.create({
   previewBox: {
     overflow: "hidden",
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2a2a2a",
   },
   previewNote: {
     color: Colors.textMuted,
