@@ -803,9 +803,9 @@ export default function CalendarScreen() {
     <View style={{ backgroundColor: BG }}>
       {section.weekStart && <View style={s.weekDivider} />}
       <View style={[s.dayHdr, section.isToday && s.dayHdrToday]}>
-        <Text style={s.dlDay}>{section.dayLabel}</Text>
-        <Text style={s.dlSep}>·</Text>
-        <Text style={s.dlDate}>{section.ordStr}</Text>
+        <Text style={s.dlDay}>
+          {section.dayLabel}<Text style={s.dlSep}> · </Text>{section.ordStr}
+        </Text>
       </View>
     </View>
   ), []);
@@ -1144,7 +1144,7 @@ const s = StyleSheet.create({
   hdrTitle:   { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.8, lineHeight: 32 },
   hdrMonth:   { fontSize: 11, color: TEXT, fontFamily: "Inter_400Regular", letterSpacing: 1.2 },
   inlineTitle:{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 22, borderBottomWidth: 1, borderBottomColor: BORD_LINE, backgroundColor: BG, alignItems: "center" },
-  dayHdr:     { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 6, paddingTop: 14, paddingBottom: 5, paddingHorizontal: 22, backgroundColor: BG },
+  dayHdr:     { flexDirection: "row", alignItems: "baseline", justifyContent: "center", paddingTop: 14, paddingBottom: 5, paddingHorizontal: 22, backgroundColor: BG },
   dayHdrToday:{ backgroundColor: "#0d0d0f" },
   dlDay:      { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dlSep:      { fontSize: 14, color: `${RED}44` },
