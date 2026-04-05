@@ -840,7 +840,7 @@ export default function CalendarScreen() {
 
   const renderItem = useCallback(({ item, index }: { item: CalEvent; index: number }) => (
     <Pressable
-      style={({ pressed }) => [s.evRow, index > 0 && s.evRowBorder, pressed && { backgroundColor: "rgba(255,255,255,0.04)" }]}
+      style={({ pressed }) => [s.evRow, pressed && { backgroundColor: "rgba(255,255,255,0.04)" }]}
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedEvent(item); setStep("actions"); }}
     >
       <View style={s.evMain}>
