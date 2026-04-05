@@ -810,9 +810,14 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
           </Animated.View>
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
-          // Two nested views: outer on native driver (slide), inner on JS (keyboard offset)
+          // Outer view slides in on native driver. Inner sheet raises its bottom
+          // anchor above the keyboard so the title/header never goes off-screen.
           <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }} pointerEvents="box-none">
-            <Animated.View style={[s.sheet, { paddingBottom: kbVisible ? 4 : insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
+            <Animated.View style={[s.sheet, {
+              paddingBottom: kbVisible ? 4 : insets.bottom + 4,
+              bottom: kbAnim,
+              maxHeight: Animated.subtract(screenH - insets.top - 16, kbAnim),
+            }]}>
               <View style={s.handle} />
               {sheetContent}
               {bodySection}
@@ -1203,7 +1208,11 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
           <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }} pointerEvents="box-none">
-            <Animated.View style={[s.sheet, { paddingBottom: kbVisible ? 4 : insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
+            <Animated.View style={[s.sheet, {
+              paddingBottom: kbVisible ? 4 : insets.bottom + 4,
+              bottom: kbAnim,
+              maxHeight: Animated.subtract(screenH - insets.top - 16, kbAnim),
+            }]}>
               <View style={s.handle} />
               {innerContent}
               {qaLoaderOverlay}
