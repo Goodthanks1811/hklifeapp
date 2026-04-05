@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable } from "react-native-gesture-handler";
+import { Swipeable, TouchableOpacity as GHTouchable } from "react-native-gesture-handler";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
@@ -149,22 +149,22 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             />
           </View>
 
-          <Pressable
+          {/* GHTouchable is RNGH-native -- zero gesture competition inside Swipeable */}
+          <GHTouchable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
+            activeOpacity={0.65}
             onPressIn={() => {
               Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
-              // Fire Spotify the instant the finger lands — no gesture-confirmation delay
               if (!revealedRef.current) onPress();
             }}
             onPress={() => {
-              // Only used when the swipeable is open — closes it on confirmed tap
               if (revealedRef.current) swipeableRef.current?.close();
             }}
             onPressOut={onPressOut}
             hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
           >
             <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
-          </Pressable>
+          </GHTouchable>
 
           <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={styles.checkBtn}>
             <Animated.View style={[styles.checkBox, checked && styles.checkBoxDone]}>
@@ -278,7 +278,7 @@ export default function ShazamScreen() {
   }, [fetchSongs]);
 
   const openSpotify = useCallback((title: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const q        = encodeURIComponent(title);
     const deepLink = `spotify:search:${q}`;
     const webUrl   = `https://open.spotify.com/search/${q}`;
