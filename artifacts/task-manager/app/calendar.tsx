@@ -798,9 +798,18 @@ export default function CalendarScreen() {
       }
 
       const sorted = Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+
+      function mondayOf(dateKey: string): string {
+        const d = new Date(dateKey + "T00:00:00");
+        const dow = d.getDay();
+        const daysToMon = dow === 0 ? 6 : dow - 1;
+        const mon = new Date(d);
+        mon.setDate(d.getDate() - daysToMon);
+        return isoDay(mon);
+      }
+
       sorted.forEach((sec, i) => {
-        const dow = new Date(sec.dateKey + "T00:00:00").getDay();
-        sec.weekStart = i > 0 && dow === 1;
+        sec.weekStart = i > 0 && mondayOf(sec.dateKey) !== mondayOf(sorted[i - 1].dateKey);
       });
       setSections(sorted);
       setStatus("done");
@@ -1176,7 +1185,7 @@ const s = StyleSheet.create({
   dlSep:      { fontSize: 14, color: `${RED}44` },
   dlDate:     { fontSize: 17, fontFamily: "Inter_700Bold", color: RED, letterSpacing: -0.3 },
   dayFooter:  { height: 10, backgroundColor: BG },
-  weekDivider:{ height: 0 },
+  weekDivider:{ height: 1, backgroundColor: "rgba(255,255,255,0.10)", marginHorizontal: 16, marginTop: 8 },
   evRow:      { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: 22, backgroundColor: BG },
   evRowBorder:{ borderTopWidth: 1, borderTopColor: BORD_LINE },
   tStartWrap: { position: "absolute", left: 0, top: 0, bottom: 0, paddingLeft: 22, justifyContent: "center" },
