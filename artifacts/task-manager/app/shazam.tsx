@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   FlatList,
@@ -29,6 +28,31 @@ const ITEM_H     = 48;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Song { id: string; title: string; }
+
+// ── Pulsing Shazam loader (matches UI Kit HeartbeatLoader pattern) ─────────────
+function ShazamLoader({ size = 110 }: { size?: number }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.18, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(scale, { toValue: 0.96, duration: 180, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+        Animated.timing(scale, { toValue: 1.10, duration: 200, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(scale, { toValue: 1.0,  duration: 250, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+        Animated.delay(1400),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.Image
+      source={require("../assets/images/shazam-icon.png")}
+      style={{ width: size, height: size, borderRadius: size * 0.22, transform: [{ scale }] }}
+      resizeMode="contain"
+    />
+  );
+}
 
 // ── SongRow ────────────────────────────────────────────────────────────────────
 function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
@@ -106,7 +130,6 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
         <Animated.View style={styles.rowWrap}>
-          {/* Spotify icon slot */}
           <View style={styles.emojiBtn}>
             <Image
               source={require("../assets/images/spotify-icon.png")}
@@ -115,7 +138,6 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             />
           </View>
 
-          {/* Title */}
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
             onPress={() => handleRowTap(onPress)}
@@ -126,7 +148,6 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
           </Pressable>
 
-          {/* Checkbox */}
           <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={styles.checkBtn}>
             <Animated.View style={[styles.checkBox, checked && styles.checkBoxDone]}>
               <Animated.View style={{ transform: [{ scale: checkScale }] }}>
@@ -135,7 +156,6 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             </Animated.View>
           </Pressable>
 
-          {/* Press feedback overlay */}
           <Animated.View
             pointerEvents="none"
             style={{
@@ -151,7 +171,7 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
   );
 }
 
-// ── Header component (inside list body, like IR Quick Add) ────────────────────
+// ── Header (logo inside FlatList body) ────────────────────────────────────────
 function ListHeader() {
   return (
     <View style={styles.logoWrap}>
@@ -177,10 +197,22 @@ export default function ShazamScreen() {
   const [errorMsg,   setErrorMsg]   = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
+  // Fade-in for content once loaded
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  const fadeInContent = useCallback(() => {
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 320,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.quad),
+    }).start();
+  }, [contentOpacity]);
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchSongs = useCallback(async (silent = false) => {
     if (!apiKey) { setStatus("error"); setErrorMsg("Notion API key not set in Settings."); return; }
-    if (!silent) setStatus("loading");
+    if (!silent) { setStatus("loading"); contentOpacity.setValue(0); }
     try {
       const res = await fetch(
         `${BASE_URL}/api/notion/life-tasks?category=${encodeURIComponent(SHAZAM_CAT)}`,
@@ -190,11 +222,13 @@ export default function ShazamScreen() {
       const data = await res.json();
       setSongs((data.tasks || []).map((t: any) => ({ id: t.id, title: t.title })));
       setStatus("done");
+      fadeInContent();
     } catch (e: any) {
       setStatus("error");
       setErrorMsg(e?.message || "Failed to load songs");
+      fadeInContent();
     }
-  }, [apiKey]);
+  }, [apiKey, contentOpacity, fadeInContent]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
 
@@ -204,7 +238,6 @@ export default function ShazamScreen() {
     setRefreshing(false);
   }, [fetchSongs]);
 
-  // ── Open Spotify search ────────────────────────────────────────────────────
   const openSpotify = useCallback((title: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const q        = encodeURIComponent(title);
@@ -213,7 +246,6 @@ export default function ShazamScreen() {
     Linking.openURL(deepLink).catch(() => Linking.openURL(webUrl));
   }, []);
 
-  // ── Mark done ──────────────────────────────────────────────────────────────
   const handleChecked = useCallback(async (id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
     try {
@@ -225,7 +257,6 @@ export default function ShazamScreen() {
     } catch { fetchSongs(true); }
   }, [apiKey, fetchSongs]);
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async (id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
     try {
@@ -240,64 +271,68 @@ export default function ShazamScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {status === "loading" && (
-        <>
-          <ListHeader />
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-          </View>
-        </>
+      {/* Pulsing loader — visible only while loading */}
+      {(status === "idle" || status === "loading") && (
+        <View style={styles.loaderOverlay}>
+          <ShazamLoader size={110} />
+        </View>
       )}
 
-      {status === "error" && (
-        <>
-          <ListHeader />
-          <View style={styles.center}>
-            <Feather name="alert-circle" size={28} color={Colors.primary} />
-            <Text style={styles.errText}>{errorMsg}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSongs()}>
-              <Text style={styles.retryTxt}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
+      {/* Content — fades in once status is done or error */}
+      {(status === "done" || status === "error") && (
+        <Animated.View style={[styles.contentWrap, { opacity: contentOpacity }]}>
 
-      {status === "done" && songs.length === 0 && (
-        <>
-          <ListHeader />
-          <View style={styles.center}>
-            <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
-          </View>
-        </>
-      )}
+          {status === "error" && (
+            <>
+              <ListHeader />
+              <View style={styles.center}>
+                <Feather name="alert-circle" size={28} color={Colors.primary} />
+                <Text style={styles.errText}>{errorMsg}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSongs()}>
+                  <Text style={styles.retryTxt}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
-      {status === "done" && songs.length > 0 && (
-        <FlatList
-          data={songs}
-          keyExtractor={item => item.id}
-          ListHeaderComponent={<ListHeader />}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: botPad + 24,
-            gap: 8,
-          }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={Colors.primary}
-            />
-          }
-          renderItem={({ item }) => (
-            <SongRow
-              song={item}
-              onPress={() => openSpotify(item.title)}
-              onChecked={() => handleChecked(item.id)}
-              onDelete={() => handleDelete(item.id)}
-              onStartDelete={() => {}}
+          {status === "done" && songs.length === 0 && (
+            <>
+              <ListHeader />
+              <View style={styles.center}>
+                <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
+              </View>
+            </>
+          )}
+
+          {status === "done" && songs.length > 0 && (
+            <FlatList
+              data={songs}
+              keyExtractor={item => item.id}
+              ListHeaderComponent={<ListHeader />}
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingBottom: botPad + 24,
+                gap: 8,
+              }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={Colors.primary}
+                />
+              }
+              renderItem={({ item }) => (
+                <SongRow
+                  song={item}
+                  onPress={() => openSpotify(item.title)}
+                  onChecked={() => handleChecked(item.id)}
+                  onDelete={() => handleDelete(item.id)}
+                  onStartDelete={() => {}}
+                />
+              )}
             />
           )}
-        />
+        </Animated.View>
       )}
     </View>
   );
@@ -305,8 +340,16 @@ export default function ShazamScreen() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: "#0f0f0f" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+  root:         { flex: 1, backgroundColor: "#0f0f0f" },
+  contentWrap:  { flex: 1 },
+  center:       { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+
+  // ── Full-screen pulsing loader
+  loaderOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   // ── Logo header (in body, like IR Quick Add)
   logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 28 },
@@ -318,7 +361,7 @@ const styles = StyleSheet.create({
   retryBtn: { marginTop: 4, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: Colors.primary, borderRadius: 10 },
   retryTxt: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
-  // ── Life-identical row styles
+  // ── Row styles
   rowOuter: { height: ITEM_H },
   deleteAction: {
     width: 110, height: ITEM_H,
