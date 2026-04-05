@@ -7,9 +7,9 @@ import {
 } from "@expo-google-fonts/inter";
 import { BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -79,6 +79,25 @@ function RootLayoutNav() {
   );
 }
 
+// Lives inside DrawerProvider so it can call openDrawer / skipNextAutoClose
+function StartupGate() {
+  const { openDrawer, skipNextAutoClose } = useDrawer();
+  const [show, setShow] = useState(!isTablet);
+
+  const handleDone = useCallback(() => {
+    // Prevent the upcoming route-change from auto-closing the drawer
+    skipNextAutoClose();
+    // Land on Development screen so it shows in the background
+    router.replace("/life/automation" as any);
+    // Open the drawer immediately
+    openDrawer();
+    setShow(false);
+  }, [openDrawer, skipNextAutoClose]);
+
+  if (!show) return null;
+  return <StartupScan onDone={handleDone} />;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -87,8 +106,6 @@ export default function RootLayout() {
     Inter_700Bold,
     BebasNeue_400Regular,
   });
-
-  const [showStartup, setShowStartup] = useState(true);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -109,9 +126,7 @@ export default function RootLayout() {
                   <DrawerProvider>
                     <GestureHandlerRootView style={{ flex: 1 }}>
                       <RootLayoutNav />
-                      {showStartup && !isTablet && (
-                        <StartupScan onDone={() => setShowStartup(false)} />
-                      )}
+                      <StartupGate />
                     </GestureHandlerRootView>
                   </DrawerProvider>
                 </DrawerConfigProvider>

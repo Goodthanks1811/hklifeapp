@@ -126,6 +126,7 @@ export function Drawer() {
     isOpen, drawerAnim, overlayAnim, spacerWidth,
     openDrawer, closeDrawer,
     drawerMode, drawerModeRef, setDrawerMode,
+    skipAutoCloseRef,
     DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
 
@@ -141,9 +142,11 @@ export function Drawer() {
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
   // Phone: close drawer on any route change (handles deep-link arrivals where
-  // the internal navigate() helper is bypassed, e.g. Apple Shortcuts URLs)
+  // the internal navigate() helper is bypassed, e.g. Apple Shortcuts URLs).
+  // skipAutoCloseRef lets callers suppress one automatic close (e.g. launch nav).
   useEffect(() => {
     if (isTablet) return;
+    if (skipAutoCloseRef.current) { skipAutoCloseRef.current = false; return; }
     closeDrawer();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, isTablet]);

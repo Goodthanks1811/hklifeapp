@@ -25,20 +25,22 @@ const CLOSE_DUR = 300;
 export type DrawerMode = "sidebar" | "overlay";
 
 interface DrawerContextType {
-  isOpen:         boolean;
-  drawerAnim:     Animated.Value;
-  overlayAnim:    Animated.Value;
-  spacerWidth:    SharedValue<number>;
-  drawerMode:     DrawerMode;
-  drawerModeRef:  React.MutableRefObject<DrawerMode>;
-  setDrawerMode:  (mode: DrawerMode) => void;
-  openDrawer:     () => void;
-  closeDrawer:    () => void;
-  instantClose:   () => void;
-  toggleDrawer:   () => void;
-  DRAWER_WIDTH:   number;
-  isTablet:       boolean;
-  SIDEBAR_WIDTH:  number;
+  isOpen:              boolean;
+  drawerAnim:          Animated.Value;
+  overlayAnim:         Animated.Value;
+  spacerWidth:         SharedValue<number>;
+  drawerMode:          DrawerMode;
+  drawerModeRef:       React.MutableRefObject<DrawerMode>;
+  setDrawerMode:       (mode: DrawerMode) => void;
+  openDrawer:          () => void;
+  closeDrawer:         () => void;
+  instantClose:        () => void;
+  toggleDrawer:        () => void;
+  skipNextAutoClose:   () => void;
+  skipAutoCloseRef:    React.MutableRefObject<boolean>;
+  DRAWER_WIDTH:        number;
+  isTablet:            boolean;
+  SIDEBAR_WIDTH:       number;
 }
 
 const DrawerContext = createContext<DrawerContextType | null>(null);
@@ -109,11 +111,15 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
     else openDrawer();
   }, [isOpen, openDrawer, closeDrawer]);
 
+  const skipAutoCloseRef  = useRef(false);
+  const skipNextAutoClose = useCallback(() => { skipAutoCloseRef.current = true; }, []);
+
   return (
     <DrawerContext.Provider value={{
       isOpen, drawerAnim, overlayAnim, spacerWidth,
       drawerMode, drawerModeRef, setDrawerMode,
       openDrawer, closeDrawer, instantClose, toggleDrawer,
+      skipNextAutoClose, skipAutoCloseRef,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
     }}>
       {children}
