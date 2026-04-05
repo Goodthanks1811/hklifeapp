@@ -399,7 +399,9 @@ export default function IRQuickAdd() {
             <Text style={styles.fieldLabel}>Epic</Text>
             <View style={styles.epicGrid}>
               {EPICS_ORDER.map((epic) => {
-                const isActive = selectedEpic === epic;
+                const noneEpic = selectedEpic === null;
+                const isActive = noneEpic || selectedEpic === epic;
+                const isDimmed = !noneEpic && selectedEpic !== epic;
                 const pal = EPIC_PALETTE[epic];
                 return (
                   <TouchableOpacity
@@ -414,6 +416,7 @@ export default function IRQuickAdd() {
                       {
                         backgroundColor: isActive ? pal.bg : "transparent",
                         borderColor: isActive ? pal.border : "rgba(255,255,255,0.10)",
+                        opacity: isDimmed ? 0.35 : 1,
                       },
                     ]}
                   >

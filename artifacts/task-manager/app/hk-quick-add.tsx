@@ -27,13 +27,13 @@ const LIFE_DB_ID = "2c8b7eba3523802abbe2e934df42a4e2";
 
 type CatConfig = { label: string; catValue: string; emojis: string[] };
 const CATS: CatConfig[] = [
-  { label: "Life Admin",  catValue: "\uD83D\uDCDD Life Admin",     emojis: ["🔥", "🖥️", "🏡"] },
-  { label: "Investigate", catValue: "\uD83D\uDD0E To Investigate", emojis: ["🔥", "🚩", "👀", "🧠"] },
-  { label: "To Buy",      catValue: "\uD83D\uDCB0 To Buy",         emojis: ["🔥", "💳", "💰"] },
-  { label: "Music",       catValue: "\uD83C\uDFA7 Music",          emojis: ["🎧"] },
-  { label: "Reference",   catValue: "\uD83D\uDCCC Reference",      emojis: ["📌"] },
-  { label: "To Read",     catValue: "\uD83D\uDCD5 Read",           emojis: ["📕"] },
-  { label: "Development", catValue: "⚡️Development",              emojis: ["🔥", "🚆", "🏡", "👀", "💡"] },
+  { label: "📝 Life Admin",     catValue: "\uD83D\uDCDD Life Admin",     emojis: ["🔥", "🖥️", "🏡"] },
+  { label: "🔍 To Investigate", catValue: "\uD83D\uDD0E To Investigate", emojis: ["🔥", "🚩", "👀", "🧠"] },
+  { label: "💰 To Buy",         catValue: "\uD83D\uDCB0 To Buy",         emojis: ["🔥", "💳", "💰"] },
+  { label: "🎧 Music",          catValue: "\uD83C\uDFA7 Music",          emojis: ["🎧"] },
+  { label: "📌 Reference",      catValue: "\uD83D\uDCCC Reference",      emojis: ["📌"] },
+  { label: "📕 To Read",        catValue: "\uD83D\uDCD5 Read",           emojis: ["📕"] },
+  { label: "⚡️ Development",   catValue: "⚡️Development",              emojis: ["🔥", "🚆", "🏡", "👀", "💡"] },
 ];
 
 const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string }> = {
@@ -79,7 +79,7 @@ export default function HKQuickAdd() {
   const [schemaError,  setSchemaError]  = useState<string | null>(null);
   const [title,        setTitle]        = useState("");
   const [notes,        setNotes]        = useState("");
-  const [selCat,       setSelCat]       = useState<CatConfig>(CATS[CATS.length - 1]);
+  const [selCat,       setSelCat]       = useState<CatConfig | null>(null);
   const [selEpic,      setSelEpic]      = useState<string | null>(null);
   const [selEmoji,     setSelEmoji]     = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
@@ -101,7 +101,7 @@ export default function HKQuickAdd() {
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
-  const isDev = selCat.catValue === DEV_CAT_VALUE;
+  const isDev = selCat?.catValue === DEV_CAT_VALUE;
 
   // Keyboard listeners
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function HKQuickAdd() {
     const payload: any = {
       dbId:         LIFE_DB_ID,
       title:        t,
-      category:     selCat.catValue,
+      category:     (selCat ?? CATS[0]).catValue,
       emoji:        selEmoji ?? "-",
       priType:      schema.priType,
       priOptions:   schema.priOptions,
@@ -314,7 +314,9 @@ export default function HKQuickAdd() {
           <Text style={[st.sectionLabel, { marginTop: 20 }]}>Category</Text>
           <View style={st.metaRow}>
             {CATS.map((cat) => {
-              const active = cat.catValue === selCat.catValue;
+              const noneSelected = selCat === null;
+              const active  = noneSelected || cat.catValue === selCat!.catValue;
+              const dimmed  = !noneSelected && cat.catValue !== selCat!.catValue;
               return (
                 <Pressable
                   key={cat.catValue}
@@ -324,7 +326,7 @@ export default function HKQuickAdd() {
                     setSelEmoji(null);
                     if (cat.catValue !== DEV_CAT_VALUE) setSelEpic(null);
                   }}
-                  style={[st.chip, active && st.chipActive]}
+                  style={[st.chip, active && st.chipActive, dimmed && { opacity: 0.35 }]}
                 >
                   <Text style={[st.chipText, active && st.chipTextActive]}>{cat.label}</Text>
                 </Pressable>
@@ -338,13 +340,19 @@ export default function HKQuickAdd() {
               <Text style={[st.sectionLabel, { marginTop: 16 }]}>Epic</Text>
               <View style={st.metaRow}>
                 {EPIC_OPTIONS.map((ep) => {
-                  const selected = ep === selEpic;
-                  const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
+                  const noneEpic  = selEpic === null;
+                  const selected  = noneEpic || ep === selEpic;
+                  const dimmedEp  = !noneEpic && ep !== selEpic;
+                  const colours   = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
                   return (
                     <Pressable
                       key={ep}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
-                      style={[st.epicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }]}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(ep === selEpic ? null : ep); }}
+                      style={[st.epicChip, {
+                        backgroundColor: selected ? colours.bg : "transparent",
+                        borderColor: selected ? colours.border : Colors.border,
+                        opacity: dimmedEp ? 0.35 : 1,
+                      }]}
                     >
                       <Text style={[st.epicText, { color: selected ? colours.text : Colors.textMuted }]}>{ep}</Text>
                     </Pressable>
@@ -355,7 +363,7 @@ export default function HKQuickAdd() {
           )}
 
           {/* Emoji picker */}
-          {selCat.emojis.length > 0 && (
+          {selCat !== null && selCat.emojis.length > 0 && (
             <>
               <Text style={[st.sectionLabel, { marginTop: 16 }]}>Emoji</Text>
               <View style={st.metaRow}>
@@ -451,8 +459,8 @@ const st = StyleSheet.create({
   warnText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 
   fieldLabel: {
-    color: "#ffffff", fontSize: 22, fontFamily: "Inter_700Bold",
-    paddingBottom: 10, alignSelf: "stretch", textAlign: "left",
+    color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold",
+    letterSpacing: 1, marginBottom: 8, textTransform: "uppercase",
   },
   sectionLabel: {
     color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold",
