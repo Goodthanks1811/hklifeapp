@@ -21,20 +21,21 @@ import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const SHAZAM_CAT = "\uD83C\uDFB6Shazam";
-const BASE_URL   = process.env.EXPO_PUBLIC_DOMAIN
+const SHAZAM_CAT  = "\uD83C\uDFB6Shazam";
+const BASE_URL    = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
-const ITEM_H     = 48;
+const ITEM_H      = 48;
+const SHAZAM_IMG  = require("../assets/images/shazam-icon.png");
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Song { id: string; title: string; }
 
-// ── Pulsing Shazam loader (matches UI Kit HeartbeatLoader pattern) ─────────────
+// ── Pulsing Shazam loader (identical heartbeat to UI Kit loaders screen) ───────
 function ShazamLoader({ size = 110 }: { size?: number }) {
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(scale, { toValue: 1.18, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
         Animated.timing(scale, { toValue: 0.96, duration: 180, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
@@ -42,12 +43,14 @@ function ShazamLoader({ size = 110 }: { size?: number }) {
         Animated.timing(scale, { toValue: 1.0,  duration: 250, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
         Animated.delay(1400),
       ])
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, []);
 
   return (
     <Animated.Image
-      source={require("../assets/images/shazam-icon.png")}
+      source={SHAZAM_IMG}
       style={{ width: size, height: size, borderRadius: size * 0.22, transform: [{ scale }] }}
       resizeMode="contain"
     />
@@ -158,12 +161,7 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
 
           <Animated.View
             pointerEvents="none"
-            style={{
-              ...StyleSheet.absoluteFillObject,
-              backgroundColor: "#000",
-              borderRadius: 14,
-              opacity: pressOverlay,
-            }}
+            style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "#000", borderRadius: 14, opacity: pressOverlay }}
           />
         </Animated.View>
       </Swipeable>
@@ -171,15 +169,11 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
   );
 }
 
-// ── Header (logo inside FlatList body) ────────────────────────────────────────
+// ── Header (logo inside FlatList body, same asset as loader — already decoded) ─
 function ListHeader() {
   return (
     <View style={styles.logoWrap}>
-      <Image
-        source={require("../assets/images/shazam-icon.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
     </View>
   );
 }
@@ -197,22 +191,32 @@ export default function ShazamScreen() {
   const [errorMsg,   setErrorMsg]   = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fade-in for content once loaded
+  // Both loader and content are ALWAYS mounted — opacity-switched so the image
+  // asset is decoded once in the loader and reused instantly in the list header.
+  const loaderOpacity  = useRef(new Animated.Value(1)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
-  const fadeInContent = useCallback(() => {
-    Animated.timing(contentOpacity, {
-      toValue: 1,
-      duration: 320,
-      useNativeDriver: true,
-      easing: Easing.out(Easing.quad),
-    }).start();
-  }, [contentOpacity]);
+  const reveal = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(loaderOpacity,  { toValue: 0, duration: 260, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+      Animated.timing(contentOpacity, { toValue: 1, duration: 320, useNativeDriver: true, easing: Easing.out(Easing.quad), delay: 80 }),
+    ]).start();
+  }, [loaderOpacity, contentOpacity]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchSongs = useCallback(async (silent = false) => {
-    if (!apiKey) { setStatus("error"); setErrorMsg("Notion API key not set in Settings."); return; }
-    if (!silent) { setStatus("loading"); contentOpacity.setValue(0); }
+    if (!apiKey) {
+      setStatus("error");
+      setErrorMsg("Notion API key not set in Settings.");
+      reveal();
+      return;
+    }
+    if (!silent) {
+      // Reset to loading state
+      loaderOpacity.setValue(1);
+      contentOpacity.setValue(0);
+      setStatus("loading");
+    }
     try {
       const res = await fetch(
         `${BASE_URL}/api/notion/life-tasks?category=${encodeURIComponent(SHAZAM_CAT)}`,
@@ -222,13 +226,13 @@ export default function ShazamScreen() {
       const data = await res.json();
       setSongs((data.tasks || []).map((t: any) => ({ id: t.id, title: t.title })));
       setStatus("done");
-      fadeInContent();
     } catch (e: any) {
       setStatus("error");
       setErrorMsg(e?.message || "Failed to load songs");
-      fadeInContent();
+    } finally {
+      if (!silent) reveal();
     }
-  }, [apiKey, contentOpacity, fadeInContent]);
+  }, [apiKey, loaderOpacity, contentOpacity, reveal]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
 
@@ -271,69 +275,57 @@ export default function ShazamScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {/* Pulsing loader — visible only while loading */}
-      {(status === "idle" || status === "loading") && (
-        <View style={styles.loaderOverlay}>
-          <ShazamLoader size={110} />
-        </View>
-      )}
+      {/* ── Loader — always mounted, fades out when data arrives ─── */}
+      <Animated.View style={[styles.loaderLayer, { opacity: loaderOpacity }]} pointerEvents="none">
+        <ShazamLoader size={110} />
+      </Animated.View>
 
-      {/* Content — fades in once status is done or error */}
-      {(status === "done" || status === "error") && (
-        <Animated.View style={[styles.contentWrap, { opacity: contentOpacity }]}>
+      {/* ── Content — always mounted, fades in when data arrives ─── */}
+      <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]}>
 
-          {status === "error" && (
-            <>
-              <ListHeader />
-              <View style={styles.center}>
-                <Feather name="alert-circle" size={28} color={Colors.primary} />
-                <Text style={styles.errText}>{errorMsg}</Text>
-                <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSongs()}>
-                  <Text style={styles.retryTxt}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+        {status === "error" && (
+          <>
+            <ListHeader />
+            <View style={styles.center}>
+              <Feather name="alert-circle" size={28} color={Colors.primary} />
+              <Text style={styles.errText}>{errorMsg}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSongs()}>
+                <Text style={styles.retryTxt}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
-          {status === "done" && songs.length === 0 && (
-            <>
-              <ListHeader />
-              <View style={styles.center}>
-                <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
-              </View>
-            </>
-          )}
+        {status === "done" && songs.length === 0 && (
+          <>
+            <ListHeader />
+            <View style={styles.center}>
+              <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
+            </View>
+          </>
+        )}
 
-          {status === "done" && songs.length > 0 && (
-            <FlatList
-              data={songs}
-              keyExtractor={item => item.id}
-              ListHeaderComponent={<ListHeader />}
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-                paddingBottom: botPad + 24,
-                gap: 8,
-              }}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
-                  tintColor={Colors.primary}
-                />
-              }
-              renderItem={({ item }) => (
-                <SongRow
-                  song={item}
-                  onPress={() => openSpotify(item.title)}
-                  onChecked={() => handleChecked(item.id)}
-                  onDelete={() => handleDelete(item.id)}
-                  onStartDelete={() => {}}
-                />
-              )}
-            />
-          )}
-        </Animated.View>
-      )}
+        {status === "done" && songs.length > 0 && (
+          <FlatList
+            data={songs}
+            keyExtractor={item => item.id}
+            ListHeaderComponent={<ListHeader />}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: botPad + 24, gap: 8 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
+            }
+            renderItem={({ item }) => (
+              <SongRow
+                song={item}
+                onPress={() => openSpotify(item.title)}
+                onChecked={() => handleChecked(item.id)}
+                onDelete={() => handleDelete(item.id)}
+                onStartDelete={() => {}}
+              />
+            )}
+          />
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -341,27 +333,24 @@ export default function ShazamScreen() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: "#0f0f0f" },
-  contentWrap:  { flex: 1 },
-  center:       { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
-  // ── Full-screen pulsing loader
-  loaderOverlay: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  // Both layers fill the screen; opacity handles visibility
+  loaderLayer:  { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  contentLayer: { flex: 1 },
 
-  // ── Logo header (in body, like IR Quick Add)
+  center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+
+  // Logo header (in body, like IR Quick Add)
   logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 28 },
   logo:     { width: 90, height: 90, borderRadius: 22 },
 
-  // ── States
+  // States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   emptyTxt: { color: Colors.textMuted, fontFamily: "Inter_400Regular", fontSize: 15 },
   retryBtn: { marginTop: 4, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: Colors.primary, borderRadius: 10 },
   retryTxt: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
-  // ── Row styles
+  // Row styles
   rowOuter: { height: ITEM_H },
   deleteAction: {
     width: 110, height: ITEM_H,
@@ -372,8 +361,7 @@ const styles = StyleSheet.create({
   rowWrap: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#0f0f0f", borderWidth: 1, borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14, height: ITEM_H,
+    borderRadius: 10, paddingHorizontal: 14, height: ITEM_H,
   },
   emojiBtn:    { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   spotifyIcon: { width: 36, height: 36, borderRadius: 18 },
