@@ -18,7 +18,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 // ── IR Theme ─────────────────────────────────────────────────────────────────
@@ -343,7 +342,6 @@ export default function IRQuickAdd() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      <ScreenHeader title="IR Quick Add" />
 
       {/* Scrollable body — shrinks as keyboard rises */}
       <Animated.View style={[styles.flex, { marginBottom: keyboardOffset }]}>
@@ -559,8 +557,8 @@ const styles = StyleSheet.create({
   },
   textInput: {
     backgroundColor: IR.inputBg, borderWidth: 1, borderColor: IR.inputBdr,
-    borderRadius: 14, color: IR.text, fontSize: 16,
-    fontFamily: "Inter_400Regular",
+    borderRadius: 14, color: IR.text, fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14,
   },
   epicGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 },
