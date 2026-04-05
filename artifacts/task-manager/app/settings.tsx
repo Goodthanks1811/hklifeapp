@@ -388,9 +388,9 @@ function BannerEditorModal({
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      // When scale < 1 the image is smaller than the container — lock to centre
-      const mX = Math.max(0, editorW * (sc.value - 1) / 2);
-      const mY = Math.max(0, editorH * (sc.value - 1) / 2);
+      // Use abs so panning works both when zoomed in (sc>1) and at contain (sc<1)
+      const mX = editorW * Math.abs(sc.value - 1) / 2;
+      const mY = editorH * Math.abs(sc.value - 1) / 2;
       tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
       ty.value = Math.max(-mY, Math.min(mY, savedTy.value + e.translationY));
     });
@@ -400,8 +400,8 @@ function BannerEditorModal({
     .onUpdate((e) => {
       const newSc = Math.max(minScaleSv.value, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
-      const mX = Math.max(0, editorW * (newSc - 1) / 2);
-      const mY = Math.max(0, editorH * (newSc - 1) / 2);
+      const mX = editorW * Math.abs(newSc - 1) / 2;
+      const mY = editorH * Math.abs(newSc - 1) / 2;
       tx.value = Math.max(-mX, Math.min(mX, tx.value));
       ty.value = Math.max(-mY, Math.min(mY, ty.value));
     });
