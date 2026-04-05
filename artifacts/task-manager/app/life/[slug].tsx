@@ -1115,15 +1115,21 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       {epicOptions && epicOptions.length > 0 && localCat === EPIC_CAT_VALUE && (
         <View style={[s.dsMetaRow, { marginTop: 8 }]}>
           {epicOptions.map(ep => {
-            const selected = ep === selEpic;
-            const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
+            const noneSelected = selEpic === null;
+            const isSelected   = noneSelected || ep === selEpic;
+            const isDimmed     = !noneSelected && ep !== selEpic;
+            const colours      = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
             return (
               <Pressable
                 key={`qa-ep-${ep}`}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
-                style={[s.dsEpicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(ep === selEpic ? null : ep); }}
+                style={[s.dsEpicChip, {
+                  backgroundColor: isSelected ? colours.bg : "transparent",
+                  borderColor:     isSelected ? colours.border : Colors.border,
+                  opacity:         isDimmed ? 0.35 : 1,
+                }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={[s.dsEpicText, { color: selected ? colours.text : Colors.textMuted }, isTablet && { fontSize: 14 }]}>{ep}</Text>
+                <Text style={[s.dsEpicText, { color: isSelected ? colours.text : Colors.textMuted }, isTablet && { fontSize: 14 }]}>{ep}</Text>
               </Pressable>
             );
           })}
@@ -1691,18 +1697,6 @@ export default function LifeTaskScreen() {
   const [epicAnchor,   setEpicAnchor]   = useState<EpicAnchor  | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
 
-  const [activeEpic, setActiveEpic] = useState<string | null>(null);
-  useEffect(() => { setActiveEpic(null); }, [slug]);
-
-  const epicPillOptions = useMemo(
-    () => config?.showEpic ? filterEpics(schema?.epicOptions) : [],
-    [config?.showEpic, schema?.epicOptions],
-  );
-
-  const displayedTasks = useMemo(
-    () => activeEpic ? tasks.filter(t => t.epic === activeEpic) : tasks,
-    [tasks, activeEpic],
-  );
   const hasAutoOpened = useRef(false);
   useEffect(() => {
     if (add === "true" && !hasAutoOpened.current) {
@@ -1972,46 +1966,6 @@ export default function LifeTaskScreen() {
         <Text style={sc.gradTitle}>{config.title}</Text>
       </View>
 
-      {/* ── Epic filter pills (Development only) ────────────────────────────── */}
-      {config.showEpic && epicPillOptions.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}
-        >
-          {epicPillOptions.map(ep => {
-            const ec       = epicColor(ep);
-            const isActive = activeEpic === ep;
-            const anyActive = activeEpic !== null;
-            const dimmed   = anyActive && !isActive;
-            return (
-              <Pressable
-                key={ep}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setActiveEpic(prev => prev === ep ? null : ep);
-                }}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  borderRadius: 20,
-                  borderWidth: 1,
-                  backgroundColor: ec.bg,
-                  borderColor: isActive ? ec.border : dimmed ? "rgba(255,255,255,0.08)" : ec.border,
-                  opacity: dimmed ? 0.35 : 1,
-                }}
-              >
-                <Text style={{
-                  fontSize: 13,
-                  fontFamily: isActive ? "Inter_700Bold" : "Inter_500Medium",
-                  color: dimmed ? "rgba(255,255,255,0.45)" : ec.text,
-                }}>{ep}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
-
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       {loading ? (
         <ListLoader />
@@ -2046,23 +2000,22 @@ export default function LifeTaskScreen() {
         >
           <View
               ref={containerRef}
-              {...(activeEpic ? {} : panResponder.panHandlers)}
-              style={{ height: Math.max(displayedTasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
+              {...panResponder.panHandlers}
+              style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
             >
               {/* Tap-anywhere-to-cancel overlay — sits above non-dragging rows (z:1) but below the dragging row (z:100) */}
-              {!activeEpic && dragActiveIdx !== -1 && (
+              {dragActiveIdx !== -1 && (
                 <Pressable
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
                   onPress={() => endDrag()}
                 />
               )}
-              {displayedTasks.map((task, idx) => {
-                const globalIdx  = activeEpic ? -1 : tasks.indexOf(task);
-                const isDragging = !activeEpic && dragActiveIdx === globalIdx;
+              {tasks.map((task, idx) => {
+                const isDragging = dragActiveIdx === idx;
                 const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
-                const translateY = activeEpic
-                  ? idx * SLOT_H
-                  : (isDragging ? (addedAnims.current[task.id] ?? posAnim) : posAnim);
+                const translateY = isDragging
+                  ? (addedAnims.current[task.id] ?? posAnim)
+                  : posAnim;
                 return (
                   <Animated.View
                     key={task.id}
@@ -2078,7 +2031,7 @@ export default function LifeTaskScreen() {
                       onEmojiPress={(px, py, w, h) => setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h })}
                       onEpicPress={config?.showEpic ? (px, py, w, h) => setEpicAnchor({ taskId: task.id, x: px, y: py, w, h }) : undefined}
                       onPress={() => openDetail(task)}
-                      onLongPress={activeEpic ? () => {} : () => startDrag(globalIdx === -1 ? idx : globalIdx)}
+                      onLongPress={() => startDrag(idx)}
                       onChecked={() => handleCheckOff(task.id)}
                       onDelete={() => handleDelete(task.id)}
                       onStartDelete={(d) => handleStartDelete(task.id, d)}
