@@ -51,6 +51,8 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@expo-google-fonts/bebas-neue": "^0.4.1",
+    "@react-native-masked-view/masked-view": "^0.3.2",
     "expo-av": "~16.0.8",
     "expo-calendar": "15.0.8",
     "expo-document-picker": "~14.0.8",

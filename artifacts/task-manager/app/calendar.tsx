@@ -26,6 +26,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useDrawer } from "@/context/DrawerContext";
 import { Colors } from "@/constants/colors";
+import MaskedView from "@react-native-masked-view/masked-view";
+import { LinearGradient } from "expo-linear-gradient";
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const BG   = "#0b0b0c";
@@ -1101,10 +1103,23 @@ const rs = StyleSheet.create({
 
 function TitleTxt() {
   return (
-    <Text style={s.hdrTitle}>
-      <Text style={{ color: "#fff" }}>HK </Text>
-      <Text style={{ color: RED }}>Calendar</Text>
-    </Text>
+    <MaskedView
+      maskElement={
+        <Text style={{ fontFamily: "BebasNeue_400Regular", fontSize: 56, letterSpacing: 3.5, backgroundColor: "transparent" }}>
+          Calendar
+        </Text>
+      }
+    >
+      <LinearGradient
+        colors={["#FF2020", "#8B0000"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={{ fontFamily: "BebasNeue_400Regular", fontSize: 56, letterSpacing: 3.5, opacity: 0 }}>
+          Calendar
+        </Text>
+      </LinearGradient>
+    </MaskedView>
   );
 }
 
