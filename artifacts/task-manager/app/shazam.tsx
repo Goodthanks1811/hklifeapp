@@ -7,6 +7,7 @@ import {
   Easing,
   FlatList,
   Image,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -30,11 +31,12 @@ const ITEM_H     = 48;
 interface Song { id: string; title: string; }
 
 // ── SongRow ────────────────────────────────────────────────────────────────────
-function SongRow({ song, onChecked, onDelete, onStartDelete }: {
+function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
   song:          Song;
   onChecked:     () => void;
   onDelete:      () => void;
   onStartDelete: (collapseDuration: number) => void;
+  onPress:       () => void;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
   const checkScale   = useRef(new Animated.Value(0)).current;
@@ -116,7 +118,7 @@ function SongRow({ song, onChecked, onDelete, onStartDelete }: {
           {/* Title */}
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
-            onPress={() => handleRowTap(() => {})}
+            onPress={() => handleRowTap(onPress)}
             onPressIn={onPressIn}
             onPressOut={onPressOut}
             hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
@@ -202,6 +204,20 @@ export default function ShazamScreen() {
     setRefreshing(false);
   }, [fetchSongs]);
 
+  // ── Open Spotify search ────────────────────────────────────────────────────
+  const openSpotify = useCallback(async (title: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const q        = encodeURIComponent(title);
+    const deepLink = `spotify:search:${q}`;
+    const webUrl   = `https://open.spotify.com/search/${q}`;
+    try {
+      const can = await Linking.canOpenURL(deepLink);
+      await Linking.openURL(can ? deepLink : webUrl);
+    } catch {
+      await Linking.openURL(webUrl);
+    }
+  }, []);
+
   // ── Mark done ──────────────────────────────────────────────────────────────
   const handleChecked = useCallback(async (id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
@@ -280,6 +296,7 @@ export default function ShazamScreen() {
           renderItem={({ item }) => (
             <SongRow
               song={item}
+              onPress={() => openSpotify(item.title)}
               onChecked={() => handleChecked(item.id)}
               onDelete={() => handleDelete(item.id)}
               onStartDelete={() => {}}
