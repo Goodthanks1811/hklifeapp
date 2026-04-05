@@ -436,8 +436,9 @@ function BannerEditorModal({
         const coverZoomE   = Math.max(editorW / imgW, editorH / imgH);
         const containZoomE = Math.min(editorW / imgW, editorH / imgH);
         const coverZoomD   = Math.max(DRAWER_WIDTH / imgW, PREVIEW_H / imgH);
-        // Contain scale in cover-space: at this editor scale the full image is visible
-        const minSc = containZoomE / coverZoomE;
+        // Contain scale in cover-space: at this scale the full image is visible.
+        // Cap at 0.5 so iPad portrait (near-square editor) always has zoom-out room.
+        const minSc = Math.min(containZoomE / coverZoomE, 0.5);
 
         coverImgWSv.value  = imgW * coverZoomE;
         coverImgHSv.value  = imgH * coverZoomE;
