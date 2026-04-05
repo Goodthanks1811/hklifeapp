@@ -97,7 +97,7 @@ svg{display:block;}
   <div class="ambient"></div>
 
   <div class="music-logo">
-    <div class="music-logo-text">HK Music</div>
+    <div class="music-logo-text">My Music</div>
 
     <div class="eq-bars">
       <div class="eq-bar"></div>
