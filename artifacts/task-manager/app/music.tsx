@@ -12,12 +12,37 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import MaskedView from "@react-native-masked-view/masked-view";
+import { LinearGradient } from "expo-linear-gradient";
 
 const RED    = "#E8230A";
 const BG     = "#0b0b0c";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#888";
+
+function MusicTitle() {
+  return (
+    <MaskedView
+      style={{ alignSelf: "center" }}
+      maskElement={
+        <Text style={{ fontFamily: "BebasNeue_400Regular", fontSize: 58, letterSpacing: 4, backgroundColor: "transparent" }}>
+          Music
+        </Text>
+      }
+    >
+      <LinearGradient
+        colors={["#FF2020", "#8B0000"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={{ fontFamily: "BebasNeue_400Regular", fontSize: 58, letterSpacing: 4, opacity: 0 }}>
+          Music
+        </Text>
+      </LinearGradient>
+    </MaskedView>
+  );
+}
 
 const BAR_COUNT   = 7;
 const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
@@ -92,7 +117,7 @@ export default function MusicScreen() {
             ))}
           </View>
 
-          <Text style={s.hubTitle}>MUSIC</Text>
+          <MusicTitle />
 
           <View style={s.cards}>
             <ProviderRow
@@ -160,18 +185,7 @@ const s = StyleSheet.create({
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
-  hubTitle: {
-    textAlign: "center",
-    fontSize: 52, fontWeight: "900", fontStyle: "italic",
-    color: RED,
-    letterSpacing: 3,
-    marginTop: 10, marginBottom: 4,
-    textShadowColor: "rgba(232,35,10,0.55)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 18,
-  },
-
-  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 28 },
+  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
   appleEmoji: { fontSize: 30, lineHeight: 34 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
