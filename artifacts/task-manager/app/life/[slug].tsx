@@ -67,7 +67,8 @@ const SLUG_MAP: Record<string, SlugConfig> = {
     showEpic: true,
   },
 };
-const ALL_CATS = Object.values(SLUG_MAP).map(c => c.catValue);
+const ALL_CATS      = Object.values(SLUG_MAP).map(c => c.catValue);
+const EPIC_CAT_VALUE = Object.values(SLUG_MAP).find(c => c.showEpic)?.catValue ?? "";
 
 // Map from catValue → the emojis that belong to that section
 const CAT_EMOJI_MAP: Record<string, string[]> = Object.fromEntries(
@@ -892,6 +893,8 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
   const handleCatChangeQA = useCallback((cat: string) => {
     setLocalCat(cat);
+    // Clear epic selection when switching away from the epic-enabled category
+    if (cat !== EPIC_CAT_VALUE) setSelEpic(null);
     // If the currently-selected emoji doesn't belong to the new category, clear it
     setSelEmoji(prev => {
       if (!prev) return null;
@@ -1022,7 +1025,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       emoji, priType: schema?.priType ?? "select",
       priOptions: schema?.priOptions ?? null,
       categoryType: schema?.categoryType ?? "select",
-      ...(showEpic && selEpic ? { epic: selEpic, epicType: schema?.epicType ?? "select" } : {}),
+      ...(localCat === EPIC_CAT_VALUE && selEpic ? { epic: selEpic, epicType: schema?.epicType ?? "select" } : {}),
       ...(linkUrl.trim() ? {
         url: linkUrl.trim(),
         referenceType: schema?.referenceType ?? "url",
@@ -1108,8 +1111,8 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         </View>
       )}
 
-      {/* Epic row — shown additionally for Automation */}
-      {showEpic && epicOptions && epicOptions.length > 0 && (
+      {/* Epic row — shown when Development category is selected */}
+      {epicOptions && epicOptions.length > 0 && localCat === EPIC_CAT_VALUE && (
         <View style={[s.dsMetaRow, { marginTop: 8 }]}>
           {epicOptions.map(ep => {
             const selected = ep === selEpic;
@@ -2088,7 +2091,7 @@ export default function LifeTaskScreen() {
         catValue={config.catValue}
         allCategories={ALL_CATS}
         showEpic={!!config?.showEpic}
-        epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : undefined}
+        epicOptions={filterEpics(schema?.epicOptions)}
         schema={schema}
         apiKey={apiKey}
         onAdded={handleQuickAdded}
