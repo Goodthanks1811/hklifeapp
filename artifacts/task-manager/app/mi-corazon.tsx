@@ -47,6 +47,13 @@ function gridPos(i: number, numCols: number, cardW: number) {
   return { x: GAP + col * (cardW + GAP), y: row * (cardH + GAP) };
 }
 
+// Compute position of a square file thumbnail at index i
+function fileGridPos(i: number, numCols: number, cellSize: number) {
+  const col = i % numCols;
+  const row = Math.floor(i / numCols);
+  return { x: GAP + col * (cellSize + GAP), y: row * (cellSize + GAP) };
+}
+
 // ── Path helpers ──────────────────────────────────────────────────────────────
 // Store paths relative to documentDirectory so they survive reinstalls (iOS
 // changes the container UUID on fresh install, breaking absolute file:// URIs).
@@ -487,12 +494,40 @@ export default function MiNenaScreen() {
   const reorderModeRef  = useRef(false);
   reorderModeRef.current = reorderMode;
 
-  // Per-card drag detection
+  // Per-card drag detection (folders)
   const cardPans          = useRef<Record<string, ReturnType<typeof PanResponder.create>>>({});
   const folderIdxMapRef   = useRef<Record<string, number>>({});
-  // Always-fresh callbacks (updated every render so PanResponder closures are never stale)
   const endFolderDragRef          = useRef<() => void>(() => {});
   const animateFolderPositionsRef = useRef<(di: number, hi: number) => void>(() => {});
+
+  // ── File drag-reorder state ───────────────────────────────────────────────
+  const filePosXAnims        = useRef<Record<string, Animated.Value>>({});
+  const filePosYAnims        = useRef<Record<string, Animated.Value>>({});
+  const fileAddedX           = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const fileAddedY           = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const fileDragPanX         = useRef(new Animated.Value(0)).current;
+  const fileDragPanY         = useRef(new Animated.Value(0)).current;
+  const fileIsDraggingRef    = useRef(false);
+  const fileDraggingIdxRef   = useRef(-1);
+  const fileHoverIdxRef      = useRef(-1);
+  const fileDragOccurredRef  = useRef(false);
+  const fileScrollOffRef     = useRef(0);
+  const fileStartScrollRef   = useRef(0);
+  const fileContainerTopRef  = useRef(0);
+  const fileGridContainerRef = useRef<View>(null);
+  const fileVItemsRef        = useRef<MediaItem[]>([]);
+  const fileGridColsRef      = useRef(3);
+  const fileThumbSizeRef     = useRef(0);
+  const [fileDragActiveIdx,    setFileDragActiveIdx]    = useState(-1);
+  const [fileGridScrollEnabled, setFileGridScrollEnabled] = useState(true);
+  const [fileReorderMode,      setFileReorderMode]      = useState(false);
+  const fileReorderModeRef   = useRef(false);
+  fileReorderModeRef.current = fileReorderMode;
+
+  const filePans              = useRef<Record<string, ReturnType<typeof PanResponder.create>>>({});
+  const fileIdxMapRef         = useRef<Record<string, number>>({});
+  const endFileDragRef        = useRef<() => void>(() => {});
+  const animateFilePositionsRef = useRef<(di: number, hi: number) => void>(() => {});
 
   // Derived from stack
   const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1] : null;
@@ -861,10 +896,162 @@ export default function MiNenaScreen() {
     setTimeout(() => { dragOccurredRef.current = false; }, 80);
   }, [dragPanX, dragPanY]);
 
-  // Keep callback refs fresh every render so stale closures inside
-  // once-created per-card PanResponders always call the latest version.
+  // Keep folder callback refs fresh
   endFolderDragRef.current          = endFolderDrag;
   animateFolderPositionsRef.current = animateFolderPositions;
+
+  // ── File drag callbacks ────────────────────────────────────────────────────
+  const animateFilePositions = useCallback((dragIdx: number, hoverIdx: number) => {
+    const items = fileVItemsRef.current;
+    const nc    = fileGridColsRef.current;
+    const ts    = fileThumbSizeRef.current;
+    items.forEach((item, i) => {
+      if (i === dragIdx) return;
+      let target = i;
+      if (dragIdx < hoverIdx && i > dragIdx && i <= hoverIdx) target = i - 1;
+      else if (dragIdx > hoverIdx && i >= hoverIdx && i < dragIdx) target = i + 1;
+      const { x, y } = fileGridPos(target, nc, ts);
+      filePosXAnims.current[item.uri]?.stopAnimation();
+      filePosYAnims.current[item.uri]?.stopAnimation();
+      Animated.timing(filePosXAnims.current[item.uri], { toValue: x, duration: 120, useNativeDriver: true, easing: (t) => t }).start();
+      Animated.timing(filePosYAnims.current[item.uri], { toValue: y, duration: 120, useNativeDriver: true, easing: (t) => t }).start();
+    });
+  }, []);
+
+  const endFileDrag = useCallback(() => {
+    const di = fileDraggingIdxRef.current;
+    const hi = fileHoverIdxRef.current;
+    fileIsDraggingRef.current  = false;
+    fileDraggingIdxRef.current = -1;
+    fileHoverIdxRef.current    = -1;
+    fileDragPanX.setValue(0);
+    fileDragPanY.setValue(0);
+    setFileGridScrollEnabled(true);
+    setFileDragActiveIdx(-1);
+
+    if (di >= 0 && hi >= 0 && di !== hi) {
+      setFolders((prev) => {
+        const next = prev.map((f) => {
+          if (f.id !== currentFolderId) return f;
+          const items = [...f.items];
+          const [moved] = items.splice(di, 1);
+          items.splice(hi, 0, moved);
+          const nc = fileGridColsRef.current;
+          const ts = fileThumbSizeRef.current;
+          items.forEach((item, i) => {
+            const { x, y } = fileGridPos(i, nc, ts);
+            filePosXAnims.current[item.uri]?.setValue(x);
+            filePosYAnims.current[item.uri]?.setValue(y);
+          });
+          return { ...f, items };
+        });
+        saveFolders(next).catch(() => {});
+        return next;
+      });
+    } else {
+      fileVItemsRef.current.forEach((item, i) => {
+        const { x, y } = fileGridPos(i, fileGridColsRef.current, fileThumbSizeRef.current);
+        filePosXAnims.current[item.uri]?.setValue(x);
+        filePosYAnims.current[item.uri]?.setValue(y);
+      });
+    }
+    setTimeout(() => { fileDragOccurredRef.current = false; }, 80);
+  }, [fileDragPanX, fileDragPanY, currentFolderId]);
+
+  endFileDragRef.current        = endFileDrag;
+  animateFilePositionsRef.current = animateFilePositions;
+
+  // ── File grid refs sync ────────────────────────────────────────────────────
+  useEffect(() => { fileGridColsRef.current = gridCols; fileThumbSizeRef.current = thumbSize; }, [gridCols, thumbSize]);
+  useEffect(() => { fileVItemsRef.current = currentFolder?.items ?? []; }, [currentFolder?.items]);
+
+  // Reset file reorder mode when navigating to a different folder
+  useEffect(() => {
+    setFileReorderMode(false);
+    setFileGridScrollEnabled(true);
+    setFileDragActiveIdx(-1);
+    fileIsDraggingRef.current = false;
+  }, [currentFolderId]);
+
+  // Sync file positions when items or grid dims change (not during drag)
+  useEffect(() => {
+    if (fileIsDraggingRef.current) return;
+    (currentFolder?.items ?? []).forEach((item, i) => {
+      const { x, y } = fileGridPos(i, gridCols, thumbSize);
+      filePosXAnims.current[item.uri]?.setValue(x);
+      filePosYAnims.current[item.uri]?.setValue(y);
+    });
+  }, [currentFolder?.items, gridCols, thumbSize]);
+
+  // ── Per-file PanResponder init (runs every render, safe due to guards) ────
+  (currentFolder?.items ?? []).forEach((item, i) => {
+    fileIdxMapRef.current[item.uri] = i;
+
+    if (!filePosXAnims.current[item.uri]) {
+      const { x, y } = fileGridPos(i, gridCols, thumbSize);
+      filePosXAnims.current[item.uri] = new Animated.Value(x);
+      filePosYAnims.current[item.uri] = new Animated.Value(y);
+      fileAddedX.current[item.uri]    = Animated.add(filePosXAnims.current[item.uri], fileDragPanX);
+      fileAddedY.current[item.uri]    = Animated.add(filePosYAnims.current[item.uri], fileDragPanY);
+    }
+
+    if (!filePans.current[item.uri]) {
+      const itemUri = item.uri;
+      filePans.current[itemUri] = PanResponder.create({
+        onStartShouldSetPanResponder: () => fileReorderModeRef.current,
+        onMoveShouldSetPanResponder:  () => fileReorderModeRef.current,
+
+        onPanResponderGrant: () => {
+          if (!fileReorderModeRef.current) return;
+          const idx = fileIdxMapRef.current[itemUri] ?? -1;
+          if (idx < 0) return;
+          fileIsDraggingRef.current   = true;
+          fileDraggingIdxRef.current  = idx;
+          fileHoverIdxRef.current     = idx;
+          fileDragOccurredRef.current = true;
+          fileDragPanX.setValue(0);
+          fileDragPanY.setValue(0);
+          setFileDragActiveIdx(idx);
+          setFileGridScrollEnabled(false);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          fileStartScrollRef.current = fileScrollOffRef.current;
+          fileGridContainerRef.current?.measure((_fx, _fy, _w, _h, _px, py) => {
+            fileContainerTopRef.current = py;
+          });
+        },
+
+        onPanResponderMove: (_e, gs) => {
+          if (!fileIsDraggingRef.current) return;
+          fileDragPanX.setValue(gs.dx);
+          fileDragPanY.setValue(gs.dy);
+          const di  = fileDraggingIdxRef.current;
+          const nc  = fileGridColsRef.current;
+          const ts  = fileThumbSizeRef.current;
+          const relY = gs.moveY - fileContainerTopRef.current + (fileScrollOffRef.current - fileStartScrollRef.current);
+          const relX = gs.moveX;
+          const hoverCol = Math.max(0, Math.min(nc - 1, Math.floor((relX - GAP) / (ts + GAP))));
+          const hoverRow = Math.max(0, Math.floor(relY / (ts + GAP)));
+          const newHover = Math.min(fileVItemsRef.current.length - 1, hoverRow * nc + hoverCol);
+          if (newHover !== fileHoverIdxRef.current) {
+            fileHoverIdxRef.current = newHover;
+            animateFilePositionsRef.current(di, newHover);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        },
+
+        onPanResponderRelease: () => {
+          if (fileIsDraggingRef.current) endFileDragRef.current();
+          setTimeout(() => { fileDragOccurredRef.current = false; }, 80);
+        },
+
+        onPanResponderTerminate: () => {
+          if (fileIsDraggingRef.current) endFileDragRef.current();
+        },
+
+        onPanResponderTerminationRequest: () => !fileIsDraggingRef.current,
+      });
+    }
+  });
 
   // ── Root folder grid ───────────────────────────────────────────────────────
   if (!currentFolder) {
@@ -1033,14 +1220,29 @@ export default function MiNenaScreen() {
         </ScrollView>
 
         <View style={s.breadcrumbActions}>
-          <TouchableOpacity onPress={() => setShowNewFolder(true)} style={s.iconBtn} activeOpacity={0.8}>
+          {currentFolder.items.length > 0 && (
+            fileReorderMode ? (
+              <TouchableOpacity
+                style={s.iconBtn}
+                onPress={() => { setFileReorderMode(false); setFileGridScrollEnabled(true); }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#E03131", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Done</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={s.iconBtn} onPress={() => setFileReorderMode(true)} activeOpacity={0.8}>
+                <Feather name="list" size={16} color="#666" />
+              </TouchableOpacity>
+            )
+          )}
+          <TouchableOpacity onPress={() => setShowNewFolder(true)} style={[s.iconBtn, fileReorderMode && { opacity: 0.3 }]} activeOpacity={0.8} disabled={fileReorderMode}>
             <Feather name="folder-plus" size={17} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => pickIntoFolder(currentFolderId!)}
-            style={[s.iconBtn, s.iconBtnRed]}
+            style={[s.iconBtn, s.iconBtnRed, fileReorderMode && { opacity: 0.3 }]}
             activeOpacity={0.8}
-            disabled={picking}
+            disabled={picking || fileReorderMode}
           >
             {picking
               ? <ActivityIndicator size="small" color="#fff" />
@@ -1058,7 +1260,84 @@ export default function MiNenaScreen() {
           <Text style={s.emptyTitle}>Empty Folder</Text>
           <Text style={s.emptySubtitle}>Tap + to add photos and videos, or the folder icon to create a sub-folder.</Text>
         </View>
+      ) : fileReorderMode ? (
+        /* ── File reorder mode: absolute-position grid so items can animate ── */
+        <ScrollView
+          scrollEnabled={fileGridScrollEnabled}
+          onScroll={(e) => { fileScrollOffRef.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.bottom + 16, paddingHorizontal: GAP }}
+        >
+          {subFolders.length > 0 && (
+            <View style={s.subSection}>
+              <Text style={s.sectionLabel}>Folders</Text>
+              <View style={s.subFolderWrap}>
+                {subFolders.map((sf) => (
+                  <FolderCard key={sf.id} folder={sf} cardSize={folderCardSize} subCount={subCountMap[sf.id] ?? 0}
+                    onPress={() => navigateInto(sf.id)} onLongPress={() => handleFolderLongPress(sf.id)} />
+                ))}
+              </View>
+            </View>
+          )}
+          <View style={s.folderGridHeader}>
+            {subFolders.length > 0 && <Text style={s.sectionLabel}>Files</Text>}
+            <Text style={s.headerCount}>
+              {currentFolder.items.length} file{currentFolder.items.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
+          <View
+            ref={fileGridContainerRef}
+            style={{ height: Math.ceil(currentFolder.items.length / gridCols) * (thumbSize + GAP) }}
+          >
+            {fileDragActiveIdx !== -1 && (
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => endFileDrag()} />
+            )}
+            {currentFolder.items.map((item, idx) => {
+              const isDragging = fileDragActiveIdx === idx;
+              const txAnim = isDragging
+                ? (fileAddedX.current[item.uri] ?? filePosXAnims.current[item.uri])
+                : filePosXAnims.current[item.uri];
+              const tyAnim = isDragging
+                ? (fileAddedY.current[item.uri] ?? filePosYAnims.current[item.uri])
+                : filePosYAnims.current[item.uri];
+              if (!txAnim || !tyAnim) return null;
+              return (
+                <Animated.View
+                  key={item.uri}
+                  {...(filePans.current[item.uri]?.panHandlers ?? {})}
+                  style={[
+                    { position: "absolute", left: 0, top: 0, width: thumbSize, zIndex: isDragging ? 100 : 1 },
+                    { transform: [{ translateX: txAnim }, { translateY: tyAnim }] },
+                  ]}
+                >
+                  <View style={[
+                    s.thumb,
+                    { width: thumbSize, height: thumbSize },
+                    isDragging && { opacity: 0.92, transform: [{ scale: 1.06 }] },
+                    fileDragActiveIdx !== -1 && !isDragging && { opacity: 0.6 },
+                  ]}>
+                    {item.isVideo ? (
+                      <VideoThumb uri={toAbs(item.uri)} style={StyleSheet.absoluteFill} />
+                    ) : (
+                      <Image source={{ uri: toAbs(item.uri) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    )}
+                    {item.isVideo && (
+                      <View style={s.playOverlay}>
+                        <View style={s.playBadge}><Feather name="play" size={14} color="#fff" /></View>
+                      </View>
+                    )}
+                    <View style={s.fileReorderHandle}>
+                      <Feather name="menu" size={11} color="rgba(255,255,255,0.8)" />
+                    </View>
+                  </View>
+                </Animated.View>
+              );
+            })}
+          </View>
+        </ScrollView>
       ) : (
+        /* ── Normal view mode: FlatList ──────────────────────────────────── */
         <FlatList
           key={`file-grid-${currentFolderId}-${gridCols}`}
           data={currentFolder.items}
@@ -1074,25 +1353,17 @@ export default function MiNenaScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>
-              {/* Sub-folder grid */}
               {subFolders.length > 0 && (
                 <View style={s.subSection}>
                   <Text style={s.sectionLabel}>Folders</Text>
                   <View style={s.subFolderWrap}>
                     {subFolders.map((sf) => (
-                      <FolderCard
-                        key={sf.id}
-                        folder={sf}
-                        cardSize={folderCardSize}
-                        subCount={subCountMap[sf.id] ?? 0}
-                        onPress={() => navigateInto(sf.id)}
-                        onLongPress={() => handleFolderLongPress(sf.id)}
-                      />
+                      <FolderCard key={sf.id} folder={sf} cardSize={folderCardSize} subCount={subCountMap[sf.id] ?? 0}
+                        onPress={() => navigateInto(sf.id)} onLongPress={() => handleFolderLongPress(sf.id)} />
                     ))}
                   </View>
                 </View>
               )}
-              {/* Files section header */}
               {currentFolder.items.length > 0 && (
                 <View style={s.folderGridHeader}>
                   {subFolders.length > 0 && <Text style={s.sectionLabel}>Files</Text>}
@@ -1301,6 +1572,19 @@ const s = StyleSheet.create({
   // File grid header
   folderGridHeader: { paddingHorizontal: 4, paddingBottom: 8, gap: 2 },
   headerCount: { fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular" },
+
+  // File reorder drag handle badge (bottom-right corner of thumbnail)
+  fileReorderHandle: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.60)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   // Thumbnails
   thumb:       { backgroundColor: "#111", overflow: "hidden" },
