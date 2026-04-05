@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -875,16 +876,28 @@ export default function NRLScheduleScreen() {
       <Modal
         visible={pickerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPickerVisible(false)}
       >
-        <View style={styles.pickerOverlay}>
-          <Pressable style={{ flex: 1 }} onPress={() => setPickerVisible(false)} />
-          <View style={[styles.pickerSheet, { paddingBottom: insets.bottom + 8 }]}>
-            <View style={styles.pickerHandle} />
-            <Text style={styles.pickerTitle}>Round {pickerRound} Tips</Text>
-            <Text style={styles.pickerSub}>Tap a team to set your pick — tap again to clear</Text>
-            <View style={styles.pickerList}>
+        <Pressable style={styles.pickerOverlay} onPress={() => setPickerVisible(false)}>
+          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <View style={styles.pickerHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerTitle}>Round {pickerRound} Tips</Text>
+                <Text style={styles.pickerSub}>Tap a team to pick — tap again to clear</Text>
+              </View>
+              <TouchableOpacity style={styles.pickerCloseBtn} onPress={() => setPickerVisible(false)} hitSlop={12}>
+                <Text style={styles.pickerCloseTx}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Match list */}
+            <ScrollView
+              style={styles.pickerScroll}
+              contentContainerStyle={styles.pickerList}
+              showsVerticalScrollIndicator={false}
+            >
               {pickerMatches.map((m) => {
                 const pick = roundPicks[m.id] ?? null;
                 return (
@@ -917,12 +930,14 @@ export default function NRLScheduleScreen() {
                   </View>
                 );
               })}
-            </View>
+            </ScrollView>
+
+            {/* Done button */}
             <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={() => setPickerVisible(false)}>
               <Text style={styles.pickerDoneTx}>Done</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -940,40 +955,56 @@ const styles = StyleSheet.create({
   pickerOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.72)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
   },
   pickerSheet: {
     backgroundColor: "#141414",
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    borderRadius: 20,
     width: "100%",
-    maxWidth: 560,
-    alignSelf: "center",
+    maxWidth: 520,
+    maxHeight: "82%",
+    overflow: "hidden",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 18,
   },
-  pickerHandle: {
-    width: 38,
-    height: 4,
-    backgroundColor: "#333",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 18,
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 14,
+  },
+  pickerCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#2a2a2a",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+    marginTop: 2,
+  },
+  pickerCloseTx: {
+    color: "#888",
+    fontSize: 13,
+    fontWeight: "700",
   },
   pickerTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#fff",
-    textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   pickerSub: {
     fontSize: 12,
     color: "#666",
-    textAlign: "center",
-    marginBottom: 16,
+  },
+  pickerScroll: {
+    flexShrink: 1,
   },
   pickerList: {
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
   pickerRow: {
     flexDirection: "row",
