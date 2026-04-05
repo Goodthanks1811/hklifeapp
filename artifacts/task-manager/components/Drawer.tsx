@@ -318,21 +318,7 @@ export function Drawer() {
         {/* bottom fade into drawer bg */}
         <LinearGradient
           colors={["transparent", "#111111"]}
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 70 }}
-          pointerEvents="none"
-        />
-        {/* left fade */}
-        <LinearGradient
-          colors={["#111111", "transparent"]}
-          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-          style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 48 }}
-          pointerEvents="none"
-        />
-        {/* right fade */}
-        <LinearGradient
-          colors={["transparent", "#111111"]}
-          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-          style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 48 }}
+          style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 50 }}
           pointerEvents="none"
         />
       </Pressable>
