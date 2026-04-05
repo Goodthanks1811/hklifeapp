@@ -20,8 +20,12 @@ const HTML = `<!DOCTYPE html>
 html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;height:100%;overflow-x:hidden;}
 .screen{max-width:390px;margin:0 auto;min-height:100%;position:relative;}
 
+/* ambient glow — same as original */
+.ambient{position:fixed;top:-120px;left:50%;transform:translateX(-50%);width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(232,35,10,0.12) 0%,transparent 70%);pointer-events:none;z-index:0;animation:pulse 4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.6;transform:translateX(-50%) scale(1);}50%{opacity:1;transform:translateX(-50%) scale(1.1);}}
+
 /* EQ header */
-.eq-wrap{padding:56px 0 0;text-align:center;}
+.eq-wrap{position:relative;z-index:10;padding:60px 0 6px;text-align:center;}
 .eq-bars{display:inline-flex;align-items:flex-end;gap:5px;height:56px;justify-content:center;}
 .eq-bar{width:5px;background:var(--red);border-radius:3px;animation:eq 1.2s ease-in-out infinite;}
 .eq-bar:nth-child(1){animation-delay:0s;animation-duration:1.1s;}
@@ -42,12 +46,12 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 /* provider rows — exact Life section row style */
 .cards{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
 .provider-row{
-  display:flex;align-items:center;gap:12px;
+  display:flex;align-items:center;gap:16px;
   background:var(--row);
   border:1px solid var(--border);
-  border-radius:10px;
-  padding:0 14px;
-  height:64px;
+  border-radius:16px;
+  padding:0 20px;
+  height:84px;
   cursor:pointer;
   animation:slideUp .35s ease both;
 }
@@ -56,17 +60,17 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 .provider-row:nth-child(3){animation-delay:.19s;}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 
-/* icon — same dark base as Life emoji cells */
+/* icon — 48px to match original card size */
 .row-icon{
-  width:36px;height:36px;border-radius:9px;
+  width:48px;height:48px;border-radius:12px;
   background:#1a1a1a;
-  border:1px solid rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.06);
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;
 }
 .row-name{
   flex:1;
-  font-size:16px;font-weight:500;color:var(--white);
+  font-size:17px;font-weight:600;color:var(--white);letter-spacing:.2px;
 }
 .row-chevron{color:rgba(255,255,255,0.22);}
 
@@ -106,6 +110,7 @@ svg{display:block;}
 </head>
 <body>
 <div class="screen">
+  <div class="ambient"></div>
 
   <div class="eq-wrap">
     <div class="eq-bars">
@@ -126,7 +131,7 @@ svg{display:block;}
     <!-- My Music -->
     <div class="provider-row">
       <div class="row-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="#E03131">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="#E03131">
           <path d="M21 3.01L9 5v9.73C8.39 14.27 7.72 14 7 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V9.06l10-1.67v5.34c-.61-.46-1.36-.73-2.18-.73-1.78 0-3.22 1.34-3.22 3s1.44 3 3.22 3 3.18-1.34 3.18-3V3.01z"/>
         </svg>
       </div>
@@ -141,7 +146,7 @@ svg{display:block;}
     <!-- Spotify -->
     <div class="provider-row">
       <div class="row-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="#1DB954">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="#1DB954">
           <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
         </svg>
       </div>
