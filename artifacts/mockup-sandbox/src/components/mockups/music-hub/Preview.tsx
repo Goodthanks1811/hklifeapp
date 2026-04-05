@@ -49,7 +49,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 /* left accent bar only carries the brand colour */
 .provider-card::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 2px 2px 0;}
 .card-spotify::before{background:#1DB954;}
-.card-apple::before{background:#fc3c44;}
+.card-apple::before{background:var(--red);}
 .card-local::before{background:var(--red);}
 
 /* icon base — all black */
@@ -98,7 +98,7 @@ svg{display:block;}
 
   <div class="music-logo">
     <div class="music-logo-text">HK MUSIC</div>
-    <div class="music-logo-sub">Your Listening Hub</div>
+
     <div class="eq-bars">
       <div class="eq-bar"></div>
       <div class="eq-bar"></div>
@@ -112,6 +112,25 @@ svg{display:block;}
 
   <div class="cards">
 
+    <!-- My Music -->
+    <div class="provider-card card-local">
+      <div class="card-logo">
+        <svg class="local-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
+      <div class="card-info">
+        <div class="card-name">My Music</div>
+      </div>
+      <div class="card-chevron">
+        <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
+          <path d="M1 1L7 7L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+
     <!-- Spotify -->
     <div class="provider-card card-spotify">
       <div class="card-logo">
@@ -121,7 +140,6 @@ svg{display:block;}
       </div>
       <div class="card-info">
         <div class="card-name">Spotify</div>
-        <div class="card-sub">Open playlists</div>
       </div>
       <div class="card-chevron">
         <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
@@ -135,27 +153,6 @@ svg{display:block;}
       <div class="card-logo" style="font-size:28px;">🍎</div>
       <div class="card-info">
         <div class="card-name">Apple Music</div>
-        <div class="card-sub">Open playlists</div>
-      </div>
-      <div class="card-chevron">
-        <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
-          <path d="M1 1L7 7L1 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-    </div>
-
-    <!-- My Music -->
-    <div class="provider-card card-local">
-      <div class="card-logo">
-        <svg class="local-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 18V5l12-2v13"/>
-          <circle cx="6" cy="18" r="3"/>
-          <circle cx="18" cy="16" r="3"/>
-        </svg>
-      </div>
-      <div class="card-info">
-        <div class="card-name">My Music</div>
-        <div class="card-sub">On device</div>
       </div>
       <div class="card-chevron">
         <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
