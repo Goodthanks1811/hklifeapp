@@ -19,7 +19,7 @@ interface Ctx extends State {
   clear:  () => void;
 }
 
-const DEFAULT: State = { uri: null, resizeMode: "cover", offsetX: 0, offsetY: 0, scale: 1.3 };
+const DEFAULT: State = { uri: null, resizeMode: "cover", offsetX: 0, offsetY: 0, scale: 1.0 };
 
 const HeaderImageCtx = createContext<Ctx>({ ...DEFAULT, update: () => {}, clear: () => {} });
 

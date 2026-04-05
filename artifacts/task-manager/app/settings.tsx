@@ -321,20 +321,26 @@ function BannerEditorModal({
   const editorH = Math.max(180,
     screenH - insets.top - insets.bottom - HEADER_H - HINT_H - PREVIEW_SECTION_H);
 
-  // Shared values (editor-space pixels)
-  const tx     = useSharedValue(initialOffX * editorW / DRAWER_WIDTH);
-  const ty     = useSharedValue(initialOffY * editorH / PREVIEW_H);
-  const savedTx = useSharedValue(tx.value);
-  const savedTy = useSharedValue(ty.value);
+  // Shared values (editor-space pixels) — never read .value during render
+  const initTx = initialOffX * editorW / DRAWER_WIDTH;
+  const initTy = initialOffY * editorH / PREVIEW_H;
+  const tx     = useSharedValue(initTx);
+  const ty     = useSharedValue(initTy);
+  const savedTx = useSharedValue(initTx);
+  const savedTy = useSharedValue(initTy);
   const sc      = useSharedValue(initialScale);
-  const savedSc = useSharedValue(sc.value);
+  const savedSc = useSharedValue(initialScale);
 
   // Re-init if modal re-opens with different values
   const prevUri = useRef(uri);
   if (uri !== prevUri.current) {
     prevUri.current = uri;
-    tx.value = 0; ty.value = 0; sc.value = 1.3;
+    tx.value = 0; ty.value = 0; sc.value = 1.0;
   }
+
+  // max pan travel keeps the image covering the container at all times
+  const maxPan = (containerSize: number, scale: number) =>
+    containerSize * (scale - 1) / 2;
 
   const pan = Gesture.Pan()
     .onStart(() => {
@@ -342,10 +348,10 @@ function BannerEditorModal({
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      const maxX = editorW * (sc.value - 1) / 2;
-      const maxY = editorH * (sc.value - 1) / 2;
-      tx.value = Math.max(-maxX, Math.min(maxX, savedTx.value + e.translationX));
-      ty.value = Math.max(-maxY, Math.min(maxY, savedTy.value + e.translationY));
+      const mX = maxPan(editorW, sc.value);
+      const mY = maxPan(editorH, sc.value);
+      tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
+      ty.value = Math.max(-mY, Math.min(mY, savedTy.value + e.translationY));
     });
 
   const pinch = Gesture.Pinch()
@@ -353,38 +359,43 @@ function BannerEditorModal({
     .onUpdate((e) => {
       const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
-      const maxX = editorW * (newSc - 1) / 2;
-      const maxY = editorH * (newSc - 1) / 2;
-      tx.value = Math.max(-maxX, Math.min(maxX, tx.value));
-      ty.value = Math.max(-maxY, Math.min(maxY, ty.value));
+      // Re-clamp translation when scale changes
+      const mX = maxPan(editorW, newSc);
+      const mY = maxPan(editorH, newSc);
+      tx.value = Math.max(-mX, Math.min(mX, tx.value));
+      ty.value = Math.max(-mY, Math.min(mY, ty.value));
     });
 
   const composed = Gesture.Simultaneous(pan, pinch);
 
+  // Image fills the container (resizeMode cover), then we scale + pan it.
+  // Using transform keeps cover crop fixed as reference; scale zooms in from center.
   const editorImgStyle = useAnimatedStyle(() => ({
-    position:  "absolute",
-    width:     editorW * sc.value,
-    height:    editorH * sc.value,
-    top:       -(editorH * (sc.value - 1) / 2) + ty.value,
-    left:      -(editorW * (sc.value - 1) / 2) + tx.value,
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    transform: [
+      { scale: sc.value },
+      { translateX: tx.value },
+      { translateY: ty.value },
+    ],
   }));
 
-  const previewImgStyle = useAnimatedStyle(() => {
-    const pTx = tx.value * DRAWER_WIDTH / editorW;
-    const pTy = ty.value * PREVIEW_H / editorH;
-    return {
-      position: "absolute",
-      width:    DRAWER_WIDTH * sc.value,
-      height:   PREVIEW_H   * sc.value,
-      top:      -(PREVIEW_H   * (sc.value - 1) / 2) + pTy,
-      left:     -(DRAWER_WIDTH * (sc.value - 1) / 2) + pTx,
-    };
-  });
+  const previewImgStyle = useAnimatedStyle(() => ({
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    transform: [
+      { scale: sc.value },
+      { translateX: tx.value * DRAWER_WIDTH / editorW },
+      { translateY: ty.value * PREVIEW_H / editorH },
+    ],
+  }));
 
   const doSave = () => {
-    const finalOffX = tx.value * DRAWER_WIDTH / editorW;
-    const finalOffY = ty.value * PREVIEW_H / editorH;
-    onSave(finalOffX, finalOffY, sc.value);
+    onSave(
+      tx.value * DRAWER_WIDTH / editorW,
+      ty.value * PREVIEW_H / editorH,
+      sc.value,
+    );
   };
 
   return (
@@ -568,7 +579,7 @@ export default function SettingsScreen() {
     if (!result.canceled && result.assets[0]) {
       const dest = FileSystem.documentDirectory + "hk_life_banner.jpg";
       await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-      headerUpdate({ uri: dest, offsetX: 0, offsetY: 0, scale: 1.3 });
+      headerUpdate({ uri: dest, offsetX: 0, offsetY: 0, scale: 1.0 });
       setEditorVisible(true);
     }
   };
@@ -872,7 +883,7 @@ export default function SettingsScreen() {
             uri={headerUri}
             initialOffX={headerOffX}
             initialOffY={headerOffY}
-            initialScale={headerScale ?? 1.3}
+            initialScale={headerScale ?? 1.0}
             onSave={(offX, offY, sc) => {
               headerUpdate({ offsetX: offX, offsetY: offY, scale: sc });
               setEditorVisible(false);

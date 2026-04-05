@@ -299,20 +299,20 @@ export function Drawer() {
             const bW  = DRAWER_WIDTH;
             const bH  = isTablet ? 120 : 70;
             const uri = bannerUri ?? FALLBACK_BANNER;
-            const sc  = bannerScale ?? 1.3;
-            const iw  = bW * sc;
-            const ih  = bH * sc;
+            const sc  = bannerScale ?? 1.0;
             return (
               <Image
                 source={{ uri }}
                 style={{
                   position: "absolute",
-                  width:  iw,
-                  height: ih,
-                  top:  -(bH * (sc - 1) / 2) + (bannerUri ? bannerOffY : 0),
-                  left: -(bW * (sc - 1) / 2) + (bannerUri ? bannerOffX : 0),
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  transform: bannerUri ? [
+                    { scale:      sc },
+                    { translateX: bannerOffX },
+                    { translateY: bannerOffY },
+                  ] : [{ scale: 1 }],
                 }}
-                resizeMode={bannerUri ? bannerResizeMode : "cover"}
+                resizeMode="cover"
               />
             );
           })()}
