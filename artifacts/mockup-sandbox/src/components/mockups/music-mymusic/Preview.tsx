@@ -34,7 +34,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 .header{display:flex;align-items:center;padding:56px 20px 14px;gap:14px;flex-shrink:0;border-bottom:1px solid var(--border);position:relative;z-index:10;}
 .back{display:flex;align-items:center;gap:5px;color:var(--red);font-size:15px;font-weight:500;cursor:pointer;flex-shrink:0;}
 .header-title{flex:1;text-align:center;font-size:17px;font-weight:600;}
-.add-btn{width:32px;height:32px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.add-btn{width:36px;height:36px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
 
 /* track list */
 .track-list{flex:1;overflow-y:auto;padding:10px 16px 0;display:flex;flex-direction:column;gap:8px;position:relative;z-index:10;}
@@ -91,7 +91,7 @@ svg{display:block;}
     <div class="track-row${i === 3 ? ' playing' : ''}">
       <div class="track-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="${i === 3 ? '#E03131' : 'rgba(255,255,255,0.35)'}">
-          <path d="M12 3v10.55A4 4 0 1 0 14 17V5h4V3h-6z"/>
+          <path d="M21 3.01L9 5v9.73C8.39 14.27 7.72 14 7 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V9.06l10-1.67v5.34c-.61-.46-1.36-.73-2.18-.73-1.78 0-3.22 1.34-3.22 3s1.44 3 3.22 3 3.18-1.34 3.18-3V3.01z"/>
         </svg>
       </div>
       <div class="track-info">
@@ -111,7 +111,7 @@ svg{display:block;}
     <div class="player-track">
       <div class="player-art">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#E03131">
-          <path d="M12 3v10.55A4 4 0 1 0 14 17V5h4V3h-6z"/>
+          <path d="M21 3.01L9 5v9.73C8.39 14.27 7.72 14 7 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V9.06l10-1.67v5.34c-.61-.46-1.36-.73-2.18-.73-1.78 0-3.22 1.34-3.22 3s1.44 3 3.22 3 3.18-1.34 3.18-3V3.01z"/>
         </svg>
       </div>
       <div class="player-info">

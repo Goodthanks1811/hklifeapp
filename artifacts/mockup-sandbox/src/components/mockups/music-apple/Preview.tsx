@@ -45,7 +45,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
   background:var(--row);border:1px solid var(--border);border-radius:14px;
   padding:14px 14px;cursor:pointer;
 }
-.pl-emoji{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
+.pl-icon{width:38px;height:38px;border-radius:10px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pl-name{flex:1;font-size:15px;font-weight:500;}
 .pl-chevron{color:rgba(255,255,255,0.2);}
 
@@ -76,7 +76,11 @@ svg{display:block;}
   <div class="list">
     ${PLAYLISTS.map((name) => `
     <div class="pl-row">
-      <div class="pl-emoji">🎤</div>
+      <div class="pl-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#E03131">
+          <path d="M12 3v10.55A4 4 0 1 0 14 17V5h4V3h-6z"/>
+        </svg>
+      </div>
       <div class="pl-name">${name}</div>
       <div class="pl-chevron">
         <svg width="8" height="13" viewBox="0 0 8 14" fill="none">
