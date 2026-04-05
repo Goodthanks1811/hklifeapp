@@ -592,19 +592,24 @@ export default function SettingsScreen() {
 
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
+    // 'limited' = user chose "Selected Photos" on iOS 14+ — still allows picking
+    if (perm.status === "denied" || perm.status === "blocked") return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.9,
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
-      // Unique filename avoids the React Native image cache serving the old file
-      const ts   = Date.now();
-      const dest = (FileSystem.documentDirectory ?? "") + `hk_life_banner_${ts}.jpg`;
-      await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-      setPendingUri(dest);
-      setEditorVisible(true);
+      try {
+        // Unique filename avoids the React Native image cache serving the old file
+        const ts   = Date.now();
+        const dest = (FileSystem.documentDirectory ?? "") + `hk_life_banner_${ts}.jpg`;
+        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+        setPendingUri(dest);
+        setEditorVisible(true);
+      } catch (e) {
+        console.warn("[pickImage] copy failed:", e);
+      }
     }
   };
 
