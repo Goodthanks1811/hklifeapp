@@ -306,12 +306,12 @@ const st = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   areaPillHomeActive: {
-    backgroundColor: "rgba(205,92,92,0.22)",
-    borderColor: "#cd5c5c",
+    backgroundColor: "rgba(224,49,49,0.14)",
+    borderColor: "rgba(224,49,49,0.40)",
   },
   areaPillWorkActive: {
-    backgroundColor: "rgba(70,110,200,0.22)",
-    borderColor: "#5b8cdb",
+    backgroundColor: "rgba(51,154,240,0.14)",
+    borderColor: "rgba(51,154,240,0.40)",
   },
   areaPillText: {
     fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary,
