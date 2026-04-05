@@ -63,7 +63,9 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Mi Corazon to access your photos and videos."
+          "photosPermission": "Allow HK Life to access your photos and videos.",
+          "savePhotosPermission": "Allow HK Life to save images to your camera roll.",
+          "isAccessMediaLocationEnabled": true
         }
       ],
       [

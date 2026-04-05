@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Share,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,6 +10,8 @@ import {
 import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system/legacy";
 import { Feather } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { PageLoader } from "@/components/PageLoader";
@@ -125,6 +127,7 @@ function buildHTML(concept: Concept, seenCount: number, maxW: number): string {
 <title>Philosophy Daily</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 :root {
   --bg:      #080808;
@@ -319,6 +322,14 @@ body {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
+const CAPTURE_JS = `(function(){
+  if(window.__cap)return;
+  window.__cap=true;
+  html2canvas(document.documentElement,{backgroundColor:'#080808',scale:2,useCORS:true,allowTaint:true,logging:false})
+    .then(function(c){window.__cap=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'capture',data:c.toDataURL('image/jpeg',0.93)}));})
+    .catch(function(e){window.__cap=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'captureError',error:e.message}));});
+})();true;`;
+
 export default function PhilosophyDailyScreen() {
   const insets     = useSafeAreaInsets();
   const { width }  = useWindowDimensions();
@@ -329,7 +340,9 @@ export default function PhilosophyDailyScreen() {
   const [html,    setHtml]    = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+  const [saving,  setSaving]  = useState(false);
   const conceptRef = useRef<Concept | null>(null);
+  const webViewRef = useRef<any>(null);
 
   useEffect(() => {
     if (!apiKey) return;
@@ -357,15 +370,32 @@ export default function PhilosophyDailyScreen() {
     return () => { cancelled = true; };
   }, [apiKey]);
 
-  const handleShare = async () => {
-    const c = conceptRef.current;
-    if (!c) return;
+  const handleSaveImage = async () => {
+    if (saving) return;
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow photo library access to save images.");
+      return;
+    }
+    setSaving(true);
+    webViewRef.current?.injectJavaScript(CAPTURE_JS);
+  };
+
+  const handleMessage = async (event: any) => {
     try {
-      await Share.share({
-        message: `📜 Philosophy Daily\n\n${c.concept} (${c.branch} · ${c.tradition})\n\n${c.description}\n\n🪬 ${c.thoughtExperiment}\n\n⚡ ${c.modernRelevance}\n\n🏛 ${c.keyThinker} — ${c.keyWork}`,
-        title: `Philosophy Daily — ${c.concept}`,
-      });
-    } catch {}
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type !== "capture") { setSaving(false); return; }
+      const base64 = (msg.data as string).replace(/^data:image\/\w+;base64,/, "");
+      const uri = FileSystem.cacheDirectory + `phil_${Date.now()}.jpg`;
+      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
+      await MediaLibrary.saveToLibraryAsync(uri);
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      setSaving(false);
+      Alert.alert("Saved!", "Image saved to your camera roll.");
+    } catch {
+      setSaving(false);
+      Alert.alert("Error", "Couldn't save image. Please try again.");
+    }
   };
 
   return (
@@ -397,17 +427,19 @@ export default function PhilosophyDailyScreen() {
       {html && !loading && (
         <>
           <WebView
+            ref={webViewRef}
             source={{ html, baseUrl: "https://fonts.googleapis.com" }}
             style={styles.web}
             originWhitelist={["*"]}
             scrollEnabled
             showsVerticalScrollIndicator={false}
             javaScriptEnabled
+            onMessage={handleMessage}
           />
           <View style={[styles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
-            <TouchableOpacity style={styles.shareBtn} activeOpacity={0.8} onPress={handleShare}>
-              <Feather name="share" size={16} color="#fff" />
-              <Text style={styles.shareBtnText}>Share</Text>
+            <TouchableOpacity style={[styles.shareBtn, saving && { opacity: 0.5 }]} activeOpacity={0.8} onPress={handleSaveImage} disabled={saving}>
+              <Feather name="download" size={16} color="#fff" />
+              <Text style={styles.shareBtnText}>{saving ? "Saving…" : "Save to Photos"}</Text>
             </TouchableOpacity>
           </View>
         </>
