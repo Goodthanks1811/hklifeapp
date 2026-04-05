@@ -208,15 +208,16 @@ export default function ShazamScreen() {
     if (!apiKey) {
       setStatus("error");
       setErrorMsg("Notion API key not set in Settings.");
-      reveal();
+      if (!silent) reveal();
       return;
     }
     if (!silent) {
-      // Reset to loading state
       loaderOpacity.setValue(1);
       contentOpacity.setValue(0);
       setStatus("loading");
     }
+    // Minimum 2s loader display — race the fetch against the timer
+    const minDelay = silent ? Promise.resolve() : new Promise<void>(r => setTimeout(r, 2000));
     try {
       const res = await fetch(
         `${BASE_URL}/api/notion/life-tasks?category=${encodeURIComponent(SHAZAM_CAT)}`,
@@ -230,7 +231,7 @@ export default function ShazamScreen() {
       setStatus("error");
       setErrorMsg(e?.message || "Failed to load songs");
     } finally {
-      if (!silent) reveal();
+      if (!silent) { await minDelay; reveal(); }
     }
   }, [apiKey, loaderOpacity, contentOpacity, reveal]);
 
