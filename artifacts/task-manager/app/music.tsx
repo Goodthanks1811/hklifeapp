@@ -84,39 +84,38 @@ export default function MusicScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <View style={s.eqWrap}>
-          {Array.from({ length: BAR_COUNT }).map((_, i) => (
-            <EqBar key={i} index={i} />
-          ))}
-        </View>
 
-        <View style={s.cards}>
-          <ProviderRow
-            icon={<Feather name="music" size={24} color={RED} />}
-            accentColor={RED}
-            label="My Music"
-            onPress={() => router.push("/music-mymusic" as any)}
-          />
-          <ProviderRow
-            icon={<MaterialCommunityIcons name="spotify" size={28} color="#1DB954" />}
-            accentColor="#1DB954"
-            label="Spotify"
-            onPress={() => router.push("/music-spotify" as any)}
-          />
-          <ProviderRow
-            icon={<Text style={s.appleEmoji}>🍎</Text>}
-            accentColor={RED}
-            label="Apple Music"
-            onPress={() => router.push("/music-apple" as any)}
-          />
-        </View>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <View style={s.eqWrap}>
+            {Array.from({ length: BAR_COUNT }).map((_, i) => (
+              <EqBar key={i} index={i} />
+            ))}
+          </View>
 
-        <View style={s.divider} />
+          <View style={s.cards}>
+            <ProviderRow
+              icon={<Feather name="music" size={32} color={RED} />}
+              accentColor={RED}
+              label="My Music"
+              onPress={() => router.push("/music-mymusic" as any)}
+            />
+            <ProviderRow
+              icon={<MaterialCommunityIcons name="spotify" size={36} color="#1DB954" />}
+              accentColor="#1DB954"
+              label="Spotify"
+              onPress={() => router.push("/music-spotify" as any)}
+            />
+            <ProviderRow
+              icon={<Text style={s.appleEmoji}>🍎</Text>}
+              accentColor={RED}
+              label="Apple Music"
+              onPress={() => router.push("/music-apple" as any)}
+            />
+          </View>
+        </ScrollView>
 
-        <Text style={s.npHeading}>NOW PLAYING</Text>
-
-        <View style={s.npCard}>
+        <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
+          <Text style={s.npHeading}>NOW PLAYING</Text>
           <View style={s.npTop}>
             <View style={s.npArt}>
               <Feather name="music" size={30} color={RED} />
@@ -141,7 +140,7 @@ export default function MusicScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+
       </View>
     </View>
   );
@@ -151,7 +150,8 @@ const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: BG },
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 520, alignSelf: "center", width: "100%" },
-  scroll: { paddingBottom: 48 },
+
+  scroll: { paddingBottom: 20 },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
@@ -160,7 +160,7 @@ const s = StyleSheet.create({
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
   cards: { paddingHorizontal: 16, gap: 10, paddingTop: 44 },
-  appleEmoji: { fontSize: 24, lineHeight: 28 },
+  appleEmoji: { fontSize: 30, lineHeight: 34 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
@@ -182,21 +182,17 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  divider: { height: 1, backgroundColor: BORDER, marginHorizontal: 16, marginTop: 28 },
-
+  playerPanel: {
+    backgroundColor: ROW, borderTopWidth: 1, borderTopColor: BORDER,
+    paddingHorizontal: 20, paddingTop: 14,
+  },
   npHeading: {
     textAlign: "center", color: "#fff",
-    fontSize: 13, fontWeight: "700", letterSpacing: 3,
-    paddingTop: 22, paddingBottom: 14,
+    fontSize: 11, fontWeight: "700", letterSpacing: 3,
+    paddingBottom: 14,
     fontFamily: "Inter_700Bold",
   },
-
-  npCard: {
-    marginHorizontal: 16, backgroundColor: ROW,
-    borderWidth: 1, borderColor: BORDER, borderRadius: 20,
-    padding: 22,
-  },
-  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 18 },
+  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 16 },
   npArt: {
     width: 80, height: 80, borderRadius: 14,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
@@ -206,7 +202,7 @@ const s = StyleSheet.create({
   npArtist: { fontSize: 14, color: GREY, fontFamily: "Inter_400Regular" },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, marginBottom: 22, overflow: "hidden",
+    borderRadius: 2, marginBottom: 20, overflow: "hidden",
   },
   progressFill: { width: "38%", height: "100%", backgroundColor: RED, borderRadius: 2 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36 },
