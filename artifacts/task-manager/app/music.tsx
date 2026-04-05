@@ -115,7 +115,6 @@ export default function MusicScreen() {
         </ScrollView>
 
         <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
-          <Text style={s.npHeading}>NOW PLAYING</Text>
           <View style={s.npTop}>
             <View style={s.npArt}>
               <Feather name="music" size={30} color={RED} />
@@ -124,9 +123,6 @@ export default function MusicScreen() {
               <Text style={s.npTitle} numberOfLines={1}>Regulate Remix</Text>
               <Text style={s.npArtist} numberOfLines={1}>Warren G Feat Nate Dogg</Text>
             </View>
-          </View>
-          <View style={s.progressWrap}>
-            <View style={s.progressFill} />
           </View>
           <View style={s.controls}>
             <Pressable style={s.ctrlBtn}>
@@ -138,6 +134,9 @@ export default function MusicScreen() {
             <Pressable style={s.ctrlBtn}>
               <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
             </Pressable>
+          </View>
+          <View style={s.progressWrap}>
+            <View style={s.progressFill} />
           </View>
         </View>
 
@@ -183,14 +182,13 @@ const s = StyleSheet.create({
   },
 
   playerPanel: {
-    backgroundColor: ROW, borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 14,
-  },
-  npHeading: {
-    textAlign: "center", color: "#fff",
-    fontSize: 11, fontWeight: "700", letterSpacing: 3,
-    paddingBottom: 14,
-    fontFamily: "Inter_700Bold",
+    backgroundColor: ROW,
+    paddingHorizontal: 20, paddingTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 20,
   },
   npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 16 },
   npArt: {
@@ -205,7 +203,7 @@ const s = StyleSheet.create({
     borderRadius: 2, marginBottom: 20, overflow: "hidden",
   },
   progressFill: { width: "38%", height: "100%", backgroundColor: RED, borderRadius: 2 },
-  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36 },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
   ctrlBtn:  { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
     width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
