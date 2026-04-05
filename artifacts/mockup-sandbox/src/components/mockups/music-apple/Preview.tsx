@@ -71,8 +71,6 @@ svg{display:block;}
     </div>
   </div>
 
-  <div class="note"><strong>Tap any playlist</strong> to open it directly in Apple Music.</div>
-
   <div class="list">
     ${PLAYLISTS.map((name) => `
     <div class="pl-row">

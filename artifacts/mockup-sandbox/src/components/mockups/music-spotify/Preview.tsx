@@ -75,8 +75,6 @@ svg{display:block;}
     </div>
   </div>
 
-  <div class="note"><strong>Tap any playlist</strong> to open it directly in the Spotify app.</div>
-
   <div class="list">
     ${PLAYLISTS.map((p, i) => `
     <div class="pl-row">
