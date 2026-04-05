@@ -629,21 +629,16 @@ export default function NRLScheduleScreen() {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(PICKS_KEY);
-        console.log("[NRL_PICKS] load from storage:", raw ?? "null");
         if (raw) {
           const stored: Record<string, Record<string, string>> = JSON.parse(raw);
           // Migrate: wipe picks that have old Math.random() float keys (decimals without underscores)
           const allKeys = Object.values(stored).flatMap(p => Object.keys(p));
           const hasRandomKeys = allKeys.some(k => k.includes(".") && !k.includes("_"));
-          if (hasRandomKeys) {
-            console.log("[NRL_PICKS] wiping old random-key data");
-            await AsyncStorage.removeItem(PICKS_KEY);
-          } else {
-            allPicksRef.current = stored;
-          }
+          if (!hasRandomKeys) allPicksRef.current = stored;
+          else await AsyncStorage.removeItem(PICKS_KEY);
         }
-      } catch (e) {
-        console.log("[NRL_PICKS] load ERROR:", e);
+      } catch {
+        // ignore storage errors
       }
       loadInitial();
     })();
@@ -656,9 +651,7 @@ export default function NRLScheduleScreen() {
   // Auto-save whenever roundPicks changes — but ONLY while the picker is open
   useEffect(() => {
     if (!pickerVisibleRef.current) return;
-    const round = pickerRoundRef.current;
-    console.log("[NRL_PICKS] auto-save effect, round:", round, "picks:", JSON.stringify(roundPicks));
-    savePicks(round, roundPicks);
+    savePicks(pickerRoundRef.current, roundPicks);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundPicks]);
 
@@ -707,18 +700,13 @@ export default function NRLScheduleScreen() {
   };
 
   const savePicks = useCallback(async (round: number, picks: Record<string, string>) => {
-    console.log("[NRL_PICKS] savePicks round:", round, "picks:", JSON.stringify(picks));
     try {
       allPicksRef.current = { ...allPicksRef.current, [String(round)]: picks };
       await AsyncStorage.setItem(PICKS_KEY, JSON.stringify(allPicksRef.current));
-      console.log("[NRL_PICKS] saved OK, allPicks:", JSON.stringify(allPicksRef.current));
-    } catch (e) {
-      console.log("[NRL_PICKS] save ERROR:", e);
-    }
+    } catch { /* ignore */ }
   }, []);
 
   const togglePick = useCallback((matchId: string, team: string) => {
-    console.log("[NRL_PICKS] togglePick matchId:", matchId, "team:", team, "pickerRound:", pickerRoundRef.current);
     setRoundPicks((prev) => {
       const updated = { ...prev };
       if (updated[matchId] === team) {
@@ -835,7 +823,6 @@ export default function NRLScheduleScreen() {
     if (msg.type === "logoLongPress") {
       const round = msg.round ?? currentRoundRef.current;
       const saved = allPicksRef.current[String(round)] ?? {};
-      console.log("[NRL_PICKS] picker open, round:", round, "allPicksRef:", JSON.stringify(allPicksRef.current), "saved:", JSON.stringify(saved));
       setPickerRound(round);
       setPickerMatches(currentMatchesRef.current.filter((m) => !m.isBye));
       setRoundPicks({ ...saved });
