@@ -193,11 +193,13 @@ function SubAccordion({
         hitSlop={4}
       >
         <View style={sacc.headerLeft}>
-          <Feather name={icon as any} size={13} color={Colors.textMuted} />
+          <View style={sacc.iconBox}>
+            <Feather name={icon as any} size={16} color={Colors.textMuted} />
+          </View>
           <Text style={sacc.title}>{title}</Text>
         </View>
         <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
-          <Feather name="chevron-down" size={15} color={Colors.textMuted} />
+          <Feather name="chevron-down" size={16} color={Colors.textMuted} />
         </Animated.View>
       </Pressable>
       {open && <View style={sacc.body}>{children}</View>}
@@ -215,13 +217,19 @@ const sacc = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 4,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  iconBox: {
+    width: 36, height: 36,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+  },
   title: {
-    color: Colors.textSecondary,
-    fontSize: 13,
+    color: Colors.textPrimary,
+    fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
   body: { paddingTop: 4 },
