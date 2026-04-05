@@ -44,9 +44,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
   display:flex;align-items:center;gap:16px;
   background:var(--row);border:1px solid var(--border);border-radius:14px;
   padding:14px 14px;cursor:pointer;
-  position:relative;overflow:hidden;
 }
-.pl-row::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 2px 2px 0;background:var(--red);}
 .pl-emoji{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
 .pl-name{flex:1;font-size:15px;font-weight:500;}
 .pl-chevron{color:rgba(255,255,255,0.2);}

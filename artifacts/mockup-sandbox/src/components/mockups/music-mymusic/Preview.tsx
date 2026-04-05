@@ -42,10 +42,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
   display:flex;align-items:center;gap:14px;
   background:var(--row);border:1px solid var(--border);border-radius:14px;
   padding:10px 14px;cursor:pointer;
-  position:relative;overflow:hidden;
 }
-.track-row::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 2px 2px 0;background:var(--border);}
-.track-row.playing::before{background:var(--red);}
 .track-icon{width:42px;height:42px;border-radius:10px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .track-info{flex:1;min-width:0;}
 .track-name{font-size:13.5px;font-weight:500;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}

@@ -9,9 +9,9 @@ const HTML = `<!DOCTYPE html>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#111111;
+  --bg:#0b0b0c;
   --row:#0f0f0f;
-  --red:#E03131;
+  --red:#E8230A;
   --white:#ffffff;
   --grey:#A0A0A0;
   --muted:#666;
