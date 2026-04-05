@@ -39,14 +39,16 @@ export default function WinOfTheDay() {
   const insets  = useSafeAreaInsets();
   const { apiKey } = useNotion();
 
-  const [win,          setWin]          = useState("");
-  const [saving,       setSaving]       = useState(false);
-  const [errorMsg,     setErrorMsg]     = useState<string | null>(null);
+  const [win,           setWin]           = useState("");
+  const [selArea,       setSelArea]       = useState<"Home" | "Work" | null>(null);
+  const [saving,        setSaving]        = useState(false);
+  const [errorMsg,      setErrorMsg]      = useState<string | null>(null);
   const [loaderVisible, setLoaderVisible] = useState(false);
-  const [footerH,      setFooterH]      = useState(90);
+  const [footerH,       setFooterH]       = useState(90);
 
   const kbOffset        = useRef(new Animated.Value(0)).current;
   const shakeAnim       = useRef(new Animated.Value(0)).current;
+  const areaShakeAnim   = useRef(new Animated.Value(0)).current;
   const overlayOpacity  = useRef(new Animated.Value(0)).current;
   const spinnerOpacity  = useRef(new Animated.Value(0)).current;
   const spinnerRotation = useRef(new Animated.Value(0)).current;
@@ -72,17 +74,17 @@ export default function WinOfTheDay() {
     return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
   }, [kbOffset]);
 
-  const shake = useCallback(() => {
+  const shake = useCallback((anim: Animated.Value) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    shakeAnim.setValue(0);
+    anim.setValue(0);
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue:  1, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -1, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue:  1, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -1, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue:  0, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue:  1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue:  1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: -1, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue:  0, duration: 55, useNativeDriver: true }),
     ]).start();
-  }, [shakeAnim]);
+  }, []);
 
   const resetLoader = useCallback(() => {
     overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
@@ -139,8 +141,11 @@ export default function WinOfTheDay() {
 
   const handleSave = useCallback(async () => {
     const w = win.trim();
-    if (!w) { shake(); return; }
-    if (!apiKey || saving) return;
+    let valid = true;
+    if (!selArea) { shake(areaShakeAnim); valid = false; }
+    if (!w)       { shake(shakeAnim);     valid = false; }
+    if (!valid || !apiKey || saving) return;
+
     setSaving(true);
     setErrorMsg(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -149,7 +154,10 @@ export default function WinOfTheDay() {
     const apiPromise = fetch(`${BASE_URL}/api/notion/log`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-      body: JSON.stringify({ dbId: WIN_DB_ID, titleProp: "Win", titleValue: w }),
+      body: JSON.stringify({
+        dbId: WIN_DB_ID, titleProp: "Win", titleValue: w,
+        areaProp: "Area", areaValue: selArea,
+      }),
     })
       .then((r) => r.json())
       .then((data) => {
@@ -165,12 +173,14 @@ export default function WinOfTheDay() {
       setTimeout(() => setErrorMsg(null), 3500);
     } else {
       setWin("");
+      setSelArea(null);
     }
     setSaving(false);
-  }, [win, apiKey, saving, shake, runLoader]);
+  }, [win, selArea, apiKey, saving, shake, shakeAnim, areaShakeAnim, runLoader]);
 
-  const shakeX  = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });
-  const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const shakeX     = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });
+  const areaShakeX = areaShakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });
+  const spinDeg    = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
     <View style={[st.root, { paddingTop: topPad }]}>
@@ -180,7 +190,6 @@ export default function WinOfTheDay() {
 
         <View style={st.heroSection}>
           <Text style={st.trophy}>🏆</Text>
-          <Text style={st.heroTitle}>What did you win today?</Text>
         </View>
 
         <View style={[st.inputSection, { paddingBottom: footerH + 16 }]}>
@@ -189,7 +198,33 @@ export default function WinOfTheDay() {
               <Text style={st.warnText}>Add your Notion API key in Settings first.</Text>
             </View>
           )}
-          <Text style={st.fieldLabel}>Your win today</Text>
+
+          <Text style={st.fieldLabel}>Area</Text>
+          <Animated.View style={[st.pillRow, { transform: [{ translateX: areaShakeX }] }]}>
+            {(["Home", "Work"] as const).map((area) => {
+              const active = selArea === area;
+              return (
+                <Pressable
+                  key={area}
+                  style={[
+                    st.areaPill,
+                    area === "Home" && active && st.areaPillHomeActive,
+                    area === "Work" && active && st.areaPillWorkActive,
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelArea(active ? null : area);
+                  }}
+                >
+                  <Text style={st.areaPillText}>
+                    {area === "Home" ? "🏠 Home" : "🏢 Work"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+
+          <Text style={[st.fieldLabel, { marginTop: 20 }]}>Your win today</Text>
           <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
             <TextInput
               style={st.textInput}
@@ -256,14 +291,29 @@ const st = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  trophy: { fontSize: 72, lineHeight: 80, marginBottom: 10 },
-  heroTitle: {
-    fontSize: 18, fontFamily: "Inter_700Bold",
-    color: Colors.textPrimary, letterSpacing: -0.3,
-  },
+  trophy: { fontSize: 72, lineHeight: 80 },
 
   inputSection: {
     flex: 1, paddingHorizontal: 20, paddingTop: 24,
+  },
+
+  pillRow: { flexDirection: "row", gap: 10, marginBottom: 4 },
+  areaPill: {
+    flex: 1, paddingVertical: 13, borderRadius: 14,
+    borderWidth: 1.5, borderColor: Colors.border,
+    backgroundColor: Colors.cardBg,
+    alignItems: "center", justifyContent: "center",
+  },
+  areaPillHomeActive: {
+    backgroundColor: "rgba(205,92,92,0.22)",
+    borderColor: "#cd5c5c",
+  },
+  areaPillWorkActive: {
+    backgroundColor: "rgba(70,110,200,0.22)",
+    borderColor: "#5b8cdb",
+  },
+  areaPillText: {
+    fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary,
   },
 
   warnBox: {

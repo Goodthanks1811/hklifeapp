@@ -215,7 +215,7 @@ export default function MoodLog() {
             })}
           </View>
 
-          <Text style={[st.fieldLabel, { marginTop: 24 }]}>Note (optional)</Text>
+          <Text style={[st.fieldLabel, { marginTop: 24 }]}>Note</Text>
           <TextInput
             style={st.notesInput}
             value={notes}

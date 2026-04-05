@@ -436,7 +436,7 @@ router.post("/pages", async (req, res) => {
 // Body: { dbId, titleProp, titleValue, date?, notesProp?, notesValue? }
 router.post("/log", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
-  const { dbId, titleProp, titleValue, date, notesProp, notesValue } = req.body;
+  const { dbId, titleProp, titleValue, date, notesProp, notesValue, areaProp, areaValue } = req.body;
   if (!apiKey)      { res.status(400).json({ message: "Missing Notion API key" }); return; }
   if (!dbId || !titleProp || !titleValue) {
     res.status(400).json({ message: "Missing dbId, titleProp or titleValue" }); return;
@@ -451,6 +451,10 @@ router.post("/log", async (req, res) => {
         Date: { date: { start: today } },
       },
     };
+
+    if (areaProp && areaValue && String(areaValue).trim()) {
+      body.properties[areaProp] = { select: { name: String(areaValue) } };
+    }
 
     if (notesProp && notesValue && String(notesValue).trim()) {
       body.properties[notesProp] = {
