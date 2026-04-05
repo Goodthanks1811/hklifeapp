@@ -1,7 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
@@ -52,6 +50,17 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const close = () => {
+    if (!openRef.current) return;
+    if (locked.current) return;
+    locked.current = true;
+    openRef.current = false;
+    Animated.parallel([
+      Animated.timing(anim,    { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(chevron, { toValue: 0, duration: 220, easing: Easing.out(Easing.quad),  useNativeDriver: true }),
+    ]).start(() => { locked.current = false; });
+  };
+
   const listHeight = anim.interpolate({
     inputRange:  [0, 1],
     outputRange: [0, itemCount * ITEM_HEIGHT],
@@ -70,7 +79,7 @@ function useAccordion(initialOpen: boolean, itemCount: number) {
     outputRange: ["0deg", "90deg"],
   });
 
-  return { toggle, listHeight, contentOpacity, chevronRotate };
+  return { toggle, close, listHeight, contentOpacity, chevronRotate };
 }
 
 // ── Accordion section ─────────────────────────────────────────────────────────
@@ -230,26 +239,9 @@ export function Drawer() {
     },
   })).current;
 
-  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, update: bannerUpdate } = useHeaderImage();
-
-  const pickBannerImage = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.9,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const dest = FileSystem.documentDirectory + "hk_life_banner.jpg";
-      await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-      bannerUpdate({ uri: dest, offsetX: 0, offsetY: 0 });
-    }
-  }, [bannerUpdate]);
+  const { uri: bannerUri, resizeMode: bannerResizeMode, offsetX: bannerOffX, offsetY: bannerOffY, scale: bannerScale } = useHeaderImage();
 
   const FALLBACK_BANNER = "https://i.postimg.cc/kX9yvMfb/Photoroom_20260401_052316.png";
-  const BANNER_SCALE    = 1.6;
   const insets = useSafeAreaInsets();
 
   const sectionOrder = getSectionOrder();
@@ -269,6 +261,12 @@ export function Drawer() {
 
   const accordions: Record<SectionKey, ReturnType<typeof useAccordion>> = {
     reports, life, apps, footy, tools, knowledge, uikit: uiKit,
+  };
+
+  const collapseAll = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    reports.close(); life.close(); apps.close();
+    footy.close(); tools.close(); knowledge.close(); uiKit.close();
   };
 
   const navigate = (route: string) => {
@@ -296,13 +294,14 @@ export function Drawer() {
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       <View style={{ paddingTop: topPad + 12, paddingBottom: 12 }}>
-        <Pressable onPress={pickBannerImage} style={[styles.bannerContainer, { height: isTablet ? 120 : 70 }]}>
+        <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? 120 : 70 }]}>
           {(() => {
-            const bW = DRAWER_WIDTH;
-            const bH = isTablet ? 120 : 70;
+            const bW  = DRAWER_WIDTH;
+            const bH  = isTablet ? 120 : 70;
             const uri = bannerUri ?? FALLBACK_BANNER;
-            const iw = bW * BANNER_SCALE;
-            const ih = bH * BANNER_SCALE;
+            const sc  = bannerScale ?? 1.3;
+            const iw  = bW * sc;
+            const ih  = bH * sc;
             return (
               <Image
                 source={{ uri }}
@@ -310,11 +309,8 @@ export function Drawer() {
                   position: "absolute",
                   width:  iw,
                   height: ih,
-                  top:  -(bH * (BANNER_SCALE - 1) / 2),
-                  left: -(bW * (BANNER_SCALE - 1) / 2),
-                  transform: bannerUri
-                    ? [{ translateX: bannerOffX }, { translateY: bannerOffY }]
-                    : undefined,
+                  top:  -(bH * (sc - 1) / 2) + (bannerUri ? bannerOffY : 0),
+                  left: -(bW * (sc - 1) / 2) + (bannerUri ? bannerOffX : 0),
                 }}
                 resizeMode={bannerUri ? bannerResizeMode : "cover"}
               />

@@ -2,13 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Image,
   Keyboard,
   LayoutAnimation,
-  PanResponder,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -18,26 +19,37 @@ import {
   TextInput,
   TouchableOpacity,
   UIManager,
+  useWindowDimensions,
   View,
 } from "react-native";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  runOnJS,
+} from "react-native-reanimated";
+import {
+  GestureDetector,
+  Gesture,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android") {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 import { useAnthropic } from "@/context/AnthropicContext";
 import { useBiometric } from "@/context/BiometricContext";
-import { useHeaderImage, type ResizeMode } from "@/context/HeaderImageContext";
+import { useHeaderImage } from "@/context/HeaderImageContext";
 import {
   SECTION_LABELS,
   useDrawerConfig,
   type SectionKey,
 } from "@/context/DrawerConfigContext";
-import { isTablet } from "@/context/DrawerContext";
+import { isTablet, DRAWER_WIDTH } from "@/context/DrawerContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ActiveMove = { section: SectionKey; label: string };
@@ -283,6 +295,245 @@ function MenuSectionCard({
   );
 }
 
+// ── Banner editor modal ───────────────────────────────────────────────────────
+const PREVIEW_H = 70;
+
+function BannerEditorModal({
+  visible, uri, initialOffX, initialOffY, initialScale,
+  onSave, onClose,
+}: {
+  visible: boolean;
+  uri: string;
+  initialOffX: number;
+  initialOffY: number;
+  initialScale: number;
+  onSave: (offX: number, offY: number, scale: number) => void;
+  onClose: () => void;
+}) {
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  // Editor box fills the screen minus header, hint, preview, and safe areas
+  const HEADER_H  = 56;
+  const HINT_H    = 38;
+  const PREVIEW_SECTION_H = 148;
+  const editorW = screenW;
+  const editorH = Math.max(180,
+    screenH - insets.top - insets.bottom - HEADER_H - HINT_H - PREVIEW_SECTION_H);
+
+  // Shared values (editor-space pixels)
+  const tx     = useSharedValue(initialOffX * editorW / DRAWER_WIDTH);
+  const ty     = useSharedValue(initialOffY * editorH / PREVIEW_H);
+  const savedTx = useSharedValue(tx.value);
+  const savedTy = useSharedValue(ty.value);
+  const sc      = useSharedValue(initialScale);
+  const savedSc = useSharedValue(sc.value);
+
+  // Re-init if modal re-opens with different values
+  const prevUri = useRef(uri);
+  if (uri !== prevUri.current) {
+    prevUri.current = uri;
+    tx.value = 0; ty.value = 0; sc.value = 1.3;
+  }
+
+  const pan = Gesture.Pan()
+    .onStart(() => {
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+    })
+    .onUpdate((e) => {
+      const maxX = editorW * (sc.value - 1) / 2;
+      const maxY = editorH * (sc.value - 1) / 2;
+      tx.value = Math.max(-maxX, Math.min(maxX, savedTx.value + e.translationX));
+      ty.value = Math.max(-maxY, Math.min(maxY, savedTy.value + e.translationY));
+    });
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => { savedSc.value = sc.value; })
+    .onUpdate((e) => {
+      const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
+      sc.value = newSc;
+      const maxX = editorW * (newSc - 1) / 2;
+      const maxY = editorH * (newSc - 1) / 2;
+      tx.value = Math.max(-maxX, Math.min(maxX, tx.value));
+      ty.value = Math.max(-maxY, Math.min(maxY, ty.value));
+    });
+
+  const composed = Gesture.Simultaneous(pan, pinch);
+
+  const editorImgStyle = useAnimatedStyle(() => ({
+    position:  "absolute",
+    width:     editorW * sc.value,
+    height:    editorH * sc.value,
+    top:       -(editorH * (sc.value - 1) / 2) + ty.value,
+    left:      -(editorW * (sc.value - 1) / 2) + tx.value,
+  }));
+
+  const previewImgStyle = useAnimatedStyle(() => {
+    const pTx = tx.value * DRAWER_WIDTH / editorW;
+    const pTy = ty.value * PREVIEW_H / editorH;
+    return {
+      position: "absolute",
+      width:    DRAWER_WIDTH * sc.value,
+      height:   PREVIEW_H   * sc.value,
+      top:      -(PREVIEW_H   * (sc.value - 1) / 2) + pTy,
+      left:     -(DRAWER_WIDTH * (sc.value - 1) / 2) + pTx,
+    };
+  });
+
+  const doSave = () => {
+    const finalOffX = tx.value * DRAWER_WIDTH / editorW;
+    const finalOffY = ty.value * PREVIEW_H / editorH;
+    onSave(finalOffX, finalOffY, sc.value);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0f0f0f" }}>
+        {/* Header */}
+        <View style={[edSt.header, { paddingTop: insets.top, height: HEADER_H + insets.top }]}>
+          <TouchableOpacity onPress={onClose} style={edSt.headerSideBtn} hitSlop={12}>
+            <Text style={edSt.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={edSt.headerTitle}>EDIT BANNER</Text>
+          <TouchableOpacity onPress={doSave} style={edSt.headerSideBtn} hitSlop={12}>
+            <Text style={edSt.saveText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Hint */}
+        <View style={[edSt.hintRow, { height: HINT_H }]}>
+          <Feather name="zoom-in" size={12} color={Colors.textMuted} />
+          <Text style={edSt.hintText}>Pinch to zoom, drag to reposition</Text>
+        </View>
+
+        {/* Editor — full-width, flex fill */}
+        <GestureDetector gesture={composed}>
+          <View style={[edSt.editorBox, { width: editorW, height: editorH }]} collapsable={false}>
+            <Reanimated.Image source={{ uri }} style={editorImgStyle} resizeMode="cover" />
+            {/* Crosshair center guide */}
+            <View style={edSt.crossH} pointerEvents="none" />
+            <View style={edSt.crossV} pointerEvents="none" />
+          </View>
+        </GestureDetector>
+
+        {/* Preview strip */}
+        <View style={[edSt.previewSection, { height: PREVIEW_SECTION_H }]}>
+          <Text style={edSt.previewLabel}>DRAWER PREVIEW</Text>
+          <View style={[edSt.previewBox, { width: DRAWER_WIDTH, height: PREVIEW_H }]}>
+            <Reanimated.Image source={{ uri }} style={previewImgStyle} resizeMode="cover" />
+            <LinearGradient
+              colors={["transparent", "#111111"]}
+              style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 32 }}
+              pointerEvents="none"
+            />
+            <LinearGradient
+              colors={["#111111", "transparent"]}
+              start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+              style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 32 }}
+              pointerEvents="none"
+            />
+          </View>
+          <Text style={edSt.previewNote}>This is how it will look in the side drawer</Text>
+        </View>
+
+        {/* Bottom safe area */}
+        <View style={{ height: insets.bottom, backgroundColor: "#0f0f0f" }} />
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+const edSt = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingBottom: 10,
+    backgroundColor: "#161616",
+    borderBottomWidth: 1,
+    borderBottomColor: "#2a2a2a",
+  },
+  headerTitle: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  headerSideBtn: {
+    minWidth: 60,
+  },
+  cancelText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  saveText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    textAlign: "right",
+  },
+  hintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#0f0f0f",
+  },
+  hintText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  editorBox: {
+    overflow: "hidden",
+    backgroundColor: "#1a1a1a",
+  },
+  crossH: {
+    position: "absolute",
+    top: "50%",
+    left: 0, right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  crossV: {
+    position: "absolute",
+    left: "50%",
+    top: 0, bottom: 0,
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  previewSection: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#161616",
+    borderTopWidth: 1,
+    borderTopColor: "#2a2a2a",
+  },
+  previewLabel: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  previewBox: {
+    overflow: "hidden",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+  },
+  previewNote: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+  },
+});
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -291,7 +542,7 @@ export default function SettingsScreen() {
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
   const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection, sidebarAlwaysOpen, setSidebarAlwaysOpen } = useDrawerConfig();
 
-  const { uri: headerUri, resizeMode: headerResizeMode, offsetX: headerOffX, offsetY: headerOffY, update: headerUpdate, clear: headerClear } = useHeaderImage();
+  const { uri: headerUri, offsetX: headerOffX, offsetY: headerOffY, scale: headerScale, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
   const [draft,        setDraft]        = useState(apiKey ?? "");
   const [saved,        setSaved]        = useState(false);
@@ -302,46 +553,9 @@ export default function SettingsScreen() {
   const [clearing,     setClearing]     = useState(false);
   const [activeMove,   setActiveMove]   = useState<ActiveMove | null>(null);
   const [bioToggling,  setBioToggling]  = useState(false);
-  const [imgDisplay,   setImgDisplay]   = useState({ x: headerOffX, y: headerOffY });
-  const [boxDims,      setBoxDims]      = useState({ w: 300, h: 170 });
+  const [editorVisible, setEditorVisible] = useState(false);
 
-  const BANNER_SCALE = 1.6;
-  const tickOpacity  = useRef(new Animated.Value(0)).current;
-  const savedOffRef  = useRef({ x: headerOffX, y: headerOffY });
-  const headerUpdRef = useRef(headerUpdate);
-  const boxDimsRef   = useRef({ w: 300, h: 170 });
-  headerUpdRef.current = headerUpdate;
-
-  useEffect(() => {
-    savedOffRef.current = { x: headerOffX, y: headerOffY };
-    setImgDisplay({ x: headerOffX, y: headerOffY });
-  }, [headerOffX, headerOffY]);
-
-  const previewPan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => {
-      savedOffRef.current = { ...savedOffRef.current };
-    },
-    onPanResponderMove: (_, gs) => {
-      const maxX = boxDimsRef.current.w * (BANNER_SCALE - 1) / 2;
-      const maxY = boxDimsRef.current.h * (BANNER_SCALE - 1) / 2;
-      setImgDisplay({
-        x: Math.max(-maxX, Math.min(maxX, savedOffRef.current.x + gs.dx)),
-        y: Math.max(-maxY, Math.min(maxY, savedOffRef.current.y + gs.dy)),
-      });
-    },
-    onPanResponderRelease: (_, gs) => {
-      const maxX = boxDimsRef.current.w * (BANNER_SCALE - 1) / 2;
-      const maxY = boxDimsRef.current.h * (BANNER_SCALE - 1) / 2;
-      const final = {
-        x: Math.max(-maxX, Math.min(maxX, savedOffRef.current.x + gs.dx)),
-        y: Math.max(-maxY, Math.min(maxY, savedOffRef.current.y + gs.dy)),
-      };
-      savedOffRef.current = final;
-      setImgDisplay(final);
-      headerUpdRef.current({ offsetX: final.x, offsetY: final.y });
-    },
-  }), []);
+  const tickOpacity = useRef(new Animated.Value(0)).current;
 
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -354,9 +568,8 @@ export default function SettingsScreen() {
     if (!result.canceled && result.assets[0]) {
       const dest = FileSystem.documentDirectory + "hk_life_banner.jpg";
       await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-      headerUpdRef.current({ uri: dest, offsetX: 0, offsetY: 0 });
-      savedOffRef.current = { x: 0, y: 0 };
-      setImgDisplay({ x: 0, y: 0 });
+      headerUpdate({ uri: dest, offsetX: 0, offsetY: 0, scale: 1.3 });
+      setEditorVisible(true);
     }
   };
 
@@ -613,55 +826,27 @@ export default function SettingsScreen() {
 
             {headerUri ? (
               <>
-                {/* Preview — drag to reposition */}
-                <View
+                {/* Static preview - tap to open editor */}
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setEditorVisible(true)}
                   style={imgSt.previewBox}
-                  {...previewPan.panHandlers}
-                  onLayout={(e) => {
-                    const { width: w, height: h } = e.nativeEvent.layout;
-                    boxDimsRef.current = { w, h };
-                    setBoxDims({ w, h });
-                  }}
                 >
                   <Image
                     source={{ uri: headerUri }}
-                    style={{
-                      position: "absolute",
-                      width:  boxDims.w * BANNER_SCALE,
-                      height: boxDims.h * BANNER_SCALE,
-                      top:  -(boxDims.h * (BANNER_SCALE - 1) / 2),
-                      left: -(boxDims.w * (BANNER_SCALE - 1) / 2),
-                      transform: [{ translateX: imgDisplay.x }, { translateY: imgDisplay.y }],
-                    }}
-                    resizeMode={headerResizeMode}
+                    style={{ position: "absolute", width: "100%", height: "100%" }}
+                    resizeMode="cover"
                   />
                   <View style={imgSt.previewHint}>
-                    <Feather name="move" size={11} color="rgba(255,255,255,0.7)" />
-                    <Text style={imgSt.previewHintText}>Drag to reposition</Text>
+                    <Feather name="maximize-2" size={11} color="rgba(255,255,255,0.85)" />
+                    <Text style={imgSt.previewHintText}>Tap to adjust position & zoom</Text>
                   </View>
-                </View>
-
-                {/* Display mode */}
-                <Text style={styles.fieldLabel}>DISPLAY MODE</Text>
-                <View style={imgSt.modeRow}>
-                  {(["cover", "contain", "center", "stretch"] as ResizeMode[]).map(mode => (
-                    <Pressable
-                      key={mode}
-                      onPress={() => headerUpdate({ resizeMode: mode })}
-                      style={[imgSt.modePill, headerResizeMode === mode && imgSt.modePillActive]}
-                    >
-                      <Text style={[imgSt.modePillText, headerResizeMode === mode && imgSt.modePillTextActive]}>
-                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
+                </TouchableOpacity>
                 <View style={styles.divider} />
               </>
             ) : (
               <Text style={styles.sectionHint}>
-                Pick an image from your library to show as a banner at the top of each Life section. Drag the preview to reposition it.
+                Pick an image from your library to use as a banner at the top of the drawer. Pinch and drag to position it exactly where you want.
               </Text>
             )}
 
@@ -679,6 +864,22 @@ export default function SettingsScreen() {
 
           </View>
         </Accordion>
+
+        {/* Banner editor modal */}
+        {headerUri != null && (
+          <BannerEditorModal
+            visible={editorVisible}
+            uri={headerUri}
+            initialOffX={headerOffX}
+            initialOffY={headerOffY}
+            initialScale={headerScale ?? 1.3}
+            onSave={(offX, offY, sc) => {
+              headerUpdate({ offsetX: offX, offsetY: offY, scale: sc });
+              setEditorVisible(false);
+            }}
+            onClose={() => setEditorVisible(false)}
+          />
+        )}
 
         {/* ══ IPAD DISPLAY ════════════════════════════════════════════════════ */}
         {isTablet && (
