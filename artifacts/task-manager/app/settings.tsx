@@ -150,6 +150,84 @@ const acc = StyleSheet.create({
   },
 });
 
+// ── Sub-accordion (nested inside a parent Accordion) ──────────────────────────
+function SubAccordion({
+  title,
+  icon,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen]     = useState(defaultOpen);
+  const chevronAnim         = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
+
+  const toggle = () => {
+    const next = !open;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext({
+      duration: 240,
+      create:  { type: "easeInEaseOut", property: "opacity" },
+      update:  { type: "spring",        springDamping: 0.75 },
+      delete:  { type: "easeInEaseOut", property: "opacity" },
+    });
+    setOpen(next);
+    Animated.spring(chevronAnim, {
+      toValue: next ? 1 : 0,
+      tension: 180, friction: 22, useNativeDriver: true,
+    }).start();
+  };
+
+  const chevronRotate = chevronAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <View style={sacc.wrapper}>
+      <Pressable
+        style={({ pressed }) => [sacc.header, pressed && { opacity: 0.75 }]}
+        onPress={toggle}
+        hitSlop={4}
+      >
+        <View style={sacc.headerLeft}>
+          <Feather name={icon as any} size={13} color={Colors.textMuted} />
+          <Text style={sacc.title}>{title}</Text>
+        </View>
+        <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+          <Feather name="chevron-down" size={15} color={Colors.textMuted} />
+        </Animated.View>
+      </Pressable>
+      {open && <View style={sacc.body}>{children}</View>}
+    </View>
+  );
+}
+
+const sacc = StyleSheet.create({
+  wrapper: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginTop: 4,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  title: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  body: { paddingTop: 4 },
+});
+
 // ── Menu section card ─────────────────────────────────────────────────────────
 function MenuSectionCard({
   sectionKey,
@@ -618,7 +696,7 @@ export default function SettingsScreen() {
   const { apiKey, setApiKey, clearConfig } = useNotion();
   const { apiKey: anthropicKey, setApiKey: setAnthropicKey, clearKey: clearAnthropicKey } = useAnthropic();
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, setEnabled: setBiometric } = useBiometric();
-  const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection, sidebarAlwaysOpen, setSidebarAlwaysOpen } = useDrawerConfig();
+  const { getSectionOrder, moveSectionUp, moveSectionDown, moveItemToSection } = useDrawerConfig();
 
   const { uri: headerUri, offsetX: headerOffX, offsetY: headerOffY, scale: headerScale, update: headerUpdate, clear: headerClear } = useHeaderImage();
 
@@ -730,154 +808,6 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ══ NOTION API ══════════════════════════════════════════════════════ */}
-        <Accordion title="Notion API" icon="key" defaultOpen={false}>
-          <View style={styles.accordionBody}>
-
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: hasKey ? Colors.success : Colors.textMuted }]} />
-              <Text style={[styles.statusText, { color: hasKey ? Colors.success : Colors.textMuted }]}>
-                {hasKey ? "API key configured" : "Not configured"}
-              </Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <Text style={styles.fieldLabel}>Notion API Key</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="secret_xxxxxxxxxxxx…"
-                placeholderTextColor={Colors.textMuted}
-                secureTextEntry={masked}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardAppearance="dark"
-                returnKeyType="done"
-                onSubmitEditing={handleSave}
-              />
-              <Pressable onPress={() => setMasked((m) => !m)} style={styles.eyeBtn}>
-                <Feather name={masked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
-              </Pressable>
-            </View>
-
-            <Text style={styles.hint}>
-              Get your key at{" "}
-              <Text style={styles.hintLink}>notion.so/my-integrations</Text>
-              {"\n"}Create an integration → copy the Internal Integration Secret.
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.saveBtn, !isChanged && styles.saveBtnDisabled]}
-              onPress={handleSave}
-              disabled={!isChanged || !draft.trim()}
-            >
-              {saved ? (
-                <Animated.View style={[styles.savedRow, { opacity: tickOpacity }]}>
-                  <Feather name="check" size={16} color="#fff" />
-                  <Text style={styles.saveBtnText}>Saved</Text>
-                </Animated.View>
-              ) : (
-                <Text style={styles.saveBtnText}>Save API Key</Text>
-              )}
-            </TouchableOpacity>
-
-            {hasKey && (
-              <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={handleClear} disabled={clearing}>
-                <Feather name="trash-2" size={14} color={Colors.textSecondary} />
-                <Text style={styles.clearBtnText}>{clearing ? "Clearing…" : "Remove saved key"}</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={[styles.divider, { marginTop: 4 }]} />
-
-            {/* How it works steps */}
-            <Text style={styles.howTitle}>How it works</Text>
-            {[
-              { n: "1", text: "Go to notion.so/my-integrations and create a new integration." },
-              { n: "2", text: 'Copy the "Internal Integration Secret" (starts with secret_).' },
-              { n: "3", text: "Paste it above and tap Save API Key." },
-              { n: "4", text: "Open your Notion database → Connections → add your integration." },
-            ].map((step) => (
-              <View key={step.n} style={styles.step}>
-                <View style={styles.stepNum}>
-                  <Text style={styles.stepNumText}>{step.n}</Text>
-                </View>
-                <Text style={styles.stepText}>{step.text}</Text>
-              </View>
-            ))}
-
-          </View>
-        </Accordion>
-
-        {/* ══ ANTHROPIC API ═══════════════════════════════════════════════════ */}
-        <Accordion title="Anthropic API" icon="cpu" defaultOpen={false}>
-          <View style={styles.accordionBody}>
-
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: anthropicKey ? Colors.success : Colors.textMuted }]} />
-              <Text style={[styles.statusText, { color: anthropicKey ? Colors.success : Colors.textMuted }]}>
-                {anthropicKey ? "API key configured" : "Not configured"}
-              </Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <Text style={styles.fieldLabel}>Claude API Key</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={aiDraft}
-                onChangeText={setAiDraft}
-                placeholder="sk-ant-xxxxxxxxxxxx…"
-                placeholderTextColor={Colors.textMuted}
-                secureTextEntry={aiMasked}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardAppearance="dark"
-                returnKeyType="done"
-                onSubmitEditing={handleAiSave}
-              />
-              <Pressable onPress={() => setAiMasked((m) => !m)} style={styles.eyeBtn}>
-                <Feather name={aiMasked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
-              </Pressable>
-            </View>
-
-            <Text style={styles.hint}>
-              Get your key at{" "}
-              <Text style={styles.hintLink}>console.anthropic.com</Text>
-              {"\n"}API Keys → Create Key. Used for Psychology Daily and any future AI features.
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.saveBtn, (aiDraft.trim() === (anthropicKey ?? "")) && styles.saveBtnDisabled]}
-              onPress={handleAiSave}
-              disabled={aiDraft.trim() === (anthropicKey ?? "") || !aiDraft.trim()}
-            >
-              {aiSaved ? (
-                <Animated.View style={[styles.savedRow, { opacity: aiTickOpacity }]}>
-                  <Feather name="check" size={16} color="#fff" />
-                  <Text style={styles.saveBtnText}>Saved</Text>
-                </Animated.View>
-              ) : (
-                <Text style={styles.saveBtnText}>Save API Key</Text>
-              )}
-            </TouchableOpacity>
-
-            {anthropicKey && (
-              <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={clearAnthropicKey}>
-                <Feather name="trash-2" size={14} color={Colors.textSecondary} />
-                <Text style={styles.clearBtnText}>Remove saved key</Text>
-              </TouchableOpacity>
-            )}
-
-          </View>
-        </Accordion>
-
         {/* ══ MENU SETTINGS ═══════════════════════════════════════════════════ */}
         <Accordion title="Menu Settings" icon="menu" defaultOpen={false}>
           <View style={styles.accordionBody}>
@@ -985,39 +915,6 @@ export default function SettingsScreen() {
           />
         )}
 
-        {/* ══ IPAD DISPLAY ════════════════════════════════════════════════════ */}
-        {isTablet && (
-          <Accordion title="iPad Display" icon="tablet" defaultOpen={false}>
-            <View style={styles.accordionBody}>
-
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleIcon}>
-                  <Feather name="sidebar" size={16} color={Colors.primary} />
-                </View>
-                <View style={styles.toggleText}>
-                  <Text style={styles.toggleLabel}>Sidebar always visible</Text>
-                  <Text style={styles.toggleDesc}>
-                    {sidebarAlwaysOpen
-                      ? "Sidebar stays docked on every screen"
-                      : "Sidebar auto-hides on non-Life screens (default)"}
-                  </Text>
-                </View>
-                <Switch
-                  value={sidebarAlwaysOpen}
-                  onValueChange={(v) => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    setSidebarAlwaysOpen(v);
-                  }}
-                  trackColor={{ false: "#2a2a2a", true: "#E03131" }}
-                  thumbColor="#FFFFFF"
-                  ios_backgroundColor="#2a2a2a"
-                />
-              </View>
-
-            </View>
-          </Accordion>
-        )}
-
         {/* ══ SECURITY ════════════════════════════════════════════════════════ */}
         <Accordion title="Security" icon="shield" defaultOpen={false}>
           <View style={styles.accordionBody}>
@@ -1058,6 +955,145 @@ export default function SettingsScreen() {
                 </View>
               </>
             )}
+
+            {/* Notion API sub-section */}
+            <SubAccordion title="Notion API" icon="key">
+              <View style={styles.statusRow}>
+                <View style={[styles.statusDot, { backgroundColor: hasKey ? Colors.success : Colors.textMuted }]} />
+                <Text style={[styles.statusText, { color: hasKey ? Colors.success : Colors.textMuted }]}>
+                  {hasKey ? "API key configured" : "Not configured"}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <Text style={styles.fieldLabel}>Notion API Key</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder="secret_xxxxxxxxxxxx…"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={masked}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSave}
+                />
+                <Pressable onPress={() => setMasked((m) => !m)} style={styles.eyeBtn}>
+                  <Feather name={masked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
+
+              <Text style={styles.hint}>
+                Get your key at{" "}
+                <Text style={styles.hintLink}>notion.so/my-integrations</Text>
+                {"\n"}Create an integration → copy the Internal Integration Secret.
+              </Text>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.saveBtn, !isChanged && styles.saveBtnDisabled]}
+                onPress={handleSave}
+                disabled={!isChanged || !draft.trim()}
+              >
+                {saved ? (
+                  <Animated.View style={[styles.savedRow, { opacity: tickOpacity }]}>
+                    <Feather name="check" size={16} color="#fff" />
+                    <Text style={styles.saveBtnText}>Saved</Text>
+                  </Animated.View>
+                ) : (
+                  <Text style={styles.saveBtnText}>Save API Key</Text>
+                )}
+              </TouchableOpacity>
+
+              {hasKey && (
+                <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={handleClear} disabled={clearing}>
+                  <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.clearBtnText}>{clearing ? "Clearing…" : "Remove saved key"}</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={[styles.divider, { marginTop: 4 }]} />
+
+              <Text style={styles.howTitle}>How it works</Text>
+              {[
+                { n: "1", text: "Go to notion.so/my-integrations and create a new integration." },
+                { n: "2", text: 'Copy the "Internal Integration Secret" (starts with secret_).' },
+                { n: "3", text: "Paste it above and tap Save API Key." },
+                { n: "4", text: "Open your Notion database → Connections → add your integration." },
+              ].map((step) => (
+                <View key={step.n} style={styles.step}>
+                  <View style={styles.stepNum}>
+                    <Text style={styles.stepNumText}>{step.n}</Text>
+                  </View>
+                  <Text style={styles.stepText}>{step.text}</Text>
+                </View>
+              ))}
+            </SubAccordion>
+
+            {/* Anthropic API sub-section */}
+            <SubAccordion title="Anthropic API" icon="cpu">
+              <View style={styles.statusRow}>
+                <View style={[styles.statusDot, { backgroundColor: anthropicKey ? Colors.success : Colors.textMuted }]} />
+                <Text style={[styles.statusText, { color: anthropicKey ? Colors.success : Colors.textMuted }]}>
+                  {anthropicKey ? "API key configured" : "Not configured"}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <Text style={styles.fieldLabel}>Claude API Key</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  value={aiDraft}
+                  onChangeText={setAiDraft}
+                  placeholder="sk-ant-xxxxxxxxxxxx…"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={aiMasked}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  onSubmitEditing={handleAiSave}
+                />
+                <Pressable onPress={() => setAiMasked((m) => !m)} style={styles.eyeBtn}>
+                  <Feather name={aiMasked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
+
+              <Text style={styles.hint}>
+                Get your key at{" "}
+                <Text style={styles.hintLink}>console.anthropic.com</Text>
+                {"\n"}API Keys → Create Key. Used for Psychology Daily and any future AI features.
+              </Text>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.saveBtn, (aiDraft.trim() === (anthropicKey ?? "")) && styles.saveBtnDisabled]}
+                onPress={handleAiSave}
+                disabled={aiDraft.trim() === (anthropicKey ?? "") || !aiDraft.trim()}
+              >
+                {aiSaved ? (
+                  <Animated.View style={[styles.savedRow, { opacity: aiTickOpacity }]}>
+                    <Feather name="check" size={16} color="#fff" />
+                    <Text style={styles.saveBtnText}>Saved</Text>
+                  </Animated.View>
+                ) : (
+                  <Text style={styles.saveBtnText}>Save API Key</Text>
+                )}
+              </TouchableOpacity>
+
+              {anthropicKey && (
+                <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={clearAnthropicKey}>
+                  <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.clearBtnText}>Remove saved key</Text>
+                </TouchableOpacity>
+              )}
+            </SubAccordion>
 
           </View>
         </Accordion>
