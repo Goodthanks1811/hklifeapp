@@ -294,7 +294,7 @@ export function Drawer() {
   const drawerContent = (
     <View style={[styles.drawerInner, { width: DRAWER_WIDTH }]}>
       {/* Banner extends from y=0 (covers safe area) so it fills the full top */}
-      <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? topPad + 150 : topPad + 110 }]}>
+      <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? topPad + 150 : topPad + 122 }]}>
         {(() => {
           const uri = bannerUri ?? FALLBACK_BANNER;
           // Clamp to 1.0: any stale value < 1 would leave blank areas in the banner.

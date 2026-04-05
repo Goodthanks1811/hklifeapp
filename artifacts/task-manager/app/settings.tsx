@@ -296,7 +296,7 @@ function MenuSectionCard({
 }
 
 // ── Banner editor modal ───────────────────────────────────────────────────────
-const PREVIEW_H = 110;
+const PREVIEW_H = 122;
 
 function BannerEditorModal({
   visible, uri, initialOffX, initialOffY, initialScale,
@@ -316,7 +316,7 @@ function BannerEditorModal({
   // Editor box fills the screen minus header, hint, preview, and safe areas
   const HEADER_H  = 56;
   const HINT_H    = 38;
-  const PREVIEW_SECTION_H = 188;
+  const PREVIEW_SECTION_H = 200;
   const editorW = screenW;
   const editorH = Math.max(180,
     screenH - insets.top - insets.bottom - HEADER_H - HINT_H - PREVIEW_SECTION_H);
