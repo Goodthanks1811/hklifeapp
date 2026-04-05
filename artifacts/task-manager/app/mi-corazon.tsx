@@ -34,6 +34,21 @@ const STORAGE_KEY   = "mi_corazon_folders_v2";
 const MEDIA_DIR     = (FileSystem.documentDirectory ?? "") + "mi_corazon_media/";
 // FOLD_COLS is now dynamic — see folderCols below
 const GAP           = 2;
+
+// ── Path helpers ──────────────────────────────────────────────────────────────
+// Store paths relative to documentDirectory so they survive reinstalls (iOS
+// changes the container UUID on fresh install, breaking absolute file:// URIs).
+// ph:// (photo library) and http:// URIs are returned unchanged.
+function toRel(uri: string): string {
+  if (!uri || uri.startsWith("ph://") || uri.startsWith("http")) return uri;
+  const marker = "mi_corazon_media/";
+  const idx = uri.indexOf(marker);
+  return idx !== -1 ? uri.slice(idx) : uri;
+}
+function toAbs(uri: string): string {
+  if (!uri || uri.startsWith("ph://") || uri.startsWith("file://") || uri.startsWith("http")) return uri;
+  return (FileSystem.documentDirectory ?? "") + uri;
+}
 const VIDEO_EXTS  = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
 
 type MediaItem = { uri: string; name: string; isVideo: boolean };
@@ -172,7 +187,7 @@ function Viewer({
             >
               {item.isVideo ? (
                 <Video
-                  source={{ uri: item.uri }}
+                  source={{ uri: toAbs(item.uri) }}
                   style={{ width, height: videoH }}
                   useNativeControls
                   resizeMode={ResizeMode.CONTAIN}
@@ -181,7 +196,7 @@ function Viewer({
                   volume={1}
                 />
               ) : (
-                <Image source={{ uri: item.uri }} style={{ width, height }} resizeMode="contain" />
+                <Image source={{ uri: toAbs(item.uri) }} style={{ width, height }} resizeMode="contain" />
               )}
             </ScrollView>
           )}
@@ -281,9 +296,9 @@ function FolderCard({
       <View style={[s.folderCover, { height: cardSize * 0.75 }]}>
         {coverUri ? (
           isCoverVideo ? (
-            <VideoThumb uri={coverUri} style={StyleSheet.absoluteFill} />
+            <VideoThumb uri={toAbs(coverUri)} style={StyleSheet.absoluteFill} />
           ) : (
-            <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <Image source={{ uri: toAbs(coverUri) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           )
         ) : (
           <View style={s.folderEmpty}>
@@ -342,9 +357,9 @@ function Thumbnail({ item, size, onPress }: { item: MediaItem; size: number; onP
   return (
     <TouchableOpacity style={[s.thumb, { width: size, height: size }]} onPress={onPress} activeOpacity={0.85}>
       {item.isVideo ? (
-        <VideoThumb uri={item.uri} style={StyleSheet.absoluteFill} />
+        <VideoThumb uri={toAbs(item.uri)} style={StyleSheet.absoluteFill} />
       ) : (
-        <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={{ uri: toAbs(item.uri) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       )}
       {item.isVideo && (
         <View style={s.playOverlay}>
@@ -402,27 +417,32 @@ export default function MiNenaScreen() {
                     // Persistent photo library reference — always valid
                     alive.push(item);
                   } else if (item.uri.includes("mi_corazon_media")) {
-                    const info = await FileSystem.getInfoAsync(item.uri);
-                    if (info.exists) alive.push(item);
+                    // Migrate absolute → relative, then check existence via absolute
+                    const rel  = toRel(item.uri);
+                    const info = await FileSystem.getInfoAsync(toAbs(rel));
+                    if (info.exists) alive.push({ ...item, uri: rel });
                   }
                   // Drop any other stale file:// cache URIs
                 } catch {
                   // skip on error
                 }
               }
-              // Validate coverUri — keep ph://, check file:// existence
+              // Validate coverUri — migrate absolute → relative, check existence
               let coverUri = folder.coverUri;
               if (coverUri && !coverUri.startsWith("ph://")) {
                 try {
-                  const info = await FileSystem.getInfoAsync(coverUri);
-                  if (!info.exists) coverUri = undefined;
+                  const rel  = toRel(coverUri);
+                  const info = await FileSystem.getInfoAsync(toAbs(rel));
+                  coverUri = info.exists ? rel : undefined;
                 } catch { coverUri = undefined; }
               }
               return { ...folder, items: alive, coverUri };
             })
           );
           const changed = migrated.some((f, i) =>
-            f.items.length !== parsed[i].items.length || f.coverUri !== parsed[i].coverUri
+            f.items.length !== parsed[i].items.length ||
+            f.coverUri !== parsed[i].coverUri ||
+            f.items.some((item, j) => item.uri !== parsed[i].items[j]?.uri)
           );
           setFolders(migrated);
           if (changed) await saveFolders(migrated);
@@ -462,7 +482,7 @@ export default function MiNenaScreen() {
           const ext  = asset.name.includes(".") ? asset.name.slice(asset.name.lastIndexOf(".")) : "";
           const dest = MEDIA_DIR + uid() + ext;
           await FileSystem.copyAsync({ from: asset.uri, to: dest });
-          return { uri: dest, name: asset.name, isVideo: isVideoFile(asset.name) };
+          return { uri: toRel(dest), name: asset.name, isVideo: isVideoFile(asset.name) };
         })
       );
 
