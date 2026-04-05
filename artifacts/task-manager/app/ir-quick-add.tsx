@@ -43,19 +43,19 @@ const IR_DB_ID = "2c9b7eba35238084a6decf83993961e4";
 const IR_HEADER_LOGO =
   "https://i.postimg.cc/rwCNn1YJ/4375900A-530F-472F-8D00-3C573594C990.png";
 
-const EPIC_PALETTE: Record<string, { bg: string; bgA: string }> = {
-  Admin:     { bg: "rgba(40,160,40,0.22)",   bgA: "rgba(40,160,40,0.50)"   },
-  Testing:   { bg: "rgba(255,50,50,0.22)",   bgA: "rgba(220,20,20,0.55)"   },
-  Release:   { bg: "rgba(255,255,255,0.09)", bgA: "rgba(255,255,255,0.22)" },
-  Review:    { bg: "rgba(255,200,0,0.20)",   bgA: "rgba(255,200,0,0.42)"   },
-  Project:   { bg: "rgba(255,200,0,0.20)",   bgA: "rgba(255,200,0,0.42)"   },
-  Tool:      { bg: "rgba(255,255,255,0.09)", bgA: "rgba(255,255,255,0.22)" },
-  Reporting: { bg: "rgba(255,50,50,0.22)",   bgA: "rgba(220,20,20,0.55)"   },
-  Knowledge: { bg: "rgba(40,160,40,0.22)",   bgA: "rgba(40,160,40,0.50)"   },
+const EPIC_PALETTE: Record<string, { bg: string; border: string; text: string }> = {
+  Admin:     { bg: "rgba(40,160,40,0.14)",   border: "rgba(40,160,40,0.45)",   text: "#34a834" },
+  Testing:   { bg: "rgba(220,20,20,0.14)",   border: "rgba(220,20,20,0.45)",   text: "#e03131" },
+  Release:   { bg: "rgba(200,200,220,0.10)", border: "rgba(200,200,220,0.35)", text: "#b0b0cc" },
+  Review:    { bg: "rgba(255,200,0,0.14)",   border: "rgba(255,200,0,0.45)",   text: "#FEC800" },
+  Project:   { bg: "rgba(255,200,0,0.14)",   border: "rgba(255,200,0,0.45)",   text: "#FEC800" },
+  Tool:      { bg: "rgba(134,142,150,0.14)", border: "rgba(134,142,150,0.45)", text: "#8e98a2" },
+  Reporting: { bg: "rgba(220,20,20,0.14)",   border: "rgba(220,20,20,0.45)",   text: "#e03131" },
+  Knowledge: { bg: "rgba(40,160,40,0.14)",   border: "rgba(40,160,40,0.45)",   text: "#34a834" },
 };
 
 const EPICS_ORDER = ["Admin", "Testing", "Release", "Review", "Project", "Tool", "Reporting", "Knowledge"];
-const PICKER_EMOJIS = ["🔥", "🚩", "📈", "🪛", "👀", "🧠", "📌"];
+const PICKER_EMOJIS = ["🔥", "🚩", "📈", "🪛", "👀", "🧠"];
 
 // Loader timing (ms) — matching original script
 const T_FADE_IN    = 200;
@@ -400,7 +400,6 @@ export default function IRQuickAdd() {
             <View style={styles.epicGrid}>
               {EPICS_ORDER.map((epic) => {
                 const isActive = selectedEpic === epic;
-                const isDimmed = selectedEpic !== null && !isActive;
                 const pal = EPIC_PALETTE[epic];
                 return (
                   <TouchableOpacity
@@ -410,9 +409,15 @@ export default function IRQuickAdd() {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setSelectedEpic(selectedEpic === epic ? null : epic);
                     }}
-                    style={[styles.epicBtn, { backgroundColor: isActive ? pal.bgA : pal.bg, opacity: isDimmed ? 0.2 : 1 }]}
+                    style={[
+                      styles.epicBtn,
+                      {
+                        backgroundColor: isActive ? pal.bg : "transparent",
+                        borderColor: isActive ? pal.border : "rgba(255,255,255,0.10)",
+                      },
+                    ]}
                   >
-                    <Text style={styles.epicBtnText}>{epic}</Text>
+                    <Text style={[styles.epicBtnText, { color: isActive ? pal.text : "rgba(255,255,255,0.45)" }]}>{epic}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -459,7 +464,7 @@ export default function IRQuickAdd() {
         {errorMsg && (
           <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
         )}
-        <View style={[styles.footerBtns, { paddingBottom: keyboardVisible ? 10 : Math.max(bottomPad, 20) }]}>
+        <View style={[styles.footerBtns, { paddingBottom: keyboardVisible ? Math.max(bottomPad, 14) : Math.max(bottomPad, 20) }]}>
           <TouchableOpacity
             activeOpacity={0.75}
             style={styles.cancelBtn}
@@ -563,11 +568,11 @@ const styles = StyleSheet.create({
   },
   epicGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 },
   epicBtn: {
-    width: "23.5%", height: 40, borderRadius: 10,
+    height: 40, paddingHorizontal: 14, borderRadius: 10,
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
   },
-  epicBtnText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", textAlign: "center" },
+  epicBtnText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
   emojiRow: { flexDirection: "row", gap: 8, paddingVertical: 2, paddingBottom: 6 },
   emojiBtn: {
     width: 48, height: 48, borderRadius: 12,
