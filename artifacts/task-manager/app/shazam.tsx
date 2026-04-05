@@ -40,11 +40,11 @@ function ShazamLoader({ size = 110, onReady }: { size?: number; onReady: () => v
   const handleLoadEnd = useCallback(() => {
     loopRef.current = Animated.loop(
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.18, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
-        Animated.timing(scale, { toValue: 0.96, duration: 180, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
-        Animated.timing(scale, { toValue: 1.10, duration: 200, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
-        Animated.timing(scale, { toValue: 1.0,  duration: 250, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
-        Animated.delay(1400),
+        Animated.timing(scale, { toValue: 1.14, duration: 380, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(scale, { toValue: 0.97, duration: 280, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+        Animated.timing(scale, { toValue: 1.07, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(scale, { toValue: 1.0,  duration: 440, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+        Animated.delay(2200),
       ])
     );
     loopRef.current.start();

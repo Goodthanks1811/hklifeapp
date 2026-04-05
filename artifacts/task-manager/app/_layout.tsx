@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useCallback, useEffect, useState } from "react";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -118,6 +118,9 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      {/* Preload assets used by screens so they are cached before first navigation */}
+      <Image source={require("../assets/images/shazam-icon.png")}  style={{ width: 0, height: 0, position: "absolute" }} />
+      <Image source={require("../assets/images/spotify-icon.png")} style={{ width: 0, height: 0, position: "absolute" }} />
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GoogleCalendarProvider>
