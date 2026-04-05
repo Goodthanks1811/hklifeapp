@@ -17,7 +17,6 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import { useDrawer } from "@/context/DrawerContext";
 
 const RED = "#E8230A";
 const BG  = "#0b0b0c";
@@ -76,7 +75,6 @@ function ProviderRow({
 
 export default function MusicScreen() {
   const insets = useSafeAreaInsets();
-  const { openDrawer } = useDrawer();
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
