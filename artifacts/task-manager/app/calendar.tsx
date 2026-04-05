@@ -799,17 +799,10 @@ export default function CalendarScreen() {
 
       const sorted = Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 
-      function mondayOf(dateKey: string): string {
-        const d = new Date(dateKey + "T00:00:00");
-        const dow = d.getDay();
-        const daysToMon = dow === 0 ? 6 : dow - 1;
-        const mon = new Date(d);
-        mon.setDate(d.getDate() - daysToMon);
-        return isoDay(mon);
-      }
-
       sorted.forEach((sec, i) => {
-        sec.weekStart = i > 0 && mondayOf(sec.dateKey) !== mondayOf(sorted[i - 1].dateKey);
+        const dow     = new Date(sec.dateKey              + "T00:00:00").getDay();
+        const prevDow = i > 0 ? new Date(sorted[i - 1].dateKey + "T00:00:00").getDay() : -1;
+        sec.weekStart = dow === 1 && prevDow === 0;
       });
       setSections(sorted);
       setStatus("done");
