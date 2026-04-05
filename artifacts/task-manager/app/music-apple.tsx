@@ -10,7 +10,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import Svg, { Path } from "react-native-svg";
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -32,21 +31,11 @@ const PLAYLISTS = [
   "Carnal Hits",
 ];
 
-function MusicNoteSingle({ size = 18, color = RED }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-      <Path d="M12 3v10.55A4 4 0 1 0 14 17V5h4V3h-6z" />
-    </Svg>
-  );
-}
-
 export default function MusicAppleScreen() {
   const insets = useSafeAreaInsets();
 
-  const openPlaylist = (name: string) => {
-    Linking.openURL("music://").catch(() =>
-      Linking.openURL("https://music.apple.com")
-    );
+  const openAppleMusic = () => {
+    Linking.openURL("music://").catch(() => Linking.openURL("https://music.apple.com"));
   };
 
   return (
@@ -58,8 +47,8 @@ export default function MusicAppleScreen() {
         </Pressable>
         <Text style={s.title}>Apple Music</Text>
         <View style={s.badge}>
-          <Text style={{ fontSize: 11 }}>🍎</Text>
-          <Text style={s.badgeText}>Connected</Text>
+          <Feather name="music" size={12} color={RED} />
+          <Text style={s.badgeText}>Apple</Text>
         </View>
       </View>
 
@@ -68,10 +57,10 @@ export default function MusicAppleScreen() {
           <Pressable
             key={i}
             style={({ pressed }) => [s.row, pressed && s.rowPressed]}
-            onPress={() => openPlaylist(name)}
+            onPress={openAppleMusic}
           >
             <View style={s.iconCell}>
-              <MusicNoteSingle size={18} color={RED} />
+              <Feather name="music" size={18} color={RED} />
             </View>
             <Text style={s.rowName}>{name}</Text>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.2)" />
@@ -90,9 +79,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8,
     borderBottomWidth: 1, borderBottomColor: BORDER,
   },
-  back: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
+  back:     { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
   backText: { color: RED, fontSize: 15, fontWeight: "500", fontFamily: "Inter_500Medium" },
-  title: { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
+  title:    { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
   badge: {
     flexDirection: "row", alignItems: "center", gap: 5,
     backgroundColor: "rgba(224,49,49,0.08)", borderWidth: 1,

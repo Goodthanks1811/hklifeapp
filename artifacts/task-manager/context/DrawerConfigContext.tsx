@@ -61,7 +61,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
   ],
   apps: [
     { label: "Mi Corazon",       icon: "heart",  route: "/mi-corazon",        description: "Photo & video gallery" },
-    { label: "Music Hub",         icon: "music",  route: "/music",             description: "My Music, Spotify & Apple Music" },
+    { label: "Music Player",      icon: "music",  route: "/music",             description: "My Music, Spotify & Apple Music" },
     { label: "Photo Editor",     icon: "image",  route: "/photo-slider",      description: "Compare & export photos"},
     { label: "Time Burn",        icon: "clock",  route: "/time-burn",         description: "Budget burn rate timer" },
     { label: "Caffeine Counter", icon: "coffee", route: "/caffeine-counter",  description: "Daily caffeine tracker" },
