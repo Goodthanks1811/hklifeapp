@@ -149,22 +149,24 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
             />
           </View>
 
-          {/* GHTouchable is RNGH-native -- zero gesture competition inside Swipeable */}
-          <GHTouchable
-            style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
-            activeOpacity={0.65}
-            onPressIn={() => {
-              Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
-              if (!revealedRef.current) onPress();
-            }}
-            onPress={() => {
-              if (revealedRef.current) swipeableRef.current?.close();
-            }}
-            onPressOut={onPressOut}
-            hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
-          >
-            <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
-          </GHTouchable>
+          {/* View owns flex-1 layout; GHTouchable sits on top absolutely so layout isn't disrupted */}
+          <View style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}>
+            <GHTouchable
+              style={[StyleSheet.absoluteFill, { justifyContent: "center" }]}
+              activeOpacity={0.65}
+              onPressIn={() => {
+                Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
+                if (!revealedRef.current) onPress();
+              }}
+              onPress={() => {
+                if (revealedRef.current) swipeableRef.current?.close();
+              }}
+              onPressOut={onPressOut}
+              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+            >
+              <Text style={styles.rowTitle} numberOfLines={2}>{song.title}</Text>
+            </GHTouchable>
+          </View>
 
           <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={styles.checkBtn}>
             <Animated.View style={[styles.checkBox, checked && styles.checkBoxDone]}>
