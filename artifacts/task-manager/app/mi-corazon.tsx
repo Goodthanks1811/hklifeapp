@@ -465,8 +465,11 @@ export default function MiNenaScreen() {
   const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1] : null;
   const currentFolder   = currentFolderId ? folders.find((f) => f.id === currentFolderId) ?? null : null;
 
-  // Folders visible at the current level
-  const visibleFolders = folders.filter((f) => (f.parentId ?? null) === currentFolderId);
+  // Folders visible at the current level (memoized so useEffect deps are stable)
+  const visibleFolders = React.useMemo(
+    () => folders.filter((f) => (f.parentId ?? null) === currentFolderId),
+    [folders, currentFolderId]
+  );
 
   // Sub-folder counts (for card labels)
   const subCountMap = React.useMemo(() => {
@@ -675,20 +678,25 @@ export default function MiNenaScreen() {
   useEffect(() => { vFoldersRef.current  = visibleFolders;  }, [visibleFolders]);
   useEffect(() => { folderColsRef.current = folderCols; cardWRef.current = folderCardSize; }, [folderCols, folderCardSize]);
 
-  // Initialize / sync position anims whenever order or grid dimensions change
+  // Initialize anims during render so cards are never null on first paint
+  // (same pattern used by the life task list). Guards against re-init on every render.
+  visibleFolders.forEach((f, i) => {
+    if (!posXAnims.current[f.id]) {
+      const { x, y } = gridPos(i, folderCols, folderCardSize);
+      posXAnims.current[f.id] = new Animated.Value(x);
+      posYAnims.current[f.id] = new Animated.Value(y);
+      addedX.current[f.id]    = Animated.add(posXAnims.current[f.id], dragPanX);
+      addedY.current[f.id]    = Animated.add(posYAnims.current[f.id], dragPanY);
+    }
+  });
+
+  // Sync positions when grid dimensions or folder order changes (but not during drag)
   useEffect(() => {
     if (isDraggingRef.current) return;
     visibleFolders.forEach((f, i) => {
       const { x, y } = gridPos(i, folderCols, folderCardSize);
-      if (!posXAnims.current[f.id]) {
-        posXAnims.current[f.id] = new Animated.Value(x);
-        posYAnims.current[f.id] = new Animated.Value(y);
-        addedX.current[f.id]    = Animated.add(posXAnims.current[f.id], dragPanX);
-        addedY.current[f.id]    = Animated.add(posYAnims.current[f.id], dragPanY);
-      } else {
-        posXAnims.current[f.id].setValue(x);
-        posYAnims.current[f.id].setValue(y);
-      }
+      posXAnims.current[f.id]?.setValue(x);
+      posYAnims.current[f.id]?.setValue(y);
     });
   }, [visibleFolders, folderCols, folderCardSize]);
 
