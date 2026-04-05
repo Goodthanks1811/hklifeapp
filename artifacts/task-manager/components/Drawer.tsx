@@ -297,7 +297,8 @@ export function Drawer() {
       <Pressable onPress={collapseAll} style={[styles.bannerContainer, { height: isTablet ? topPad + 150 : topPad + 110 }]}>
         {(() => {
           const uri = bannerUri ?? FALLBACK_BANNER;
-          const sc  = bannerScale ?? 1.0;
+          // Clamp to 1.0: any stale value < 1 would leave blank areas in the banner.
+          const sc  = Math.max(1.0, bannerScale ?? 1.0);
           return (
             <Image
               source={{ uri }}

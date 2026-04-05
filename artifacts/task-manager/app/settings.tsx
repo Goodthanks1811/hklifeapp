@@ -328,13 +328,16 @@ function BannerEditorModal({
   const savedTy      = useSharedValue(0);
   const sc           = useSharedValue(initialScale);
   const savedSc      = useSharedValue(initialScale);
-  // Minimum editor scale = "contain" fit for this image
-  const minScaleSv   = useSharedValue(0.3);
-  // Ratio used to map editor-space offsets to drawer-space offsets.
-  // = coverZoomDrawer / coverZoomEditor (computed per-image via getSize)
-  // When both containers are constrained on the same axis this simplifies to
-  // DRAWER_WIDTH/editorW, but for mismatched aspect ratios (e.g. portrait image
-  // in the wide-short drawer) the Y axis needs the same scalar, not PREVIEW_H/editorH.
+  // Cover-scaled image size in editor pixels (= imgDim * coverZoomEditor).
+  // Used to compute the correct pan limit:
+  //   maxPan = max(0, (coverImgSize * scale - containerSize) / 2)
+  // At scale=1 this equals the pixels of image that overflow the container edge.
+  // min scale is always 1.0 — below that the image doesn't fill the container
+  // and would show blank areas in the drawer.
+  const coverImgWSv  = useSharedValue(editorW);
+  const coverImgHSv  = useSharedValue(editorH);
+  // Ratio to convert editor-space offsets to drawer-space offsets.
+  // = coverZoomDrawer / coverZoomEditor  (a single scalar for both axes)
   const coverRatioSv = useSharedValue(DRAWER_WIDTH / editorW);
 
   // On every open / URI change: resolve image dimensions, then set transforms
@@ -351,17 +354,17 @@ function BannerEditorModal({
     Image.getSize(
       uri,
       (imgW, imgH) => {
-        const coverZoomE  = Math.max(editorW / imgW, editorH / imgH);
-        const coverZoomD  = Math.max(DRAWER_WIDTH / imgW, PREVIEW_H / imgH);
-        const containZoom = Math.min(editorW / imgW, editorH / imgH);
+        const coverZoomE = Math.max(editorW / imgW, editorH / imgH);
+        const coverZoomD = Math.max(DRAWER_WIDTH / imgW, PREVIEW_H / imgH);
 
-        minScaleSv.value   = Math.max(0.1, containZoom / coverZoomE);
+        coverImgWSv.value  = imgW * coverZoomE;
+        coverImgHSv.value  = imgH * coverZoomE;
         coverRatioSv.value = coverZoomD / coverZoomE;
 
         if (newUri && initialScale <= 1.0) {
-          // Brand-new pick: start at full "contain" view, centred
-          sc.value      = minScaleSv.value;
-          savedSc.value = minScaleSv.value;
+          // Brand-new pick: cover fill (scale=1), centred — no blank areas in drawer
+          sc.value      = 1.0;
+          savedSc.value = 1.0;
           tx.value      = 0;
           ty.value      = 0;
           savedTx.value = 0;
@@ -379,9 +382,10 @@ function BannerEditorModal({
         }
       },
       () => {
-        // getSize failed - fall back to simple proportional mapping
+        // getSize failed - use safe defaults
+        coverImgWSv.value  = editorW;
+        coverImgHSv.value  = editorH;
         coverRatioSv.value = DRAWER_WIDTH / editorW;
-        minScaleSv.value   = 0.3;
         const initX = initialOffX / (DRAWER_WIDTH / editorW);
         const initY = initialOffY / (PREVIEW_H / editorH);
         tx.value      = initX;
@@ -401,9 +405,9 @@ function BannerEditorModal({
       savedTy.value = ty.value;
     })
     .onUpdate((e) => {
-      // Use abs so panning works both when zoomed in (sc>1) and at contain (sc<1)
-      const mX = editorW * Math.abs(sc.value - 1) / 2;
-      const mY = editorH * Math.abs(sc.value - 1) / 2;
+      // Correct physics: how many pixels of image extend past each edge of the container
+      const mX = Math.max(0, (coverImgWSv.value * sc.value - editorW) / 2);
+      const mY = Math.max(0, (coverImgHSv.value * sc.value - editorH) / 2);
       tx.value = Math.max(-mX, Math.min(mX, savedTx.value + e.translationX));
       ty.value = Math.max(-mY, Math.min(mY, savedTy.value + e.translationY));
     });
@@ -411,10 +415,11 @@ function BannerEditorModal({
   const pinch = Gesture.Pinch()
     .onStart(() => { savedSc.value = sc.value; })
     .onUpdate((e) => {
-      const newSc = Math.max(minScaleSv.value, Math.min(4.0, savedSc.value * e.scale));
+      // min=1.0: image always fills the container so no blank areas appear in the drawer
+      const newSc = Math.max(1.0, Math.min(4.0, savedSc.value * e.scale));
       sc.value = newSc;
-      const mX = editorW * Math.abs(newSc - 1) / 2;
-      const mY = editorH * Math.abs(newSc - 1) / 2;
+      const mX = Math.max(0, (coverImgWSv.value * newSc - editorW) / 2);
+      const mY = Math.max(0, (coverImgHSv.value * newSc - editorH) / 2);
       tx.value = Math.max(-mX, Math.min(mX, tx.value));
       ty.value = Math.max(-mY, Math.min(mY, ty.value));
     });
