@@ -40,7 +40,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Music",       icon: "music",        route: "/life/music",       description: "Songs & playlists"    },
     { label: "Reference",   icon: "bookmark",     route: "/life/reference",   description: "Reference items"      },
     { label: "To Read",     icon: "book-open",    route: "/life/to-read",     description: "Reading list"         },
-    { label: "Automation",  icon: "zap",          route: "/life/automation",  description: "Automation tasks"     },
+    { label: "Development", icon: "zap",          route: "/life/automation",  description: "Development tasks"    },
   ],
   reports: [
     { label: "Mood Report",   icon: "activity",  route: "/mood-report",  description: "Monthly mood charts" },

@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import Svg, { Path as SvgPath } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -19,38 +20,35 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
+import { Colors } from "@/constants/colors";
 
-// ── HK Theme ──────────────────────────────────────────────────────────────────
-const HK = {
-  bg:        "#0a0a0e",
-  card:      "#15151c",
-  cardBorder:"rgba(255,255,255,0.09)",
-  red:       "#ff1e1e",
-  redDark:   "#c81212",
-  text:      "#f2f2f7",
-  textMuted: "#8d8e9c",
-  inputBg:   "#15151c",
-  inputBdr:  "rgba(255,255,255,0.10)",
-  cancelBg:  "rgba(255,255,255,0.07)",
-  cancelBdr: "rgba(255,255,255,0.10)",
-  success:   "#40C057",
-  error:     "#FF6B6B",
-  overlay:   "rgba(10,10,14,0.78)",
-};
+// ── Constants ─────────────────────────────────────────────────────────────────
+const LIFE_DB_ID = "2c8b7eba3523802abbe2e934df42a4e2";
 
-const HK_DB_ID  = "2c8b7eba3523802abbe2e934df42a4e2";
-// Category value matching the original Scriptable script
-const HK_CATEGORY = " ".repeat(22) + "\u26A1\uFE0F   Automation";
-
-const EPICS: { label: string; bg: string; bgA: string; tx: string }[] = [
-  { label: "Enhancement", bg: "rgba(64,192,87,0.14)",   bgA: "rgba(64,192,87,0.34)",   tx: "#40C057" },
-  { label: "HK Life",     bg: "rgba(224,49,49,0.14)",   bgA: "rgba(224,49,49,0.34)",   tx: "#E03131" },
-  { label: "IR App",      bg: "rgba(51,154,240,0.14)",  bgA: "rgba(51,154,240,0.34)",  tx: "#339AF0" },
-  { label: "General",     bg: "rgba(134,142,150,0.14)", bgA: "rgba(134,142,150,0.34)", tx: "#868E96" },
-  { label: "New App",     bg: "rgba(250,176,5,0.14)",   bgA: "rgba(250,176,5,0.34)",   tx: "#FAB005" },
+type CatConfig = { label: string; catValue: string; emojis: string[] };
+const CATS: CatConfig[] = [
+  { label: "Life Admin",  catValue: "\uD83D\uDCDD Life Admin",     emojis: ["🔥", "🖥️", "🏡"] },
+  { label: "Investigate", catValue: "\uD83D\uDD0E To Investigate", emojis: ["🔥", "🚩", "👀", "🧠"] },
+  { label: "To Buy",      catValue: "\uD83D\uDCB0 To Buy",         emojis: ["🔥", "💳", "💰"] },
+  { label: "Music",       catValue: "\uD83C\uDFA7 Music",          emojis: ["🎧"] },
+  { label: "Reference",   catValue: "\uD83D\uDCCC Reference",      emojis: ["📌"] },
+  { label: "To Read",     catValue: "\uD83D\uDCD5 Read",           emojis: ["📕"] },
+  { label: "Development", catValue: "\u26A1\uFE0F   Automation",   emojis: ["🔥", "🚆", "🏡", "👀", "💡"] },
 ];
 
-const PICKER_EMOJIS = ["🔥", "🚆", "🏡", "👀", "💡"];
+const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string }> = {
+  "Enhancement": { bg: "rgba(64,192,87,0.14)",   border: "rgba(64,192,87,0.40)",   text: "#40C057" },
+  "HK Life":     { bg: "rgba(224,49,49,0.14)",   border: "rgba(224,49,49,0.40)",   text: "#E03131" },
+  "IR App":      { bg: "rgba(51,154,240,0.14)",  border: "rgba(51,154,240,0.40)",  text: "#339AF0" },
+  "General":     { bg: "rgba(134,142,150,0.14)", border: "rgba(134,142,150,0.40)", text: "#868E96" },
+  "New App":     { bg: "rgba(250,176,5,0.14)",   border: "rgba(250,176,5,0.40)",   text: "#FAB005" },
+};
+const EPIC_OPTIONS = ["Enhancement", "HK Life", "IR App", "General", "New App"];
+
+const DEV_CAT_VALUE = "\u26A1\uFE0F   Automation";
+
+const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
 
 // Loader timing (ms)
 const T_FADE_IN    = 200;
@@ -59,11 +57,10 @@ const T_MIN_SPIN   = 2000;
 const T_POP        = 420;
 const T_TICK       = 400;
 const T_HOLD       = 700;
-const T_FADE_OUT   = 450;
 
-const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "";
+const DS_SPINNER_SIZE   = 72;
+const DS_SPINNER_STROKE = 8;
+const DS_CIRCLE_SIZE    = 74;
 
 interface Schema {
   priType: string;
@@ -73,26 +70,26 @@ interface Schema {
 }
 
 export default function HKQuickAdd() {
-  const insets    = useSafeAreaInsets();
-  const { apiKey }     = useNotion();
+  const insets  = useSafeAreaInsets();
+  const { apiKey } = useNotion();
   const { width: screenW } = useWindowDimensions();
-  const isTablet  = screenW >= 768;
-  const contentW  = isTablet ? Math.min(screenW * 0.62, 720) : undefined;
+  const isTablet = screenW >= 768;
 
   const [schema,       setSchema]       = useState<Schema | null>(null);
   const [schemaError,  setSchemaError]  = useState<string | null>(null);
   const [title,        setTitle]        = useState("");
-  const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
-  const [selectedEmoji,setSelectedEmoji]= useState<string | null>(null);
-  const [saveDisabled, setSaveDisabled] = useState(false);
+  const [notes,        setNotes]        = useState("");
+  const [selCat,       setSelCat]       = useState<CatConfig>(CATS[CATS.length - 1]);
+  const [selEpic,      setSelEpic]      = useState<string | null>(null);
+  const [selEmoji,     setSelEmoji]     = useState<string | null>(null);
+  const [saving,       setSaving]       = useState(false);
   const [errorMsg,     setErrorMsg]     = useState<string | null>(null);
+  const [loaderVisible, setLoaderVisible] = useState(false);
   const [footerH,      setFooterH]      = useState(90);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [loaderVisible,   setLoaderVisible]   = useState(false);
+  const [kbVisible,    setKbVisible]    = useState(false);
 
-  const keyboardOffset  = useRef(new Animated.Value(0)).current;
+  const kbOffset        = useRef(new Animated.Value(0)).current;
   const shakeAnim       = useRef(new Animated.Value(0)).current;
-  const inputRef        = useRef<TextInput>(null);
   const overlayOpacity  = useRef(new Animated.Value(0)).current;
   const spinnerOpacity  = useRef(new Animated.Value(0)).current;
   const spinnerRotation = useRef(new Animated.Value(0)).current;
@@ -101,33 +98,35 @@ export default function HKQuickAdd() {
   const tickScale       = useRef(new Animated.Value(0)).current;
   const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
 
-  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
+
+  const isDev = selCat.catValue === DEV_CAT_VALUE;
 
   // Keyboard listeners
   useEffect(() => {
     const onShow = (e: any) => {
-      setKeyboardVisible(true);
-      Animated.timing(keyboardOffset, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
+      setKbVisible(true);
+      Animated.timing(kbOffset, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
     };
     const onHide = (e: any) => {
-      setKeyboardVisible(false);
-      Animated.timing(keyboardOffset, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
+      setKbVisible(false);
+      Animated.timing(kbOffset, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
     };
     const s1 = Keyboard.addListener("keyboardWillShow", onShow);
     const s2 = Keyboard.addListener("keyboardWillHide", onHide);
     const s3 = Keyboard.addListener("keyboardDidShow",  onShow);
     const s4 = Keyboard.addListener("keyboardDidHide",  onHide);
     return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
-  }, [keyboardOffset]);
+  }, [kbOffset]);
 
-  // Schema fetch with retry
+  // Schema fetch
   useEffect(() => {
     if (!apiKey) return;
     let cancelled = false;
     const tryFetch = async (left: number) => {
       try {
-        const r    = await fetch(`${BASE_URL}/api/notion/schema/${HK_DB_ID}`, { headers: { "x-notion-key": apiKey } });
+        const r    = await fetch(`${BASE_URL}/api/notion/schema/${LIFE_DB_ID}`, { headers: { "x-notion-key": apiKey } });
         const text = await r.text();
         let data: any;
         try { data = JSON.parse(text); } catch {
@@ -144,7 +143,6 @@ export default function HKQuickAdd() {
     return () => { cancelled = true; };
   }, [apiKey]);
 
-  // Shake
   const shake = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     shakeAnim.setValue(0);
@@ -157,8 +155,7 @@ export default function HKQuickAdd() {
     ]).start();
   }, [shakeAnim]);
 
-  // Loader
-  const resetLoaderValues = useCallback(() => {
+  const resetLoader = useCallback(() => {
     overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
     spinnerRotation.setValue(0); circleScale.setValue(0);
     circleOpacity.setValue(0);   tickScale.setValue(0);
@@ -167,11 +164,11 @@ export default function HKQuickAdd() {
   const runLoader = useCallback(
     (apiPromise: Promise<void>): Promise<{ success: boolean; error?: string }> =>
       new Promise((resolve) => {
-        resetLoaderValues();
+        resetLoader();
         setLoaderVisible(true);
 
         let apiResult: { success: boolean; error?: string } | null = null;
-        const trackedApi = apiPromise
+        const tracked = apiPromise
           .then(() => { apiResult = { success: true }; })
           .catch((e: Error) => { apiResult = { success: false, error: e.message || "Something went wrong" }; });
 
@@ -183,62 +180,73 @@ export default function HKQuickAdd() {
         Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
           Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPINNER_IN, useNativeDriver: true }).start(() => {
             const minSpin = new Promise<void>((r) => setTimeout(r, T_MIN_SPIN));
-            Promise.all([trackedApi, minSpin]).then(() => {
+            Promise.all([tracked, minSpin]).then(() => {
               spinLoopRef.current?.stop();
               if (apiResult?.success) {
                 Animated.parallel([
-                  Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP, useNativeDriver: true }),
+                  Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP,       useNativeDriver: true }),
                   Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
                   Animated.timing(circleScale, { toValue: 1, duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
                 ]).start(() => {
                   Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
                     setTimeout(() => {
-                      Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
-                        setLoaderVisible(false); resetLoaderValues(); resolve({ success: true });
+                      Animated.timing(overlayOpacity, { toValue: 0, duration: 450, useNativeDriver: true }).start(() => {
+                        setLoaderVisible(false); resetLoader(); resolve({ success: true });
                       });
                     }, T_HOLD);
                   });
                 });
               } else {
                 Animated.timing(overlayOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
-                  setLoaderVisible(false); resetLoaderValues(); resolve({ success: false, error: apiResult?.error });
+                  setLoaderVisible(false); resetLoader(); resolve({ success: false, error: apiResult?.error });
                 });
               }
             });
           });
         });
       }),
-    [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoaderValues]
+    [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoader]
   );
 
-  // Save
   const handleSave = useCallback(async () => {
     const t = title.trim();
     if (!t) { shake(); return; }
     if (!schema || !apiKey) return;
 
-    setSaveDisabled(true);
+    setSaving(true);
     setErrorMsg(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Keyboard.dismiss();
 
+    const payload: any = {
+      dbId:         LIFE_DB_ID,
+      title:        t,
+      category:     selCat.catValue,
+      emoji:        selEmoji ?? "-",
+      priType:      schema.priType,
+      priOptions:   schema.priOptions,
+      categoryType: schema.categoryType ?? "select",
+      ...(isDev && selEpic ? { epic: selEpic, epicType: schema.epicType ?? "select" } : {}),
+    };
+
     const apiPromise = fetch(`${BASE_URL}/api/notion/pages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-      body: JSON.stringify({
-        dbId:         HK_DB_ID,
-        title:        t,
-        epic:         selectedEpic  || "General",
-        emoji:        selectedEmoji || "🔥",
-        priType:      schema.priType,
-        priOptions:   schema.priOptions,
-        epicType:     schema.epicType,
-        category:     HK_CATEGORY,
-        categoryType: schema.categoryType || "select",
-      }),
+      body: JSON.stringify(payload),
     })
       .then((r) => r.json())
-      .then((data) => { if (!data.success) throw new Error(data.message || "Failed"); });
+      .then((data) => {
+        if (!data.success && !data.id) throw new Error(data.message || "Failed");
+        const n = notes.trim();
+        if (n && data.id) {
+          fetch(`${BASE_URL}/api/notion/page-blocks/${data.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
+            body: JSON.stringify({ body: n }),
+          }).catch(() => {});
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      });
 
     const result = await runLoader(apiPromise);
 
@@ -247,144 +255,180 @@ export default function HKQuickAdd() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setTimeout(() => setErrorMsg(null), 3500);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTitle("");
-      setSelectedEpic(null);
-      setSelectedEmoji(null);
+      setNotes("");
+      setSelEpic(null);
+      setSelEmoji(null);
     }
-    setSaveDisabled(false);
-  }, [title, schema, apiKey, selectedEpic, selectedEmoji, shake, runLoader]);
+    setSaving(false);
+  }, [title, notes, schema, apiKey, selCat, selEmoji, selEpic, isDev, shake, runLoader]);
 
-  const handleCancel = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); };
+  const handleClose = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); };
 
   const shakeX  = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={[styles.root, { paddingTop: topPad }]}>
+    <View style={[st.root, { paddingTop: topPad }]}>
       <ScreenHeader title="HK Quick Add" />
 
-      {/* Body */}
-      <Animated.View style={[styles.flex, { marginBottom: keyboardOffset }]}>
+      <Animated.View style={[st.flex, { marginBottom: kbOffset }]}>
         <ScrollView
-          style={styles.flex}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 8, paddingBottom: footerH + 8 }]}
+          style={st.flex}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: footerH + 16 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ alignSelf: "center", width: "100%", maxWidth: contentW }}>
-
-            {/* Warnings */}
-            {!apiKey && (
-              <View style={styles.warningBox}>
-                <Feather name="alert-circle" size={16} color={HK.red} />
-                <Text style={styles.warningText}>Add your Notion API key in settings first.</Text>
-              </View>
-            )}
-            {schemaError && (
-              <View style={styles.warningBox}>
-                <Feather name="alert-circle" size={16} color={HK.error} />
-                <Text style={[styles.warningText, { color: HK.error }]}>{schemaError}</Text>
-              </View>
-            )}
-
-            {/* Form card */}
-            <View style={styles.formCard}>
-              <Text style={styles.fieldLabel}>Summary</Text>
-              <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
-                <TextInput
-                  ref={inputRef}
-                  style={styles.textInput}
-                  placeholder="Add summary"
-                  placeholderTextColor={HK.textMuted}
-                  value={title}
-                  onChangeText={setTitle}
-                  autoCorrect
-                  returnKeyType="done"
-                  keyboardAppearance="dark"
-                  onSubmitEditing={handleSave}
-                  editable={!saveDisabled}
-                />
-              </Animated.View>
-
-              <Text style={styles.fieldLabel}>Epic</Text>
-              <View style={styles.epicGrid}>
-                {EPICS.map(({ label, bg, bgA, tx }) => {
-                  const isActive = selectedEpic === label;
-                  const isDimmed = selectedEpic !== null && !isActive;
-                  return (
-                    <TouchableOpacity
-                      key={label}
-                      activeOpacity={0.8}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedEpic(selectedEpic === label ? null : label); }}
-                      style={[styles.epicBtn, { backgroundColor: isActive ? bgA : bg, opacity: isDimmed ? 0.18 : 1 }]}
-                    >
-                      <Text style={[styles.epicBtnText, { color: tx }]}>{label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <Text style={styles.fieldLabel}>Emoji</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.emojiRow}
-                keyboardShouldPersistTaps="handled"
-              >
-                {PICKER_EMOJIS.map((em) => {
-                  const isSelected = selectedEmoji === em;
-                  const isDimmed   = selectedEmoji !== null && !isSelected;
-                  return (
-                    <TouchableOpacity
-                      key={em}
-                      activeOpacity={0.7}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedEmoji(em); }}
-                      style={[styles.emojiBtn, isSelected && styles.emojiBtnSelected, isDimmed && { opacity: 0.3 }]}
-                    >
-                      <Text style={styles.emojiText}>{em}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+          {/* API key warning */}
+          {!apiKey && (
+            <View style={st.warnBox}>
+              <Feather name="alert-circle" size={16} color={Colors.primary} />
+              <Text style={st.warnText}>Add your Notion API key in Settings first.</Text>
             </View>
+          )}
+          {schemaError && (
+            <View style={st.warnBox}>
+              <Feather name="alert-circle" size={16} color={Colors.primary} />
+              <Text style={st.warnText}>{schemaError}</Text>
+            </View>
+          )}
 
+          {/* Summary */}
+          <Text style={st.fieldLabel}>Summary</Text>
+          <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
+            <TextInput
+              style={st.titleInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Add summary"
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
+              returnKeyType="done"
+              onSubmitEditing={handleSave}
+              keyboardAppearance="dark"
+              editable={!saving}
+            />
+          </Animated.View>
+
+          {/* Category chips */}
+          <Text style={[st.sectionLabel, { marginTop: 20 }]}>Category</Text>
+          <View style={st.metaRow}>
+            {CATS.map((cat) => {
+              const active = cat.catValue === selCat.catValue;
+              return (
+                <Pressable
+                  key={cat.catValue}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelCat(cat);
+                    setSelEmoji(null);
+                    if (cat.catValue !== DEV_CAT_VALUE) setSelEpic(null);
+                  }}
+                  style={[st.chip, active && st.chipActive]}
+                >
+                  <Text style={[st.chipText, active && st.chipTextActive]}>{cat.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
+
+          {/* Epic chips — only for Development */}
+          {isDev && (
+            <>
+              <Text style={[st.sectionLabel, { marginTop: 16 }]}>Epic</Text>
+              <View style={st.metaRow}>
+                {EPIC_OPTIONS.map((ep) => {
+                  const selected = ep === selEpic;
+                  const colours  = EPIC_COLOUR_MAP[ep] ?? { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "#ccc" };
+                  return (
+                    <Pressable
+                      key={ep}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(selected ? null : ep); }}
+                      style={[st.epicChip, { backgroundColor: selected ? colours.bg : "transparent", borderColor: selected ? colours.border : Colors.border }]}
+                    >
+                      <Text style={[st.epicText, { color: selected ? colours.text : Colors.textMuted }]}>{ep}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Emoji picker */}
+          {selCat.emojis.length > 0 && (
+            <>
+              <Text style={[st.sectionLabel, { marginTop: 16 }]}>Emoji</Text>
+              <View style={st.metaRow}>
+                {selCat.emojis.map((em) => {
+                  const selected = selEmoji === em;
+                  return (
+                    <Pressable
+                      key={em}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEmoji(selected ? null : em); }}
+                      style={[st.emojiChip, selected && st.emojiChipActive]}
+                    >
+                      <Text style={st.emojiText}>{em}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Divider */}
+          <View style={[st.divider, { marginTop: 20 }]} />
+
+          {/* Notes */}
+          <TextInput
+            style={st.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            placeholder="Add notes…"
+            placeholderTextColor={Colors.textMuted}
+            selectionColor={Colors.primary}
+            keyboardAppearance="dark"
+            textAlignVertical="top"
+            editable={!saving}
+          />
+
+          <View style={st.divider} />
         </ScrollView>
       </Animated.View>
 
       {/* Footer */}
       <Animated.View
-        style={[styles.footer, { bottom: keyboardOffset }]}
+        style={[st.footer, { bottom: kbOffset }]}
         onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
       >
-        <View style={{ alignSelf: "center", width: "100%", maxWidth: contentW }}>
-          {errorMsg && <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>}
-          <View style={[styles.footerBtns, { paddingBottom: keyboardVisible ? 10 : Math.max(bottomPad, 20) }]}>
-            <TouchableOpacity activeOpacity={0.75} style={styles.cancelBtn} onPress={handleCancel} disabled={saveDisabled}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.saveBtn, (!schema || saveDisabled) && styles.saveBtnDisabled]}
-              onPress={handleSave}
-              disabled={!schema || saveDisabled}
-            >
-              <Text style={styles.saveBtnText}>Save</Text>
-            </TouchableOpacity>
-          </View>
+        {errorMsg && <Text style={st.errorText} numberOfLines={2}>{errorMsg}</Text>}
+        <View style={[st.footerBtns, { paddingBottom: kbVisible ? 10 : Math.max(bottomPad, 20) }]}>
+          <Pressable style={st.cancelBtn} onPress={handleClose} disabled={saving}>
+            <Text style={st.cancelTx}>Close</Text>
+          </Pressable>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[st.addBtn, (!schema || saving) && st.addBtnDisabled]}
+            onPress={handleSave}
+            disabled={!schema || saving}
+          >
+            <Feather name="plus" size={15} color="#fff" />
+            <Text style={st.addTx}>Add Task</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
       {/* Loader overlay */}
       {loaderVisible && (
-        <Animated.View style={[styles.loaderOverlay, { opacity: overlayOpacity }]} pointerEvents="auto">
-          <Animated.View style={[styles.spinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
-            <View style={styles.spinnerRing} />
+        <Animated.View style={[st.loaderOverlay, { opacity: overlayOpacity }]} pointerEvents="auto">
+          <Animated.View style={[st.spinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+            <View style={st.spinnerRing} />
           </Animated.View>
-          <Animated.View style={[styles.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+          <Animated.View style={[st.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
             <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-              <Feather name="check" size={40} color="#fff" strokeWidth={3} />
+              <Svg width={52} height={52} viewBox="0 0 68 68">
+                <SvgPath fill="none" stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+              </Svg>
             </Animated.View>
           </Animated.View>
         </Animated.View>
@@ -393,119 +437,109 @@ export default function HKQuickAdd() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const SPINNER_SIZE   = 72;
-const SPINNER_STROKE = 8;
-const CIRCLE_SIZE    = 74;
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: HK.bg },
+// ── Styles ─────────────────────────────────────────────────────────────────────
+const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.darkBg },
   flex: { flex: 1 },
 
-  hamburgerBtn: {
-    position: "absolute", left: 16, zIndex: 10,
-    width: 38, height: 38,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 11, borderWidth: 1, borderColor: HK.cardBorder,
-    alignItems: "center", justifyContent: "center",
-  },
-
-  scrollContent: { paddingHorizontal: 18, paddingBottom: 16 },
-
-  pageHeader: { alignItems: "center", paddingVertical: 20 },
-  pageTitle:  { fontSize: 26, fontWeight: "900", letterSpacing: -0.5, color: HK.text, fontFamily: "Inter_700Bold" },
-
-  warningBox: {
+  warnBox: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(255,30,30,0.08)",
-    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,30,30,0.25)",
-    padding: 12, marginBottom: 14,
+    backgroundColor: "rgba(224,49,49,0.08)", borderRadius: 10,
+    borderWidth: 1, borderColor: "rgba(224,49,49,0.25)",
+    padding: 12, marginBottom: 16,
   },
-  warningText: { color: HK.red, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  warnText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 
-  formCard: {
-    backgroundColor: HK.card,
-    borderRadius: 20, borderWidth: 1, borderColor: HK.cardBorder,
-    padding: 18,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4, shadowRadius: 24, elevation: 8,
-  },
   fieldLabel: {
-    color: "rgba(255,255,255,0.80)", fontSize: 11, fontFamily: "Inter_700Bold",
-    letterSpacing: 0.08 * 11, textTransform: "uppercase", marginBottom: 8, marginTop: 6,
+    color: "#ffffff", fontSize: 22, fontFamily: "Inter_700Bold",
+    paddingBottom: 10, alignSelf: "stretch", textAlign: "left",
   },
-  textInput: {
-    backgroundColor: HK.inputBg, borderWidth: 1, borderColor: HK.inputBdr,
-    borderRadius: 18, color: HK.text, fontSize: 18,
-    fontFamily: "Inter_400Regular",
-    paddingHorizontal: 16, paddingVertical: 14, marginBottom: 14,
+  sectionLabel: {
+    color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold",
+    letterSpacing: 1, marginBottom: 8, textTransform: "uppercase",
   },
 
-  epicGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
-  epicBtn: {
-    borderRadius: 13, paddingVertical: 13, paddingHorizontal: 10,
-    alignItems: "center", justifyContent: "center",
-    width: "30%", flexGrow: 1,
+  titleInput: {
+    color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold",
+    paddingTop: 10, paddingBottom: 13, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
   },
-  epicBtnText: { fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold", textAlign: "center" },
 
-  emojiRow: { gap: 10, paddingVertical: 2, paddingBottom: 8 },
-  emojiBtn: {
-    width: 52, height: 52, borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+
+  chip: {
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: "transparent",
+  },
+  chipActive:     { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.35)" },
+  chipText:       { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted, letterSpacing: 0.2 },
+  chipTextActive: { color: Colors.textPrimary },
+
+  epicChip: {
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  epicText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+
+  emojiChip: {
+    width: 44, height: 44, borderRadius: 10,
+    backgroundColor: Colors.cardBgElevated,
     alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: Colors.border,
   },
-  emojiBtnSelected: {
-    backgroundColor: "rgba(255,30,30,0.18)",
-    borderColor: "rgba(255,70,70,0.45)",
+  emojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
+  emojiText: { fontSize: 22 },
+
+  divider: { height: 1, backgroundColor: Colors.border },
+
+  notesInput: {
+    color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_400Regular",
+    lineHeight: 24, paddingVertical: 14, minHeight: 100,
   },
-  emojiText: { fontSize: 24 },
 
   footer: {
     position: "absolute", left: 0, right: 0,
-    paddingHorizontal: 18, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)",
-    backgroundColor: HK.bg,
+    paddingHorizontal: 16, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: Colors.border,
+    backgroundColor: Colors.darkBg,
   },
-  footerBtns: { flexDirection: "row", gap: 12 },
-  errorText:  { color: HK.error, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 8 },
+  footerBtns: { flexDirection: "row", gap: 10 },
+  errorText:  { color: Colors.primary, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 8 },
+
   cancelBtn: {
-    flex: 1, backgroundColor: HK.cancelBg, borderWidth: 1, borderColor: HK.cancelBdr,
-    borderRadius: 16, paddingVertical: 16, alignItems: "center",
+    flex: 1, paddingVertical: 15, borderRadius: 13,
+    backgroundColor: Colors.cardBgElevated, alignItems: "center",
   },
-  cancelBtnText: { color: HK.text, fontSize: 16, fontWeight: "800", fontFamily: "Inter_700Bold" },
-  saveBtn: {
-    flex: 2,
-    backgroundColor: HK.red,
-    borderRadius: 16, paddingVertical: 16, alignItems: "center",
-    shadowColor: HK.red, shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35, shadowRadius: 20, elevation: 8,
+  cancelTx: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  addBtn: {
+    flex: 2, paddingVertical: 15, borderRadius: 13,
+    backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center",
+    flexDirection: "row", gap: 6,
   },
-  saveBtnDisabled: { opacity: 0.42, shadowOpacity: 0 },
-  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "800", fontFamily: "Inter_700Bold" },
+  addBtnDisabled: { opacity: 0.42 },
+  addTx: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: HK.overlay,
+    backgroundColor: "rgba(0,0,0,0.75)",
     alignItems: "center", justifyContent: "center", zIndex: 999,
   },
   spinnerWrap: {
-    width: SPINNER_SIZE, height: SPINNER_SIZE,
-    alignItems: "center", justifyContent: "center",
-    position: "absolute",
+    width: DS_SPINNER_SIZE, height: DS_SPINNER_SIZE,
+    alignItems: "center", justifyContent: "center", position: "absolute",
   },
   spinnerRing: {
-    width: SPINNER_SIZE, height: SPINNER_SIZE, borderRadius: SPINNER_SIZE / 2,
-    borderWidth: SPINNER_STROKE,
+    width: DS_SPINNER_SIZE, height: DS_SPINNER_SIZE, borderRadius: DS_SPINNER_SIZE / 2,
+    borderWidth: DS_SPINNER_STROKE,
     borderColor: "rgba(255,255,255,0.85)",
     borderTopColor: "rgba(255,255,255,0.12)",
   },
   circleWrap: {
-    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: HK.red,
-    alignItems: "center", justifyContent: "center",
-    position: "absolute",
-    borderWidth: 1.5, borderColor: HK.red,
+    width: DS_CIRCLE_SIZE, height: DS_CIRCLE_SIZE, borderRadius: DS_CIRCLE_SIZE / 2,
+    backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center", position: "absolute",
+    borderWidth: 1.5, borderColor: Colors.primary,
   },
 });
