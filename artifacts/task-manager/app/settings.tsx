@@ -331,20 +331,28 @@ function BannerEditorModal({
   const sc      = useSharedValue(initialScale);
   const savedSc = useSharedValue(initialScale);
 
-  // Reset to center / no-zoom when a brand-new image URI is passed in
-  const prevUri = useRef<string | null>(null);
+  // Reset shared values whenever the editor opens (or a new URI arrives)
+  // so re-opening after a cancelled edit always starts from the committed position
+  const prevVisible = useRef(false);
+  const prevUri     = useRef<string | null>(null);
   useEffect(() => {
-    if (uri && uri !== prevUri.current) {
-      prevUri.current = uri;
-      tx.value      = initialOffX * editorW / DRAWER_WIDTH;
-      ty.value      = initialOffY * editorH / PREVIEW_H;
+    const justOpened   = visible && !prevVisible.current;
+    const newUri       = uri !== prevUri.current;
+    prevVisible.current = visible;
+    prevUri.current     = uri;
+
+    if ((justOpened || newUri) && uri) {
+      const initX = initialOffX * editorW / DRAWER_WIDTH;
+      const initY = initialOffY * editorH / PREVIEW_H;
+      tx.value      = initX;
+      ty.value      = initY;
       sc.value      = initialScale;
-      savedTx.value = tx.value;
-      savedTy.value = ty.value;
+      savedTx.value = initX;
+      savedTy.value = initY;
       savedSc.value = initialScale;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uri]);
+  }, [visible, uri]);
 
   const pan = Gesture.Pan()
     .onStart(() => {
@@ -410,8 +418,10 @@ function BannerEditorModal({
             <Text style={edSt.cancelText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={edSt.headerTitle}>EDIT BANNER</Text>
-          <TouchableOpacity onPress={doSave} style={edSt.headerSideBtn} hitSlop={12}>
-            <Text style={edSt.saveText}>Save</Text>
+          <TouchableOpacity onPress={doSave} hitSlop={8}>
+            <View style={edSt.savePill}>
+              <Text style={edSt.saveText}>Save</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -484,11 +494,18 @@ const edSt = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
+  savePill: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignItems: "center",
+  },
   saveText: {
-    color: Colors.primary,
-    fontSize: 15,
+    color: "#ffffff",
+    fontSize: 14,
     fontFamily: "Inter_700Bold",
-    textAlign: "right",
+    letterSpacing: 0.3,
   },
   hintRow: {
     flexDirection: "row",
@@ -568,6 +585,8 @@ export default function SettingsScreen() {
   const [activeMove,   setActiveMove]   = useState<ActiveMove | null>(null);
   const [bioToggling,  setBioToggling]  = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
+  // Holds the temp file path for a newly picked image (not yet committed to context)
+  const [pendingUri, setPendingUri] = useState<string | null>(null);
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
@@ -580,9 +599,11 @@ export default function SettingsScreen() {
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
-      const dest = FileSystem.documentDirectory + "hk_life_banner.jpg";
+      // Unique filename avoids the React Native image cache serving the old file
+      const ts   = Date.now();
+      const dest = (FileSystem.documentDirectory ?? "") + `hk_life_banner_${ts}.jpg`;
       await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-      headerUpdate({ uri: dest, offsetX: 0, offsetY: 0, scale: 1.0 });
+      setPendingUri(dest);
       setEditorVisible(true);
     }
   };
@@ -879,19 +900,36 @@ export default function SettingsScreen() {
           </View>
         </Accordion>
 
-        {/* Banner editor modal */}
-        {headerUri != null && (
+        {/* Banner editor modal — mounts when there's something to edit */}
+        {(pendingUri != null || headerUri != null) && (
           <BannerEditorModal
             visible={editorVisible}
-            uri={headerUri}
-            initialOffX={headerOffX}
-            initialOffY={headerOffY}
-            initialScale={headerScale ?? 1.0}
+            uri={pendingUri ?? headerUri!}
+            initialOffX={pendingUri ? 0 : headerOffX}
+            initialOffY={pendingUri ? 0 : headerOffY}
+            initialScale={pendingUri ? 1.0 : (headerScale ?? 1.0)}
             onSave={(offX, offY, sc) => {
-              headerUpdate({ offsetX: offX, offsetY: offY, scale: sc });
+              if (pendingUri) {
+                // New image: commit the pending file, delete the old one
+                if (headerUri && headerUri !== pendingUri) {
+                  FileSystem.deleteAsync(headerUri, { idempotent: true }).catch(() => {});
+                }
+                headerUpdate({ uri: pendingUri, offsetX: offX, offsetY: offY, scale: sc });
+                setPendingUri(null);
+              } else {
+                // Reposition only: URI unchanged, just update offsets
+                headerUpdate({ offsetX: offX, offsetY: offY, scale: sc });
+              }
               setEditorVisible(false);
             }}
-            onClose={() => setEditorVisible(false)}
+            onClose={() => {
+              if (pendingUri) {
+                // Cancel on new image: discard the temp file
+                FileSystem.deleteAsync(pendingUri, { idempotent: true }).catch(() => {});
+                setPendingUri(null);
+              }
+              setEditorVisible(false);
+            }}
           />
         )}
 
