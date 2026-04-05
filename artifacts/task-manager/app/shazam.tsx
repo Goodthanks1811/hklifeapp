@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
-import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
@@ -30,7 +29,7 @@ const ITEM_H     = 48;
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Song { id: string; title: string; }
 
-// ── SongRow — exact Life row style, simplified (no drag, no emoji picker) ─────
+// ── SongRow ────────────────────────────────────────────────────────────────────
 function SongRow({ song, onChecked, onDelete, onStartDelete }: {
   song:          Song;
   onChecked:     () => void;
@@ -80,11 +79,7 @@ function SongRow({ song, onChecked, onDelete, onStartDelete }: {
   }, [checked, checkScale, opacityAnim, rowHeight, onChecked, onStartDelete]);
 
   const handleRowTap = useCallback((action: () => void) => {
-    if (revealedRef.current) {
-      swipeableRef.current?.close();
-    } else {
-      action();
-    }
+    if (revealedRef.current) { swipeableRef.current?.close(); } else { action(); }
   }, []);
 
   const renderRightActions = useCallback(() => (
@@ -109,9 +104,13 @@ function SongRow({ song, onChecked, onDelete, onStartDelete }: {
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
         <Animated.View style={styles.rowWrap}>
-          {/* Emoji slot — shows dash since Shazam items have no emoji */}
+          {/* Spotify icon slot */}
           <View style={styles.emojiBtn}>
-            <Text style={styles.rowEmoji}>—</Text>
+            <Image
+              source={require("../assets/images/spotify-icon.png")}
+              style={styles.spotifyIcon}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Title */}
@@ -150,10 +149,22 @@ function SongRow({ song, onChecked, onDelete, onStartDelete }: {
   );
 }
 
+// ── Header component (inside list body, like IR Quick Add) ────────────────────
+function ListHeader() {
+  return (
+    <View style={styles.logoWrap}>
+      <Image
+        source={require("../assets/images/shazam-icon.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
 // ── ShazamScreen ───────────────────────────────────────────────────────────────
 export default function ShazamScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleDrawer } = useDrawer();
   const { apiKey } = useNotion();
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -191,7 +202,7 @@ export default function ShazamScreen() {
     setRefreshing(false);
   }, [fetchSongs]);
 
-  // ── Mark done (checkbox) ───────────────────────────────────────────────────
+  // ── Mark done ──────────────────────────────────────────────────────────────
   const handleChecked = useCallback(async (id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
     try {
@@ -200,12 +211,10 @@ export default function ShazamScreen() {
         headers: { "Content-Type": "application/json", "x-notion-key": apiKey ?? "" },
         body:    JSON.stringify({ done: true }),
       });
-    } catch {
-      fetchSongs(true);
-    }
+    } catch { fetchSongs(true); }
   }, [apiKey, fetchSongs]);
 
-  // ── Delete (swipe) ─────────────────────────────────────────────────────────
+  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async (id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
     try {
@@ -213,70 +222,51 @@ export default function ShazamScreen() {
         method:  "DELETE",
         headers: { "x-notion-key": apiKey ?? "" },
       });
-    } catch {
-      fetchSongs(true);
-    }
+    } catch { fetchSongs(true); }
   }, [apiKey, fetchSongs]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {/* ── Minimal header — menu left, Shazam icon centred, spacer right ─── */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }}
-          style={styles.menuBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Feather name="menu" size={20} color={Colors.textPrimary} />
-        </Pressable>
-
-        <View style={styles.headerCenter}>
-          <Image
-            source={require("../assets/images/shazam-icon.png")}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {/* ── States ─────────────────────────────────────────────────────────── */}
       {status === "loading" && (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
+        <>
+          <ListHeader />
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        </>
       )}
 
       {status === "error" && (
-        <View style={styles.center}>
-          <Feather name="alert-circle" size={28} color={Colors.primary} />
-          <Text style={styles.errText}>{errorMsg}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSongs()}>
-            <Text style={styles.retryTxt}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <>
+          <ListHeader />
+          <View style={styles.center}>
+            <Feather name="alert-circle" size={28} color={Colors.primary} />
+            <Text style={styles.errText}>{errorMsg}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => fetchSongs()}>
+              <Text style={styles.retryTxt}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
       {status === "done" && songs.length === 0 && (
-        <View style={styles.center}>
-          <Image
-            source={require("../assets/images/shazam-icon.png")}
-            style={{ width: 56, height: 56, borderRadius: 16, opacity: 0.35, marginBottom: 8 }}
-          />
-          <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
-        </View>
+        <>
+          <ListHeader />
+          <View style={styles.center}>
+            <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
+          </View>
+        </>
       )}
 
       {status === "done" && songs.length > 0 && (
         <FlatList
           data={songs}
           keyExtractor={item => item.id}
+          ListHeaderComponent={<ListHeader />}
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingTop: 8,
             paddingBottom: botPad + 24,
             gap: 8,
           }}
@@ -303,28 +293,12 @@ export default function ShazamScreen() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: "#0f0f0f" },
-  center:  { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+  root:   { flex: 1, backgroundColor: "#0f0f0f" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
-  // ── Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: "#0f0f0f",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: 12,
-  },
-  menuBtn: {
-    width: 38, height: 38, borderRadius: 11,
-    backgroundColor: Colors.cardBg,
-    alignItems: "center", justifyContent: "center",
-  },
-  headerCenter: { flex: 1, alignItems: "center" },
-  headerLogo:   { width: 34, height: 34, borderRadius: 9 },
-  headerSpacer: { width: 38 },
+  // ── Logo header (in body, like IR Quick Add)
+  logoWrap: { alignItems: "center", paddingVertical: 24, paddingBottom: 16 },
+  logo:     { width: 110, height: 110, borderRadius: 28 },
 
   // ── States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
@@ -332,7 +306,7 @@ const styles = StyleSheet.create({
   retryBtn: { marginTop: 4, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: Colors.primary, borderRadius: 10 },
   retryTxt: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
-  // ── Life-identical row styles ─────────────────────────────────────────────
+  // ── Life-identical row styles
   rowOuter: { height: ITEM_H },
   deleteAction: {
     width: 110, height: ITEM_H,
@@ -346,10 +320,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14, height: ITEM_H,
   },
-  emojiBtn:     { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
-  rowEmoji:     { fontSize: 24 },
-  rowTitle:     { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
-  checkBtn:     { padding: 10, margin: -6 },
+  emojiBtn:    { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
+  spotifyIcon: { width: 26, height: 26, borderRadius: 13 },
+  rowTitle:    { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
+  checkBtn:    { padding: 10, margin: -6 },
   checkBox: {
     width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",
     alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
