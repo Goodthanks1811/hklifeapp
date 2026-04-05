@@ -1014,12 +1014,6 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
 
-              <Text style={styles.hint}>
-                Get your key at{" "}
-                <Text style={styles.hintLink}>notion.so/my-integrations</Text>
-                {"\n"}Create an integration → copy the Internal Integration Secret.
-              </Text>
-
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={[styles.saveBtn, !isChanged && styles.saveBtnDisabled]}
@@ -1042,23 +1036,6 @@ export default function SettingsScreen() {
                   <Text style={styles.clearBtnText}>{clearing ? "Clearing…" : "Remove saved key"}</Text>
                 </TouchableOpacity>
               )}
-
-              <View style={[styles.divider, { marginTop: 4 }]} />
-
-              <Text style={styles.howTitle}>How it works</Text>
-              {[
-                { n: "1", text: "Go to notion.so/my-integrations and create a new integration." },
-                { n: "2", text: 'Copy the "Internal Integration Secret" (starts with secret_).' },
-                { n: "3", text: "Paste it above and tap Save API Key." },
-                { n: "4", text: "Open your Notion database → Connections → add your integration." },
-              ].map((step) => (
-                <View key={step.n} style={styles.step}>
-                  <View style={styles.stepNum}>
-                    <Text style={styles.stepNumText}>{step.n}</Text>
-                  </View>
-                  <Text style={styles.stepText}>{step.text}</Text>
-                </View>
-              ))}
             </SubAccordion>
 
             {/* Anthropic API sub-section */}
@@ -1091,12 +1068,6 @@ export default function SettingsScreen() {
                   <Feather name={aiMasked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
                 </Pressable>
               </View>
-
-              <Text style={styles.hint}>
-                Get your key at{" "}
-                <Text style={styles.hintLink}>console.anthropic.com</Text>
-                {"\n"}API Keys → Create Key. Used for Psychology Daily and any future AI features.
-              </Text>
 
               <TouchableOpacity
                 activeOpacity={0.8}
