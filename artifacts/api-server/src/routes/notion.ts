@@ -523,7 +523,8 @@ router.get("/life-tasks", async (req, res) => {
         }
       }
 
-      return { id: page.id, title, emoji, sortOrder, url, epic, fileLinks: fileLinks.length > 0 ? fileLinks : null };
+      const created: string | null = page.created_time ?? null;
+      return { id: page.id, title, emoji, sortOrder, url, epic, fileLinks: fileLinks.length > 0 ? fileLinks : null, created };
     });
 
     res.json({ tasks });

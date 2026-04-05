@@ -69,6 +69,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "News",     icon: "rss",      route: "/nrl-news",     description: "NRL headlines from Fox Sports" },
   ],
   tools: [
+    { label: "Shazam",       icon: "music",        route: "/shazam",       description: "Songs you've Shazamed"  },
     { label: "HK Quick Add", icon: "zap",        route: "/hk-quick-add", description: "Add HK Life tasks fast"  },
     { label: "IR Quick Add", icon: "send",        route: "/ir-quick-add", description: "Add IR App tasks fast"   },
     { label: "Photo Editor", icon: "image",       route: "/photo-slider", description: "Compare & export photos" },
