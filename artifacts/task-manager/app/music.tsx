@@ -124,6 +124,9 @@ export default function MusicScreen() {
               <Text style={s.npArtist} numberOfLines={1}>Warren G Feat Nate Dogg</Text>
             </View>
           </View>
+          <View style={s.progressWrap}>
+            <View style={s.progressFill} />
+          </View>
           <View style={s.controls}>
             <Pressable style={s.ctrlBtn}>
               <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
@@ -134,9 +137,6 @@ export default function MusicScreen() {
             <Pressable style={s.ctrlBtn}>
               <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
             </Pressable>
-          </View>
-          <View style={s.progressWrap}>
-            <View style={s.progressFill} />
           </View>
         </View>
 

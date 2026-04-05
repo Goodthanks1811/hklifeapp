@@ -104,11 +104,8 @@ export default function MusicSpotifyScreen() {
             style={({ pressed }) => [s.row, pressed && s.rowPressed]}
             onPress={openSpotify}
           >
-            <View style={[s.artwork, { backgroundColor: p.color }]}>
-              {i === 0
-                ? <Feather name="heart" size={18} color="#fff" />
-                : <Feather name="headphones" size={18} color={GREEN} />
-              }
+            <View style={s.iconCell}>
+              <Feather name="headphones" size={20} color={GREEN} />
             </View>
             <Text style={s.rowName}>{p.name}</Text>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.2)" />
@@ -158,10 +155,10 @@ const s = StyleSheet.create({
     borderRadius: 14, padding: 10,
   },
   rowPressed:    { opacity: 0.7 },
-  artwork: {
+  iconCell: {
     width: 44, height: 44, borderRadius: 8,
+    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
-  artworkLetter: { fontSize: 17, fontWeight: "700", color: "rgba(255,255,255,0.7)" },
-  rowName:       { flex: 1, fontSize: 15, fontWeight: "500", color: "#fff", fontFamily: "Inter_500Medium" },
+  rowName: { flex: 1, fontSize: 15, fontWeight: "500", color: "#fff", fontFamily: "Inter_500Medium" },
 });

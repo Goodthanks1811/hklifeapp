@@ -60,7 +60,7 @@ html,body{background:#0b0b0c;color:#fff;font-family:'Inter',sans-serif;height:10
   <div class="ambient"></div>
 
   <div class="header">
-    <img class="hk-logo" src="/hk-logo.png" alt="HK" />
+    <img class="hk-logo" src="https://814374fd-199d-4ed7-9a1e-8e8568da7f50-00-1sgtb2onftd5g.spock.replit.dev/hk-logo.png" alt="HK" />
     <div class="eq-bars">
       <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
       <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
