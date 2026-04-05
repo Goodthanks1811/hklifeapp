@@ -297,8 +297,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
   // ── Logo header (in body, like IR Quick Add)
-  logoWrap: { alignItems: "center", paddingVertical: 24, paddingBottom: 16 },
-  logo:     { width: 110, height: 110, borderRadius: 28 },
+  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 28 },
+  logo:     { width: 90, height: 90, borderRadius: 22 },
 
   // ── States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, height: ITEM_H,
   },
   emojiBtn:    { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
-  spotifyIcon: { width: 26, height: 26, borderRadius: 13 },
+  spotifyIcon: { width: 32, height: 32, borderRadius: 16 },
   rowTitle:    { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
   checkBtn:    { padding: 10, margin: -6 },
   checkBox: {
