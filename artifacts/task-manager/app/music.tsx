@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 
 const RED    = "#E8230A";
 const BG     = "#0b0b0c";
@@ -57,24 +57,20 @@ function EqBar({ index }: { index: number }) {
 }
 
 function ProviderRow({
-  iconName,
+  icon,
   label,
   accentColor,
-  iconColor,
   onPress,
 }: {
-  iconName: string;
+  icon: React.ReactNode;
   label: string;
   accentColor: string;
-  iconColor: string;
   onPress: () => void;
 }) {
   return (
     <Pressable style={({ pressed }) => [s.row, pressed && s.rowPressed]} onPress={onPress}>
       <View style={[s.accentBar, { backgroundColor: accentColor }]} />
-      <View style={s.iconCell}>
-        <Feather name={iconName as any} size={22} color={iconColor} />
-      </View>
+      <View style={s.iconCell}>{icon}</View>
       <Text style={s.rowLabel}>{label}</Text>
       <Feather name="chevron-right" size={16} color={BORDER} />
     </Pressable>
@@ -97,22 +93,19 @@ export default function MusicScreen() {
 
         <View style={s.cards}>
           <ProviderRow
-            iconName="music"
-            iconColor={RED}
+            icon={<Feather name="music" size={24} color={RED} />}
             accentColor={RED}
             label="My Music"
             onPress={() => router.push("/music-mymusic" as any)}
           />
           <ProviderRow
-            iconName="headphones"
-            iconColor="#1DB954"
+            icon={<MaterialCommunityIcons name="spotify" size={28} color="#1DB954" />}
             accentColor="#1DB954"
             label="Spotify"
             onPress={() => router.push("/music-spotify" as any)}
           />
           <ProviderRow
-            iconName="headphones"
-            iconColor={RED}
+            icon={<Text style={s.appleEmoji}>🍎</Text>}
             accentColor={RED}
             label="Apple Music"
             onPress={() => router.push("/music-apple" as any)}
@@ -166,7 +159,8 @@ const s = StyleSheet.create({
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
-  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 32 },
+  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 44 },
+  appleEmoji: { fontSize: 24, lineHeight: 28 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
