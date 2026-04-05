@@ -339,7 +339,7 @@ function FolderCard({
       ]}
       onPress={onPress}
       onLongPress={onLongPress}
-      delayLongPress={300}
+      delayLongPress={250}
       activeOpacity={0.85}
     >
       <View style={[s.folderCover, { height: cardSize * 0.75 }]}>
@@ -777,7 +777,9 @@ export default function MiNenaScreen() {
   }, [dragPanX, dragPanY]);
 
   const folderGridPan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: () => isDraggingRef.current,
+    onStartShouldSetPanResponder:        () => false,
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponderCapture:  () => isDraggingRef.current,
     onPanResponderMove: (_, gs) => {
       if (!isDraggingRef.current) return;
       dragPanX.setValue(gs.dx);
@@ -817,6 +819,7 @@ export default function MiNenaScreen() {
             onScroll={(e) => { scrollOffRef.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
+            canCancelContentTouches={false}
             contentContainerStyle={{
               paddingTop: 8,
               paddingBottom: insets.bottom + 24,
@@ -869,7 +872,7 @@ export default function MiNenaScreen() {
                     <Animated.View
                       key={folder.id}
                       style={[
-                        { position: "absolute", width: folderCardSize, zIndex: isDragging ? 100 : 1 },
+                        { position: "absolute", left: 0, top: 0, width: folderCardSize, zIndex: isDragging ? 100 : 1 },
                         { transform: [{ translateX: txAnim }, { translateY: tyAnim }] },
                       ]}
                     >
