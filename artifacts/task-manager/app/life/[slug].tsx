@@ -810,7 +810,7 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
           // Two nested views: outer on native driver (slide), inner on JS (keyboard offset)
-          <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
+          <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }} pointerEvents="box-none">
             <Animated.View style={[s.sheet, { paddingBottom: kbVisible ? 4 : insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
               <View style={s.handle} />
               {sheetContent}
@@ -1193,7 +1193,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
           </Animated.View>
         ) : (
           // ── Phone: bottom sheet ───────────────────────────────────
-          <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
+          <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }} pointerEvents="box-none">
             <Animated.View style={[s.sheet, { paddingBottom: kbVisible ? 4 : insets.bottom + 4, transform: [{ translateY: Animated.multiply(kbAnim, -1) }] }]}>
               <View style={s.handle} />
               {innerContent}
