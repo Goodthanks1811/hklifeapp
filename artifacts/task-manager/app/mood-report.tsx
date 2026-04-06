@@ -266,7 +266,7 @@ export default function MoodReportScreen() {
 
   return (
     <View style={[s.screen, { paddingTop: topPad }]}>
-      <ScreenHeader title="Mood Log" />
+      <ScreenHeader title="Mood Report" />
 
       {loading ? (
         <PageLoader />

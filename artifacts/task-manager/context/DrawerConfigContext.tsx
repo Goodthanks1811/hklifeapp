@@ -53,7 +53,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Development", icon: "zap",          route: "/life/automation",  description: "Development tasks"    },
   ],
   reports: [
-    { label: "Mood Report",   icon: "activity",  route: "/mood-report",  description: "Monthly mood charts" },
+    { label: "Mood",          icon: "activity",  route: "/mood-report",  description: "Monthly mood charts" },
     { label: "My Workload",   icon: "bar-chart", route: "/my-workload",  description: "Created vs done"     },
     { label: "March Sleep",   icon: "moon",      route: "/march-sleep",  description: "Feb 28 – Mar 27"    },
     { label: "Whoop Age",     icon: "heart",     route: "/whoop-age",    description: "Mar 2024 – Mar 2025" },

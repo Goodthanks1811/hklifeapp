@@ -429,10 +429,18 @@ export default function MyWorkloadScreen() {
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
+  const pillsRef = useRef<ScrollView>(null);
   const [months, setMonths] = useState<MonthData[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Scroll pills to end once months load so current month pill is visible
+  useEffect(() => {
+    if (months.length > 0) {
+      setTimeout(() => pillsRef.current?.scrollToEnd({ animated: false }), 0);
+    }
+  }, [months]);
 
   useEffect(() => {
     if (!apiKey) { setLoading(false); return; }
@@ -508,6 +516,7 @@ export default function MyWorkloadScreen() {
         >
           {/* Month pills */}
           <ScrollView
+            ref={pillsRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.pillsScroller}
