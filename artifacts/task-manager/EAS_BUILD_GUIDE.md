@@ -330,7 +330,9 @@ Without step 3–5, the entitlement is in the binary but not in the provisioning
 
 **Cause**: `apple-musickit` is declared as `"file:./modules/apple-musickit"` in `package.json`. pnpm hoists it to the **workspace root** `node_modules/` during install, not `artifacts/task-manager/node_modules/`. Expo's auto-linker (`expo-modules-autolinking`) generates the Xcode project by scanning `node_modules` relative to the app package — it doesn't find the module at the workspace root, so the Swift code is never compiled in. The Metro `LOCAL_MODULES` fix only solves the JS bundle side; native auto-linking is a separate step.
 
-**Fix**: Add `expo.autolinking.extraSearchPaths` to `package.json` so Expo's auto-linker scans the `modules/` directory directly, regardless of where pnpm puts the package:
+**Fix (belt and suspenders)**:
+
+1. `expo.autolinking.extraSearchPaths` in `package.json` tells the auto-linker to scan `./modules/` directly:
 ```json
 "expo": {
   "autolinking": {
@@ -338,7 +340,13 @@ Without step 3–5, the entitlement is in the binary but not in the provisioning
   }
 }
 ```
-This makes `expo prebuild` find `modules/apple-musickit/expo-module.config.json` and compile `AppleMusicKitModule.swift` into every build.
+
+2. `prebuildCommand` in `eas.json` (preview profile) runs `scripts/ensure-local-modules.js` **before** `expo prebuild`, symlinking (or copying) `modules/apple-musickit` into `node_modules/apple-musickit`. This guarantees the standard `node_modules` scan also finds the module:
+```json
+"prebuildCommand": "node scripts/ensure-local-modules.js && npx expo prebuild --non-interactive"
+```
+
+Both mechanisms together make this bulletproof regardless of how pnpm hoisting behaves in the EAS environment.
 
 ---
 
