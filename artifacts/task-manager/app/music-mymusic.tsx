@@ -387,9 +387,9 @@ const st = StyleSheet.create({
     backgroundColor: ROW_BG,
     borderTopWidth: 1, borderTopColor: BORDER,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingHorizontal: 20, paddingTop: 24,
+    paddingHorizontal: 20, paddingTop: 14,
   },
-  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
+  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 12 },
   npArt: {
     width: 80, height: 80, borderRadius: 14,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
@@ -397,7 +397,7 @@ const st = StyleSheet.create({
   },
   npTitle:  { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff" },
   progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
-  timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
   timeText: { fontSize: 12, fontFamily: "Inter_400Regular", color: GREY },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
