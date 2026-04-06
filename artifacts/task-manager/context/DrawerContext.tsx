@@ -37,7 +37,7 @@ interface DrawerContextType {
   instantClose:        () => void;
   toggleDrawer:        () => void;
   openDrawerToSection: (key: string) => void;
-  pendingSectionRef:   React.MutableRefObject<string | null>;
+  drawerPrepareRef:    React.MutableRefObject<((key: string) => void) | null>;
   skipNextAutoClose:   () => void;
   skipAutoCloseRef:    React.MutableRefObject<boolean>;
   DRAWER_WIDTH:        number;
@@ -116,10 +116,12 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
   const skipAutoCloseRef  = useRef(false);
   const skipNextAutoClose = useCallback(() => { skipAutoCloseRef.current = true; }, []);
 
-  // Pending section — set before openDrawer(); Drawer reads this on open and enters the section
-  const pendingSectionRef = useRef<string | null>(null);
+  // drawerPrepareRef — the Drawer registers a callback here on mount.
+  // openDrawerToSection calls it synchronously BEFORE openDrawer() so the
+  // panel state is already correct on the very first rendered frame; no flash.
+  const drawerPrepareRef = useRef<((key: string) => void) | null>(null);
   const openDrawerToSection = useCallback((key: string) => {
-    pendingSectionRef.current = key;
+    drawerPrepareRef.current?.(key);
     openDrawer();
   }, [openDrawer]);
 
@@ -128,7 +130,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
       isOpen, drawerAnim, overlayAnim, spacerWidth,
       drawerMode, drawerModeRef, setDrawerMode,
       openDrawer, closeDrawer, instantClose, toggleDrawer,
-      openDrawerToSection, pendingSectionRef,
+      openDrawerToSection, drawerPrepareRef,
       skipNextAutoClose, skipAutoCloseRef,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
     }}>
