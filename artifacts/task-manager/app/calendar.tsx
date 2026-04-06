@@ -23,7 +23,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useDrawer } from "@/context/DrawerContext";
 import { Colors } from "@/constants/colors";
 import { useGoogleCalendar } from "@/context/GoogleCalendarContext";
@@ -814,6 +814,9 @@ export default function CalendarScreen() {
 
   useEffect(() => { setStatus("loading"); fetchEvents(); }, [fetchEvents]);
 
+  // Re-fetch silently whenever screen regains focus (picks up external calendar edits)
+  useFocusEffect(useCallback(() => { fetchEvents(); }, [fetchEvents]));
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true); await fetchEvents(); setRefreshing(false);
   }, [fetchEvents]);
@@ -1060,7 +1063,7 @@ function RescheduleModal({
       }
       const duration = event.endDate.getTime() - event.startDate.getTime();
       const newEnd   = new Date(newStart.getTime() + Math.max(duration, 0));
-      await Calendar.updateEventAsync(event.id, { startDate: newStart, endDate: newEnd });
+      await Calendar.updateEventAsync(event.id, { title: event.title, startDate: newStart, endDate: newEnd });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSaved();
     } catch (e: any) {
