@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "HK Life",
   "short_name": "HK Life",
-  "version": "1.0.0",
-  "description": "Your Life section — tasks, quick add, and categories from Notion.",
+  "version": "1.1.0",
+  "description": "View and manage your HK Life Notion tasks — browse categories, quick-add, check off, and delete.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "HK Life"

@@ -1,65 +1,107 @@
 /* ── Reset & base ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Design tokens — exact match to app constants/colors.ts ─────────
+   darkBg    : #0b0b0c  (page background)
+   cardBg    : #0f0f0f  (row / card background)
+   border    : #2A2A2A
+   primary   : #E03131  (HK red)
+   textPrimary: #FFFFFF
+   textSecondary: rgba(255,255,255,0.55)
+   textMuted : rgba(255,255,255,0.28)
+────────────────────────────────────────────────────────────────────── */
 :root {
-  --red:        #E03131;
-  --red-dim:    #b02525;
-  --bg:         #0b0b0c;
-  --card:       #0f0f0f;
-  --border:     #2A2A2A;
-  --text:       #F0F0F0;
-  --muted:      #6b6b6b;
-  --radius:     10px;
-  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --red:          #E03131;
+  --red-glow:     rgba(224, 49, 49, 0.35);
+  --bg:           #0b0b0c;
+  --card:         #0f0f0f;
+  --card-raised:  #161616;
+  --border:       #2A2A2A;
+  --border-light: rgba(255,255,255,0.08);
+  --text:         #FFFFFF;
+  --text-sec:     rgba(255,255,255,0.55);
+  --text-muted:   rgba(255,255,255,0.28);
+  --radius:       10px;
+  --ease:         cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html, body {
-  width: 380px;
-  min-height: 520px;
+  width: 400px;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
   font-size: 14px;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 #app {
   display: flex;
   flex-direction: column;
-  min-height: 520px;
+  min-height: 540px;
 }
 
-/* ── Header ────────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Header — red gradient matching app LinearGradient ──────────────
+   The app uses:
+   colors: ["rgba(224,49,49,0.90)", "rgba(215,42,42,0.74)", "rgba(190,28,28,0.56)",
+            "rgba(145,16,16,0.38)", "rgba(90,8,8,0.20)", "rgba(35,3,3,0.08)", "#0f0f0f"]
+   locations: [0, 0.18, 0.36, 0.54, 0.70, 0.85, 1]
+────────────────────────────────────────────────────────────────────── */
 .header {
+  position: relative;
+  padding-bottom: 20px;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.header-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(224, 49,  49,  0.90) 0%,
+    rgba(215, 42,  42,  0.74) 18%,
+    rgba(190, 28,  28,  0.56) 36%,
+    rgba(145, 16,  16,  0.38) 54%,
+    rgba( 90,  8,   8,  0.20) 70%,
+    rgba( 35,  3,   3,  0.08) 85%,
+    #0f0f0f                   100%
+  );
+  pointer-events: none;
+}
+
+.header-content {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  padding: 16px 16px 6px;
 }
 
 .header-left {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
 }
 
+/* "HK" in bold red — matches the app's brand */
 .header-logo {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
   color: var(--red);
   letter-spacing: -0.5px;
+  text-shadow: 0 0 20px rgba(224, 49, 49, 0.6);
 }
 
+/* Section title — e.g. "Life Admin" — white, Inter 700 */
 .header-title {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.3px;
+  text-shadow: 0 0 24px rgba(224, 49, 49, 0.45);
 }
 
 .header-right {
@@ -68,28 +110,27 @@ html, body {
   gap: 4px;
 }
 
-/* ── Icon buttons ──────────────────────────────────────────────────── */
-.icon-btn {
-  background: none;
+.header-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
   border: none;
-  color: var(--muted);
-  font-size: 18px;
+  background: rgba(26, 26, 26, 0.55);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  padding: 6px 8px;
-  border-radius: 8px;
-  line-height: 1;
-  transition: color var(--transition), background var(--transition);
+  transition: color 0.18s var(--ease), background 0.18s var(--ease);
 }
-.icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
-
-.add-header-btn {
-  font-size: 22px;
-  font-weight: 300;
-  color: var(--red);
+.header-icon-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.10);
 }
-.add-header-btn:hover { color: #ff4545; background: rgba(224,49,49,0.1); }
 
-/* ── Category nav ──────────────────────────────────────────────────── */
+/* ── Category nav — horizontal scrollable pill tabs ─────────────────
+   Matches app's category system. Active chip is solid red.
+────────────────────────────────────────────────────────────────────── */
 .cat-nav {
   display: flex;
   gap: 6px;
@@ -98,48 +139,55 @@ html, body {
   scrollbar-width: none;
   background: var(--card);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .cat-nav::-webkit-scrollbar { display: none; }
 
 .cat-chip {
   flex-shrink: 0;
-  padding: 5px 12px;
+  height: 30px;
+  padding: 0 12px;
   border-radius: 20px;
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: all 0.2s var(--ease);
   white-space: nowrap;
   letter-spacing: 0.2px;
 }
 .cat-chip:hover {
-  border-color: var(--red);
-  color: var(--text);
+  border-color: rgba(224, 49, 49, 0.5);
+  color: var(--text-sec);
 }
 .cat-chip.active {
   background: var(--red);
   border-color: var(--red);
   color: #fff;
-  box-shadow: 0 2px 10px rgba(224,49,49,0.35);
+  box-shadow: 0 2px 12px var(--red-glow);
 }
 
-/* ── Quick-add bar ─────────────────────────────────────────────────── */
+/* ── Quick-add bar — slides down (max-height transition) ─────────────
+   Mirrors the app's QuickAddSheet logic:
+   - Text input for summary (title)
+   - Category switcher chips (same as all categories)
+   - Emoji chips for the active category
+   - Epic chips for Development category only
+────────────────────────────────────────────────────────────────────── */
 .quick-add-bar {
-  padding: 10px 14px 8px;
   background: var(--card);
   border-bottom: 1px solid var(--border);
   overflow: hidden;
-
-  /* Animation */
-  max-height: 120px;
+  max-height: 240px;
   opacity: 1;
   transition:
-    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.2s ease,
-    padding 0.3s ease;
+    max-height 0.30s var(--ease),
+    opacity    0.20s ease,
+    padding    0.30s ease;
+  padding: 12px 14px 10px;
+  flex-shrink: 0;
 }
 .quick-add-bar.hidden {
   max-height: 0;
@@ -148,268 +196,552 @@ html, body {
   padding-bottom: 0;
 }
 
-.qa-row {
+.qa-cat-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+/* Smaller category chips inside quick-add */
+.qa-cat-chip {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+.qa-cat-chip:hover { border-color: rgba(255,255,255,0.25); color: var(--text-sec); }
+.qa-cat-chip.active {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.35);
+  color: var(--text);
+}
+
+.qa-input-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .qa-input {
   flex: 1;
-  background: #1a1a1a;
+  background: var(--card-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 13px;
-  padding: 8px 12px;
+  font-size: 14px;
+  padding: 9px 13px;
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color 0.2s var(--ease);
 }
 .qa-input:focus { border-color: var(--red); }
-.qa-input::placeholder { color: var(--muted); }
+.qa-input::placeholder { color: var(--text-muted); }
 
-.qa-submit-btn {
+/* ── Shared primary button ────────────────────────────────────────── */
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: var(--red);
   border: none;
   border-radius: var(--radius);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
-  padding: 8px 16px;
+  padding: 9px 18px;
   cursor: pointer;
-  transition: background var(--transition), transform 0.1s ease;
+  transition: background 0.2s var(--ease), transform 0.1s ease;
   white-space: nowrap;
 }
-.qa-submit-btn:hover  { background: #ff3b3b; }
-.qa-submit-btn:active { transform: scale(0.96); }
+.primary-btn:hover  { background: #f03535; }
+.primary-btn:active { transform: scale(0.97); }
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-/* Quick-add emoji row */
+.qa-submit-btn { padding: 9px 16px; }
+
+/* ── Emoji chips — 40×40, borderRadius 10, matching app's dsEmojiChip ─
+   "width: 40, height: 40, borderRadius: 10, backgroundColor: cardBgElevated,
+    alignItems: center, justifyContent: center, borderWidth: 1, borderColor: border"
+────────────────────────────────────────────────────────────────────── */
 .emoji-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .emoji-chip {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius);
-  border: 1.5px solid var(--border);
-  background: transparent;
-  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card-raised);
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition), transform 0.1s ease;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease), transform 0.1s ease;
+  flex-shrink: 0;
 }
-.emoji-chip:hover  { border-color: var(--red); background: rgba(224,49,49,0.12); }
+.emoji-chip:hover  { border-color: var(--red); background: rgba(224,49,49,0.10); }
 .emoji-chip:active { transform: scale(0.92); }
 .emoji-chip.selected {
   border-color: var(--red);
-  background: rgba(224,49,49,0.18);
-  box-shadow: 0 0 8px rgba(224,49,49,0.3);
+  background: rgba(224,49,49,0.15);
+  box-shadow: 0 0 10px var(--red-glow);
 }
 
-/* ── Task list ──────────────────────────────────────────────────────── */
+/* ── Epic chips — matching app's EPIC_COLOUR_MAP pill style ─────────
+   "paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+    borderWidth: 1, fontSize: 12, fontFamily: Inter_600SemiBold, letterSpacing: 0.4"
+────────────────────────────────────────────────────────────────────── */
+.epic-chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.epic-chip {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  white-space: nowrap;
+  color: var(--text-sec);
+}
+
+/* ── Task list container ─────────────────────────────────────────── */
 .task-list {
   flex: 1;
-  padding: 8px 0;
+  padding: 10px 14px 80px;
   overflow-y: auto;
-  max-height: 380px;
+  max-height: 390px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 .task-list::-webkit-scrollbar { width: 4px; }
 .task-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-/* Task item */
+/* ── Task row — card style matching app's rowWrap style ─────────────
+   App styles:
+     rowWrap: {
+       flexDirection: "row", alignItems: "center", gap: 12,
+       backgroundColor: "#0f0f0f", borderWidth: 1, borderColor: "#2A2A2A",
+       borderRadius: 10, paddingHorizontal: 14, height: 48,
+     }
+   Gap between rows = ITEM_GAP = 8px
+────────────────────────────────────────────────────────────────────── */
 .task-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 16px;
-  border-radius: 0;
-  cursor: default;
-  border-bottom: 1px solid rgba(42,42,42,0.5);
-  transition: background var(--transition);
+  gap: 12px;
+  height: 48px;
+  padding: 0 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
 
-  /* Entrance animation */
-  animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+  /* Entrance stagger animation — matches app's slide-in feel */
+  animation: rowIn 0.22s var(--ease) both;
 }
-.task-item:hover { background: rgba(255,255,255,0.03); }
-.task-item:last-child { border-bottom: none; }
+.task-item:hover {
+  border-color: rgba(255,255,255,0.12);
+  background: #121212;
+}
+.task-item:last-child { margin-bottom: 0; }
 
+/* Swipe-reveal action area (shown on hover via CSS, or on swipe gesture) */
+.task-item-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  transform: translateX(100%);
+  transition: transform 0.22s var(--ease);
+}
+.task-item:hover .task-item-actions {
+  transform: translateX(0);
+}
+
+.action-btn {
+  width: 44px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  font-size: 15px;
+}
+.action-btn:hover { opacity: 0.82; }
+
+.action-btn-check {
+  background: rgba(64, 192, 87, 0.18);
+  border-left: 1px solid rgba(64, 192, 87, 0.25);
+  color: #40C057;
+}
+.action-btn-delete {
+  background: rgba(224, 49, 49, 0.18);
+  border-left: 1px solid rgba(224, 49, 49, 0.25);
+  color: var(--red);
+  border-radius: 0 10px 10px 0;
+}
+
+/* Emoji column — app's emojiBtn: minWidth:36, alignSelf:stretch, centered */
 .task-emoji {
-  font-size: 16px;
-  min-width: 22px;
-  text-align: center;
+  font-size: 20px;
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   line-height: 1;
+  /* Dot for items with no emoji (DEFAULT_EMOJI = "-") */
+}
+.task-emoji.is-default {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
+/* Title — app's rowTitle: fontSize:15, Inter_600SemiBold, color:#FFFFFF */
 .task-title {
   flex: 1;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text);
   line-height: 1.35;
-  word-break: break-word;
-}
-
-.task-epic {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 6px;
   white-space: nowrap;
-  letter-spacing: 0.3px;
-  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ── Empty / error states ──────────────────────────────────────────── */
+/* Epic pill — app's epicPill style */
+.task-epic {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.2px;
+}
+
+/* ── Empty / error / loader states ──────────────────────────────── */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
-  color: var(--muted);
-  gap: 8px;
-  animation: fadeIn 0.3s ease both;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  gap: 10px;
+  animation: fadeIn 0.28s ease both;
+  text-align: center;
 }
-.empty-state .empty-icon { font-size: 32px; }
-.empty-state .empty-text { font-size: 13px; text-align: center; line-height: 1.5; }
+.empty-state .empty-icon { font-size: 32px; margin-bottom: 2px; }
+.empty-state .empty-text { font-size: 13px; line-height: 1.6; }
 
 .error-state {
-  padding: 20px 16px;
+  padding: 24px 16px;
   color: var(--red);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
-  animation: fadeIn 0.3s ease both;
+  animation: fadeIn 0.28s ease both;
 }
+.retry-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 7px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card-raised);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease);
+}
+.retry-btn:hover { border-color: var(--red); }
 
-/* No-key state */
 .no-key-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 36px 24px;
+  padding: 44px 24px;
   gap: 12px;
-  animation: fadeIn 0.3s ease both;
+  animation: fadeIn 0.28s ease both;
+  text-align: center;
 }
-.no-key-state .nk-icon { font-size: 36px; }
-.no-key-state .nk-title { font-size: 14px; font-weight: 700; color: var(--text); }
-.no-key-state .nk-sub { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; }
-.no-key-state .nk-btn {
-  margin-top: 4px;
-  background: var(--red);
-  border: none;
-  border-radius: var(--radius);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 9px 20px;
-  cursor: pointer;
-  transition: background var(--transition);
-}
-.no-key-state .nk-btn:hover { background: #ff3b3b; }
+.no-key-state .nk-icon  { font-size: 38px; margin-bottom: 4px; }
+.no-key-state .nk-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.no-key-state .nk-sub   { font-size: 12px; color: var(--text-muted); line-height: 1.6; max-width: 240px; }
 
-/* ── Loader / spinner ──────────────────────────────────────────────── */
-.loader {
+/* ── Spinner loader ────────────────────────────────────────────────
+   Matches app's red-accent spinner ring
+────────────────────────────────────────────────────────────────────── */
+.loader-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 48px;
 }
 .spinner {
-  width: 26px;
-  height: 26px;
-  border: 2.5px solid var(--border);
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid rgba(255,255,255,0.12);
   border-top-color: var(--red);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.65s linear infinite;
 }
 
 /* ── Settings overlay ──────────────────────────────────────────────── */
 #settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.75);
-  z-index: 100;
+  background: rgba(0, 0, 0, 0.80);
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
   animation: fadeIn 0.18s ease both;
 }
-#settings-overlay.hidden { display: none; }
 
 .settings-card {
-  background: var(--card);
+  background: #111111;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  width: 320px;
-  animation: slideUp 0.22s cubic-bezier(0.4,0,0.2,1) both;
+  border-radius: 18px;
+  padding: 22px 20px 18px;
+  width: 330px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  animation: sheetUp 0.22s var(--ease) both;
 }
 
 .settings-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .settings-title { font-size: 15px; font-weight: 700; }
 
-.settings-label {
+.field-label {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  color: var(--muted);
-  letter-spacing: 0.6px;
+  color: var(--text);
+  letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
 
 .settings-input {
   width: 100%;
-  background: #1a1a1a;
+  background: var(--card-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
   font-size: 13px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   outline: none;
   margin-bottom: 14px;
-  transition: border-color var(--transition);
-  font-family: monospace;
+  transition: border-color 0.2s var(--ease);
+  font-family: "SF Mono", "Fira Code", monospace;
+  letter-spacing: 0.5px;
 }
 .settings-input:focus { border-color: var(--red); }
-.settings-input::placeholder { color: var(--muted); font-family: sans-serif; }
-
-.save-btn {
-  width: 100%;
-  background: var(--red);
-  border: none;
-  border-radius: var(--radius);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 10px;
-  cursor: pointer;
-  transition: background var(--transition);
-}
-.save-btn:hover { background: #ff3b3b; }
+.settings-input::placeholder { color: var(--text-muted); font-family: sans-serif; letter-spacing: 0; }
 
 .save-msg {
   margin-top: 10px;
   font-size: 12px;
-  color: #4caf50;
+  font-weight: 600;
+  color: #40C057;
   text-align: center;
 }
-.save-msg.hidden { display: none; }
 
-/* ── Keyframes ─────────────────────────────────────────────────────── */
+/* ── Icon button (generic) ───────────────────────────────────────── */
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+
+/* ── Cancel / ghost buttons ──────────────────────────────────────── */
+.cancel-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  border-radius: 12px;
+  border: none;
+  background: var(--card-raised);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s var(--ease);
+}
+.cancel-btn:hover { background: rgba(255,255,255,0.09); }
+
+.ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(224,49,49,0.35);
+  background: rgba(224,49,49,0.10);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s var(--ease);
+  white-space: nowrap;
+}
+.ghost-btn:hover { background: rgba(224,49,49,0.18); }
+
+/* ── Detail overlay ──────────────────────────────────────────────── */
+#detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn 0.18s ease both;
+}
+
+.detail-card {
+  width: 100%;
+  background: #111111;
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  padding: 0 0 4px;
+  max-height: 82vh;
+  overflow-y: auto;
+  box-shadow: 0 -16px 48px rgba(0,0,0,0.55);
+  animation: sheetUp 0.28s var(--ease) both;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 0;
+  margin-bottom: 10px;
+}
+
+/* The drag handle — 38×5 rounded bar at top of sheet */
+.detail-card::before {
+  content: "";
+  display: block;
+  width: 38px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  margin: 10px auto 0;
+}
+
+.detail-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.detail-title-input {
+  width: calc(100% - 40px);
+  margin: 0 20px;
+  background: var(--card-raised);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.2s var(--ease);
+  line-height: 1.5;
+}
+.detail-title-input:focus { border-color: var(--red); }
+.detail-title-input::placeholder { color: var(--text-muted); font-weight: 400; }
+
+.detail-card .emoji-row,
+.detail-card .epic-chip-row {
+  padding: 0 20px;
+}
+
+.detail-notes-body {
+  margin: 4px 20px 0;
+  padding: 12px;
+  background: var(--card-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--text-sec);
+  line-height: 1.6;
+  min-height: 60px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+}
+.detail-actions .primary-btn {
+  height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -419,17 +751,18 @@ html, body {
   to   { opacity: 1; }
 }
 
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(6px); }
+@keyframes sheetUp {
+  from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
+/* Task row entrance — staggered slide-in (like app's Animated.spring per-row) */
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Stagger task items */
+/* Stagger the first 12 rows */
 .task-item:nth-child(1)  { animation-delay: 0.00s; }
 .task-item:nth-child(2)  { animation-delay: 0.03s; }
 .task-item:nth-child(3)  { animation-delay: 0.06s; }
@@ -440,8 +773,10 @@ html, body {
 .task-item:nth-child(8)  { animation-delay: 0.21s; }
 .task-item:nth-child(9)  { animation-delay: 0.24s; }
 .task-item:nth-child(10) { animation-delay: 0.27s; }
+.task-item:nth-child(11) { animation-delay: 0.30s; }
+.task-item:nth-child(12) { animation-delay: 0.33s; }
 
-/* ── Scrollbar (global) ─────────────────────────────────────────────── */
+/* Scrollbar (global) */
 body {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;

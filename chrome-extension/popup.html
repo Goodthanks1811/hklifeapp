@@ -13,64 +13,117 @@
     <div class="settings-card">
       <div class="settings-header">
         <span class="settings-title">Settings</span>
-        <button class="icon-btn" id="settings-close">✕</button>
+        <button class="icon-btn" id="settings-close" aria-label="Close settings">&#x2715;</button>
       </div>
-      <label class="settings-label">Notion API Key</label>
+      <label class="field-label" for="notion-key-input">Notion API Key</label>
       <input
         id="notion-key-input"
         class="settings-input"
         type="password"
         placeholder="secret_xxxxxxxxxxxxxxxx"
         autocomplete="off"
+        spellcheck="false"
       />
-      <button id="save-key-btn" class="save-btn">Save</button>
-      <p id="save-msg" class="save-msg hidden">Saved ✓</p>
+      <button id="save-key-btn" class="primary-btn">Save Key</button>
+      <p id="save-msg" class="save-msg hidden">&#x2713; Saved</p>
+    </div>
+  </div>
+
+  <!-- ── Detail / edit overlay ─────────────────────────────────────── -->
+  <!--
+    Shown when user clicks a task row.
+    Allows: edit title, change emoji, change epic, open in Notion, save.
+    The body/notes section is read-only in the extension (too complex to edit inline).
+  -->
+  <div id="detail-overlay" class="hidden">
+    <div class="detail-card">
+      <div class="detail-header">
+        <span class="detail-label">SUMMARY</span>
+        <button class="icon-btn" id="detail-close" aria-label="Close detail">&#x2715;</button>
+      </div>
+
+      <input id="detail-title-input" class="detail-title-input" type="text" placeholder="Task name…" />
+
+      <!-- Emoji row — chips for the category's allowed emojis -->
+      <div class="field-label" style="margin-top:14px;">PRIORITY</div>
+      <div class="emoji-row" id="detail-emoji-row"></div>
+
+      <!-- Epic row — only visible for Development category -->
+      <div id="detail-epic-section" class="hidden">
+        <div class="field-label" style="margin-top:14px;">EPIC</div>
+        <div class="epic-chip-row" id="detail-epic-row"></div>
+      </div>
+
+      <!-- Notes (read-only markdown preview) -->
+      <div id="detail-notes-section" class="hidden">
+        <div class="field-label" style="margin-top:14px;">NOTES</div>
+        <div id="detail-notes-body" class="detail-notes-body"></div>
+      </div>
+
+      <div class="detail-actions">
+        <button id="detail-open-btn" class="ghost-btn" title="Open in Notion">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Open
+        </button>
+        <button id="detail-cancel-btn" class="cancel-btn">Close</button>
+        <button id="detail-save-btn" class="primary-btn" style="flex:2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- ── Main shell ─────────────────────────────────────────────────── -->
   <div id="app">
 
-    <!-- Header -->
+    <!-- Gradient header — red-to-dark, matching the app's LinearGradient -->
     <header class="header">
-      <div class="header-left">
-        <span class="header-logo">HK</span>
-        <span class="header-title">Life</span>
-      </div>
-      <div class="header-right">
-        <button class="icon-btn add-header-btn" id="header-add-btn" title="Quick Add">+</button>
-        <button class="icon-btn" id="settings-open-btn" title="Settings">⚙</button>
+      <div class="header-gradient"></div>
+      <div class="header-content">
+        <div class="header-left">
+          <span class="header-logo">HK</span>
+          <span class="header-title" id="header-section-title">Life Admin</span>
+        </div>
+        <div class="header-right">
+          <button class="header-icon-btn" id="header-add-btn" title="Quick Add" aria-label="Quick add">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="header-icon-btn" id="settings-open-btn" title="Settings" aria-label="Settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Category tabs -->
-    <nav class="cat-nav" id="cat-nav">
-      <!-- Injected by JS -->
-    </nav>
+    <!-- Category tabs — horizontal scrollable pill nav -->
+    <nav class="cat-nav" id="cat-nav" role="tablist" aria-label="Life categories"></nav>
 
-    <!-- Quick-add bar (hidden by default) -->
+    <!-- Quick-add bar — slides down when + is pressed -->
     <div class="quick-add-bar hidden" id="quick-add-bar">
-      <div class="qa-row">
+      <!-- Category switcher inside quick-add (mirrors the Detail sheet pattern) -->
+      <div class="qa-cat-row" id="qa-cat-row"></div>
+      <div class="qa-input-row">
         <input
           id="qa-input"
           class="qa-input"
           type="text"
           placeholder="Add summary…"
           autocomplete="off"
+          spellcheck="false"
         />
-        <button class="qa-submit-btn" id="qa-submit">Add</button>
+        <button class="primary-btn qa-submit-btn" id="qa-submit">Add</button>
       </div>
-      <div class="emoji-row" id="qa-emoji-row">
-        <!-- Injected by JS -->
+      <!-- Emoji chips for the active category -->
+      <div class="emoji-row" id="qa-emoji-row"></div>
+      <!-- Epic chips — only shown for Development category -->
+      <div id="qa-epic-section" class="hidden">
+        <div class="epic-chip-row" id="qa-epic-row"></div>
       </div>
     </div>
 
-    <!-- Task list -->
-    <main class="task-list" id="task-list">
-      <div class="loader" id="loader">
-        <div class="spinner"></div>
-      </div>
-    </main>
+    <!-- Task list — absolutely positioned cards (like the app's animated layout) -->
+    <main class="task-list" id="task-list"></main>
 
   </div>
 
