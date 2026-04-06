@@ -91,15 +91,15 @@ function epicColor(epic: string): { bg: string; border: string; text: string } {
 
 // More saturated version for the inline picker popover rows (larger area → needs higher alpha)
 const EPIC_POP_BG: Record<string, { bg: string; border: string }> = {
-  "Enhancement": { bg: "rgba(64,192,87,0.24)",   border: "rgba(64,192,87,0.60)" },
-  "HK Life":     { bg: "rgba(224,49,49,0.24)",   border: "rgba(224,49,49,0.60)" },
-  "IR App":      { bg: "rgba(51,154,240,0.24)",  border: "rgba(51,154,240,0.60)" },
-  "General":     { bg: "rgba(134,142,150,0.22)", border: "rgba(134,142,150,0.55)" },
-  "New App":     { bg: "rgba(250,176,5,0.24)",   border: "rgba(250,176,5,0.60)" },
+  "Enhancement": { bg: "rgba(64,192,87,0.18)",   border: "rgba(64,192,87,0.80)" },
+  "HK Life":     { bg: "rgba(224,49,49,0.18)",   border: "rgba(224,49,49,0.80)" },
+  "IR App":      { bg: "rgba(51,154,240,0.18)",  border: "rgba(51,154,240,0.80)" },
+  "General":     { bg: "rgba(134,142,150,0.16)", border: "rgba(134,142,150,0.75)" },
+  "New App":     { bg: "rgba(250,176,5,0.18)",   border: "rgba(250,176,5,0.80)" },
 };
 function epicPopColor(epic: string): { bg: string; border: string; text: string } {
   const base = epicColor(epic);
-  const pop  = EPIC_POP_BG[epic] ?? { bg: "rgba(134,142,150,0.22)", border: "rgba(134,142,150,0.55)" };
+  const pop  = EPIC_POP_BG[epic] ?? { bg: "rgba(134,142,150,0.16)", border: "rgba(134,142,150,0.75)" };
   return { ...base, ...pop };
 }
 
@@ -392,7 +392,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
                 {
                   backgroundColor: ec.bg,
                   borderColor:     ec.border,
-                  opacity:         selected ? 1 : 0.75,
+                  opacity:         selected ? 1 : 0.65,
                 },
               ]}
               onPress={() => {
@@ -401,7 +401,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
                 onClose();
               }}
             >
-              <Text style={[s.epicPopText, { color: ec.text, fontFamily: selected ? "Inter_700Bold" : "Inter_500Medium" }]}>{ep}</Text>
+              <Text style={[s.epicPopText, { color: ec.text }]}>{ep}</Text>
             </Pressable>
           );
         })}
@@ -2096,10 +2096,10 @@ const s = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
   epicPopRow: {
-    paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8, borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5,
   },
   epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
-  epicPopText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  epicPopText: { fontSize: 13, fontFamily: "Inter_700Bold", textAlign: "center" },
   emojiPopCell: {
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.cardBgElevated,
