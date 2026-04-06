@@ -86,7 +86,7 @@ function SectionChildrenView({
 
       <ScrollView
         style={styles.scrollArea}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: bottomPad + 40 }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 0, paddingBottom: bottomPad + 40 }}
         showsVerticalScrollIndicator={false}
       >
         {items.map((item, i) => (
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 2,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     gap: 10,
