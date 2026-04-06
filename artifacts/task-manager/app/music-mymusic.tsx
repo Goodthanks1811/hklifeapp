@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
@@ -30,17 +30,16 @@ const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#A0A0A0";
 
-const ITEM_H       = 64;
-const BAR_COUNT    = 7;
-const BAR_DELAYS   = [0, 180, 360, 80, 270, 140, 420];
-const BAR_HEIGHTS  = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
-const MAX_H        = 42;
-const MIN_H        = 5;
+const ITEM_H      = 64;
+const BAR_COUNT   = 7;
+const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
+const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
+const MAX_H       = 42;
+const MIN_H       = 5;
 
-const STORAGE_KEY  = "mymusic_tracks_v2";
-const MUSIC_DIR    = (FileSystem.documentDirectory ?? "") + "music/";
-
-const PLAYER_H     = 230;
+const STORAGE_KEY = "mymusic_tracks_v2";
+const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
+const PLAYER_H    = 230;
 
 // ── EQ bar ────────────────────────────────────────────────────────────────────
 function EqBar({ index }: { index: number }) {
@@ -59,7 +58,7 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
-// ── Swipeable track row (identical pattern to Life Admin) ─────────────────────
+// ── Swipeable track row — mirrors Life Admin's TaskRow exactly ────────────────
 function TrackRow({
   track,
   isActive,
@@ -110,8 +109,9 @@ function TrackRow({
         friction={3}
         onSwipeableOpen={() => { revealedRef.current = true; }}
         onSwipeableClose={() => { revealedRef.current = false; }}
-        containerStyle={{ borderRadius: 14, overflow: "hidden", flex: 1 }}
+        containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
+        {/* Inner row must have explicit height — same rule as Life Admin's rowWrap */}
         <Pressable
           style={[st.row, isActive && st.rowActive]}
           onPress={() => {
@@ -152,16 +152,28 @@ export default function MusicMyMusicScreen() {
 
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const tracksRef = useRef<MusicTrack[]>([]);
+
+  // Keep ref in sync with state
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
+
+  // Load once on mount (NOT useFocusEffect — that races with DocumentPicker refocus)
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
+      if (raw) {
+        const parsed = JSON.parse(raw) as MusicTrack[];
+        setTracks(parsed);
+        tracksRef.current = parsed;
+      }
+    });
+  }, []);
 
   // Animated player bottom sheet
   const playerAnim = useRef(new Animated.Value(0)).current;
-  const playerShowing = useRef(false);
-
+  const playerVisRef = useRef(false);
   useEffect(() => {
     const shouldShow = player.track !== null;
-    if (shouldShow === playerShowing.current) return;
-    playerShowing.current = shouldShow;
+    if (shouldShow === playerVisRef.current) return;
+    playerVisRef.current = shouldShow;
     Animated.spring(playerAnim, {
       toValue: shouldShow ? 1 : 0,
       useNativeDriver: false,
@@ -170,22 +182,14 @@ export default function MusicMyMusicScreen() {
     }).start();
   }, [player.track !== null]);
 
-  const playerHeight = playerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, PLAYER_H],
-  });
+  const playerHeight  = playerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, PLAYER_H] });
   const playerOpacity = playerAnim;
 
-  useFocusEffect(useCallback(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(v => {
-      if (v) setTracks(JSON.parse(v));
-    });
-  }, []));
-
-  const saveTracks = (list: MusicTrack[]) => {
-    setTracks(list);
+  // Save tracks (await storage write so refocus doesn't race)
+  const saveTracks = async (list: MusicTrack[]) => {
     tracksRef.current = list;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    setTracks(list);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   };
 
   const pickFiles = async () => {
@@ -221,7 +225,7 @@ export default function MusicMyMusicScreen() {
       if (newTracks.length) {
         const cur    = tracksRef.current;
         const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
-        saveTracks(merged);
+        await saveTracks(merged);
       }
     } catch (err) {
       console.error("picker error:", err);
@@ -229,13 +233,11 @@ export default function MusicMyMusicScreen() {
   };
 
   const handleDelete = async (idx: number) => {
-    const track = tracksRef.current[idx];
-    if (player.trackIndex === idx) {
-      // Track is playing; just remove from UI (audio will stop naturally when we rebuild)
-    }
+    const list  = tracksRef.current;
+    const track = list[idx];
     try { await FileSystem.deleteAsync(track.uri, { idempotent: true }); } catch {}
-    const updated = tracksRef.current.filter((_, i) => i !== idx);
-    saveTracks(updated);
+    const updated = list.filter((_, i) => i !== idx);
+    await saveTracks(updated);
   };
 
   const progressBarWidth = useRef(0);
@@ -245,8 +247,7 @@ export default function MusicMyMusicScreen() {
     const barW = progressBarWidth.current;
     if (!barW || !player.durMs) return;
     const ratio  = Math.max(0, Math.min(1, x / barW));
-    const target = Math.floor(ratio * player.durMs);
-    player.seekTo(target);
+    player.seekTo(Math.floor(ratio * player.durMs));
   };
 
   const progress = player.durMs > 0 ? player.posMs / player.durMs : 0;
@@ -255,7 +256,7 @@ export default function MusicMyMusicScreen() {
     <View style={[st.root, { paddingTop: insets.top }]}>
       <View style={[st.inner, isTablet && st.innerTablet]}>
 
-        {/* Header — long press EQ to add tracks */}
+        {/* Header — press EQ to go back, long-press to add tracks */}
         <View style={st.headerArea}>
           <Pressable
             style={st.eqWrap}
@@ -270,7 +271,7 @@ export default function MusicMyMusicScreen() {
           <Text style={st.pageTitle}>My Music</Text>
         </View>
 
-        {/* Track list */}
+        {/* Track list or empty state */}
         {tracks.length === 0 ? (
           <View style={st.emptyState}>
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
@@ -305,11 +306,9 @@ export default function MusicMyMusicScreen() {
           </ScrollView>
         )}
 
-        {/* Player bottom sheet — only shown when a track is selected */}
+        {/* Player bottom sheet — springs in when a track is selected */}
         <Animated.View style={[st.playerWrap, { height: playerHeight, opacity: playerOpacity }]}>
           <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
-
-            {/* Track info row */}
             <View style={st.playerTrack}>
               <View style={st.playerArt}>
                 <Feather name="music" size={22} color={RED} />
@@ -319,7 +318,6 @@ export default function MusicMyMusicScreen() {
               </Text>
             </View>
 
-            {/* Scrubable progress bar */}
             <View
               style={st.progressHitArea}
               onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
@@ -334,7 +332,6 @@ export default function MusicMyMusicScreen() {
               </View>
             </View>
 
-            {/* Time under progress bar */}
             {player.durMs > 0 && (
               <View style={st.timeRow}>
                 <Text style={st.timeText}>{fmtMs(player.posMs)}</Text>
@@ -342,7 +339,6 @@ export default function MusicMyMusicScreen() {
               </View>
             )}
 
-            {/* Controls */}
             <View style={st.controls}>
               <Pressable style={st.ctrlBtn} onPress={() => player.skipBack()}>
                 <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
@@ -354,7 +350,6 @@ export default function MusicMyMusicScreen() {
                 <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
               </Pressable>
             </View>
-
           </View>
         </Animated.View>
 
@@ -373,7 +368,7 @@ const st = StyleSheet.create({
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
   },
-  eqBar:     { width: 5, borderRadius: 3, backgroundColor: RED },
+  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
   pageTitle: {
     textAlign: "center", color: "#fff",
     fontSize: 17, fontFamily: "Inter_600SemiBold",
@@ -383,9 +378,9 @@ const st = StyleSheet.create({
   list:        { flex: 1 },
   listContent: { padding: 16, paddingBottom: 12 },
 
-  // Track row (Swipeable wraps this)
+  // Row: explicit height = ITEM_H (identical to Life Admin's rowWrap)
   row: {
-    flex: 1,
+    height: ITEM_H,
     flexDirection: "row", alignItems: "center", gap: 14,
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, paddingHorizontal: 12,
@@ -400,7 +395,7 @@ const st = StyleSheet.create({
   rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium", lineHeight: 19 },
   rowNamePlaying: { color: RED },
 
-  // Delete pill (mirrors Life Admin)
+  // Delete action: mirrors Life Admin (width 110, height ITEM_H, red bg)
   deleteAction: {
     width: 110, height: ITEM_H,
     backgroundColor: RED,
@@ -423,7 +418,7 @@ const st = StyleSheet.create({
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  // Player bottom sheet (animated height)
+  // Player bottom sheet
   playerWrap: {
     overflow: "hidden",
     shadowColor: "#000",

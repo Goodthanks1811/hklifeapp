@@ -158,40 +158,38 @@ export default function MusicScreen() {
           </View>
         </View>
 
-        {/* Now playing panel — only shows when something is actually playing */}
-        {hasTrack && (
-          <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
-            <View style={s.npTop}>
-              <View style={s.npArt}>
-                <Feather name="music" size={30} color={RED} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.npTitle} numberOfLines={1}>
-                  {player.track!.name}
-                </Text>
-                {player.durMs > 0 && (
-                  <Text style={s.npArtist} numberOfLines={1}>
-                    {fmtMs(player.posMs)} / {fmtMs(player.durMs)}
-                  </Text>
-                )}
-              </View>
+        {/* Now playing panel — always visible, live data when playing */}
+        <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={s.npTop}>
+            <View style={s.npArt}>
+              <Feather name="music" size={30} color={RED} />
             </View>
-            <View style={s.progressWrap}>
-              <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
-            </View>
-            <View style={s.controls}>
-              <Pressable style={s.ctrlBtn} onPress={() => player.skipBack()}>
-                <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
-              </Pressable>
-              <Pressable style={s.playBtn} onPress={() => player.togglePlay()}>
-                <Feather name={player.isPlaying ? "pause" : "play"} size={24} color="#fff" />
-              </Pressable>
-              <Pressable style={s.ctrlBtn} onPress={() => player.skipForward()}>
-                <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
-              </Pressable>
+            <View style={{ flex: 1 }}>
+              <Text style={s.npTitle} numberOfLines={1}>
+                {hasTrack ? player.track!.name : "Nothing playing"}
+              </Text>
+              <Text style={s.npArtist} numberOfLines={1}>
+                {hasTrack && player.durMs > 0
+                  ? `${fmtMs(player.posMs)} / ${fmtMs(player.durMs)}`
+                  : "Play a track in My Music"}
+              </Text>
             </View>
           </View>
-        )}
+          <View style={s.progressWrap}>
+            <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+          </View>
+          <View style={s.controls}>
+            <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipBack()}>
+              <Feather name="skip-back" size={26} color={hasTrack ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)"} />
+            </Pressable>
+            <Pressable style={s.playBtn} onPress={() => hasTrack && player.togglePlay()}>
+              <Feather name={player.isPlaying ? "pause" : "play"} size={24} color="#fff" />
+            </Pressable>
+            <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipForward()}>
+              <Feather name="skip-forward" size={26} color={hasTrack ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)"} />
+            </Pressable>
+          </View>
+        </View>
 
       </View>
     </View>
