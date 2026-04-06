@@ -248,7 +248,24 @@ npm install --package-lock-only
 
 ---
 
-### 11. Background audio stops when app is minimised
+### 11. My Music tracks show in list but tapping them does nothing (silent play failure)
+
+**Symptom**: After installing a new build, tracks appear in the My Music list (AsyncStorage has them) but tapping does nothing — no sound, no error shown.
+
+**Cause**: Tracks are stored in AsyncStorage with their **full absolute URI**, e.g.:
+```
+/var/mobile/Containers/Data/Application/OLD-UUID/Documents/music/song.mp3
+```
+When iOS installs a new build, the app's container gets a new UUID. The file may still exist but the stored path is stale — `Audio.Sound.createAsync` throws an error that is silently swallowed by the `catch` block in `MusicPlayerContext.playTrack`.
+
+**Fix** (applied to `music-mymusic.tsx` load `useEffect`):
+On load, normalize every stored URI by extracting just the filename and reconstructing the path from the current `FileSystem.documentDirectory + "music/"`. Also validates each file actually exists on disk and silently drops any that don't, then persists the corrected list back to AsyncStorage.
+
+**Rule**: Never store raw `documentDirectory`-based absolute paths in AsyncStorage. Always reconstruct from the current `documentDirectory` at load time using the filename portion only.
+
+---
+
+### 12. Background audio stops when app is minimised
 
 **Symptom**: Music plays fine in-app, stops the moment you swipe home or lock the screen.
 

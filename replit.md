@@ -184,6 +184,7 @@ Applied to both `music.tsx` and `music-mymusic.tsx`.
 - Files stored at: `documentDirectory + "music/"` (using `expo-file-system/legacy`)
 - Track list loaded with `useEffect` — **NOT** `useFocusEffect` (causes double-load bugs)
 - `saveTracks` must be `async/await` — never fire-and-forget
+- **NEVER store the raw absolute URI in AsyncStorage.** iOS assigns a new container UUID when a fresh build is installed. Stored absolute paths like `/var/.../Application/OLD-UUID/Documents/music/song.mp3` become stale, causing `createAsync` to fail silently (the catch block swallows it). On load, always normalize: extract the filename and reconstruct from the current `MUSIC_DIR`. The load `useEffect` in `music-mymusic.tsx` does this automatically and also validates file existence, quietly dropping any missing tracks and re-saving the pruned list.
 
 ### Drag-to-Reorder Pattern (Life Admin + My Music + Apple Music)
 

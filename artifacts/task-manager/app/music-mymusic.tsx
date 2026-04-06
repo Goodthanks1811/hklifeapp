@@ -155,13 +155,46 @@ export default function MusicMyMusicScreen() {
 
   // Load once on mount (not useFocusEffect — DocumentPicker refocus causes races)
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
-      if (raw) {
-        const parsed = JSON.parse(raw) as MusicTrack[];
-        setTracks(parsed);
-        tracksRef.current = parsed;
+    (async () => {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as MusicTrack[];
+
+      // Normalize URIs — documentDirectory path changes when a new build is installed
+      // (iOS assigns a new container UUID). Reconstruct from filename only so the path
+      // is always valid regardless of which build installed it.
+      const normalized = parsed.map(t => {
+        const filename = t.uri.split("/").pop() ?? "";
+        const fixedUri = MUSIC_DIR + filename;
+        return { ...t, id: fixedUri, uri: fixedUri };
+      });
+
+      // Validate: drop any tracks whose file no longer exists on disk
+      const valid: MusicTrack[] = [];
+      for (const t of normalized) {
+        try {
+          const info = await FileSystem.getInfoAsync(t.uri);
+          if (info.exists) {
+            valid.push(t);
+          } else {
+            console.warn("[MyMusic] file missing, removing from library:", t.uri);
+          }
+        } catch {
+          console.warn("[MyMusic] could not stat file, removing:", t.uri);
+        }
       }
-    });
+
+      setTracks(valid);
+      tracksRef.current = valid;
+
+      // Persist normalised + pruned list so stale entries don't accumulate
+      if (valid.length !== parsed.length) {
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      } else if (normalized.some((t, i) => t.uri !== parsed[i].uri)) {
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      }
+    })();
   }, []);
 
   // Animated player bottom sheet
