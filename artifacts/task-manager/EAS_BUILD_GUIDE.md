@@ -324,6 +324,19 @@ Without step 3–5, the entitlement is in the binary but not in the provisioning
 
 ---
 
+### 13. Apple Music native module (apple-musickit)
+
+A local Expo module at `modules/apple-musickit/` provides direct access to the user's Apple Music library using `MPMediaLibrary` and `MPMusicPlayerController`. It is **EAS-only** — the native Swift code is not available in Expo Go, which shows an "Install Required" state on the Apple Music screen.
+
+Three functions:
+- `requestAuthorization()` — prompts the user for Apple Music access (SKCloudServiceController). Requires `NSAppleMusicUsageDescription` in infoPlist (already in app.config.js).
+- `getPlaylists()` — returns all user-created playlists from the library as `{id, name, count}[]`.
+- `playPlaylist(id)` — plays a playlist via `MPMusicPlayerController.systemMusicPlayer`, handing off to Apple Music's built-in player with full DRM/subscription support.
+
+The module is added as `"apple-musickit": "file:./modules/apple-musickit"` in package.json and auto-linked by Expo during the native build.
+
+---
+
 ## EAS Project Details
 
 | Item | Value |

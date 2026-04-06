@@ -22,6 +22,7 @@ module.exports = {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSFaceIDUsageDescription: 'HK Life uses Face ID to lock the app.',
+        NSAppleMusicUsageDescription: 'HK Life needs access to your Apple Music library to show and play your playlists.',
         UIBackgroundModes: ['audio'],
       },
       entitlements: {
