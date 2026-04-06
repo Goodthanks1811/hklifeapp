@@ -175,11 +175,14 @@ export default function MusicScreen() {
       <View style={[s.inner, isTablet && s.innerTablet]}>
 
         <View style={s.body}>
-          <Pressable style={s.eqWrap} onPress={goHome}>
-            {Array.from({ length: BAR_COUNT }).map((_, i) => (
-              <EqBar key={i} index={i} />
-            ))}
-          </Pressable>
+          <View style={s.eqArea}>
+            <Pressable style={s.eqWrap} onPress={goHome}>
+              {Array.from({ length: BAR_COUNT }).map((_, i) => (
+                <EqBar key={i} index={i} />
+              ))}
+            </Pressable>
+            <Pressable style={s.backZone} onPress={goHome} />
+          </View>
 
           <MusicTitle />
 
@@ -270,6 +273,8 @@ const s = StyleSheet.create({
     flex: 1, justifyContent: "center", paddingBottom: 70,
   },
 
+  eqArea: { position: "relative" },
+  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 80, paddingTop: 0,

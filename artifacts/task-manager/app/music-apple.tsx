@@ -265,6 +265,7 @@ export default function MusicAppleScreen() {
             ))}
           </Pressable>
           <Text style={s.pageTitle}>Apple Music</Text>
+          <Pressable style={s.backZone} onPress={() => router.back()} />
         </View>
 
         <ScrollView
@@ -326,7 +327,9 @@ const s = StyleSheet.create({
   headerArea: {
     backgroundColor: BG,
     paddingTop: 28, paddingBottom: 10,
+    position: "relative",
   },
+  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",

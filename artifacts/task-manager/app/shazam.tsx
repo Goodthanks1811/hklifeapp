@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
+import { router } from "expo-router";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
@@ -189,6 +190,7 @@ function ListHeader() {
   return (
     <View style={styles.logoWrap}>
       <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
+      <Pressable style={styles.backZone} onPress={() => router.back()} />
     </View>
   );
 }
@@ -385,8 +387,9 @@ const styles = StyleSheet.create({
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
   // Logo header (in body, like IR Quick Add)
-  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36 },
+  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36, position: "relative" },
   logo:     { width: 78, height: 78, borderRadius: 18 },
+  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
 
   // States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },

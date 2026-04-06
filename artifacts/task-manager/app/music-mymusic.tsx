@@ -430,6 +430,7 @@ export default function MusicMyMusicScreen() {
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={st.pageTitle}>My Music</Text>
+          <Pressable style={st.backZone} onPress={() => router.back()} />
         </View>
 
         {/* Track list or empty state */}
@@ -563,7 +564,8 @@ const st = StyleSheet.create({
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
-  headerArea: { backgroundColor: BG, paddingTop: 28, paddingBottom: 4, alignItems: "center" },
+  headerArea: { backgroundColor: BG, paddingTop: 28, paddingBottom: 4, alignItems: "center", position: "relative" },
+  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
