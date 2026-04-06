@@ -113,8 +113,7 @@ function TrackRow({
 
   const renderRightActions = useCallback(() => (
     <Pressable style={st.deleteAction} onPress={triggerDelete}>
-      <Feather name="trash-2" size={16} color="#fff" />
-      <Text style={st.deletePillTx}>Delete</Text>
+      <Feather name="trash-2" size={20} color="#fff" />
     </Pressable>
   ), [triggerDelete]);
 
@@ -606,11 +605,10 @@ const st = StyleSheet.create({
 
   // Delete action
   deleteAction: {
-    width: 110, height: ITEM_H,
+    width: 72, height: ITEM_H,
     backgroundColor: RED,
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+    alignItems: "center", justifyContent: "center",
   },
-  deletePillTx: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   // Empty state
   emptyState:    { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40 },
