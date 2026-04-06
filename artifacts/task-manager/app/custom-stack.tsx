@@ -49,5 +49,5 @@ export function asymmetricSlide({
 
 export const TRANSITION_SPEC = {
   animation: "timing" as const,
-  config: { duration: 480, useNativeDriver: true },
+  config: { duration: 520, useNativeDriver: true },
 };
