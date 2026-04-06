@@ -18,7 +18,7 @@ export const DRAWER_WIDTH = isTablet ? SIDEBAR_WIDTH : DRAWER_WIDTH_PHONE;
 
 // Spring config — identical for drawer (native) and spacer (UI thread) so they move as one
 const RSPRING = { damping: 24, stiffness: 240, overshootClamping: true } as const;
-const CLOSE_DUR = 300;
+const CLOSE_DUR = 420;
 
 // "sidebar" — drawer pushes content right (Life screens on iPad)
 // "overlay" — drawer floats over content, content never moves (all other screens)
