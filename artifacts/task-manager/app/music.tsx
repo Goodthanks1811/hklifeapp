@@ -177,7 +177,7 @@ const s = StyleSheet.create({
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
   body: {
-    flex: 1, justifyContent: "center", paddingBottom: 12,
+    flex: 1, justifyContent: "center", paddingBottom: 70,
   },
 
   eqWrap: {
@@ -211,14 +211,14 @@ const s = StyleSheet.create({
 
   playerPanel: {
     backgroundColor: ROW,
-    paddingHorizontal: 20, paddingTop: 16,
+    paddingHorizontal: 20, paddingTop: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,
     shadowRadius: 14,
     elevation: 20,
   },
-  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 16 },
+  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
   npArt: {
     width: 80, height: 80, borderRadius: 14,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
@@ -228,7 +228,7 @@ const s = StyleSheet.create({
   npArtist: { fontSize: 14, color: GREY, fontFamily: "Inter_400Regular" },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, marginBottom: 20, overflow: "hidden",
+    borderRadius: 2, marginBottom: 30, overflow: "hidden",
   },
   progressFill: { width: "38%", height: "100%", backgroundColor: RED, borderRadius: 2 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
