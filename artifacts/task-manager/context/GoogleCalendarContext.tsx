@@ -37,6 +37,7 @@ interface GoogleCalendarContextValue {
   signOut:      () => Promise<void>;
   fetchCalendars: () => Promise<GCalendarInfo[]>;
   fetchEvents:  (calIds: string[], from: Date, to: Date) => Promise<GCalEvent[]>;
+  updateEvent:  (calendarId: string, eventId: string, patch: Record<string, unknown>) => Promise<void>;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ const GoogleCalendarContext = createContext<GoogleCalendarContextValue>({
   signOut:        async () => {},
   fetchCalendars: async () => [],
   fetchEvents:    async () => [],
+  updateEvent:    async () => {},
 });
 
 export function useGoogleCalendar() {
@@ -196,6 +198,24 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
     return results.flat();
   }, [getValidToken]);
 
+  const updateEvent = useCallback(async (
+    calendarId: string, eventId: string, patch: Record<string, unknown>,
+  ): Promise<void> => {
+    const token = await getValidToken();
+    if (!token) throw new Error("Not authenticated");
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      if (res.status === 401) setAccessToken(null);
+      const body = await res.text().catch(() => "");
+      throw new Error(`Google Calendar update failed (${res.status}): ${body}`);
+    }
+  }, [getValidToken]);
+
   return (
     <GoogleCalendarContext.Provider value={{
       isConnected: !!accessToken,
@@ -204,6 +224,7 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
       signOut,
       fetchCalendars,
       fetchEvents,
+      updateEvent,
     }}>
       {children}
     </GoogleCalendarContext.Provider>

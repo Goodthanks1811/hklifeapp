@@ -66,7 +66,7 @@ const DURATIONS = [
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface CalEvent   { id: string; title: string; timeStr: string; dotColor: string; startDate: Date; endDate: Date; allDay: boolean; }
+interface CalEvent   { id: string; calendarId?: string; title: string; timeStr: string; dotColor: string; startDate: Date; endDate: Date; allDay: boolean; }
 interface DaySection { dateKey: string; dayLabel: string; ordStr: string; isToday: boolean; weekStart: boolean; data: CalEvent[]; }
 type EventType = "appointment" | "allday" | "birthday";
 type CalKey    = "HK" | "Sticky";
@@ -737,7 +737,7 @@ export default function CalendarScreen() {
       const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
       const endDate  = new Date(today); endDate.setDate(today.getDate() + DAYS_AHEAD);
 
-      type RawItem = { id: string; title: string; startDate: Date; endDate: Date; allDay: boolean; calName: string; };
+      type RawItem = { id: string; calendarId?: string; title: string; startDate: Date; endDate: Date; allDay: boolean; calName: string; };
       let rawItems: RawItem[] = [];
 
       if (gcalConnected) {
@@ -750,7 +750,7 @@ export default function CalendarScreen() {
             const isAllDay  = !gev.start.dateTime;
             const startDate = isAllDay ? new Date(gev.start.date! + "T00:00:00") : new Date(gev.start.dateTime!);
             const endDate2  = isAllDay ? new Date((gev.end.date ?? gev.start.date)! + "T00:00:00") : new Date(gev.end.dateTime!);
-            return { id: gev.id, title: gev.summary, startDate, endDate: endDate2, allDay: isAllDay, calName: gev.calendarSummary.toLowerCase() };
+            return { id: gev.id, calendarId: gev.calendarId, title: gev.summary, startDate, endDate: endDate2, allDay: isAllDay, calName: gev.calendarSummary.toLowerCase() };
           });
         }
       } else {
@@ -794,7 +794,7 @@ export default function CalendarScreen() {
             data:     [],
           });
         }
-        dayMap.get(key)!.data.push({ id: item.id, title, timeStr: item.allDay ? "All Day" : fmt12(start), dotColor, startDate: start, endDate: item.endDate, allDay: item.allDay });
+        dayMap.get(key)!.data.push({ id: item.id, calendarId: item.calendarId, title, timeStr: item.allDay ? "All Day" : fmt12(start), dotColor, startDate: start, endDate: item.endDate, allDay: item.allDay });
       }
 
       const sorted = Array.from(dayMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
@@ -1030,6 +1030,7 @@ function RescheduleModal({
   event: CalEvent; onSaved: () => void; onCancel: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { isConnected: gcalConnected, updateEvent: gcalUpdate } = useGoogleCalendar();
   const [selectedDate,      setSelectedDate]   = useState(() => normalDay(event.startDate));
   const [pageScrollEnabled, setPageScroll]     = useState(true);
   const [saving,            setSaving]         = useState(false);
@@ -1063,7 +1064,19 @@ function RescheduleModal({
       }
       const duration = event.endDate.getTime() - event.startDate.getTime();
       const newEnd   = new Date(newStart.getTime() + Math.max(duration, 0));
-      await Calendar.updateEventAsync(event.id, { title: event.title, startDate: newStart, endDate: newEnd });
+
+      if (gcalConnected && event.calendarId) {
+        // Use Google Calendar PATCH API — avoids native↔Google sync delay
+        // and correctly handles Google event IDs (different from native EventKit IDs)
+        const patch: Record<string, unknown> = event.allDay
+          ? { summary: event.title, start: { date: newStart.toISOString().split("T")[0] }, end: { date: newEnd.toISOString().split("T")[0] } }
+          : { summary: event.title, start: { dateTime: newStart.toISOString() }, end: { dateTime: newEnd.toISOString() } };
+        await gcalUpdate(event.calendarId, event.id, patch);
+      } else {
+        // Native calendar path
+        await Calendar.updateEventAsync(event.id, { title: event.title, startDate: newStart, endDate: newEnd });
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSaved();
     } catch (e: any) {
