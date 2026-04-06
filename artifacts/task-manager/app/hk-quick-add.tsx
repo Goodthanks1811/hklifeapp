@@ -499,20 +499,20 @@ const st = StyleSheet.create({
   chipTextActive: { color: Colors.textPrimary },
 
   epicChip: {
-    height: 32, paddingHorizontal: 14, borderRadius: 8,
+    height: 28, paddingHorizontal: 12, borderRadius: 7,
     borderWidth: 1, borderColor: Colors.border,
     alignItems: "center", justifyContent: "center",
   },
   epicText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
 
   emojiChip: {
-    width: 48, height: 48, borderRadius: 12,
+    width: 40, height: 40, borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
   emojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.22)" },
-  emojiText: { fontSize: 24 },
+  emojiText: { fontSize: 20 },
 
   divider: { height: 1, backgroundColor: Colors.border },
 
