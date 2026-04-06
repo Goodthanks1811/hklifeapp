@@ -972,13 +972,13 @@ export default function SettingsScreen() {
             )}
 
             <TouchableOpacity activeOpacity={0.8} style={styles.replaceBtn} onPress={pickImage}>
-              <Feather name="camera" size={14} color={Colors.textSecondary} />
+              <Feather name="camera" size={14} color="#fff" />
               <Text style={styles.replaceBtnText}>{headerUri ? "Replace Image" : "Pick from Library"}</Text>
             </TouchableOpacity>
 
             {headerUri && (
               <TouchableOpacity activeOpacity={0.75} style={styles.clearBtn} onPress={headerClear}>
-                <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                <Feather name="trash-2" size={14} color={Colors.primary} />
                 <Text style={styles.clearBtnText}>Remove image</Text>
               </TouchableOpacity>
             )}
@@ -1548,18 +1548,22 @@ const styles = StyleSheet.create({
 
   replaceBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, paddingVertical: 11,
-    borderRadius: 12, borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.cardBgElevated,
+    gap: 8, paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  replaceBtnText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_500Medium" },
+  replaceBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
   clearBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 6, paddingVertical: 10,
   },
-  clearBtnText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular" },
+  clearBtnText: { color: Colors.primary, fontSize: 13, fontFamily: "Inter_500Medium", opacity: 0.8 },
 
   howTitle: {
     color: Colors.textSecondary,
