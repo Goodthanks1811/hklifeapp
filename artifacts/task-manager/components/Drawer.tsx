@@ -80,11 +80,11 @@ function SectionChildrenView({
           style={({ pressed }) => [styles.sectionRow, pressed && styles.sectionRowPressed]}
           onPress={onBack}
         >
-          <Feather name="chevron-left" size={17} color={Colors.textMuted} />
           <View style={styles.menuIcon}>
             <Feather name={SECTION_ICONS[sectionKey] as any} size={17} color={Colors.primary} />
           </View>
           <Text style={styles.sectionRowLabel}>{SECTION_LABELS[sectionKey]}</Text>
+          <Feather name="chevron-left" size={16} color={Colors.textMuted} />
         </Pressable>
 
         {/* Child items — indented to show hierarchy */}
