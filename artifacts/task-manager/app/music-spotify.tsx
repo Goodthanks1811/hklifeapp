@@ -62,16 +62,16 @@ function EqBar({ index, color }: { index: number; color: string }) {
 type SpotifyPL = { name: string; url: string };
 
 const DEFAULT_PLAYLISTS: SpotifyPL[] = [
-  { name: "Liked Songs",       url: "" },
-  { name: "March 2026",        url: "" },
-  { name: "Sept 2022",         url: "" },
-  { name: "Carnal Favourites", url: "" },
-  { name: "Krayzie Bone",      url: "" },
-  { name: "October 2025",      url: "" },
-  { name: "Jony",              url: "" },
-  { name: "UB40",              url: "" },
-  { name: "Tyga Mix",          url: "" },
-  { name: "Old School RnB",    url: "" },
+  { name: "Liked Songs",      url: "spotify://collection/tracks" },
+  { name: "January 2026",     url: "spotify://playlist/2MwL8nIietYcMDHb4YaO8R?si=AYhQI2eASgSuTXJxAv0QoQ&pi=MkwaUygfSHSKb" },
+  { name: "The Game",         url: "spotify://playlist/2NvbWjiow97CpX3ZuTewVd?si=GfxpBK7ISGWA8iG73G_SjA&pi=3oKvGMXsQKOM1" },
+  { name: "Krayzie Bone",     url: "spotify://playlist/0AaZ9pO9JLDNzrGwkLQms9?si=G0rrS01DRqGNPsOXnYGjqQ&pi=a-NgLJdujPRYij" },
+  { name: "October 2025",     url: "spotify://playlist/7gEbs45sKp9Bd7xoQpS9RB?si=fyr3oOWRQBmPPxE2a_FrkQ&pi=BgbSg8ZkQuKmM&add=1" },
+  { name: "Spanish",          url: "spotify://playlist/2UFK9fljpU7TIYnAx1v9Za?si=5KtFrzuuTcCvix7oOjb7ig&pi=ph-Qxgk0QPic" },
+  { name: "January 2024",     url: "spotify://playlist/3DI4nKtBqyq9anP4RSdJ7G?si=w8cWQrlbQ1ycUbRhDMW_jw&pi=Q_VF0U4EQ7-1O/" },
+  { name: "Repeat 2023",      url: "spotify://playlist/5wItz7OUdUPIj9VNzBi9jr?si=zEHmbbmfQNS9pEHHneza7Q&pi=BK14ACn0S1KQV" },
+  { name: "Life",             url: "spotify://playlist/7A7nzaXeOuAiTRdRzOQ64H?si=z1-VlOfxR1awOGPHBOUjPA&pi=XjlBmTebRtiNB" },
+  { name: "September 2022",   url: "spotify://playlist/5G1ZOG3K4srwBr6Y2gdLCi?si=wManU4LNRly01VsODI2kbA&pi=IPovAIyWT26bK" },
 ];
 
 export default function MusicSpotifyScreen() {
