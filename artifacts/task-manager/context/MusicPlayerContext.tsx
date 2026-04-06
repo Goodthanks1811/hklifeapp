@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Audio, InterruptionModeIOS } from "expo-av";
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 
 export type MusicTrack = { id: string; name: string; uri: string };
 
@@ -61,7 +61,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
         shouldDuckAndroid: false,
       });
       const { sound } = await Audio.Sound.createAsync(
