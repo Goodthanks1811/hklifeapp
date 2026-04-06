@@ -295,7 +295,7 @@ export default function MoodReportScreen() {
           {/* ── Header ── */}
           <View style={s.reportHeader}>
             <Text style={s.reportEmoji}>😊</Text>
-            <Text style={s.reportTitle}>MOOD <Text style={s.reportTitleAccent}>LOG</Text></Text>
+            <Text style={s.reportTitle}>MOOD <Text style={s.reportTitleAccent}>REPORT</Text></Text>
             <Text style={s.reportSubtitle}>· mood tracking by month ·</Text>
             <View style={s.accentLine} />
           </View>
