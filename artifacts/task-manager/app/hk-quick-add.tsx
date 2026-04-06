@@ -499,7 +499,7 @@ const st = StyleSheet.create({
   chipTextActive: { color: Colors.textPrimary },
 
   epicChip: {
-    height: 40, paddingHorizontal: 14, borderRadius: 10,
+    height: 32, paddingHorizontal: 14, borderRadius: 8,
     borderWidth: 1, borderColor: Colors.border,
     alignItems: "center", justifyContent: "center",
   },
