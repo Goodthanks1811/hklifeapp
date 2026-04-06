@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -10,9 +10,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import { Audio } from "expo-av";
+import * as Haptics from "expo-haptics";
 
 const RED    = "#E03131";
 const BG     = "#0b0b0c";
@@ -26,9 +30,13 @@ const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
 const MAX_H = 42;
 const MIN_H = 5;
 
+const STORAGE_KEY = "mymusic_tracks_v2";
+const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
+
+type Track = { id: string; name: string; uri: string };
+
 function EqBar({ index }: { index: number }) {
   const height = useRef(new Animated.Value(MIN_H)).current;
-
   useEffect(() => {
     const dur = 900 + index * 120;
     const anim = Animated.loop(
@@ -45,150 +53,363 @@ function EqBar({ index }: { index: number }) {
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: false,
         }),
-      ]),
+      ])
     );
     const tid = setTimeout(() => anim.start(), BAR_DELAYS[index]);
-    return () => {
-      clearTimeout(tid);
-      anim.stop();
-    };
+    return () => { clearTimeout(tid); anim.stop(); };
   }, []);
-
-  return <Animated.View style={[s.eqBar, { height }]} />;
+  return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
-const TRACKS = [
-  "Zack Knight - Impossible",
-  "Tyga Feat Saweetie & G-Eazy - Big Booty Bitch",
-  "Ryan Leslie Feat Jermaine Dupri - The Way That You Move Girl Remix",
-  "Warren G Feat Nate Dogg - Regulate Remix",
-  "Reik Feat Ozuna - Me Niego (New)",
-  "Krayzie Bone - Clash Of The Titans",
-  "Krayzie Bone & Bizzy Bone - Warriors 3",
-  "Plot Twist Accapella Slowed",
-  "Jagged Edge - So Amazing",
-  "Carnal - Amor Reencarnado",
-  "The Weeknd - Blinding Lights",
-  "Drake - God's Plan",
-];
-
-const NOW_PLAYING = 3;
+function fmtMs(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 export default function MusicMyMusicScreen() {
-  const insets = useSafeAreaInsets();
+  const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
-  const pickFolder = async () => {
-    await DocumentPicker.getDocumentAsync({ type: "audio/*", multiple: true });
+  const [tracks,     setTracks]     = useState<Track[]>([]);
+  const [currentIdx, setCurrentIdx] = useState<number | null>(null);
+  const [isPlaying,  setIsPlaying]  = useState(false);
+  const [posMs,      setPosMs]      = useState(0);
+  const [durMs,      setDurMs]      = useState(0);
+
+  const soundRef      = useRef<Audio.Sound | null>(null);
+  const tracksRef     = useRef<Track[]>([]);
+  const currentIdxRef = useRef<number | null>(null);
+
+  useEffect(() => { tracksRef.current = tracks; }, [tracks]);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+
+  useFocusEffect(useCallback(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then(v => {
+      if (v) setTracks(JSON.parse(v));
+    });
+  }, []));
+
+  useEffect(() => {
+    return () => { soundRef.current?.unloadAsync(); };
+  }, []);
+
+  const saveTracks = (list: Track[]) => {
+    setTracks(list);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   };
 
-  return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
-      <View style={[s.inner, isTablet && s.innerTablet]}>
-      <View style={s.headerArea}>
-        <Pressable style={s.eqWrap} onPress={() => router.back()} onLongPress={pickFolder} delayLongPress={400}>
-          {Array.from({ length: BAR_COUNT }).map((_, i) => (
-            <EqBar key={i} index={i} />
-          ))}
-        </Pressable>
-        <Text style={s.pageTitle}>My Music</Text>
-      </View>
+  const pickFiles = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "audio/*",
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
 
-      <ScrollView style={s.list} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-        {TRACKS.map((name, i) => (
-          <Pressable
-            key={i}
-            style={({ pressed }) => [s.trackRow, pressed && s.trackPressed]}
+      await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
+
+      const newTracks: Track[] = [];
+      for (const asset of result.assets) {
+        const fileName    = asset.name ?? `track_${Date.now()}.mp3`;
+        const destUri     = MUSIC_DIR + fileName;
+        try {
+          const info = await FileSystem.getInfoAsync(destUri);
+          if (!info.exists) {
+            await FileSystem.copyAsync({ from: asset.uri, to: destUri });
+          }
+          const displayName = fileName
+            .replace(/\.[^.]+$/, "")
+            .replace(/[_-]+/g, " ")
+            .trim();
+          newTracks.push({ id: destUri, name: displayName, uri: destUri });
+        } catch (err) {
+          console.warn("copy failed:", fileName, err);
+        }
+      }
+
+      if (newTracks.length) {
+        const cur    = tracksRef.current;
+        const merged = [
+          ...cur,
+          ...newTracks.filter(t => !cur.find(x => x.id === t.id)),
+        ];
+        saveTracks(merged);
+      }
+    } catch (err) {
+      console.error("picker error:", err);
+    }
+  };
+
+  const stopAndUnload = async () => {
+    if (soundRef.current) {
+      try { await soundRef.current.stopAsync(); } catch {}
+      try { await soundRef.current.unloadAsync(); } catch {}
+      soundRef.current = null;
+    }
+  };
+
+  const playTrack = async (idx: number) => {
+    const list = tracksRef.current;
+    if (idx < 0 || idx >= list.length) return;
+    const track = list[idx];
+
+    await stopAndUnload();
+    setCurrentIdx(idx);
+    setIsPlaying(false);
+    setPosMs(0);
+    setDurMs(0);
+
+    try {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+      });
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: track.uri },
+        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
+        (status) => {
+          if (!status.isLoaded) return;
+          setPosMs(status.positionMillis);
+          setDurMs(status.durationMillis ?? 0);
+          setIsPlaying(status.isPlaying);
+          if (status.didJustFinish) {
+            const cur  = currentIdxRef.current ?? 0;
+            const next = (cur + 1) % tracksRef.current.length;
+            setTimeout(() => playTrack(next), 400);
+          }
+        }
+      );
+      soundRef.current = sound;
+    } catch (err) {
+      console.error("play error:", err);
+    }
+  };
+
+  const togglePlay = async () => {
+    if (!soundRef.current) {
+      const idx = currentIdxRef.current;
+      if (idx !== null) await playTrack(idx);
+      else if (tracksRef.current.length > 0) await playTrack(0);
+      return;
+    }
+    if (isPlaying) {
+      await soundRef.current.pauseAsync();
+    } else {
+      await soundRef.current.playAsync();
+    }
+  };
+
+  const skipBack = async () => {
+    if (posMs > 3000 && soundRef.current) {
+      await soundRef.current.setPositionAsync(0);
+    } else {
+      const list = tracksRef.current;
+      const cur  = currentIdxRef.current;
+      const idx  = cur === null ? 0 : (cur - 1 + list.length) % list.length;
+      await playTrack(idx);
+    }
+  };
+
+  const skipForward = async () => {
+    const list = tracksRef.current;
+    const cur  = currentIdxRef.current;
+    const idx  = cur === null ? 0 : (cur + 1) % list.length;
+    await playTrack(idx);
+  };
+
+  const deleteTrack = async (idx: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const track = tracksRef.current[idx];
+    if (currentIdxRef.current === idx) {
+      await stopAndUnload();
+      setCurrentIdx(null);
+      setIsPlaying(false);
+      setPosMs(0);
+      setDurMs(0);
+    } else if (currentIdxRef.current !== null && currentIdxRef.current > idx) {
+      setCurrentIdx(currentIdxRef.current - 1);
+    }
+    try { await FileSystem.deleteAsync(track.uri, { idempotent: true }); } catch {}
+    const updated = tracksRef.current.filter((_, i) => i !== idx);
+    saveTracks(updated);
+  };
+
+  const progress     = durMs > 0 ? posMs / durMs : 0;
+  const currentTrack = currentIdx !== null ? tracks[currentIdx] : null;
+
+  return (
+    <View style={[st.root, { paddingTop: insets.top }]}>
+      <View style={[st.inner, isTablet && st.innerTablet]}>
+
+        {/* Header */}
+        <View style={st.headerArea}>
+          <Pressable style={st.eqWrap} onPress={() => router.back()}>
+            {Array.from({ length: BAR_COUNT }).map((_, i) => (
+              <EqBar key={i} index={i} />
+            ))}
+          </Pressable>
+          <View style={st.titleRow}>
+            <Text style={st.pageTitle}>My Music</Text>
+            <Pressable style={st.addBtn} onPress={pickFiles} hitSlop={8}>
+              <Feather name="plus" size={20} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Track List */}
+        {tracks.length === 0 ? (
+          <View style={st.emptyState}>
+            <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
+            <Text style={st.emptyTitle}>No tracks yet</Text>
+            <Text style={st.emptySubtitle}>Tap + to add music from your phone</Text>
+            <Pressable style={st.emptyBtn} onPress={pickFiles}>
+              <Feather name="plus" size={15} color="#fff" />
+              <Text style={st.emptyBtnText}>Add Music</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <ScrollView
+            style={st.list}
+            contentContainerStyle={st.listContent}
+            showsVerticalScrollIndicator={false}
           >
-            <View style={s.trackIcon}>
+            {tracks.map((track, i) => (
+              <Pressable
+                key={track.id}
+                style={({ pressed }) => [
+                  st.trackRow,
+                  pressed && st.trackPressed,
+                  i === currentIdx && st.trackRowActive,
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  playTrack(i);
+                }}
+                onLongPress={() => deleteTrack(i)}
+                delayLongPress={600}
+              >
+                <View style={[st.trackIcon, i === currentIdx && st.trackIconActive]}>
+                  <Feather
+                    name={i === currentIdx && isPlaying ? "volume-2" : "music"}
+                    size={18}
+                    color={i === currentIdx ? RED : "rgba(255,255,255,0.3)"}
+                  />
+                </View>
+                <Text
+                  style={[st.trackName, i === currentIdx && st.trackNamePlaying]}
+                  numberOfLines={2}
+                >
+                  {track.name}
+                </Text>
+                <Pressable hitSlop={10} onPress={() => deleteTrack(i)}>
+                  <Feather name="x" size={14} color="rgba(255,255,255,0.2)" />
+                </Pressable>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Player Bar */}
+        <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={st.playerTrack}>
+            <View style={st.playerArt}>
               <Feather name="music" size={18} color={RED} />
             </View>
-            <View style={s.trackInfo}>
-              <Text
-                style={[s.trackName, i === NOW_PLAYING && s.trackNamePlaying]}
-                numberOfLines={2}
-              >
-                {name}
+            <View style={{ flex: 1 }}>
+              <Text style={st.playerName} numberOfLines={1}>
+                {currentTrack ? currentTrack.name : "No track selected"}
               </Text>
+              {durMs > 0 && (
+                <Text style={st.playerTime}>
+                  {fmtMs(posMs)} / {fmtMs(durMs)}
+                </Text>
+              )}
             </View>
-            <Pressable style={s.dots} hitSlop={8}>
-              <Feather name="more-vertical" size={16} color="rgba(255,255,255,0.25)" />
+          </View>
+          <View style={st.progressWrap}>
+            <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+          </View>
+          <View style={st.controls}>
+            <Pressable style={st.ctrlBtn} onPress={skipBack}>
+              <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
             </Pressable>
-          </Pressable>
-        ))}
-      </ScrollView>
+            <Pressable style={st.playBtn} onPress={togglePlay}>
+              <Feather name={isPlaying ? "pause" : "play"} size={22} color="#fff" />
+            </Pressable>
+            <Pressable style={st.ctrlBtn} onPress={skipForward}>
+              <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
+            </Pressable>
+          </View>
+        </View>
 
-      <View style={[s.player, { paddingBottom: insets.bottom + 8 }]}>
-        <View style={s.playerTrack}>
-          <View style={s.playerArt}>
-            <Feather name="music" size={18} color={RED} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.playerName} numberOfLines={1}>{TRACKS[NOW_PLAYING]}</Text>
-            <Text style={s.playerArtist} numberOfLines={1}>Warren G Feat Nate Dogg</Text>
-          </View>
-        </View>
-        <View style={s.progressWrap}>
-          <View style={s.progressFill} />
-        </View>
-        <View style={s.controls}>
-          <Pressable style={s.ctrlBtn}>
-            <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
-          </Pressable>
-          <Pressable style={s.playBtn}>
-            <Feather name="play" size={22} color="#fff" />
-          </Pressable>
-          <Pressable style={s.ctrlBtn}>
-            <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
-          </Pressable>
-        </View>
-      </View>
       </View>
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const st = StyleSheet.create({
   root:        { flex: 1, backgroundColor: BG },
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
-  headerArea: {
-    backgroundColor: BG,
-    paddingTop: 12, paddingBottom: 10,
-  },
-
+  headerArea: { backgroundColor: BG, paddingTop: 12, paddingBottom: 4 },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
 
+  titleRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 20, paddingBottom: 10,
+  },
   pageTitle: {
-    textAlign: "center", color: "#fff",
-    fontSize: 17, fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-    paddingTop: 8,
+    flex: 1, textAlign: "center", color: "#fff",
+    fontSize: 17, fontFamily: "Inter_600SemiBold",
+  },
+  addBtn: {
+    position: "absolute", right: 20,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: RED, alignItems: "center", justifyContent: "center",
+    shadowColor: RED, shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 10, shadowOpacity: 0.4, elevation: 4,
   },
 
   list:        { flex: 1 },
-  listContent: { padding: 16, gap: 8 },
+  listContent: { padding: 16, gap: 8, paddingBottom: 12 },
 
   trackRow: {
-    flexDirection: "row", alignItems: "center", gap: 14,
+    flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, padding: 10,
   },
-  trackPressed: { opacity: 0.7 },
+  trackRowActive: { borderColor: "rgba(224,49,49,0.35)" },
+  trackPressed:   { opacity: 0.7 },
+
   trackIcon: {
     width: 42, height: 42, borderRadius: 10,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
-  trackInfo:        { flex: 1 },
-  trackName:        { fontSize: 13.5, fontWeight: "500", color: "#fff", lineHeight: 18, fontFamily: "Inter_500Medium" },
-  trackNamePlaying: { color: RED },
-  dots:             { padding: 4 },
+  trackIconActive:  { borderColor: "rgba(224,49,49,0.3)" },
+  trackName:        { flex: 1, fontSize: 13.5, color: "rgba(255,255,255,0.7)", fontFamily: "Inter_500Medium", lineHeight: 19 },
+  trackNamePlaying: { color: "#fff" },
+
+  emptyState: {
+    flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40,
+  },
+  emptyTitle:    { color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  emptySubtitle: { color: GREY, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptyBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginTop: 8, backgroundColor: RED, borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 24,
+    shadowColor: RED, shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10, shadowOpacity: 0.35, elevation: 4,
+  },
+  emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
   player: {
     backgroundColor: ROW, borderTopWidth: 1, borderTopColor: BORDER,
@@ -197,21 +418,24 @@ const s = StyleSheet.create({
   playerTrack: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
   playerArt: {
     width: 42, height: 42, borderRadius: 9,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
-  playerName:   { fontSize: 13, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
-  playerArtist: { fontSize: 11, color: GREY, marginTop: 1, fontFamily: "Inter_400Regular" },
+  playerName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  playerTime: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY, marginTop: 2 },
+
   progressWrap: {
     height: 3, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, marginBottom: 10, overflow: "hidden",
   },
-  progressFill: { width: "32%", height: "100%", backgroundColor: RED, borderRadius: 2 },
+  progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
+
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36 },
   ctrlBtn:  { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   playBtn: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, shadowOpacity: 0.38,
+    shadowColor: RED, shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 14, shadowOpacity: 0.38, elevation: 4,
   },
 });
