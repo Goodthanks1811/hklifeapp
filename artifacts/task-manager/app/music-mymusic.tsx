@@ -396,7 +396,7 @@ const st = StyleSheet.create({
   },
   npTitle:  { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff", marginBottom: 4 },
   npArtist: { fontSize: 13, fontFamily: "Inter_400Regular", color: GREY },
-  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 30 },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 14 },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, overflow: "hidden",
