@@ -87,7 +87,7 @@ function SectionChildrenView({
         </Pressable>
 
         {/* Child items — indented to show hierarchy */}
-        <View style={{ paddingLeft: 14 }}>
+        <View style={{ paddingLeft: 26 }}>
           {items.map((item, i) => (
             <DrawerMenuItem
               key={`${item.label}-${i}`}
