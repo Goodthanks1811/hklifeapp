@@ -382,7 +382,6 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
               style={[s.epicPopRow, {
                 backgroundColor: ec.bg,
                 borderColor:     ec.border,
-                opacity:         selected ? 1 : 0.65,
               }]}
             >
               <Text style={[s.epicPopText, { color: ec.text }]}>{ep}</Text>
