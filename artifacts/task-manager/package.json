@@ -5,7 +5,7 @@
   "main": "expo-router/entry",
   "expo": {
     "autolinking": {
-      "extraSearchPaths": ["./modules"]
+      "searchPaths": ["./modules"]
     }
   },
   "scripts": {
