@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const RED    = "#E03131";
 const BG     = "#0b0b0c";
@@ -69,8 +70,13 @@ export default function MusicAppleScreen() {
       const status: string = await AppleMusicKit.requestAuthorization();
       setAuthStatus(status as AuthStatus);
       if (status === "authorized") {
-        const list: ApplePlaylist[] = await AppleMusicKit.getPlaylists();
-        setPlaylists(list);
+        const all: ApplePlaylist[] = await AppleMusicKit.getPlaylists();
+        // Save full library so Settings can show the toggle list
+        await AsyncStorage.setItem("music_apple_known_playlists", JSON.stringify(all));
+        // Filter by pinned IDs if the user has configured a selection
+        const pinnedRaw = await AsyncStorage.getItem("music_apple_pinned");
+        const pinned: string[] = pinnedRaw ? JSON.parse(pinnedRaw) : [];
+        setPlaylists(pinned.length > 0 ? all.filter(p => pinned.includes(p.id)) : all);
       }
     } catch {
       setAuthStatus("denied");

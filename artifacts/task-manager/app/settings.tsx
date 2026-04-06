@@ -797,6 +797,29 @@ export default function SettingsScreen() {
   const [editSpotifyName, setEditSpotifyName] = useState("");
   const [editSpotifyURL,  setEditSpotifyURL]  = useState("");
 
+  // Apple Music playlist filter
+  type AppleKnownPL = { id: string; name: string; count: number };
+  const [appleKnown,  setAppleKnown]  = useState<AppleKnownPL[]>([]);
+  const [applePinned, setApplePinned] = useState<string[]>([]); // IDs; empty = show all
+
+  useEffect(() => {
+    AsyncStorage.getItem("music_apple_known_playlists").then(v => { if (v) setAppleKnown(JSON.parse(v)); });
+    AsyncStorage.getItem("music_apple_pinned").then(v => { if (v) setApplePinned(JSON.parse(v)); });
+  }, []);
+
+  const toggleApplePinned = (id: string) => {
+    const next = applePinned.includes(id)
+      ? applePinned.filter(x => x !== id)
+      : [...applePinned, id];
+    setApplePinned(next);
+    AsyncStorage.setItem("music_apple_pinned", JSON.stringify(next));
+  };
+
+  const clearApplePinned = () => {
+    setApplePinned([]);
+    AsyncStorage.setItem("music_apple_pinned", JSON.stringify([]));
+  };
+
   const startEditSpotify = (i: number) => {
     setEditSpotifyIdx(i);
     setEditSpotifyName(spotifyPL[i].name);
@@ -1312,6 +1335,46 @@ export default function SettingsScreen() {
               </View>
             </SubAccordion>
 
+            {/* ── Apple Music Playlists ── */}
+            <SubAccordion title="Apple Music Playlists" icon="music" defaultOpen={false}>
+              {appleKnown.length === 0 ? (
+                <View style={{ paddingVertical: 12, paddingHorizontal: 4 }}>
+                  <Text style={[styles.mPLUrl, { textAlign: "center" }]}>
+                    Open the Apple Music tab first to sync your library.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {appleKnown.map(pl => {
+                    const pinned = applePinned.includes(pl.id);
+                    const allShown = applePinned.length === 0;
+                    const active = allShown || pinned;
+                    return (
+                      <Pressable
+                        key={pl.id}
+                        style={({ pressed }) => [styles.mPLRow, { alignItems: "center" }, pressed && { opacity: 0.7 }]}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleApplePinned(pl.id); }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.mPLName, !active && { color: Colors.textMuted }]} numberOfLines={1}>{pl.name}</Text>
+                          {pl.count > 0 && <Text style={styles.mPLUrl}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>}
+                        </View>
+                        <View style={[mStyles.appleCheck, active && mStyles.appleCheckOn]}>
+                          {active && <Feather name="check" size={12} color="#fff" />}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                  {applePinned.length > 0 && (
+                    <Pressable style={({ pressed }) => [styles.clearBtn, { marginTop: 4 }, pressed && { opacity: 0.7 }]} onPress={clearApplePinned}>
+                      <Feather name="refresh-ccw" size={14} color={Colors.textSecondary} />
+                      <Text style={styles.clearBtnText}>Show all playlists</Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+            </SubAccordion>
+
           </View>
         </Accordion>
 
@@ -1387,6 +1450,11 @@ const mStyles = StyleSheet.create({
   arrows: { flexDirection: "row", gap: 1 },
   arrowBtn: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderRadius: 6 },
   arrowBtnDim: { opacity: 0.3 },
+  appleCheck: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+    borderColor: "#3a3a3a", alignItems: "center", justifyContent: "center",
+  },
+  appleCheckOn: { backgroundColor: "#E03131", borderColor: "#E03131" },
 
   moveBtn: {
     width: 28, height: 28, alignItems: "center", justifyContent: "center",
