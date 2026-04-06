@@ -1,11 +1,10 @@
 /**
- * Ensures local native modules (file: dependencies that pnpm hoists to the
- * workspace root) are also present in the project's own node_modules so that
- * expo-modules-autolinking can find them during expo prebuild.
+ * Ensures local native modules are present in the project's own node_modules
+ * so that expo-modules-autolinking can find and compile them during expo prebuild.
  *
- * pnpm's publicHoistPattern=['*'] moves everything to the workspace root,
- * which means expo prebuild's autolinking scan (relative to the project
- * directory) never sees these local modules and never compiles their Swift code.
+ * pnpm hoists `file:` dependencies to the workspace root, so the app-level
+ * autolinking scan never sees them. This script symlinks (or recursively copies)
+ * each module into the project's node_modules before prebuild runs.
  *
  * Run: node scripts/ensure-local-modules.js
  */
@@ -19,6 +18,19 @@ const LOCAL_MODULES = [
   "apple-musickit",
 ];
 
+function copyRecursive(src, dst) {
+  fs.mkdirSync(dst, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const dstPath = path.join(dst, entry.name);
+    if (entry.isDirectory()) {
+      copyRecursive(srcPath, dstPath);
+    } else {
+      fs.copyFileSync(srcPath, dstPath);
+    }
+  }
+}
+
 for (const name of LOCAL_MODULES) {
   const src = path.join(PROJECT_ROOT, "modules", name);
   const dst = path.join(PROJECT_ROOT, "node_modules", name);
@@ -28,20 +40,32 @@ for (const name of LOCAL_MODULES) {
     continue;
   }
 
-  if (fs.existsSync(dst)) {
-    console.log(`[ensure-local-modules] ${name} already in node_modules — OK`);
-    continue;
+  // Remove existing entry (could be a broken symlink or stale copy from a
+  // previous build) so we always get a fresh, correct version.
+  try {
+    const stat = fs.lstatSync(dst);
+    if (stat.isSymbolicLink() || stat.isDirectory()) {
+      fs.rmSync(dst, { recursive: true, force: true });
+    }
+  } catch {
+    // dst doesn't exist — nothing to remove
   }
 
+  // Try symlink first (fast, always in sync with source)
   try {
     fs.symlinkSync(src, dst, "dir");
-    console.log(`[ensure-local-modules] Linked ${name} → node_modules/`);
+    console.log(`[ensure-local-modules] Symlinked ${name} → node_modules/`);
+    continue;
+  } catch {
+    // Symlink not supported in this environment — fall through to copy
+  }
+
+  // Recursive copy fallback (handles ios/, src/, and any nested directories)
+  try {
+    copyRecursive(src, dst);
+    console.log(`[ensure-local-modules] Copied ${name} → node_modules/ (recursive)`);
   } catch (e) {
-    // Fallback: copy if symlink fails (some EAS envs restrict symlinks)
-    fs.mkdirSync(dst, { recursive: true });
-    for (const file of fs.readdirSync(src)) {
-      fs.copyFileSync(path.join(src, file), path.join(dst, file));
-    }
-    console.log(`[ensure-local-modules] Copied ${name} → node_modules/`);
+    console.error(`[ensure-local-modules] Failed to copy ${name}:`, e);
+    process.exit(1);
   }
 }
