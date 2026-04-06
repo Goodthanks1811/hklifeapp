@@ -6,6 +6,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import * as ScreenOrientation from "expo-screen-orientation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -169,6 +170,19 @@ function Viewer({
       onPanResponderTerminate: () => snapBackRef.current(),
     })
   ).current;
+
+  // ── Orientation: unlock on open, restore portrait on close ──────────────────
+  useEffect(() => {
+    ScreenOrientation.unlockAsync().catch(() => {});
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, []);
+
+  // ── Re-snap pager to current item after orientation change ───────────────────
+  useEffect(() => {
+    setTimeout(() => listRef.current?.scrollToIndex({ index: idx, animated: false }), 80);
+  }, [width, height]);
 
   useEffect(() => {
     Audio.setAudioModeAsync({
