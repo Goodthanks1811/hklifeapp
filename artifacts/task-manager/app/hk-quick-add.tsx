@@ -363,12 +363,12 @@ export default function HKQuickAdd() {
                       key={ep}
                       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(ep === selEpic ? null : ep); }}
                       style={[st.epicChip, {
-                        backgroundColor: selected ? colours.bg : "transparent",
-                        borderColor: selected ? colours.border : Colors.border,
-                        opacity: dimmedEp ? 0.35 : 1,
+                        backgroundColor: colours.bg,
+                        borderColor: colours.border,
+                        opacity: dimmedEp ? 0.4 : 1,
                       }]}
                     >
-                      <Text style={[st.epicText, { color: selected ? colours.text : Colors.textMuted }]}>{ep}</Text>
+                      <Text style={[st.epicText, { color: colours.text }]}>{ep}</Text>
                     </Pressable>
                   );
                 })}
