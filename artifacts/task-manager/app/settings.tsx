@@ -230,7 +230,7 @@ const sacc = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#0f0f0f",
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#2A2A2A",
@@ -1447,7 +1447,7 @@ const imgSt = StyleSheet.create({
     height: 170,
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#0f0f0f",
     borderWidth: 1,
     borderColor: "#2A2A2A",
     position: "relative",
@@ -1519,7 +1519,7 @@ const styles = StyleSheet.create({
   fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4, marginBottom: 6 },
   inputRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "#1a1a1a", borderRadius: 12,
+    backgroundColor: "#0f0f0f", borderRadius: 12,
     borderWidth: 1, borderColor: "#2A2A2A", paddingRight: 10,
   },
   input: {
@@ -1587,7 +1587,7 @@ const styles = StyleSheet.create({
 
   toggleRow: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#0f0f0f",
     borderRadius: 14, borderWidth: 1,
     borderColor: "#2A2A2A",
     padding: 12,
@@ -1613,7 +1613,7 @@ const styles = StyleSheet.create({
 
   mPLRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#1a1a1a", borderRadius: 12,
+    backgroundColor: "#0f0f0f", borderRadius: 12,
     borderWidth: 1, borderColor: "#2A2A2A",
     paddingHorizontal: 14, paddingVertical: 11,
     marginBottom: 6,
@@ -1628,7 +1628,7 @@ const styles = StyleSheet.create({
   mPLInput: {
     flex: 1, color: Colors.textPrimary, fontSize: 14,
     fontFamily: "Inter_400Regular",
-    backgroundColor: "#1a1a1a", borderRadius: 12,
+    backgroundColor: "#0f0f0f", borderRadius: 12,
     borderWidth: 1, borderColor: "#2A2A2A",
     paddingHorizontal: 14, paddingVertical: 11,
   },
