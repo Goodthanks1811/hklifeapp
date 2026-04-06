@@ -89,7 +89,7 @@ export function StartupScan({ onDone }: Props) {
           }).start(onDone);
         }, 350);
       }
-    }, 26);
+    }, 16);
     return () => clearInterval(id);
   }, []);
 
