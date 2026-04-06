@@ -865,7 +865,6 @@ export default function CalendarScreen() {
           <View style={[s.hLine, { width: 15 }]} />
           <View style={[s.hLine, { width: 22 }]} />
         </Pressable>
-        <Text style={s.hdrMonth}>{monthLabel}</Text>
       </View>
 
       {status === "loading" && !refreshing && (

@@ -1898,13 +1898,6 @@ export default function LifeTaskScreen() {
             <Feather name="menu" size={18} color="rgba(255,255,255,0.75)" />
           </Pressable>
           <View style={{ flex: 1 }} />
-          <Pressable
-            onPress={onResetPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={sc.gradIconGhost}
-          >
-            <Feather name={resetting ? "loader" : "refresh-cw"} size={15} color={resetting ? Colors.primary : "rgba(255,255,255,0.28)"} />
-          </Pressable>
         </View>
         <Text style={sc.gradTitle}>{config.title}</Text>
       </View>
