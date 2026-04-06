@@ -1094,12 +1094,12 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
                 key={`qa-ep-${ep}`}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelEpic(ep === selEpic ? null : ep); }}
                 style={[s.dsEpicChip, {
-                  backgroundColor: isSelected ? colours.bg : "transparent",
-                  borderColor:     isSelected ? colours.border : Colors.border,
-                  opacity:         isDimmed ? 0.35 : 1,
+                  backgroundColor: colours.bg,
+                  borderColor:     colours.border,
+                  opacity:         isDimmed ? 0.4 : 1,
                 }, isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }]}
               >
-                <Text style={[s.dsEpicText, { color: isSelected ? colours.text : Colors.textMuted }, isTablet && { fontSize: 14 }]}>{ep}</Text>
+                <Text style={[s.dsEpicText, { color: colours.text }, isTablet && { fontSize: 14 }]}>{ep}</Text>
               </Pressable>
             );
           })}
