@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import * as DocumentPicker from "expo-document-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -758,13 +758,26 @@ export default function SettingsScreen() {
   // Holds the temp file path for a newly picked image (not yet committed to context)
   const [pendingUri, setPendingUri] = useState<string | null>(null);
 
-  const [musicSource, setMusicSource] = useState<"mymusic"|"spotify"|"apple">("mymusic");
-  const [musicFolder, setMusicFolder] = useState<string | null>(null);
+  const DEFAULT_SPOTIFY_PL = ["Liked Songs","March 2026","Sept 2022","Carnal Favourites","Krayzie Bone","October 2025","Jony","UB40","Tyga Mix","Old School RnB"];
+  const DEFAULT_APPLE_PL   = ["Bone Greatest Hits","2pac Greatest Hits","Snoop Greatest Hits","DMX Greatest Hits","Eminem Greatest Hits","The Repeat List","Old School Rnb","Driving","Pre Gym","2022 New Stuff","Faydee","Carnal Hits"];
 
-  const pickMusicFolder = async () => {
-    await DocumentPicker.getDocumentAsync({ type: "audio/*", multiple: true });
-    setMusicFolder("Local Library");
-  };
+  const [spotifyPL,    setSpotifyPL]    = useState<string[]>(DEFAULT_SPOTIFY_PL);
+  const [applePL,      setApplePL]      = useState<string[]>(DEFAULT_APPLE_PL);
+  const [newSpotifyPL, setNewSpotifyPL] = useState("");
+  const [newApplePL,   setNewApplePL]   = useState("");
+
+  useEffect(() => {
+    AsyncStorage.getItem("music_spotify_playlists").then(v => { if (v) setSpotifyPL(JSON.parse(v)); });
+    AsyncStorage.getItem("music_apple_playlists").then(v => { if (v) setApplePL(JSON.parse(v)); });
+  }, []);
+
+  const saveSpotify = (list: string[]) => { setSpotifyPL(list); AsyncStorage.setItem("music_spotify_playlists", JSON.stringify(list)); };
+  const saveApple   = (list: string[]) => { setApplePL(list);   AsyncStorage.setItem("music_apple_playlists",   JSON.stringify(list)); };
+
+  const addSpotifyPL    = () => { const n = newSpotifyPL.trim(); if (!n) return; saveSpotify([...spotifyPL, n]); setNewSpotifyPL(""); };
+  const removeSpotifyPL = (i: number) => saveSpotify(spotifyPL.filter((_, idx) => idx !== i));
+  const addApplePL      = () => { const n = newApplePL.trim(); if (!n) return; saveApple([...applePL, n]); setNewApplePL(""); };
+  const removeApplePL   = (i: number) => saveApple(applePL.filter((_, idx) => idx !== i));
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
@@ -1169,75 +1182,63 @@ export default function SettingsScreen() {
         <Accordion title="Music" icon="music" defaultOpen={false}>
           <View style={styles.accordionBody}>
 
-            {/* Default source */}
-            <Text style={styles.fieldLabel}>DEFAULT SOURCE</Text>
-            <View style={styles.mSourceRow}>
-              {([
-                { key: "mymusic",  label: "My Music", icon: "music"       },
-                { key: "spotify",  label: "Spotify",  icon: "headphones"  },
-                { key: "apple",    label: "Apple",    icon: "smartphone"  },
-              ] as const).map(opt => (
-                <Pressable
-                  key={opt.key}
-                  style={[styles.mSourcePill, musicSource === opt.key && styles.mSourcePillActive]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicSource(opt.key); }}
-                >
-                  <Feather name={opt.icon as any} size={13} color={musicSource === opt.key ? Colors.primary : Colors.textMuted} />
-                  <Text style={[styles.mSourcePillText, musicSource === opt.key && styles.mSourcePillTextActive]}>{opt.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.divider} />
-
-            {/* Source-specific settings */}
-            {musicSource === "mymusic" && (
-              <>
-                <Text style={styles.fieldLabel}>LOCAL MUSIC FOLDER</Text>
-                <View style={styles.mFolderRow}>
-                  <View style={styles.mFolderInfo}>
-                    <Feather name="folder" size={15} color={musicFolder ? Colors.primary : Colors.textMuted} />
-                    <Text style={[styles.mFolderPath, !musicFolder && { color: Colors.textMuted }]} numberOfLines={1}>
-                      {musicFolder ?? "No folder selected"}
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={({ pressed }) => [styles.mBrowseBtn, pressed && { opacity: 0.7 }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); pickMusicFolder(); }}
-                  >
-                    <Text style={styles.mBrowseBtnText}>Browse</Text>
+            {/* ── Spotify Playlists ── */}
+            <SubAccordion title="Spotify Playlists" icon="headphones" defaultOpen={false}>
+              {spotifyPL.map((name, i) => (
+                <View key={i} style={styles.mPLRow}>
+                  <Text style={styles.mPLName} numberOfLines={1}>{name}</Text>
+                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeSpotifyPL(i); }} hitSlop={8}>
+                    <Feather name="x" size={15} color={Colors.textMuted} />
                   </Pressable>
                 </View>
-                <View style={styles.mHintRow}>
-                  <Feather name="info" size={13} color={Colors.textMuted} />
-                  <Text style={styles.hint}>Long-press the EQ bars on My Music to pick audio files directly.</Text>
-                </View>
-              </>
-            )}
-
-            {musicSource === "spotify" && (
-              <View style={styles.mAppRow}>
-                <View style={styles.mAppIcon}>
-                  <Feather name="headphones" size={18} color="#1DB954" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.toggleLabel}>Opens Spotify</Text>
-                  <Text style={styles.toggleDesc}>Tapping Spotify deep-links to the Spotify app. Ensure Spotify is installed.</Text>
-                </View>
+              ))}
+              <View style={styles.mPLAddRow}>
+                <TextInput
+                  style={styles.mPLInput}
+                  value={newSpotifyPL}
+                  onChangeText={setNewSpotifyPL}
+                  placeholder="Add playlist name..."
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  onSubmitEditing={addSpotifyPL}
+                />
+                <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={addSpotifyPL}>
+                  <Feather name="plus" size={16} color="#fff" />
+                </Pressable>
               </View>
-            )}
+            </SubAccordion>
 
-            {musicSource === "apple" && (
-              <View style={styles.mAppRow}>
-                <View style={styles.mAppIcon}>
-                  <Feather name="music" size={18} color={Colors.primary} />
+            {/* ── Apple Music Playlists ── */}
+            <SubAccordion title="Apple Music Playlists" icon="music" defaultOpen={false}>
+              {applePL.map((name, i) => (
+                <View key={i} style={styles.mPLRow}>
+                  <Text style={styles.mPLName} numberOfLines={1}>{name}</Text>
+                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeApplePL(i); }} hitSlop={8}>
+                    <Feather name="x" size={15} color={Colors.textMuted} />
+                  </Pressable>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.toggleLabel}>Opens Apple Music</Text>
-                  <Text style={styles.toggleDesc}>Tapping Apple Music deep-links to the Apple Music app via the music:// scheme.</Text>
-                </View>
+              ))}
+              <View style={styles.mPLAddRow}>
+                <TextInput
+                  style={styles.mPLInput}
+                  value={newApplePL}
+                  onChangeText={setNewApplePL}
+                  placeholder="Add playlist name..."
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  onSubmitEditing={addApplePL}
+                />
+                <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={addApplePL}>
+                  <Feather name="plus" size={16} color="#fff" />
+                </Pressable>
               </View>
-            )}
+            </SubAccordion>
 
           </View>
         </Accordion>
@@ -1519,45 +1520,29 @@ const styles = StyleSheet.create({
   bioActiveRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   bioActiveText: { color: Colors.success, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 },
 
-  mSourceRow: { flexDirection: "row", gap: 8 },
-  mSourcePill: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-    paddingVertical: 10, borderRadius: 12,
-    backgroundColor: "#141416", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
-  },
-  mSourcePillActive: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(224,49,49,0.12)",
-  },
-  mSourcePillText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
-  mSourcePillTextActive: { color: Colors.primary },
-
-  mFolderRow: {
+  mPLRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: "#141416", borderRadius: 12,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
-    padding: 12,
+    paddingHorizontal: 14, paddingVertical: 11,
+    marginBottom: 6,
   },
-  mFolderInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
-  mFolderPath: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textPrimary },
-  mBrowseBtn: {
-    backgroundColor: Colors.primary, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 7,
-  },
-  mBrowseBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  mPLName: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
 
-  mHintRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-
-  mAppRow: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "#141416", borderRadius: 14,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
-    padding: 14,
+  mPLAddRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginTop: 4,
   },
-  mAppIcon: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.05)",
+  mPLInput: {
+    flex: 1, color: Colors.textPrimary, fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    backgroundColor: "#141416", borderRadius: 12,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  mPLAddBtn: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: Colors.primary,
     alignItems: "center", justifyContent: "center",
   },
 });

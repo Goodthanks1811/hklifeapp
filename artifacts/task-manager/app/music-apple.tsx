@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -11,8 +11,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const RED    = "#E03131";
 const BG     = "#0b0b0c";
@@ -56,22 +57,16 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[s.eqBar, { height }]} />;
 }
 
-const PLAYLISTS = [
-  "Bone Greatest Hits",
-  "2pac Greatest Hits",
-  "Snoop Greatest Hits",
-  "DMX Greatest Hits",
-  "Eminem Greatest Hits",
-  "The Repeat List",
-  "Old School Rnb",
-  "Driving",
-  "Pre Gym",
-  "2022 New Stuff",
-  "Faydee",
-  "Carnal Hits",
-];
+const DEFAULT_PLAYLISTS = ["Bone Greatest Hits","2pac Greatest Hits","Snoop Greatest Hits","DMX Greatest Hits","Eminem Greatest Hits","The Repeat List","Old School Rnb","Driving","Pre Gym","2022 New Stuff","Faydee","Carnal Hits"];
 
 export default function MusicAppleScreen() {
+  const [playlists, setPlaylists] = useState<string[]>(DEFAULT_PLAYLISTS);
+
+  useFocusEffect(useCallback(() => {
+    AsyncStorage.getItem("music_apple_playlists").then(v => {
+      if (v) setPlaylists(JSON.parse(v));
+    });
+  }, []));
   const insets = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
@@ -92,7 +87,7 @@ export default function MusicAppleScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-        {PLAYLISTS.map((name, i) => (
+        {playlists.map((name, i) => (
           <Pressable
             key={i}
             style={({ pressed }) => [s.row, pressed && s.rowPressed]}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -11,8 +11,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GREEN  = "#1DB954";
 const RED    = "#E03131";
@@ -57,21 +58,16 @@ function EqBar({ index, color }: { index: number; color: string }) {
   return <Animated.View style={[s.eqBar, { height, backgroundColor: color }]} />;
 }
 
-const PLAYLISTS: { name: string; color: string }[] = [
-  { name: "Liked Songs",       color: "#4B3B9E" },
-  { name: "March 2026",        color: "#1a3a2a" },
-  { name: "Sept 2022",         color: "#2a1a3a" },
-  { name: "Carnal Favourites", color: "#3a1a1a" },
-  { name: "Krayzie Bone",      color: "#1a2a3a" },
-  { name: "October 2025",      color: "#2a3a1a" },
-  { name: "Jony",              color: "#3a2a1a" },
-  { name: "UB40",              color: "#1a3a3a" },
-  { name: "Tyga Mix",          color: "#3a1a2a" },
-  { name: "Old School RnB",    color: "#2a2a3a" },
-];
-
+const DEFAULT_PLAYLISTS = ["Liked Songs","March 2026","Sept 2022","Carnal Favourites","Krayzie Bone","October 2025","Jony","UB40","Tyga Mix","Old School RnB"];
 
 export default function MusicSpotifyScreen() {
+  const [playlists, setPlaylists] = useState<string[]>(DEFAULT_PLAYLISTS);
+
+  useFocusEffect(useCallback(() => {
+    AsyncStorage.getItem("music_spotify_playlists").then(v => {
+      if (v) setPlaylists(JSON.parse(v));
+    });
+  }, []));
   const insets = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
@@ -92,7 +88,7 @@ export default function MusicSpotifyScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-        {PLAYLISTS.map((p, i) => (
+        {playlists.map((name, i) => (
           <Pressable
             key={i}
             style={({ pressed }) => [s.row, pressed && s.rowPressed]}
@@ -101,7 +97,7 @@ export default function MusicSpotifyScreen() {
             <View style={s.iconCell}>
               <Feather name="headphones" size={20} color={GREEN} />
             </View>
-            <Text style={s.rowName}>{p.name}</Text>
+            <Text style={s.rowName}>{name}</Text>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.2)" />
           </Pressable>
         ))}
