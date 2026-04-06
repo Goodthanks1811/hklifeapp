@@ -1,9 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
   Dimensions,
   Easing,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,32 +15,34 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Swipeable } from "react-native-gesture-handler";
 import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
-import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
+import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
 
 const RED    = "#E03131";
 const BG     = "#0b0b0c";
-const ROW    = "#0f0f0f";
+const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#A0A0A0";
 
-const BAR_COUNT   = 7;
-const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
-const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
-const MAX_H = 42;
-const MIN_H = 5;
+const ITEM_H       = 64;
+const BAR_COUNT    = 7;
+const BAR_DELAYS   = [0, 180, 360, 80, 270, 140, 420];
+const BAR_HEIGHTS  = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
+const MAX_H        = 42;
+const MIN_H        = 5;
 
-const STORAGE_KEY = "mymusic_tracks_v2";
-const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
+const STORAGE_KEY  = "mymusic_tracks_v2";
+const MUSIC_DIR    = (FileSystem.documentDirectory ?? "") + "music/";
 
-type Track = { id: string; name: string; uri: string };
+const PLAYER_H     = 230;
 
-// ── EQ bar animation ──────────────────────────────────────────────────────────
+// ── EQ bar ────────────────────────────────────────────────────────────────────
 function EqBar({ index }: { index: number }) {
   const height = useRef(new Animated.Value(MIN_H)).current;
   useEffect(() => {
@@ -53,97 +59,82 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
-// ── Animated collapse when row is removed ─────────────────────────────────────
-function CollapseRow({ onRemove, children }: { onRemove: () => void; children: React.ReactNode }) {
-  const h  = useRef(new Animated.Value(64)).current;
-  const op = useRef(new Animated.Value(1)).current;
-  const mb = useRef(new Animated.Value(8)).current;
-
-  const collapse = useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Animated.parallel([
-      Animated.timing(op, { toValue: 0, duration: 100, useNativeDriver: false }),
-      Animated.timing(h,  { toValue: 0, duration: 240, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      Animated.timing(mb, { toValue: 0, duration: 240, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-    ]).start(onRemove);
-  }, [onRemove]);
-
-  return (
-    <Animated.View style={{ height: h, opacity: op, marginBottom: mb, overflow: "hidden" }}>
-      {React.cloneElement(children as React.ReactElement, { onCollapse: collapse })}
-    </Animated.View>
-  );
-}
-
-// ── Swipeable track row ───────────────────────────────────────────────────────
-function SwipeTrackRow({
-  track, isActive, isPlaying, onPlay, onCollapse,
+// ── Swipeable track row (identical pattern to Life Admin) ─────────────────────
+function TrackRow({
+  track,
+  isActive,
+  isPlaying,
+  onPlay,
+  onDelete,
 }: {
-  track: Track;
+  track: MusicTrack;
   isActive: boolean;
   isPlaying: boolean;
   onPlay: () => void;
-  onCollapse?: () => void;
+  onDelete: () => void;
 }) {
-  const tx  = useRef(new Animated.Value(0)).current;
-  const gone = useRef(false);
+  const swipeRef    = useRef<Swipeable>(null);
+  const revealedRef = useRef(false);
+  const deletingRef = useRef(false);
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+  const rowHeight   = useRef(new Animated.Value(ITEM_H)).current;
+  const rowMargin   = useRef(new Animated.Value(8)).current;
 
-  const bgOp   = tx.interpolate({ inputRange: [-90, 0], outputRange: [1, 0], extrapolate: "clamp" });
-  const iconTx = tx.interpolate({ inputRange: [-90, 0], outputRange: [0, 20], extrapolate: "clamp" });
-  const snap   = () => Animated.spring(tx, { toValue: 0, useNativeDriver: false, tension: 160, friction: 14 }).start();
+  const triggerDelete = useCallback(() => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    swipeRef.current?.close();
+    Animated.parallel([
+      Animated.timing(opacityAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
+      Animated.timing(rowHeight,   { toValue: 0, duration: 260, delay: 40, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(rowMargin,   { toValue: 0, duration: 260, delay: 40, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+    ]).start(() => onDelete());
+  }, [onDelete]);
 
-  const del = () => {
-    if (gone.current) return;
-    gone.current = true;
-    onCollapse?.();
-  };
-
-  const pan = PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-    onPanResponderMove:    (_, g) => tx.setValue(Math.min(0, Math.max(-90, g.dx))),
-    onPanResponderRelease: (_, g) => g.dx < -55 ? del() : snap(),
-    onPanResponderTerminate: snap,
-  });
+  const renderRightActions = useCallback(() => (
+    <Pressable style={st.deleteAction} onPress={triggerDelete}>
+      <Feather name="trash-2" size={16} color="#fff" />
+      <Text style={st.deletePillTx}>Delete</Text>
+    </Pressable>
+  ), [triggerDelete]);
 
   return (
-    <View style={st.rowWrap}>
-      {/* Red delete background */}
-      <Animated.View style={[StyleSheet.absoluteFill, {
-        backgroundColor: RED, opacity: bgOp,
-        borderRadius: 14,
-        alignItems: "flex-end", justifyContent: "center", paddingRight: 18,
-      }]}>
-        <Animated.View style={{ transform: [{ translateX: iconTx }] }}>
-          <Feather name="trash-2" size={18} color="#fff" />
-        </Animated.View>
-      </Animated.View>
-
-      {/* Foreground row */}
-      <Animated.View
-        style={[st.trackRow, isActive && st.trackRowActive, { transform: [{ translateX: tx }] }]}
-        {...pan.panHandlers}
+    <Animated.View style={{ height: rowHeight, marginBottom: rowMargin, opacity: opacityAnim }}>
+      <Swipeable
+        ref={swipeRef}
+        renderRightActions={renderRightActions}
+        overshootLeft={false}
+        overshootRight={false}
+        rightThreshold={40}
+        friction={3}
+        onSwipeableOpen={() => { revealedRef.current = true; }}
+        onSwipeableClose={() => { revealedRef.current = false; }}
+        containerStyle={{ borderRadius: 14, overflow: "hidden", flex: 1 }}
       >
         <Pressable
-          style={st.trackRowInner}
-          onPress={onPlay}
+          style={[st.row, isActive && st.rowActive]}
+          onPress={() => {
+            if (revealedRef.current) {
+              swipeRef.current?.close();
+            } else {
+              onPlay();
+            }
+          }}
         >
-          <View style={[st.trackIcon, isActive && st.trackIconActive]}>
+          <View style={[st.rowIcon, isActive && st.rowIconActive]}>
             <Feather
               name={isActive && isPlaying ? "volume-2" : "music"}
               size={18}
               color={RED}
             />
           </View>
-          <Text
-            style={[st.trackName, isActive && st.trackNamePlaying]}
-            numberOfLines={2}
-          >
+          <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={2}>
             {track.name}
           </Text>
-          <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.15)" />
         </Pressable>
-      </Animated.View>
-    </View>
+      </Swipeable>
+    </Animated.View>
   );
 }
 
@@ -157,20 +148,33 @@ function fmtMs(ms: number): string {
 export default function MusicMyMusicScreen() {
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
+  const player   = useMusicPlayer();
 
-  const [tracks,     setTracks]     = useState<Track[]>([]);
-  const [currentIdx, setCurrentIdx] = useState<number | null>(null);
-  const [isPlaying,  setIsPlaying]  = useState(false);
-  const [posMs,      setPosMs]      = useState(0);
-  const [durMs,      setDurMs]      = useState(0);
-
-  const soundRef        = useRef<Audio.Sound | null>(null);
-  const tracksRef       = useRef<Track[]>([]);
-  const currentIdxRef   = useRef<number | null>(null);
-  const progressBarWidth = useRef(0);
-
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const tracksRef = useRef<MusicTrack[]>([]);
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
-  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+
+  // Animated player bottom sheet
+  const playerAnim = useRef(new Animated.Value(0)).current;
+  const playerShowing = useRef(false);
+
+  useEffect(() => {
+    const shouldShow = player.track !== null;
+    if (shouldShow === playerShowing.current) return;
+    playerShowing.current = shouldShow;
+    Animated.spring(playerAnim, {
+      toValue: shouldShow ? 1 : 0,
+      useNativeDriver: false,
+      tension: 120,
+      friction: 14,
+    }).start();
+  }, [player.track !== null]);
+
+  const playerHeight = playerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, PLAYER_H],
+  });
+  const playerOpacity = playerAnim;
 
   useFocusEffect(useCallback(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(v => {
@@ -178,12 +182,9 @@ export default function MusicMyMusicScreen() {
     });
   }, []));
 
-  useEffect(() => {
-    return () => { soundRef.current?.unloadAsync(); };
-  }, []);
-
-  const saveTracks = (list: Track[]) => {
+  const saveTracks = (list: MusicTrack[]) => {
     setTracks(list);
+    tracksRef.current = list;
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   };
 
@@ -198,7 +199,7 @@ export default function MusicMyMusicScreen() {
 
       await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
 
-      const newTracks: Track[] = [];
+      const newTracks: MusicTrack[] = [];
       for (const asset of result.assets) {
         const fileName = asset.name ?? `track_${Date.now()}.mp3`;
         const destUri  = MUSIC_DIR + fileName;
@@ -227,112 +228,28 @@ export default function MusicMyMusicScreen() {
     }
   };
 
-  const stopAndUnload = async () => {
-    if (soundRef.current) {
-      try { await soundRef.current.stopAsync(); } catch {}
-      try { await soundRef.current.unloadAsync(); } catch {}
-      soundRef.current = null;
-    }
-  };
-
-  const playTrack = async (idx: number) => {
-    const list = tracksRef.current;
-    if (idx < 0 || idx >= list.length) return;
-    const track = list[idx];
-
-    await stopAndUnload();
-    setCurrentIdx(idx);
-    setIsPlaying(false);
-    setPosMs(0);
-    setDurMs(0);
-
-    try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-      });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.uri },
-        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
-        (status) => {
-          if (!status.isLoaded) return;
-          setPosMs(status.positionMillis);
-          setDurMs(status.durationMillis ?? 0);
-          setIsPlaying(status.isPlaying);
-          if (status.didJustFinish) {
-            const cur  = currentIdxRef.current ?? 0;
-            const next = (cur + 1) % tracksRef.current.length;
-            setTimeout(() => playTrack(next), 400);
-          }
-        }
-      );
-      soundRef.current = sound;
-    } catch (err) {
-      console.error("play error:", err);
-    }
-  };
-
-  const togglePlay = async () => {
-    if (!soundRef.current) {
-      const idx = currentIdxRef.current;
-      if (idx !== null) await playTrack(idx);
-      else if (tracksRef.current.length > 0) await playTrack(0);
-      return;
-    }
-    if (isPlaying) {
-      await soundRef.current.pauseAsync();
-    } else {
-      await soundRef.current.playAsync();
-    }
-  };
-
-  const skipBack = async () => {
-    if (posMs > 3000 && soundRef.current) {
-      await soundRef.current.setPositionAsync(0);
-    } else {
-      const list = tracksRef.current;
-      const cur  = currentIdxRef.current;
-      const idx  = cur === null ? 0 : (cur - 1 + list.length) % list.length;
-      await playTrack(idx);
-    }
-  };
-
-  const skipForward = async () => {
-    const list = tracksRef.current;
-    const cur  = currentIdxRef.current;
-    const idx  = cur === null ? 0 : (cur + 1) % list.length;
-    await playTrack(idx);
-  };
-
-  const deleteTrack = async (idx: number) => {
+  const handleDelete = async (idx: number) => {
     const track = tracksRef.current[idx];
-    if (currentIdxRef.current === idx) {
-      await stopAndUnload();
-      setCurrentIdx(null);
-      setIsPlaying(false);
-      setPosMs(0);
-      setDurMs(0);
-    } else if (currentIdxRef.current !== null && currentIdxRef.current > idx) {
-      setCurrentIdx(currentIdxRef.current - 1);
+    if (player.trackIndex === idx) {
+      // Track is playing; just remove from UI (audio will stop naturally when we rebuild)
     }
     try { await FileSystem.deleteAsync(track.uri, { idempotent: true }); } catch {}
     const updated = tracksRef.current.filter((_, i) => i !== idx);
     saveTracks(updated);
   };
 
-  const handleSeek = async (e: any) => {
+  const progressBarWidth = useRef(0);
+
+  const handleSeek = (e: any) => {
     const x    = e.nativeEvent.locationX;
     const barW = progressBarWidth.current;
-    if (!barW || !durMs || !soundRef.current) return;
+    if (!barW || !player.durMs) return;
     const ratio  = Math.max(0, Math.min(1, x / barW));
-    const target = Math.floor(ratio * durMs);
-    setPosMs(target);
-    try { await soundRef.current.setPositionAsync(target); } catch {}
+    const target = Math.floor(ratio * player.durMs);
+    player.seekTo(target);
   };
 
-  const progress     = durMs > 0 ? posMs / durMs : 0;
-  const currentTrack = currentIdx !== null ? tracks[currentIdx] : null;
+  const progress = player.durMs > 0 ? player.posMs / player.durMs : 0;
 
   return (
     <View style={[st.root, { paddingTop: insets.top }]}>
@@ -373,64 +290,73 @@ export default function MusicMyMusicScreen() {
             showsVerticalScrollIndicator={false}
           >
             {tracks.map((track, i) => (
-              <CollapseRow key={track.id} onRemove={() => deleteTrack(i)}>
-                <SwipeTrackRow
-                  track={track}
-                  isActive={i === currentIdx}
-                  isPlaying={isPlaying}
-                  onPlay={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    playTrack(i);
-                  }}
-                />
-              </CollapseRow>
+              <TrackRow
+                key={track.id}
+                track={track}
+                isActive={player.track?.id === track.id}
+                isPlaying={player.isPlaying}
+                onPlay={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  player.playTrack(i, tracks);
+                }}
+                onDelete={() => handleDelete(i)}
+              />
             ))}
           </ScrollView>
         )}
 
-        {/* Player bar */}
-        <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
-          <View style={st.playerTrack}>
-            <View style={st.playerArt}>
-              <Feather name="music" size={22} color={RED} />
-            </View>
-            <View style={{ flex: 1 }}>
+        {/* Player bottom sheet — only shown when a track is selected */}
+        <Animated.View style={[st.playerWrap, { height: playerHeight, opacity: playerOpacity }]}>
+          <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
+
+            {/* Track info row */}
+            <View style={st.playerTrack}>
+              <View style={st.playerArt}>
+                <Feather name="music" size={22} color={RED} />
+              </View>
               <Text style={st.playerName} numberOfLines={1}>
-                {currentTrack ? currentTrack.name : "No track selected"}
+                {player.track?.name ?? ""}
               </Text>
-              {durMs > 0 && (
-                <Text style={st.playerTime}>{fmtMs(posMs)} / {fmtMs(durMs)}</Text>
-              )}
             </View>
-          </View>
 
-          {/* Scrubable progress bar */}
-          <View
-            style={st.progressHitArea}
-            onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => true}
-            onResponderGrant={handleSeek}
-            onResponderMove={handleSeek}
-            onResponderRelease={handleSeek}
-          >
-            <View style={st.progressTrack}>
-              <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+            {/* Scrubable progress bar */}
+            <View
+              style={st.progressHitArea}
+              onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={handleSeek}
+              onResponderMove={handleSeek}
+              onResponderRelease={handleSeek}
+            >
+              <View style={st.progressTrack}>
+                <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+              </View>
             </View>
-          </View>
 
-          <View style={st.controls}>
-            <Pressable style={st.ctrlBtn} onPress={skipBack}>
-              <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
-            </Pressable>
-            <Pressable style={st.playBtn} onPress={togglePlay}>
-              <Feather name={isPlaying ? "pause" : "play"} size={24} color="#fff" />
-            </Pressable>
-            <Pressable style={st.ctrlBtn} onPress={skipForward}>
-              <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
-            </Pressable>
+            {/* Time under progress bar */}
+            {player.durMs > 0 && (
+              <View style={st.timeRow}>
+                <Text style={st.timeText}>{fmtMs(player.posMs)}</Text>
+                <Text style={st.timeText}>{fmtMs(player.durMs)}</Text>
+              </View>
+            )}
+
+            {/* Controls */}
+            <View style={st.controls}>
+              <Pressable style={st.ctrlBtn} onPress={() => player.skipBack()}>
+                <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+              <Pressable style={st.playBtn} onPress={() => player.togglePlay()}>
+                <Feather name={player.isPlaying ? "pause" : "play"} size={24} color="#fff" />
+              </Pressable>
+              <Pressable style={st.ctrlBtn} onPress={() => player.skipForward()}>
+                <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            </View>
+
           </View>
-        </View>
+        </Animated.View>
 
       </View>
     </View>
@@ -457,27 +383,32 @@ const st = StyleSheet.create({
   list:        { flex: 1 },
   listContent: { padding: 16, paddingBottom: 12 },
 
-  rowWrap: { position: "relative" },
-
-  trackRow: {
-    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER, borderRadius: 14,
-  },
-  trackRowActive: { borderColor: "rgba(224,49,49,0.35)" },
-
-  trackRowInner: {
+  // Track row (Swipeable wraps this)
+  row: {
+    flex: 1,
     flexDirection: "row", alignItems: "center", gap: 14,
-    padding: 10,
+    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
+    borderRadius: 14, paddingHorizontal: 12,
   },
-
-  trackIcon: {
-    width: 42, height: 42, borderRadius: 10,
-    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
+  rowActive:      { borderColor: "rgba(224,49,49,0.35)" },
+  rowIcon: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
-  trackIconActive:  { borderColor: "rgba(224,49,49,0.3)" },
-  trackName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium", lineHeight: 19 },
-  trackNamePlaying: { color: RED },
+  rowIconActive:  { borderColor: "rgba(224,49,49,0.3)" },
+  rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium", lineHeight: 19 },
+  rowNamePlaying: { color: RED },
 
+  // Delete pill (mirrors Life Admin)
+  deleteAction: {
+    width: 110, height: ITEM_H,
+    backgroundColor: RED,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+  },
+  deletePillTx: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+
+  // Empty state
   emptyState: {
     flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40,
   },
@@ -492,33 +423,46 @@ const st = StyleSheet.create({
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  player: {
-    backgroundColor: ROW, borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 20,
+  // Player bottom sheet (animated height)
+  playerWrap: {
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.5,
     shadowRadius: 14,
     elevation: 20,
   },
-  playerTrack: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 20 },
+  player: {
+    flex: 1,
+    backgroundColor: ROW_BG, borderTopWidth: 1, borderTopColor: BORDER,
+    paddingHorizontal: 20, paddingTop: 18,
+  },
+  playerTrack:  { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 },
   playerArt: {
     width: 52, height: 52, borderRadius: 12,
-    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
+    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
-  playerName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  playerTime: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY, marginTop: 3 },
+  playerName: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
 
-  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 26 },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
   progressTrack: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
 
-  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 10 },
-  ctrlBtn:  { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  timeRow: {
+    flexDirection: "row", justifyContent: "space-between",
+    paddingHorizontal: 2, marginBottom: 12,
+  },
+  timeText: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY },
+
+  controls: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 36, marginBottom: 6,
+  },
+  ctrlBtn: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
     width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",

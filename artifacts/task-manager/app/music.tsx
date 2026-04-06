@@ -14,6 +14,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDrawer } from "@/context/DrawerContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
+import { useMusicPlayer } from "@/context/MusicPlayerContext";
 
 const RED    = "#E8230A";
 const BG     = "#0b0b0c";
@@ -102,16 +103,25 @@ function ProviderRow({
   );
 }
 
+function fmtMs(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 export default function MusicScreen() {
-  const insets = useSafeAreaInsets();
+  const insets  = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
   const { openDrawer, skipNextAutoClose } = useDrawer();
+  const player  = useMusicPlayer();
 
   const goHome = () => {
     skipNextAutoClose();
     router.replace("/life/automation" as any);
     openDrawer();
   };
+
+  const hasTrack = player.track !== null;
+  const progress = player.durMs > 0 ? player.posMs / player.durMs : 0;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -148,31 +158,40 @@ export default function MusicScreen() {
           </View>
         </View>
 
-        <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
-          <View style={s.npTop}>
-            <View style={s.npArt}>
-              <Feather name="music" size={30} color={RED} />
+        {/* Now playing panel — only shows when something is actually playing */}
+        {hasTrack && (
+          <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
+            <View style={s.npTop}>
+              <View style={s.npArt}>
+                <Feather name="music" size={30} color={RED} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.npTitle} numberOfLines={1}>
+                  {player.track!.name}
+                </Text>
+                {player.durMs > 0 && (
+                  <Text style={s.npArtist} numberOfLines={1}>
+                    {fmtMs(player.posMs)} / {fmtMs(player.durMs)}
+                  </Text>
+                )}
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.npTitle} numberOfLines={1}>Regulate Remix</Text>
-              <Text style={s.npArtist} numberOfLines={1}>Warren G Feat Nate Dogg</Text>
+            <View style={s.progressWrap}>
+              <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+            </View>
+            <View style={s.controls}>
+              <Pressable style={s.ctrlBtn} onPress={() => player.skipBack()}>
+                <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+              <Pressable style={s.playBtn} onPress={() => player.togglePlay()}>
+                <Feather name={player.isPlaying ? "pause" : "play"} size={24} color="#fff" />
+              </Pressable>
+              <Pressable style={s.ctrlBtn} onPress={() => player.skipForward()}>
+                <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
+              </Pressable>
             </View>
           </View>
-          <View style={s.progressWrap}>
-            <View style={s.progressFill} />
-          </View>
-          <View style={s.controls}>
-            <Pressable style={s.ctrlBtn}>
-              <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
-            </Pressable>
-            <Pressable style={s.playBtn}>
-              <Feather name="play" size={24} color="#fff" />
-            </Pressable>
-            <Pressable style={s.ctrlBtn}>
-              <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
-            </Pressable>
-          </View>
-        </View>
+        )}
 
       </View>
     </View>
@@ -194,7 +213,7 @@ const s = StyleSheet.create({
   },
   eqBar: { width: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
 
-  cards: { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
+  cards:      { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
   appleEmoji: { fontSize: 30, lineHeight: 34 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 16,
@@ -226,19 +245,19 @@ const s = StyleSheet.create({
     shadowRadius: 14,
     elevation: 20,
   },
-  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
+  npTop:   { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
   npArt: {
     width: 80, height: 80, borderRadius: 14,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
   npTitle:  { fontSize: 18, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 4 },
-  npArtist: { fontSize: 14, color: GREY, fontFamily: "Inter_400Regular" },
+  npArtist: { fontSize: 13, color: GREY, fontFamily: "Inter_400Regular" },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, marginBottom: 30, overflow: "hidden",
   },
-  progressFill: { width: "38%", height: "100%", backgroundColor: RED, borderRadius: 2 },
+  progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
   ctrlBtn:  { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
