@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   menuLabelActive: { color: Colors.primary },
 
   // ── Settings row ──────────────────────────────────────────────────────────
-  settingsSection: { paddingHorizontal: 8, paddingTop: 8 },
+  settingsSection: { paddingTop: 8 },
   settingsRow: {
     flexDirection: "row",
     alignItems: "center",
