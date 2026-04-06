@@ -123,6 +123,15 @@ export default function MusicScreen() {
   const hasTrack = player.track !== null;
   const progress = player.durMs > 0 ? player.posMs / player.durMs : 0;
 
+  const progressBarWidth = useRef(0);
+  const handleSeek = (e: any) => {
+    if (!hasTrack || !player.durMs) return;
+    const x = e.nativeEvent.locationX;
+    const w = progressBarWidth.current;
+    if (!w) return;
+    player.seekTo(Math.floor(Math.max(0, Math.min(1, x / w)) * player.durMs));
+  };
+
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
@@ -175,8 +184,18 @@ export default function MusicScreen() {
               </Text>
             </View>
           </View>
-          <View style={s.progressWrap}>
-            <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+          <View
+            style={s.progressHitArea}
+            onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={handleSeek}
+            onResponderMove={handleSeek}
+            onResponderRelease={handleSeek}
+          >
+            <View style={s.progressWrap}>
+              <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+            </View>
           </View>
           <View style={s.controls}>
             <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipBack()}>
@@ -251,9 +270,10 @@ const s = StyleSheet.create({
   },
   npTitle:  { fontSize: 18, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 4 },
   npArtist: { fontSize: 13, color: GREY, fontFamily: "Inter_400Regular" },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 30 },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, marginBottom: 30, overflow: "hidden",
+    borderRadius: 2, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
