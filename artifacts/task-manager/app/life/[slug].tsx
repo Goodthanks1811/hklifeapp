@@ -2270,7 +2270,7 @@ const sc = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1,
   },
   epicPillText: {
-    fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2,
+    fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, textAlign: "center",
   },
 
   fab: {
