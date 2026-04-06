@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import Svg, { Path as SvgPath } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
+import { useDrawer } from "@/context/DrawerContext";
 import { Colors } from "@/constants/colors";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -72,14 +73,17 @@ interface Schema {
 export default function HKQuickAdd() {
   const insets  = useSafeAreaInsets();
   const { apiKey } = useNotion();
+  const { instantClose } = useDrawer();
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
+
+  const titleInputRef = useRef<any>(null);
 
   const [schema,       setSchema]       = useState<Schema | null>(null);
   const [schemaError,  setSchemaError]  = useState<string | null>(null);
   const [title,        setTitle]        = useState("");
   const [notes,        setNotes]        = useState("");
-  const [selCat,       setSelCat]       = useState<CatConfig | null>(null);
+  const [selCat,       setSelCat]       = useState<CatConfig | null>(() => CATS.find(c => c.catValue === DEV_CAT_VALUE) ?? null);
   const [selEpic,      setSelEpic]      = useState<string | null>(null);
   const [selEmoji,     setSelEmoji]     = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
@@ -102,6 +106,15 @@ export default function HKQuickAdd() {
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
   const isDev = selCat?.catValue === DEV_CAT_VALUE;
+
+  // On focus: dismiss drawer immediately + focus title input
+  useFocusEffect(
+    useCallback(() => {
+      instantClose();
+      const t = setTimeout(() => titleInputRef.current?.focus(), 350);
+      return () => clearTimeout(t);
+    }, [instantClose])
+  );
 
   // Keyboard listeners
   useEffect(() => {
@@ -297,6 +310,7 @@ export default function HKQuickAdd() {
           <Text style={st.fieldLabel}>Summary</Text>
           <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
             <TextInput
+              ref={titleInputRef}
               style={st.titleInput}
               value={title}
               onChangeText={setTitle}
