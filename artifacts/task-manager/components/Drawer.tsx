@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   drawer: {
     position: "absolute",
     top: 0, left: 0, bottom: 0,
-    backgroundColor: "#111111",
+    backgroundColor: "#0f0f0f",
     zIndex: 101,
     borderRightWidth: 1,
     borderRightColor: Colors.border,
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   drawerInner: {
     flex: 1,
-    backgroundColor: "#111111",
+    backgroundColor: "#0f0f0f",
   },
   bannerContainer: {
     width: "100%",
