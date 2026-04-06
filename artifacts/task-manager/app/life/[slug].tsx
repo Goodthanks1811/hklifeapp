@@ -89,6 +89,20 @@ function epicColor(epic: string): { bg: string; border: string; text: string } {
   return EPIC_COLOUR_MAP[epic] ?? EPIC_FALLBACK;
 }
 
+// More saturated version for the inline picker popover rows (larger area → needs higher alpha)
+const EPIC_POP_BG: Record<string, { bg: string; border: string }> = {
+  "Enhancement": { bg: "rgba(64,192,87,0.24)",   border: "rgba(64,192,87,0.60)" },
+  "HK Life":     { bg: "rgba(224,49,49,0.24)",   border: "rgba(224,49,49,0.60)" },
+  "IR App":      { bg: "rgba(51,154,240,0.24)",  border: "rgba(51,154,240,0.60)" },
+  "General":     { bg: "rgba(134,142,150,0.22)", border: "rgba(134,142,150,0.55)" },
+  "New App":     { bg: "rgba(250,176,5,0.24)",   border: "rgba(250,176,5,0.60)" },
+};
+function epicPopColor(epic: string): { bg: string; border: string; text: string } {
+  const base = epicColor(epic);
+  const pop  = EPIC_POP_BG[epic] ?? { bg: "rgba(134,142,150,0.22)", border: "rgba(134,142,150,0.55)" };
+  return { ...base, ...pop };
+}
+
 // ── Loader timing (ms) ────────────────────────────────────────────────────────
 const T_FADE_IN    = 200;
 const T_SPINNER_IN = 250;
@@ -368,7 +382,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={[s.epicPopover, { top: topY, left: leftX, width: popW }]}>
         {epicOptions.map(ep => {
-          const ec       = epicColor(ep);
+          const ec       = epicPopColor(ep);
           const selected = ep === currentEpic;
           return (
             <Pressable
@@ -378,7 +392,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
                 {
                   backgroundColor: ec.bg,
                   borderColor:     ec.border,
-                  opacity:         selected ? 1 : 0.95,
+                  opacity:         selected ? 1 : 0.75,
                 },
               ]}
               onPress={() => {
