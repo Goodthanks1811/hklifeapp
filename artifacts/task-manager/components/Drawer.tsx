@@ -256,32 +256,60 @@ export function Drawer() {
     }
   };
 
+  // Track current animated position so PanResponder can read it at gesture start
+  const drawerAnimValueRef = useRef(0);
+  useEffect(() => {
+    const id = drawerAnim.addListener(({ value }) => { drawerAnimValueRef.current = value; });
+    return () => drawerAnim.removeListener(id);
+  // drawerAnim is a stable Animated.Value ref — no deps needed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Per-gesture refs — captured in onPanResponderGrant, read in Move/Release
+  const dragStartXRef  = useRef(0);
+  const dragStartDxRef = useRef(0);
+
   const drawerPan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-      isOpenRef.current && dx < -6 && Math.abs(dx) > Math.abs(dy) * 1.5,
-    onPanResponderGrant: () => {
+      isOpenRef.current && dx < -4 && Math.abs(dx) > Math.abs(dy) * 1.2,
+    onPanResponderGrant: (_, { dx }) => {
       drawerAnim.stopAnimation();
       overlayAnim.stopAnimation();
+      dragStartXRef.current  = drawerAnimValueRef.current;
+      dragStartDxRef.current = dx;
     },
-    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, dx))),
+    onPanResponderMove: (_, { dx }) => {
+      const delta = dx - dragStartDxRef.current;
+      syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, dragStartXRef.current + delta)));
+    },
     onPanResponderRelease: (_, { dx, vx }) => {
-      if (dx < -(DRAWER_WIDTH * 0.3) || vx < -0.4) closeDrawer();
+      const finalPos = dragStartXRef.current + (dx - dragStartDxRef.current);
+      if (finalPos < -(DRAWER_WIDTH * 0.3) || vx < -0.4) closeDrawer();
       else openDrawer();
     },
   })).current;
 
+  const edgeDragStartXRef  = useRef(0);
+  const edgeDragStartDxRef = useRef(0);
+
   const edgePan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-      !isOpenRef.current && dx > 6 && Math.abs(dx) > Math.abs(dy) * 1.5,
-    onPanResponderGrant: () => {
+      !isOpenRef.current && dx > 4 && Math.abs(dx) > Math.abs(dy) * 1.2,
+    onPanResponderGrant: (_, { dx }) => {
       drawerAnim.stopAnimation();
       overlayAnim.stopAnimation();
+      edgeDragStartXRef.current  = drawerAnimValueRef.current;
+      edgeDragStartDxRef.current = dx;
     },
-    onPanResponderMove: (_, { dx }) => syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, -DRAWER_WIDTH + dx))),
+    onPanResponderMove: (_, { dx }) => {
+      const delta = dx - edgeDragStartDxRef.current;
+      syncGesture(Math.max(-DRAWER_WIDTH, Math.min(0, edgeDragStartXRef.current + delta)));
+    },
     onPanResponderRelease: (_, { dx, vx }) => {
-      if (dx > DRAWER_WIDTH * 0.3 || vx > 0.4) openDrawer();
+      const finalPos = edgeDragStartXRef.current + (dx - edgeDragStartDxRef.current);
+      if (finalPos > -(DRAWER_WIDTH * 0.7) || vx > 0.4) openDrawer();
       else closeDrawer();
     },
   })).current;
