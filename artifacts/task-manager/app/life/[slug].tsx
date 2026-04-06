@@ -1274,8 +1274,8 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
         renderRightActions={renderRightActions}
         overshootLeft={false}
         overshootRight={false}
-        rightThreshold={40}
-        friction={3}
+        rightThreshold={28}
+        friction={1.5}
         enabled={!isDragging && !deletingRef.current}
         onSwipeableWillOpen={() => { pressOverlay.setValue(0); }}
         onSwipeableOpen={() => {

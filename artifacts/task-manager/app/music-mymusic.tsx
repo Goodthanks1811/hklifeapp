@@ -125,8 +125,8 @@ function TrackRow({
         renderRightActions={renderRightActions}
         overshootLeft={false}
         overshootRight={false}
-        rightThreshold={40}
-        friction={3}
+        rightThreshold={28}
+        friction={1.5}
         enabled={!isDragging && !deletingRef.current}
         onSwipeableOpen={() => { revealedRef.current = true; }}
         onSwipeableClose={() => { revealedRef.current = false; }}
