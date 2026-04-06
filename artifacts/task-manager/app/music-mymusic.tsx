@@ -587,7 +587,7 @@ const st = StyleSheet.create({
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, paddingHorizontal: 14,
   },
-  rowActive:   { borderColor: "rgba(224,49,49,0.35)" },
+  rowActive:   { borderColor: "rgba(255,255,255,0.28)" },
   rowDragging: {
     backgroundColor: "#1c1c1e",
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
@@ -598,7 +598,7 @@ const st = StyleSheet.create({
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
-  rowIconActive:  { borderColor: "rgba(224,49,49,0.3)" },
+  rowIconActive:  { borderColor: "rgba(255,255,255,0.28)" },
   rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium" },
   rowNamePlaying: { color: RED },
 
