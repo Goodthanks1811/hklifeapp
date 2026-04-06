@@ -46,6 +46,19 @@ const MIN_H       = 5;
 const STORAGE_KEY = "mymusic_tracks_v2";
 const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
 
+// ── Path helpers (mirrors Mi Corazon pattern) ─────────────────────────────────
+// Store relative paths (e.g. "music/song.mp3") so URIs survive new builds.
+// iOS assigns a new container UUID on fresh install, breaking absolute paths.
+function toRel(uri: string): string {
+  if (!uri) return uri;
+  const idx = uri.indexOf("music/");
+  return idx !== -1 ? uri.slice(idx) : uri;
+}
+function toAbs(uri: string): string {
+  if (!uri || uri.startsWith("file://") || uri.startsWith("http")) return uri;
+  return (FileSystem.documentDirectory ?? "") + uri;
+}
+
 // Static zero — passed as dimValue to the dragging row so it never dims itself
 const ZERO_ANIM = new Animated.Value(0);
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
@@ -161,39 +174,32 @@ export default function MusicMyMusicScreen() {
 
       const parsed = JSON.parse(raw) as MusicTrack[];
 
-      // Normalize URIs — documentDirectory path changes when a new build is installed
-      // (iOS assigns a new container UUID). Reconstruct from filename only so the path
-      // is always valid regardless of which build installed it.
-      const normalized = parsed.map(t => {
-        const filename = t.uri.split("/").pop() ?? "";
-        const fixedUri = MUSIC_DIR + filename;
-        return { ...t, id: fixedUri, uri: fixedUri };
+      // Ensure all stored URIs are relative (toRel is a no-op if already relative).
+      // Migrates any old absolute-path entries from builds before this fix.
+      const relativised = parsed.map(t => {
+        const rel = toRel(t.uri);
+        return { ...t, id: rel, uri: rel };
       });
 
-      // Validate: drop any tracks whose file no longer exists on disk
+      // Validate: drop tracks whose files no longer exist on disk
       const valid: MusicTrack[] = [];
-      for (const t of normalized) {
+      for (const t of relativised) {
         try {
-          const info = await FileSystem.getInfoAsync(t.uri);
-          if (info.exists) {
-            valid.push(t);
-          } else {
-            console.warn("[MyMusic] file missing, removing from library:", t.uri);
-          }
+          const info = await FileSystem.getInfoAsync(toAbs(t.uri));
+          if (info.exists) valid.push(t);
+          else console.warn("[MyMusic] file missing, removing:", t.uri);
         } catch {
-          console.warn("[MyMusic] could not stat file, removing:", t.uri);
+          console.warn("[MyMusic] could not stat, removing:", t.uri);
         }
       }
 
       setTracks(valid);
       tracksRef.current = valid;
 
-      // Persist normalised + pruned list so stale entries don't accumulate
-      if (valid.length !== parsed.length) {
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
-      } else if (normalized.some((t, i) => t.uri !== parsed[i].uri)) {
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
-      }
+      // Persist if anything changed (migration or pruning)
+      const changed = valid.length !== parsed.length ||
+        relativised.some((t, i) => t.uri !== parsed[i]?.uri);
+      if (changed) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
     })();
   }, []);
 
@@ -239,7 +245,8 @@ export default function MusicMyMusicScreen() {
           const info = await FileSystem.getInfoAsync(destUri);
           if (!info.exists) await FileSystem.copyAsync({ from: asset.uri, to: destUri });
           const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
-          newTracks.push({ id: destUri, name: displayName, uri: destUri });
+          const relUri = toRel(destUri);
+          newTracks.push({ id: relUri, name: displayName, uri: relUri });
         } catch (err) { console.warn("copy failed:", fileName, err); }
       }
       if (newTracks.length) {
@@ -253,7 +260,7 @@ export default function MusicMyMusicScreen() {
   const handleDelete = async (idx: number) => {
     const list  = tracksRef.current;
     const track = list[idx];
-    try { await FileSystem.deleteAsync(track.uri, { idempotent: true }); } catch {}
+    try { await FileSystem.deleteAsync(toAbs(track.uri), { idempotent: true }); } catch {}
     await saveTracks(list.filter((_, i) => i !== idx));
   };
 
@@ -478,7 +485,7 @@ export default function MusicMyMusicScreen() {
                       isPlaying={player.isPlaying}
                       isDragging={isDragging}
                       dimValue={isDragging ? ZERO_ANIM : dimAnim}
-                      onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks); }}
+                      onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); }}
                       onDelete={() => handleDelete(idx)}
                       onLongPress={() => startDrag(idx)}
                     />

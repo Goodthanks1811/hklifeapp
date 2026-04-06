@@ -119,6 +119,19 @@ Settings (gear icon, pinned to bottom)
 
 **expo-file-system import**: Always import from `"expo-file-system/legacy"` (SDK 54 breaking change).
 
+**File URI storage rule (`toRel`/`toAbs`) — applies to EVERY screen that stores file paths**: NEVER write a raw `documentDirectory`-based absolute path into AsyncStorage. iOS changes the app container UUID on fresh install, making stored absolute paths stale. Any `FileSystem` or audio API call with a stale path fails silently. Always store the relative portion only (e.g. `"music/song.mp3"`, `"mi_corazon_media/photo.jpg"`) and reconstruct the absolute path at runtime:
+```ts
+function toRel(uri: string): string {
+  const idx = uri.indexOf("your_dir/");
+  return idx !== -1 ? uri.slice(idx) : uri;
+}
+function toAbs(uri: string): string {
+  if (!uri || uri.startsWith("file://") || uri.startsWith("http")) return uri;
+  return (FileSystem.documentDirectory ?? "") + uri;
+}
+```
+Use `toRel` before saving to AsyncStorage. Use `toAbs` before passing to `FileSystem`, `Audio.Sound.createAsync`, `Image source`, or any other API that needs a real path. Mi Corazon and My Music both implement this pattern — copy it exactly for any new screen.
+
 ---
 
 ## IR Quick Add — Key Details
@@ -184,7 +197,7 @@ Applied to both `music.tsx` and `music-mymusic.tsx`.
 - Files stored at: `documentDirectory + "music/"` (using `expo-file-system/legacy`)
 - Track list loaded with `useEffect` — **NOT** `useFocusEffect` (causes double-load bugs)
 - `saveTracks` must be `async/await` — never fire-and-forget
-- **NEVER store the raw absolute URI in AsyncStorage.** iOS assigns a new container UUID when a fresh build is installed. Stored absolute paths like `/var/.../Application/OLD-UUID/Documents/music/song.mp3` become stale, causing `createAsync` to fail silently (the catch block swallows it). On load, always normalize: extract the filename and reconstruct from the current `MUSIC_DIR`. The load `useEffect` in `music-mymusic.tsx` does this automatically and also validates file existence, quietly dropping any missing tracks and re-saving the pruned list.
+- **Always use the `toRel`/`toAbs` pattern for file URIs — identical to Mi Corazon.** Store relative paths (`music/filename.mp3`) in AsyncStorage; convert to absolute only for file ops and playback. iOS changes the container UUID on fresh install — stored absolute paths go stale and `createAsync` fails silently. `toRel` converts absolute→relative for storage; `toAbs` converts relative→absolute for `FileSystem` calls and `playTrack`. The load `useEffect` also validates file existence and drops missing tracks.
 
 ### Drag-to-Reorder Pattern (Life Admin + My Music + Apple Music)
 
