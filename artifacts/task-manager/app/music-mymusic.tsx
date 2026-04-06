@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
-import { router } from "expo-router";
+import { useDrawer } from "@/context/DrawerContext";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
@@ -157,6 +157,8 @@ function fmtMs(ms: number): string {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicMyMusicScreen() {
+  const { openDrawer, skipNextAutoClose } = useDrawer();
+  const goBack = () => { skipNextAutoClose(); openDrawer(); };
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
   const player   = useMusicPlayer();
@@ -425,11 +427,11 @@ export default function MusicMyMusicScreen() {
 
         {/* Header — press to go back, long-press EQ to add tracks */}
         <View style={st.headerArea}>
-          <Pressable style={st.eqWrap} onPress={() => router.back()} onLongPress={pickFiles} delayLongPress={400}>
+          <Pressable style={st.eqWrap} onPress={goBack} onLongPress={pickFiles} delayLongPress={400}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={st.pageTitle}>My Music</Text>
-          <Pressable style={st.backZone} onPress={() => router.back()} />
+          <Pressable style={st.backZone} onPress={goBack} />
         </View>
 
         {/* Track list or empty state */}

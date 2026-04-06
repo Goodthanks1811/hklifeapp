@@ -11,7 +11,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
+import { useDrawer } from "@/context/DrawerContext";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -74,6 +75,8 @@ const DEFAULT_PLAYLISTS: SpotifyPL[] = [
 ];
 
 export default function MusicSpotifyScreen() {
+  const { openDrawer, skipNextAutoClose } = useDrawer();
+  const goBack = () => { skipNextAutoClose(); openDrawer(); };
   const [playlists, setPlaylists] = useState<SpotifyPL[]>(DEFAULT_PLAYLISTS);
 
   useFocusEffect(useCallback(() => {
@@ -96,13 +99,13 @@ export default function MusicSpotifyScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
       <View style={s.headerArea}>
-        <Pressable style={s.eqWrap} onPress={() => router.back()}>
+        <Pressable style={s.eqWrap} onPress={goBack}>
           {Array.from({ length: BAR_COUNT }).map((_, i) => (
             <EqBar key={i} index={i} color={GREEN} />
           ))}
         </Pressable>
         <Text style={s.pageTitle}>Spotify</Text>
-        <Pressable style={s.backZone} onPress={() => router.back()} />
+        <Pressable style={s.backZone} onPress={goBack} />
       </View>
 
       <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>

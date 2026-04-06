@@ -12,7 +12,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
+import { useDrawer } from "@/context/DrawerContext";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -115,6 +116,8 @@ function PlaylistRow({
 }
 
 export default function MusicAppleScreen() {
+  const { openDrawer, skipNextAutoClose } = useDrawer();
+  const goBack = () => { skipNextAutoClose(); openDrawer(); };
   const [playlists, setPlaylists] = useState<ApplePL[]>(DEFAULT_PLAYLISTS);
   const playlistsRef = useRef<ApplePL[]>(DEFAULT_PLAYLISTS);
   useEffect(() => { playlistsRef.current = playlists; }, [playlists]);
@@ -259,13 +262,13 @@ export default function MusicAppleScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
         <View style={s.headerArea}>
-          <Pressable style={s.eqWrap} onPress={() => router.back()}>
+          <Pressable style={s.eqWrap} onPress={goBack}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => (
               <EqBar key={i} index={i} />
             ))}
           </Pressable>
           <Text style={s.pageTitle}>Apple Music</Text>
-          <Pressable style={s.backZone} onPress={() => router.back()} />
+          <Pressable style={s.backZone} onPress={goBack} />
         </View>
 
         <ScrollView
