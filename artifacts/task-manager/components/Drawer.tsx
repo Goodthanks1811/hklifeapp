@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -71,33 +70,35 @@ function SectionChildrenView({
 }) {
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Header */}
-      <View style={styles.sectionHeader}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={10}>
-          <Feather name="chevron-left" size={22} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.sectionHeaderTitle}>
-          <View style={styles.sectionHeaderIcon}>
-            <Feather name={SECTION_ICONS[sectionKey] as any} size={16} color={Colors.primary} />
-          </View>
-          <Text style={styles.sectionHeaderLabel}>{SECTION_LABELS[sectionKey]}</Text>
-        </View>
-      </View>
-
       <ScrollView
         style={styles.scrollArea}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 0, paddingBottom: bottomPad + 40 }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 32, paddingBottom: bottomPad + 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {items.map((item, i) => (
-          <DrawerMenuItem
-            key={`${item.label}-${i}`}
-            item={item}
-            onPress={item.route ? () => navigate(item.route!) : undefined}
-            dimmed={!item.route}
-            isActive={!!item.route && pathname === item.route}
-          />
-        ))}
+        {/* Section title row — same position/style as the parent row, taps to go back */}
+        <Pressable
+          style={({ pressed }) => [styles.sectionRow, pressed && styles.sectionRowPressed]}
+          onPress={onBack}
+        >
+          <Feather name="chevron-left" size={17} color={Colors.textMuted} />
+          <View style={styles.menuIcon}>
+            <Feather name={SECTION_ICONS[sectionKey] as any} size={17} color={Colors.primary} />
+          </View>
+          <Text style={styles.sectionRowLabel}>{SECTION_LABELS[sectionKey]}</Text>
+        </Pressable>
+
+        {/* Child items — indented to show hierarchy */}
+        <View style={{ paddingLeft: 14 }}>
+          {items.map((item, i) => (
+            <DrawerMenuItem
+              key={`${item.label}-${i}`}
+              item={item}
+              onPress={item.route ? () => navigate(item.route!) : undefined}
+              dimmed={!item.route}
+              isActive={!!item.route && pathname === item.route}
+            />
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
