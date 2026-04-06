@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -757,6 +758,14 @@ export default function SettingsScreen() {
   // Holds the temp file path for a newly picked image (not yet committed to context)
   const [pendingUri, setPendingUri] = useState<string | null>(null);
 
+  const [musicSource, setMusicSource] = useState<"mymusic"|"spotify"|"apple">("mymusic");
+  const [musicFolder, setMusicFolder] = useState<string | null>(null);
+
+  const pickMusicFolder = async () => {
+    await DocumentPicker.getDocumentAsync({ type: "audio/*", multiple: true });
+    setMusicFolder("Local Library");
+  };
+
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
   const pickImage = async () => {
@@ -1156,6 +1165,61 @@ export default function SettingsScreen() {
           </View>
         </Accordion>
 
+        {/* ══ MUSIC ════════════════════════════════════════════════════════════ */}
+        <Accordion title="Music" icon="music" defaultOpen={false}>
+          <View style={styles.accordionBody}>
+
+            {/* Default source */}
+            <Text style={styles.fieldLabel}>DEFAULT SOURCE</Text>
+            <View style={styles.mSourceRow}>
+              {([
+                { key: "mymusic",  label: "My Music", icon: "music"       },
+                { key: "spotify",  label: "Spotify",  icon: "headphones"  },
+                { key: "apple",    label: "Apple",    icon: "smartphone"  },
+              ] as const).map(opt => (
+                <Pressable
+                  key={opt.key}
+                  style={[styles.mSourcePill, musicSource === opt.key && styles.mSourcePillActive]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicSource(opt.key); }}
+                >
+                  <Feather name={opt.icon as any} size={13} color={musicSource === opt.key ? Colors.primary : Colors.textMuted} />
+                  <Text style={[styles.mSourcePillText, musicSource === opt.key && styles.mSourcePillTextActive]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Local folder */}
+            <Text style={styles.fieldLabel}>LOCAL MUSIC FOLDER</Text>
+            <View style={styles.mFolderRow}>
+              <View style={styles.mFolderInfo}>
+                <Feather name="folder" size={15} color={musicFolder ? Colors.primary : Colors.textMuted} />
+                <Text style={[styles.mFolderPath, !musicFolder && { color: Colors.textMuted }]} numberOfLines={1}>
+                  {musicFolder ?? "No folder selected"}
+                </Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.mBrowseBtn, pressed && { opacity: 0.7 }]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); pickMusicFolder(); }}
+              >
+                <Text style={styles.mBrowseBtnText}>Browse</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* EQ tap hint */}
+            <View style={styles.mHintRow}>
+              <Feather name="info" size={13} color={Colors.textMuted} />
+              <Text style={styles.hint}>
+                Tap the EQ bars on any Music screen to navigate back. Long-press the EQ on My Music to pick audio files.
+              </Text>
+            </View>
+
+          </View>
+        </Accordion>
+
       </ScrollView>
     </View>
   );
@@ -1407,11 +1471,21 @@ const styles = StyleSheet.create({
   stepNumText: { color: Colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" },
   stepText: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 19 },
 
-  toggleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  toggleRow: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: "#141416",
+    borderRadius: 14, borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4, shadowRadius: 6,
+    overflow: "hidden",
+  },
   toggleIcon: {
-    width: 36, height: 36,
+    width: 38, height: 38,
     backgroundColor: "rgba(224,49,49,0.12)",
-    borderRadius: 10,
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: "rgba(224,49,49,0.25)",
     alignItems: "center", justifyContent: "center",
@@ -1422,4 +1496,33 @@ const styles = StyleSheet.create({
 
   bioActiveRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   bioActiveText: { color: Colors.success, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 },
+
+  mSourceRow: { flexDirection: "row", gap: 8 },
+  mSourcePill: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 10, borderRadius: 12,
+    backgroundColor: "#141416", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+  },
+  mSourcePillActive: {
+    borderColor: Colors.primary,
+    backgroundColor: "rgba(224,49,49,0.12)",
+  },
+  mSourcePillText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
+  mSourcePillTextActive: { color: Colors.primary },
+
+  mFolderRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#141416", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    padding: 12,
+  },
+  mFolderInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  mFolderPath: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textPrimary },
+  mBrowseBtn: {
+    backgroundColor: Colors.primary, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 7,
+  },
+  mBrowseBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+
+  mHintRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
 });
