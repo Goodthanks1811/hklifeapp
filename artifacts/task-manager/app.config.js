@@ -25,9 +25,6 @@ module.exports = {
         NSAppleMusicUsageDescription: 'HK Life needs access to your Apple Music library to show and play your playlists.',
         UIBackgroundModes: ['audio'],
       },
-      entitlements: {
-        'com.apple.developer.carplay-audio': true,
-      },
     },
     android: {
       package: IS_DEV ? 'com.hklife.app.dev' : 'com.hklife.app',
