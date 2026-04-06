@@ -255,7 +255,10 @@ const s = StyleSheet.create({
 
   playerPanel: {
     backgroundColor: ROW,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderTopWidth: 1, borderTopColor: BORDER,
     paddingHorizontal: 20, paddingTop: 24,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,

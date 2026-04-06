@@ -383,7 +383,9 @@ const st = StyleSheet.create({
   },
   playerPanel: {
     flex: 1,
-    backgroundColor: ROW_BG, borderTopWidth: 1, borderTopColor: BORDER,
+    backgroundColor: ROW_BG,
+    borderTopWidth: 1, borderTopColor: BORDER,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingHorizontal: 20, paddingTop: 24,
   },
   npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
