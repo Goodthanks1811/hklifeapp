@@ -9,7 +9,7 @@ import { BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { CardStyleInterpolators } from "@react-navigation/stack";
-import { CustomStack, asymmetricSlide, TRANSITION_SPEC } from "./custom-stack";
+import { CustomStack, TRANSITION_SPEC } from "./custom-stack";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useCallback, useEffect, useState } from "react";
 import { Image, View } from "react-native";
@@ -84,20 +84,12 @@ function RootLayoutNav() {
               headerShown: false,
               gestureEnabled: false,
               cardStyle: { backgroundColor: "#000000" },
-              cardStyleInterpolator: isTablet
-                ? CardStyleInterpolators.forNoAnimation
-                : asymmetricSlide,
+              cardStyleInterpolator: CardStyleInterpolators.forNoAnimation,
               transitionSpec: { open: TRANSITION_SPEC, close: TRANSITION_SPEC },
             }}
           >
-            <CustomStack.Screen
-              name="(tabs)"
-              options={{ cardStyleInterpolator: CardStyleInterpolators.forNoAnimation }}
-            />
-            <CustomStack.Screen
-              name="life"
-              options={{ cardStyleInterpolator: CardStyleInterpolators.forNoAnimation }}
-            />
+            <CustomStack.Screen name="(tabs)" />
+            <CustomStack.Screen name="life" />
             <CustomStack.Screen name="ui-kit" />
             <CustomStack.Screen name="settings" />
             <CustomStack.Screen name="ir-quick-add" />
