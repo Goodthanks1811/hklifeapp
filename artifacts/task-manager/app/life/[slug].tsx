@@ -1434,7 +1434,7 @@ export default function LifeTaskScreen() {
   const { width: screenW } = useWindowDimensions();
   const isTablet          = screenW >= 768;
   const { apiKey }        = useNotion();
-  const { toggleDrawer }  = useDrawer();
+  const { isOpen: drawerOpen, closeDrawer, openDrawerToSection } = useDrawer();
 
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)    : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
@@ -1957,7 +1957,7 @@ export default function LifeTaskScreen() {
         />
         <View style={sc.gradNav}>
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleDrawer(); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); drawerOpen ? closeDrawer() : openDrawerToSection("life"); }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={sc.gradIconBtn}
           >

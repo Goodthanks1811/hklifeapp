@@ -36,6 +36,8 @@ interface DrawerContextType {
   closeDrawer:         () => void;
   instantClose:        () => void;
   toggleDrawer:        () => void;
+  openDrawerToSection: (key: string) => void;
+  pendingSectionRef:   React.MutableRefObject<string | null>;
   skipNextAutoClose:   () => void;
   skipAutoCloseRef:    React.MutableRefObject<boolean>;
   DRAWER_WIDTH:        number;
@@ -114,11 +116,19 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
   const skipAutoCloseRef  = useRef(false);
   const skipNextAutoClose = useCallback(() => { skipAutoCloseRef.current = true; }, []);
 
+  // Pending section — set before openDrawer(); Drawer reads this on open and enters the section
+  const pendingSectionRef = useRef<string | null>(null);
+  const openDrawerToSection = useCallback((key: string) => {
+    pendingSectionRef.current = key;
+    openDrawer();
+  }, [openDrawer]);
+
   return (
     <DrawerContext.Provider value={{
       isOpen, drawerAnim, overlayAnim, spacerWidth,
       drawerMode, drawerModeRef, setDrawerMode,
       openDrawer, closeDrawer, instantClose, toggleDrawer,
+      openDrawerToSection, pendingSectionRef,
       skipNextAutoClose, skipAutoCloseRef,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
     }}>

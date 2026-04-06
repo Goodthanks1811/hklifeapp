@@ -148,7 +148,7 @@ export function Drawer() {
     isOpen, drawerAnim, overlayAnim, spacerWidth,
     openDrawer, closeDrawer,
     drawerMode, drawerModeRef, setDrawerMode,
-    skipAutoCloseRef,
+    skipAutoCloseRef, pendingSectionRef,
     DRAWER_WIDTH, SIDEBAR_WIDTH, isTablet,
   } = useDrawer();
 
@@ -219,6 +219,19 @@ export function Drawer() {
       return () => clearTimeout(t);
     }
   }, [isOpen, slideAnim]);
+
+  // Auto-enter a section when the drawer opens with a pending section request
+  useEffect(() => {
+    if (!isOpen) return;
+    const key = pendingSectionRef.current as SectionKey | null;
+    if (!key) return;
+    pendingSectionRef.current = null;
+    // Small delay so the drawer slide-in animation starts before the panel transition
+    const t = setTimeout(() => enterSection(key), 80);
+    return () => clearTimeout(t);
+  // enterSection is stable (useCallback); pendingSectionRef is a ref
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // iPad sidebar logic
   useEffect(() => {
