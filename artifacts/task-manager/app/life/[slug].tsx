@@ -379,11 +379,13 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
                 onSelect(anchor.taskId, ep);
                 onClose();
               }}
-              style={[s.epicPopRow, { opacity: selected ? 1 : 0.6 }]}
+              style={[s.epicPopRow, {
+                backgroundColor: ec.bg,
+                borderColor:     ec.border,
+                opacity:         selected ? 1 : 0.65,
+              }]}
             >
-              <View style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}>
-                <Text style={[sc.epicPillText, { color: ec.text }]}>{ep}</Text>
-              </View>
+              <Text style={[s.epicPopText, { color: ec.text }]}>{ep}</Text>
             </Pressable>
           );
         })}
@@ -2078,7 +2080,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
   epicPopRow: {
-    paddingVertical: 4, paddingHorizontal: 4,
+    paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8, borderWidth: 1,
   },
   epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
   epicPopText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, textAlign: "center" },
