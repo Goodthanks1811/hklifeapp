@@ -339,13 +339,13 @@ export default function MusicMyMusicScreen() {
             {/* Controls */}
             <View style={st.controls}>
               <Pressable style={st.ctrlBtn} onPress={() => player.skipBack()}>
-                <Ionicons name="play-skip-back" size={26} color="rgba(255,255,255,0.7)" />
+                <Ionicons name="play-skip-back" size={30} color="#fff" />
               </Pressable>
               <Pressable style={st.playBtn} onPress={() => player.togglePlay()}>
-                <Ionicons name={player.isPlaying ? "pause" : "play"} size={26} color="#fff" />
+                <Ionicons name={player.isPlaying ? "pause" : "play"} size={30} color="#fff" />
               </Pressable>
               <Pressable style={st.ctrlBtn} onPress={() => player.skipForward()}>
-                <Ionicons name="play-skip-forward" size={26} color="rgba(255,255,255,0.7)" />
+                <Ionicons name="play-skip-forward" size={30} color="#fff" />
               </Pressable>
             </View>
 
@@ -453,8 +453,8 @@ const st = StyleSheet.create({
     position: "absolute", right: -6, top: -4,
     width: 12, height: 12, borderRadius: 6, backgroundColor: RED,
   },
-  controls:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
-  ctrlBtn:      { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  controls:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 14 },
+  ctrlBtn:      { width: 62, height: 62, alignItems: "center", justifyContent: "center" },
   playBtn: {
     width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
