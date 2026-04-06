@@ -171,7 +171,7 @@ export default function MusicScreen() {
         <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
           <View style={s.npTop}>
             <View style={s.npArt}>
-              <Feather name="music" size={30} color={RED} />
+              <Feather name="music" size={22} color={RED} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.npTitle} numberOfLines={1}>
@@ -261,7 +261,7 @@ const s = StyleSheet.create({
     backgroundColor: ROW,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 14,
+    paddingHorizontal: 20, paddingTop: 10,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -8 },
@@ -269,13 +269,13 @@ const s = StyleSheet.create({
     shadowRadius: 14,
     elevation: 20,
   },
-  npTop:   { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 12 },
+  npTop:   { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
   npArt: {
-    width: 80, height: 80, borderRadius: 14,
+    width: 56, height: 56, borderRadius: 10,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
-  npTitle:  { fontSize: 18, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  npTitle:  { fontSize: 15, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 2 },
   npArtist: { fontSize: 13, color: GREY, fontFamily: "Inter_400Regular" },
   progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
   timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
