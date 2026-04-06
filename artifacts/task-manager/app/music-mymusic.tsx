@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,24 +36,15 @@ const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
 
 type Track = { id: string; name: string; uri: string };
 
+// ── EQ bar animation ──────────────────────────────────────────────────────────
 function EqBar({ index }: { index: number }) {
   const height = useRef(new Animated.Value(MIN_H)).current;
   useEffect(() => {
     const dur = 900 + index * 120;
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(height, {
-          toValue: MAX_H * BAR_HEIGHTS[index],
-          duration: dur,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
-        Animated.timing(height, {
-          toValue: MIN_H,
-          duration: dur,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
+        Animated.timing(height, { toValue: MAX_H * BAR_HEIGHTS[index], duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(height, { toValue: MIN_H, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ])
     );
     const tid = setTimeout(() => anim.start(), BAR_DELAYS[index]);
@@ -61,11 +53,107 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
+// ── Animated collapse when row is removed ─────────────────────────────────────
+function CollapseRow({ onRemove, children }: { onRemove: () => void; children: React.ReactNode }) {
+  const h  = useRef(new Animated.Value(64)).current;
+  const op = useRef(new Animated.Value(1)).current;
+  const mb = useRef(new Animated.Value(8)).current;
+
+  const collapse = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Animated.parallel([
+      Animated.timing(op, { toValue: 0, duration: 100, useNativeDriver: false }),
+      Animated.timing(h,  { toValue: 0, duration: 240, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+      Animated.timing(mb, { toValue: 0, duration: 240, delay: 60, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+    ]).start(onRemove);
+  }, [onRemove]);
+
+  return (
+    <Animated.View style={{ height: h, opacity: op, marginBottom: mb, overflow: "hidden" }}>
+      {React.cloneElement(children as React.ReactElement, { onCollapse: collapse })}
+    </Animated.View>
+  );
+}
+
+// ── Swipeable track row ───────────────────────────────────────────────────────
+function SwipeTrackRow({
+  track, isActive, isPlaying, onPlay, onCollapse,
+}: {
+  track: Track;
+  isActive: boolean;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onCollapse?: () => void;
+}) {
+  const tx  = useRef(new Animated.Value(0)).current;
+  const gone = useRef(false);
+
+  const bgOp   = tx.interpolate({ inputRange: [-90, 0], outputRange: [1, 0], extrapolate: "clamp" });
+  const iconTx = tx.interpolate({ inputRange: [-90, 0], outputRange: [0, 20], extrapolate: "clamp" });
+  const snap   = () => Animated.spring(tx, { toValue: 0, useNativeDriver: false, tension: 160, friction: 14 }).start();
+
+  const del = () => {
+    if (gone.current) return;
+    gone.current = true;
+    onCollapse?.();
+  };
+
+  const pan = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+    onPanResponderMove:    (_, g) => tx.setValue(Math.min(0, Math.max(-90, g.dx))),
+    onPanResponderRelease: (_, g) => g.dx < -55 ? del() : snap(),
+    onPanResponderTerminate: snap,
+  });
+
+  return (
+    <View style={st.rowWrap}>
+      {/* Red delete background */}
+      <Animated.View style={[StyleSheet.absoluteFill, {
+        backgroundColor: RED, opacity: bgOp,
+        borderRadius: 14,
+        alignItems: "flex-end", justifyContent: "center", paddingRight: 18,
+      }]}>
+        <Animated.View style={{ transform: [{ translateX: iconTx }] }}>
+          <Feather name="trash-2" size={18} color="#fff" />
+        </Animated.View>
+      </Animated.View>
+
+      {/* Foreground row */}
+      <Animated.View
+        style={[st.trackRow, isActive && st.trackRowActive, { transform: [{ translateX: tx }] }]}
+        {...pan.panHandlers}
+      >
+        <Pressable
+          style={st.trackRowInner}
+          onPress={onPlay}
+        >
+          <View style={[st.trackIcon, isActive && st.trackIconActive]}>
+            <Feather
+              name={isActive && isPlaying ? "volume-2" : "music"}
+              size={18}
+              color={RED}
+            />
+          </View>
+          <Text
+            style={[st.trackName, isActive && st.trackNamePlaying]}
+            numberOfLines={2}
+          >
+            {track.name}
+          </Text>
+          <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.15)" />
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtMs(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicMyMusicScreen() {
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
@@ -112,8 +200,8 @@ export default function MusicMyMusicScreen() {
 
       const newTracks: Track[] = [];
       for (const asset of result.assets) {
-        const fileName    = asset.name ?? `track_${Date.now()}.mp3`;
-        const destUri     = MUSIC_DIR + fileName;
+        const fileName = asset.name ?? `track_${Date.now()}.mp3`;
+        const destUri  = MUSIC_DIR + fileName;
         try {
           const info = await FileSystem.getInfoAsync(destUri);
           if (!info.exists) {
@@ -131,10 +219,7 @@ export default function MusicMyMusicScreen() {
 
       if (newTracks.length) {
         const cur    = tracksRef.current;
-        const merged = [
-          ...cur,
-          ...newTracks.filter(t => !cur.find(x => x.id === t.id)),
-        ];
+        const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
         saveTracks(merged);
       }
     } catch (err) {
@@ -221,7 +306,6 @@ export default function MusicMyMusicScreen() {
   };
 
   const deleteTrack = async (idx: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const track = tracksRef.current[idx];
     if (currentIdxRef.current === idx) {
       await stopAndUnload();
@@ -238,8 +322,8 @@ export default function MusicMyMusicScreen() {
   };
 
   const handleSeek = async (e: any) => {
-    const x     = e.nativeEvent.locationX;
-    const barW  = progressBarWidth.current;
+    const x    = e.nativeEvent.locationX;
+    const barW = progressBarWidth.current;
     if (!barW || !durMs || !soundRef.current) return;
     const ratio  = Math.max(0, Math.min(1, x / barW));
     const target = Math.floor(ratio * durMs);
@@ -254,7 +338,7 @@ export default function MusicMyMusicScreen() {
     <View style={[st.root, { paddingTop: insets.top }]}>
       <View style={[st.inner, isTablet && st.innerTablet]}>
 
-        {/* Header - long press EQ to add tracks */}
+        {/* Header — long press EQ to add tracks */}
         <View style={st.headerArea}>
           <Pressable
             style={st.eqWrap}
@@ -269,12 +353,14 @@ export default function MusicMyMusicScreen() {
           <Text style={st.pageTitle}>My Music</Text>
         </View>
 
-        {/* Track List */}
+        {/* Track list */}
         {tracks.length === 0 ? (
           <View style={st.emptyState}>
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
-            <Text style={st.emptySubtitle}>Long press the equaliser above to add music from your phone</Text>
+            <Text style={st.emptySubtitle}>
+              Long press the equaliser above to add music from your phone
+            </Text>
             <Pressable style={st.emptyBtn} onPress={pickFiles}>
               <Feather name="plus" size={15} color="#fff" />
               <Text style={st.emptyBtnText}>Add Music</Text>
@@ -287,42 +373,22 @@ export default function MusicMyMusicScreen() {
             showsVerticalScrollIndicator={false}
           >
             {tracks.map((track, i) => (
-              <Pressable
-                key={track.id}
-                style={({ pressed }) => [
-                  st.trackRow,
-                  pressed && st.trackPressed,
-                  i === currentIdx && st.trackRowActive,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  playTrack(i);
-                }}
-                onLongPress={() => deleteTrack(i)}
-                delayLongPress={600}
-              >
-                <View style={[st.trackIcon, i === currentIdx && st.trackIconActive]}>
-                  <Feather
-                    name={i === currentIdx && isPlaying ? "volume-2" : "music"}
-                    size={18}
-                    color={RED}
-                  />
-                </View>
-                <Text
-                  style={[st.trackName, i === currentIdx && st.trackNamePlaying]}
-                  numberOfLines={2}
-                >
-                  {track.name}
-                </Text>
-                <Pressable hitSlop={10} onPress={() => deleteTrack(i)}>
-                  <Feather name="x" size={14} color="rgba(255,255,255,0.2)" />
-                </Pressable>
-              </Pressable>
+              <CollapseRow key={track.id} onRemove={() => deleteTrack(i)}>
+                <SwipeTrackRow
+                  track={track}
+                  isActive={i === currentIdx}
+                  isPlaying={isPlaying}
+                  onPlay={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    playTrack(i);
+                  }}
+                />
+              </CollapseRow>
             ))}
           </ScrollView>
         )}
 
-        {/* Player Bar - matches home screen style */}
+        {/* Player bar */}
         <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
           <View style={st.playerTrack}>
             <View style={st.playerArt}>
@@ -333,9 +399,7 @@ export default function MusicMyMusicScreen() {
                 {currentTrack ? currentTrack.name : "No track selected"}
               </Text>
               {durMs > 0 && (
-                <Text style={st.playerTime}>
-                  {fmtMs(posMs)} / {fmtMs(durMs)}
-                </Text>
+                <Text style={st.playerTime}>{fmtMs(posMs)} / {fmtMs(durMs)}</Text>
               )}
             </View>
           </View>
@@ -391,15 +455,19 @@ const st = StyleSheet.create({
   },
 
   list:        { flex: 1 },
-  listContent: { padding: 16, gap: 8, paddingBottom: 12 },
+  listContent: { padding: 16, paddingBottom: 12 },
+
+  rowWrap: { position: "relative" },
 
   trackRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, padding: 10,
+    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER, borderRadius: 14,
   },
   trackRowActive: { borderColor: "rgba(224,49,49,0.35)" },
-  trackPressed:   { opacity: 0.7 },
+
+  trackRowInner: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    padding: 10,
+  },
 
   trackIcon: {
     width: 42, height: 42, borderRadius: 10,
@@ -407,8 +475,8 @@ const st = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   trackIconActive:  { borderColor: "rgba(224,49,49,0.3)" },
-  trackName:        { flex: 1, fontSize: 13.5, color: "rgba(255,255,255,0.7)", fontFamily: "Inter_500Medium", lineHeight: 19 },
-  trackNamePlaying: { color: "#fff" },
+  trackName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium", lineHeight: 19 },
+  trackNamePlaying: { color: RED },
 
   emptyState: {
     flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40,
@@ -442,9 +510,7 @@ const st = StyleSheet.create({
   playerName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
   playerTime: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY, marginTop: 3 },
 
-  progressHitArea: {
-    height: 24, justifyContent: "center", marginBottom: 26,
-  },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 26 },
   progressTrack: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, overflow: "hidden",
