@@ -798,11 +798,25 @@ export default function SettingsScreen() {
   const [editSpotifyURL,  setEditSpotifyURL]  = useState("");
 
   // Apple Music playlist name filter
+  const APPLE_DEFAULTS = [
+    "Bone Greatest Hits", "2pac Greatest Hits", "Snoop Greatest Hits",
+    "DMX Greatest Hits", "Eminem Greatest Hits", "The Repeat List",
+    "Old School Rnb", "Driving", "Pre Gym", "2022 New Stuff", "Faydee",
+  ];
+
   const [appleNames,   setAppleNames]   = useState<string[]>([]);
   const [appleNewName, setAppleNewName] = useState("");
 
   useEffect(() => {
-    AsyncStorage.getItem("music_apple_filter_names").then(v => { if (v) setAppleNames(JSON.parse(v)); });
+    AsyncStorage.getItem("music_apple_filter_names").then(v => {
+      if (v !== null) {
+        setAppleNames(JSON.parse(v));
+      } else {
+        // Seed defaults on first run
+        setAppleNames(APPLE_DEFAULTS);
+        AsyncStorage.setItem("music_apple_filter_names", JSON.stringify(APPLE_DEFAULTS));
+      }
+    });
   }, []);
 
   const saveAppleNames = (next: string[]) => {
@@ -818,6 +832,9 @@ export default function SettingsScreen() {
   };
 
   const removeAppleName = (i: number) => saveAppleNames(appleNames.filter((_, idx) => idx !== i));
+
+  const moveAppleUp   = (i: number) => { if (i === 0) return; const n = [...appleNames]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveAppleNames(n); };
+  const moveAppleDown = (i: number) => { if (i === appleNames.length - 1) return; const n = [...appleNames]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; saveAppleNames(n); };
 
   const startEditSpotify = (i: number) => {
     setEditSpotifyIdx(i);
@@ -1343,11 +1360,28 @@ export default function SettingsScreen() {
               {appleNames.map((name, i) => (
                 <View key={i} style={[styles.mPLRow, { alignItems: "center" }]}>
                   <Text style={[styles.mPLName, { flex: 1 }]} numberOfLines={1}>{name}</Text>
+                  <View style={mStyles.arrows}>
+                    <Pressable
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveAppleUp(i); }}
+                      style={({ pressed }) => [mStyles.arrowBtn, (i === 0 || pressed) && mStyles.arrowBtnDim]}
+                      hitSlop={5}
+                    >
+                      <Feather name="chevron-up" size={15} color={i === 0 ? Colors.textMuted : Colors.textSecondary} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveAppleDown(i); }}
+                      style={({ pressed }) => [mStyles.arrowBtn, (i === appleNames.length - 1 || pressed) && mStyles.arrowBtnDim]}
+                      hitSlop={5}
+                    >
+                      <Feather name="chevron-down" size={15} color={i === appleNames.length - 1 ? Colors.textMuted : Colors.textSecondary} />
+                    </Pressable>
+                  </View>
                   <Pressable
-                    style={({ pressed }) => [styles.mPLDeleteBtn, pressed && { opacity: 0.6 }]}
+                    style={({ pressed }) => [styles.mPLDeleteBtn, { marginLeft: 4 }, pressed && { opacity: 0.6 }]}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeAppleName(i); }}
+                    hitSlop={8}
                   >
-                    <Feather name="trash-2" size={16} color="#E03131" />
+                    <Feather name="x" size={15} color={Colors.textMuted} />
                   </Pressable>
                 </View>
               ))}
