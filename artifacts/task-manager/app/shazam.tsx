@@ -185,9 +185,12 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
 }
 
 // ── Header (logo inside FlatList body, same asset as loader — already decoded) ─
-function ListHeader() {
+function ListHeader({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.logoWrap}>
+      <GHTouchable style={styles.backBtn} onPress={onBack} activeOpacity={0.6} hitSlop={12}>
+        <Feather name="chevron-left" size={28} color="#fff" />
+      </GHTouchable>
       <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
     </View>
   );
@@ -324,7 +327,7 @@ export default function ShazamScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
             }
           >
-            <ListHeader />
+            <ListHeader onBack={() => router.back()} />
             <View style={styles.center}>
               <Feather name="alert-circle" size={28} color={Colors.primary} />
               <Text style={styles.errText}>{errorMsg}</Text>
@@ -342,7 +345,7 @@ export default function ShazamScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
             }
           >
-            <ListHeader />
+            <ListHeader onBack={() => router.back()} />
             <View style={styles.center}>
               <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
             </View>
@@ -353,7 +356,7 @@ export default function ShazamScreen() {
           <FlatList
             data={songs}
             keyExtractor={item => item.id}
-            ListHeaderComponent={<ListHeader />}
+            ListHeaderComponent={<ListHeader onBack={() => router.back()} />}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: botPad + 24, gap: 8 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
@@ -370,9 +373,6 @@ export default function ShazamScreen() {
           />
         )}
       </Animated.View>
-
-      {/* ── Fixed back zone — RNGH TouchableOpacity so it isn't eaten by Swipeable ── */}
-      <GHTouchable style={styles.backZone} onPress={() => router.back()} activeOpacity={1} />
     </View>
   );
 }
@@ -387,11 +387,10 @@ const styles = StyleSheet.create({
 
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
-  // Logo header (in body, like IR Quick Add)
+  // Logo header
   logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36 },
   logo:     { width: 78, height: 78, borderRadius: 18 },
-  // Fixed overlay — rendered after all scroll content so z-order wins
-  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
+  backBtn:  { position: "absolute", left: 4, top: 0, padding: 8 },
 
   // States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
