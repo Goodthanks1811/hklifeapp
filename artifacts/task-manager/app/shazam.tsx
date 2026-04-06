@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable, TouchableOpacity as GHTouchable } from "react-native-gesture-handler";
+import { Swipeable } from "react-native-gesture-handler";
 import { router } from "expo-router";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
@@ -305,10 +305,11 @@ export default function ShazamScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {/* ── Fixed logo header — OUTSIDE scroll & swipeable content, always tappable ── */}
-      <GHTouchable style={styles.fixedHeader} onPress={() => router.back()} activeOpacity={0.7} hitSlop={16}>
+      {/* ── Fixed logo header — OUTSIDE scroll & swipeable content ── */}
+      <View style={styles.fixedHeader}>
         <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
-      </GHTouchable>
+        <Pressable style={styles.backZone} onPress={() => router.back()} />
+      </View>
 
       {/* ── Container for loader + content — fills space below fixed header ── */}
       <View style={{ flex: 1 }}>
@@ -390,8 +391,10 @@ const styles = StyleSheet.create({
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
   // Fixed logo header — lives outside scroll/swipeable content
-  fixedHeader: { alignItems: "center", paddingTop: 20, paddingBottom: 20 },
+  fixedHeader: { alignItems: "center", paddingTop: 20, paddingBottom: 20, position: "relative" },
   logo:        { width: 78, height: 78, borderRadius: 18 },
+  // Invisible back zone — left 80px of the fixed header, same pattern as My Music
+  backZone:    { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
   // Spacer inside FlatList/ScrollView so content starts below the fixed header
   listSpacer:  { height: 16 },
 
