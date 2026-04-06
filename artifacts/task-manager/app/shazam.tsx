@@ -385,8 +385,8 @@ const styles = StyleSheet.create({
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
   // Logo header (in body, like IR Quick Add)
-  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 28 },
-  logo:     { width: 90, height: 90, borderRadius: 22 },
+  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36 },
+  logo:     { width: 78, height: 78, borderRadius: 18 },
 
   // States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
