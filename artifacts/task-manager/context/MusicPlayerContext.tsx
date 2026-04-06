@@ -8,6 +8,9 @@ import React, {
 } from "react";
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 
+// Default artwork shown in the Dynamic Island / Lock Screen when no track art is available
+const DEFAULT_ARTWORK = require('../assets/images/icon.png');
+
 // ── Conditional RNTP load ─────────────────────────────────────────────────────
 // react-native-track-player requires a native module only present in EAS builds.
 // In Expo Go we fall back to the expo-av implementation (full playback, no Lock
@@ -129,7 +132,7 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
     await ensureSetup();
     tracksRef.current   = list;
     trackIdxRef.current = idx;
-    const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name }));
+    const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork: DEFAULT_ARTWORK }));
     try {
       await _TrackPlayer.reset();
       await _TrackPlayer.add(rnTracks);
