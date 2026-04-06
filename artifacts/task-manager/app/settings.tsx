@@ -1190,32 +1190,54 @@ export default function SettingsScreen() {
 
             <View style={styles.divider} />
 
-            {/* Local folder */}
-            <Text style={styles.fieldLabel}>LOCAL MUSIC FOLDER</Text>
-            <View style={styles.mFolderRow}>
-              <View style={styles.mFolderInfo}>
-                <Feather name="folder" size={15} color={musicFolder ? Colors.primary : Colors.textMuted} />
-                <Text style={[styles.mFolderPath, !musicFolder && { color: Colors.textMuted }]} numberOfLines={1}>
-                  {musicFolder ?? "No folder selected"}
-                </Text>
+            {/* Source-specific settings */}
+            {musicSource === "mymusic" && (
+              <>
+                <Text style={styles.fieldLabel}>LOCAL MUSIC FOLDER</Text>
+                <View style={styles.mFolderRow}>
+                  <View style={styles.mFolderInfo}>
+                    <Feather name="folder" size={15} color={musicFolder ? Colors.primary : Colors.textMuted} />
+                    <Text style={[styles.mFolderPath, !musicFolder && { color: Colors.textMuted }]} numberOfLines={1}>
+                      {musicFolder ?? "No folder selected"}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [styles.mBrowseBtn, pressed && { opacity: 0.7 }]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); pickMusicFolder(); }}
+                  >
+                    <Text style={styles.mBrowseBtnText}>Browse</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.mHintRow}>
+                  <Feather name="info" size={13} color={Colors.textMuted} />
+                  <Text style={styles.hint}>Long-press the EQ bars on My Music to pick audio files directly.</Text>
+                </View>
+              </>
+            )}
+
+            {musicSource === "spotify" && (
+              <View style={styles.mAppRow}>
+                <View style={styles.mAppIcon}>
+                  <Feather name="headphones" size={18} color="#1DB954" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.toggleLabel}>Opens Spotify</Text>
+                  <Text style={styles.toggleDesc}>Tapping Spotify deep-links to the Spotify app. Ensure Spotify is installed.</Text>
+                </View>
               </View>
-              <Pressable
-                style={({ pressed }) => [styles.mBrowseBtn, pressed && { opacity: 0.7 }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); pickMusicFolder(); }}
-              >
-                <Text style={styles.mBrowseBtnText}>Browse</Text>
-              </Pressable>
-            </View>
+            )}
 
-            <View style={styles.divider} />
-
-            {/* EQ tap hint */}
-            <View style={styles.mHintRow}>
-              <Feather name="info" size={13} color={Colors.textMuted} />
-              <Text style={styles.hint}>
-                Tap the EQ bars on any Music screen to navigate back. Long-press the EQ on My Music to pick audio files.
-              </Text>
-            </View>
+            {musicSource === "apple" && (
+              <View style={styles.mAppRow}>
+                <View style={styles.mAppIcon}>
+                  <Feather name="music" size={18} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.toggleLabel}>Opens Apple Music</Text>
+                  <Text style={styles.toggleDesc}>Tapping Apple Music deep-links to the Apple Music app via the music:// scheme.</Text>
+                </View>
+              </View>
+            )}
 
           </View>
         </Accordion>
@@ -1525,4 +1547,17 @@ const styles = StyleSheet.create({
   mBrowseBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
   mHintRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+
+  mAppRow: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: "#141416", borderRadius: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    padding: 14,
+  },
+  mAppIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    alignItems: "center", justifyContent: "center",
+  },
 });
