@@ -341,10 +341,14 @@ Without step 3–5, the entitlement is in the binary but not in the provisioning
 }
 ```
 
-2. `prebuildCommand` in `eas.json` (preview profile) runs `scripts/ensure-local-modules.js` **before** `expo prebuild`, symlinking (or copying) `modules/apple-musickit` into `node_modules/apple-musickit`. This guarantees the standard `node_modules` scan also finds the module:
-```json
-"prebuildCommand": "node scripts/ensure-local-modules.js && npx expo prebuild --non-interactive"
+2. `eas-build-post-install.sh` in the project root runs `scripts/ensure-local-modules.js` **after** `pnpm install` but **before** `expo prebuild` (EAS lifecycle hook). This guarantees the standard `node_modules` scan also finds the module:
+```bash
+#!/usr/bin/env bash
+set -e
+node scripts/ensure-local-modules.js
 ```
+
+**Important — do NOT use `prebuildCommand` for shell scripts.** EAS prepends `pnpm expo` to whatever value you set, so `prebuildCommand: "node scripts/foo.js && npx expo prebuild"` becomes `pnpm expo node scripts/foo.js && npx expo prebuild` — `pnpm expo node` is not a valid expo command and the build fails. `prebuildCommand` is only for passing additional flags to `expo prebuild` (e.g. `prebuild --platform ios`). Use `eas-build-post-install.sh` for any custom pre-prebuild shell work.
 
 Both mechanisms together make this bulletproof regardless of how pnpm hoisting behaves in the EAS environment.
 
