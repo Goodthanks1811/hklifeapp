@@ -4,7 +4,6 @@ import {
   Dimensions,
   Easing,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -110,7 +109,7 @@ export default function MusicScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
 
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <View style={s.body}>
           <View style={s.eqWrap}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => (
               <EqBar key={i} index={i} />
@@ -139,7 +138,7 @@ export default function MusicScreen() {
               onPress={() => router.push("/music-apple" as any)}
             />
           </View>
-        </ScrollView>
+        </View>
 
         <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
           <View style={s.npTop}>
@@ -177,13 +176,15 @@ const s = StyleSheet.create({
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
-  scroll: { paddingBottom: 20 },
+  body: {
+    flex: 1, justifyContent: "center", paddingBottom: 12,
+  },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
-    gap: 5, height: 100, paddingTop: 44,
+    gap: 5, height: 80, paddingTop: 0,
   },
-  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
+  eqBar: { width: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
 
   cards: { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
   appleEmoji: { fontSize: 30, lineHeight: 34 },
