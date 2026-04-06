@@ -11,8 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
-import { useDrawer } from "@/context/DrawerContext";
+import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -54,8 +53,7 @@ function EqBar({ index }: { index: number }) {
 }
 
 export default function MusicAppleScreen() {
-  const { openDrawer, skipNextAutoClose } = useDrawer();
-  const goBack = () => { skipNextAutoClose(); openDrawer(); };
+  const goBack = () => router.back();
 
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;

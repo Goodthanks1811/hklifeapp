@@ -11,8 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
-import { useDrawer } from "@/context/DrawerContext";
+import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -75,8 +74,7 @@ const DEFAULT_PLAYLISTS: SpotifyPL[] = [
 ];
 
 export default function MusicSpotifyScreen() {
-  const { openDrawer, skipNextAutoClose } = useDrawer();
-  const goBack = () => { skipNextAutoClose(); openDrawer(); };
+  const goBack = () => router.back();
   const [playlists, setPlaylists] = useState<SpotifyPL[]>(DEFAULT_PLAYLISTS);
 
   useFocusEffect(useCallback(() => {

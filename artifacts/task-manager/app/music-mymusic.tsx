@@ -17,8 +17,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
-import { useDrawer } from "@/context/DrawerContext";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
@@ -157,8 +157,7 @@ function fmtMs(ms: number): string {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicMyMusicScreen() {
-  const { openDrawer, skipNextAutoClose } = useDrawer();
-  const goBack = () => { skipNextAutoClose(); openDrawer(); };
+  const goBack = () => router.back();
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
   const player   = useMusicPlayer();
