@@ -1342,10 +1342,10 @@ export default function SettingsScreen() {
 // ── Menu card styles ──────────────────────────────────────────────────────────
 const mStyles = StyleSheet.create({
   card: {
-    backgroundColor: "#141416",
+    backgroundColor: "#1a1a1a",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: "#2A2A2A",
     overflow: "hidden",
     marginBottom: 8,
     shadowColor: "#000",
@@ -1363,8 +1363,8 @@ const mStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "rgba(255,255,255,0.025)",
+    borderBottomColor: "#2A2A2A",
+    backgroundColor: "transparent",
   },
   sectionTitle: {
     color: Colors.textSecondary,
@@ -1447,9 +1447,9 @@ const imgSt = StyleSheet.create({
     height: 170,
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: "#141416",
+    backgroundColor: "#1a1a1a",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "#2A2A2A",
     position: "relative",
   },
   previewImg: {
