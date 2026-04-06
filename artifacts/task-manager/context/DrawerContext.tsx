@@ -35,6 +35,7 @@ interface DrawerContextType {
   openDrawer:          () => void;
   closeDrawer:         () => void;
   instantClose:        () => void;
+  instantOpen:         () => void;
   toggleDrawer:        () => void;
   openDrawerToSection: (key: string) => void;
   drawerPrepareRef:    React.MutableRefObject<((key: string) => void) | null>;
@@ -108,6 +109,14 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
     setIsOpen(false);
   }, [drawerAnim, overlayAnim, spacerWidth]);
 
+  const instantOpen = useCallback(() => {
+    drawerAnim.stopAnimation();
+    drawerAnim.setValue(0);
+    overlayAnim.stopAnimation();
+    overlayAnim.setValue(1);
+    setIsOpen(true);
+  }, [drawerAnim, overlayAnim]);
+
   const toggleDrawer = useCallback(() => {
     if (isOpen) closeDrawer();
     else openDrawer();
@@ -129,7 +138,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
     <DrawerContext.Provider value={{
       isOpen, drawerAnim, overlayAnim, spacerWidth,
       drawerMode, drawerModeRef, setDrawerMode,
-      openDrawer, closeDrawer, instantClose, toggleDrawer,
+      openDrawer, closeDrawer, instantClose, instantOpen, toggleDrawer,
       openDrawerToSection, drawerPrepareRef,
       skipNextAutoClose, skipAutoCloseRef,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
