@@ -110,7 +110,7 @@ export default function MusicScreen() {
       <View style={[s.inner, isTablet && s.innerTablet]}>
 
         <View style={s.body}>
-          <Pressable style={s.eqWrap} onPress={() => router.back()}>
+          <Pressable style={s.eqWrap} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)" as any)}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => (
               <EqBar key={i} index={i} />
             ))}
