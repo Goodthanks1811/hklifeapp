@@ -44,8 +44,22 @@ for (const pkg of ["react", "react-dom", "scheduler"]) {
   }
 }
 
+// Stub path for packages that require native modules unavailable on web
+const RNTP_STUB = path.resolve(projectRoot, "stubs/react-native-track-player.js");
+
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // On web, redirect react-native-track-player (and its internal web shaka dep)
+  // to a no-op stub so the canvas preview doesn't fail to bundle.
+  if (platform === "web") {
+    if (
+      moduleName === "react-native-track-player" ||
+      moduleName.startsWith("shaka-player")
+    ) {
+      return { type: "sourceFile", filePath: RNTP_STUB };
+    }
+  }
+
   const override = SINGLETONS[moduleName];
   if (override) {
     return { type: "sourceFile", filePath: override };

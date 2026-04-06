@@ -28,10 +28,16 @@ import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
 import { HeaderImageProvider } from "@/context/HeaderImageContext";
 import { GoogleCalendarProvider } from "@/context/GoogleCalendarContext";
 import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
-import TrackPlayer from "react-native-track-player";
 import { PlaybackService } from "@/service";
 
-TrackPlayer.registerPlaybackService(() => PlaybackService);
+// Guard RNTP registration — native module doesn't exist in Expo Go
+try {
+  const rntp = require("react-native-track-player");
+  const TrackPlayer = rntp.default ?? rntp;
+  TrackPlayer.registerPlaybackService(() => PlaybackService);
+} catch {
+  // Expo Go — no native module, skip registration
+}
 
 const apiDomain = process.env.EXPO_PUBLIC_DOMAIN || "814374fd-199d-4ed7-9a1e-8e8568da7f50-00-1sgtb2onftd5g.spock.replit.dev";
 setBaseUrl(`https://${apiDomain}`);
