@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 
 const RED    = "#E03131";
 const BG     = "#0b0b0c";
@@ -77,25 +78,19 @@ export default function MusicMyMusicScreen() {
   const insets = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
+  const pickFolder = async () => {
+    await DocumentPicker.getDocumentAsync({ type: "audio/*", multiple: true });
+  };
+
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
       <View style={s.headerArea}>
-        <View style={s.navRow}>
-          <Pressable style={s.back} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={20} color={RED} />
-            <Text style={s.backText}>Music</Text>
-          </Pressable>
-          <View style={{ flex: 1 }} />
-          <Pressable style={s.addBtn}>
-            <Feather name="plus" size={20} color="#fff" />
-          </Pressable>
-        </View>
-        <View style={s.eqWrap}>
+        <Pressable style={s.eqWrap} onPress={() => router.back()} onLongPress={pickFolder} delayLongPress={400}>
           {Array.from({ length: BAR_COUNT }).map((_, i) => (
             <EqBar key={i} index={i} />
           ))}
-        </View>
+        </Pressable>
         <Text style={s.pageTitle}>My Music</Text>
       </View>
 
@@ -160,15 +155,8 @@ const s = StyleSheet.create({
 
   headerArea: {
     backgroundColor: BG,
-    paddingBottom: 10,
+    paddingTop: 12, paddingBottom: 10,
   },
-  navRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4,
-  },
-  back:     { flexDirection: "row", alignItems: "center", gap: 2 },
-  backText: { color: RED, fontSize: 15, fontWeight: "500", fontFamily: "Inter_500Medium" },
-  addBtn:   { width: 36, height: 36, borderRadius: 10, backgroundColor: RED, alignItems: "center", justifyContent: "center" },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",

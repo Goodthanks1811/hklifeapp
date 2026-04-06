@@ -83,17 +83,11 @@ export default function MusicSpotifyScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
       <View style={s.headerArea}>
-        <View style={s.navRow}>
-          <Pressable style={s.back} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={20} color={RED} />
-            <Text style={s.backText}>Music</Text>
-          </Pressable>
-        </View>
-        <View style={s.eqWrap}>
+        <Pressable style={s.eqWrap} onPress={() => router.back()}>
           {Array.from({ length: BAR_COUNT }).map((_, i) => (
             <EqBar key={i} index={i} color={GREEN} />
           ))}
-        </View>
+        </Pressable>
         <Text style={s.pageTitle}>Spotify</Text>
       </View>
 
@@ -124,14 +118,8 @@ const s = StyleSheet.create({
 
   headerArea: {
     backgroundColor: BG,
-    paddingBottom: 10,
+    paddingTop: 12, paddingBottom: 10,
   },
-  navRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4,
-  },
-  back:     { flexDirection: "row", alignItems: "center", gap: 2 },
-  backText: { color: RED, fontSize: 15, fontWeight: "500", fontFamily: "Inter_500Medium" },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
