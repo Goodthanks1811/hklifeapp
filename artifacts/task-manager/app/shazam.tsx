@@ -184,16 +184,9 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
   );
 }
 
-// ── Header (logo inside FlatList body, same asset as loader — already decoded) ─
-function ListHeader({ onBack }: { onBack: () => void }) {
-  return (
-    <View style={styles.logoWrap}>
-      <GHTouchable style={styles.backBtn} onPress={onBack} activeOpacity={0.6} hitSlop={12}>
-        <Feather name="chevron-left" size={28} color="#fff" />
-      </GHTouchable>
-      <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
-    </View>
-  );
+// ── Spacer pushed into FlatList body so the fixed header doesn't cover content ─
+function ListSpacer() {
+  return <View style={styles.listSpacer} />;
 }
 
 // ── ShazamScreen ───────────────────────────────────────────────────────────────
@@ -312,12 +305,20 @@ export default function ShazamScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {/* ── Loader — always mounted, invisible until image decodes ─── */}
+      {/* ── Fixed logo header — OUTSIDE scroll & swipeable content, always tappable ── */}
+      <GHTouchable style={styles.fixedHeader} onPress={() => router.back()} activeOpacity={0.7} hitSlop={16}>
+        <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
+      </GHTouchable>
+
+      {/* ── Container for loader + content — fills space below fixed header ── */}
+      <View style={{ flex: 1 }}>
+
+      {/* ── Loader — absoluteFill within container, no touch interception ─── */}
       <Animated.View style={[styles.loaderLayer, { opacity: loaderOpacity }]} pointerEvents="none">
         <ShazamLoader size={110} onReady={handleImgReady} />
       </Animated.View>
 
-      {/* ── Content — always mounted, fades in when data arrives ─── */}
+      {/* ── Content — fades in when data arrives ─── */}
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]}>
 
         {status === "error" && (
@@ -327,7 +328,7 @@ export default function ShazamScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
             }
           >
-            <ListHeader onBack={() => router.back()} />
+            <ListSpacer />
             <View style={styles.center}>
               <Feather name="alert-circle" size={28} color={Colors.primary} />
               <Text style={styles.errText}>{errorMsg}</Text>
@@ -345,7 +346,7 @@ export default function ShazamScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
             }
           >
-            <ListHeader onBack={() => router.back()} />
+            <ListSpacer />
             <View style={styles.center}>
               <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
             </View>
@@ -356,7 +357,7 @@ export default function ShazamScreen() {
           <FlatList
             data={songs}
             keyExtractor={item => item.id}
-            ListHeaderComponent={<ListHeader onBack={() => router.back()} />}
+            ListHeaderComponent={<ListSpacer />}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: botPad + 24, gap: 8 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
@@ -373,6 +374,7 @@ export default function ShazamScreen() {
           />
         )}
       </Animated.View>
+      </View>
     </View>
   );
 }
@@ -387,10 +389,11 @@ const styles = StyleSheet.create({
 
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
-  // Logo header
-  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36 },
-  logo:     { width: 78, height: 78, borderRadius: 18 },
-  backBtn:  { position: "absolute", left: 4, top: 0, padding: 8 },
+  // Fixed logo header — lives outside scroll/swipeable content
+  fixedHeader: { alignItems: "center", paddingTop: 20, paddingBottom: 20 },
+  logo:        { width: 78, height: 78, borderRadius: 18 },
+  // Spacer inside FlatList/ScrollView so content starts below the fixed header
+  listSpacer:  { height: 16 },
 
   // States
   errText:  { color: Colors.textSecondary, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
