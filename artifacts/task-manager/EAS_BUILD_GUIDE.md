@@ -248,6 +248,31 @@ npm install --package-lock-only
 
 ---
 
+### 11. Background audio stops when app is minimised
+
+**Symptom**: Music plays fine in-app, stops the moment you swipe home or lock the screen.
+
+**Cause**: Two separate bugs:
+
+1. `UIBackgroundModes: ["audio"]` was in `app.json` but NOT in `app.config.js`. Because `app.config.js` completely overrides the Expo config (it does not import or spread `app.json`), the key was never written to `Info.plist` in the native build. Without `UIBackgroundModes` in `Info.plist`, iOS suspends audio the instant the app enters the background regardless of what the JS audio session says.
+
+2. `interruptionModeIOS: InterruptionModeIOS.MixWithOthers` was set in `Audio.setAudioModeAsync`. `MixWithOthers` signals to iOS that the audio is a secondary/ambient source — iOS is less likely to maintain the session aggressively in the background. A music player must use `DoNotMix` to claim the audio session exclusively.
+
+**Fix**:
+- Add `UIBackgroundModes: ['audio']` to `infoPlist` inside `app.config.js` → `ios`:
+```js
+infoPlist: {
+  ITSAppUsesNonExemptEncryption: false,
+  NSFaceIDUsageDescription: '...',
+  UIBackgroundModes: ['audio'],   // ← REQUIRED for background audio
+},
+```
+- Change `interruptionModeIOS` to `InterruptionModeIOS.DoNotMix` in `MusicPlayerContext.tsx`.
+
+**Rule**: `app.json` keys are IGNORED when `app.config.js` exists — always put native config in `app.config.js`.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:

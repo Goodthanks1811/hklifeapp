@@ -513,6 +513,7 @@ When the project has been idle, Replit puts it to sleep. On wake:
 > - [ ] `newArchEnabled: true` in `app.config.js` (required for Reanimated 4)
 > - [ ] `react-native-worklets: 0.5.1` present (required for Reanimated 4)
 > - [ ] `NSFaceIDUsageDescription` present in `app.config.js → ios.infoPlist`
+> - [ ] `UIBackgroundModes: ['audio']` present in `app.config.js → ios.infoPlist` (NOT app.json — app.json is ignored when app.config.js exists)
 > - [ ] `expoRouterCtxInlinePlugin` present in `babel.config.js`
 > - [ ] `expo-screen-orientation@~9.0.8` present (landscape in Mi Corazon Viewer — requires native build)
 > - [ ] No new native packages added without lockfile sync (`pnpm install --no-frozen-lockfile` from root)
@@ -587,11 +588,12 @@ EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform ios --profile prev
 - Preview `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa` (older)
 - Dev client: ALL FAILED — see above
 
-**Pending for next build** (code committed, not yet in installed IPA):
-- Music controls standardised (62×62 hit area, 30px icons, 16px gap) — `music.tsx`, `music-mymusic.tsx`
-- Drag-to-reorder for My Music (`music-mymusic.tsx`) and Apple Music (`music-apple.tsx`)
-- Settings playlist ordering — chevron ▲/▼ buttons for Spotify and Apple Music playlists
-- Mi Corazon landscape rotation — `expo-screen-orientation` unlocks orientation in Viewer
+**In-flight build** `3dd081bc` — watch at expo.dev → hk-life-app → Builds. Contains:
+- Music controls standardised (62×62 hit area, 30px icons, 16px gap)
+- Drag-to-reorder for My Music and Apple Music
+- Settings playlist ordering — chevron ▲/▼ buttons for Spotify and Apple Music
+- Mi Corazon landscape rotation (expo-screen-orientation)
+- **Background audio fix** — `UIBackgroundModes: ['audio']` added to `app.config.js` infoPlist; `interruptionModeIOS` changed to `DoNotMix`
 
 Things that only work in a native EAS build (not Expo Go):
 - `keyboardAppearance="dark"` on TextInput

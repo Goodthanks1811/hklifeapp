@@ -22,6 +22,7 @@ module.exports = {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSFaceIDUsageDescription: 'HK Life uses Face ID to lock the app.',
+        UIBackgroundModes: ['audio'],
       },
     },
     android: {
