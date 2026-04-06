@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   Easing,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -121,16 +122,44 @@ export default function MusicScreen() {
   };
 
   const hasTrack = player.track !== null;
-  const progress = player.durMs > 0 ? player.posMs / player.durMs : 0;
 
-  const progressBarWidth = useRef(0);
-  const handleSeek = (e: any) => {
-    if (!hasTrack || !player.durMs) return;
-    const x = e.nativeEvent.locationX;
-    const w = progressBarWidth.current;
-    if (!w) return;
-    player.seekTo(Math.floor(Math.max(0, Math.min(1, x / w)) * player.durMs));
-  };
+  // ── Smooth scrubber ─────────────────────────────────────────────────────────
+  const barRef    = useRef<View>(null);
+  const barLeft   = useRef(0);
+  const barWidth  = useRef(0);
+  const durMsRef  = useRef(player.durMs);
+  const seekToRef = useRef(player.seekTo);
+  durMsRef.current  = player.durMs;
+  seekToRef.current = player.seekTo;
+
+  const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const displayProgress = dragProgress !== null
+    ? dragProgress
+    : player.durMs > 0 ? player.posMs / player.durMs : 0;
+
+  const scrubber = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder:  () => true,
+      onPanResponderGrant: (e) => {
+        if (!barWidth.current || !durMsRef.current) return;
+        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+        setDragProgress(ratio);
+      },
+      onPanResponderMove: (e) => {
+        if (!barWidth.current) return;
+        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+        setDragProgress(ratio);
+      },
+      onPanResponderRelease: (e) => {
+        if (!barWidth.current || !durMsRef.current) { setDragProgress(null); return; }
+        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+        setDragProgress(null);
+        seekToRef.current(Math.floor(ratio * durMsRef.current));
+      },
+      onPanResponderTerminate: () => setDragProgress(null),
+    })
+  ).current;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -183,16 +212,18 @@ export default function MusicScreen() {
             </View>
           </View>
           <View
+            ref={barRef}
             style={s.progressHitArea}
-            onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => true}
-            onResponderGrant={handleSeek}
-            onResponderMove={handleSeek}
-            onResponderRelease={handleSeek}
+            onLayout={() => {
+              barRef.current?.measure((_fx, _fy, w, _h, px) => {
+                barLeft.current  = px;
+                barWidth.current = w;
+              });
+            }}
+            {...scrubber.panHandlers}
           >
             <View style={s.progressWrap}>
-              <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+              <View style={[s.progressFill, { width: `${(displayProgress * 100).toFixed(1)}%` }]} />
             </View>
           </View>
           {hasTrack && (
