@@ -76,9 +76,10 @@ export default function MusicMyMusicScreen() {
   const [posMs,      setPosMs]      = useState(0);
   const [durMs,      setDurMs]      = useState(0);
 
-  const soundRef      = useRef<Audio.Sound | null>(null);
-  const tracksRef     = useRef<Track[]>([]);
-  const currentIdxRef = useRef<number | null>(null);
+  const soundRef        = useRef<Audio.Sound | null>(null);
+  const tracksRef       = useRef<Track[]>([]);
+  const currentIdxRef   = useRef<number | null>(null);
+  const progressBarWidth = useRef(0);
 
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
   useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
@@ -236,6 +237,16 @@ export default function MusicMyMusicScreen() {
     saveTracks(updated);
   };
 
+  const handleSeek = async (e: any) => {
+    const x     = e.nativeEvent.locationX;
+    const barW  = progressBarWidth.current;
+    if (!barW || !durMs || !soundRef.current) return;
+    const ratio  = Math.max(0, Math.min(1, x / barW));
+    const target = Math.floor(ratio * durMs);
+    setPosMs(target);
+    try { await soundRef.current.setPositionAsync(target); } catch {}
+  };
+
   const progress     = durMs > 0 ? posMs / durMs : 0;
   const currentTrack = currentIdx !== null ? tracks[currentIdx] : null;
 
@@ -243,19 +254,19 @@ export default function MusicMyMusicScreen() {
     <View style={[st.root, { paddingTop: insets.top }]}>
       <View style={[st.inner, isTablet && st.innerTablet]}>
 
-        {/* Header */}
+        {/* Header - long press EQ to add tracks */}
         <View style={st.headerArea}>
-          <Pressable style={st.eqWrap} onPress={() => router.back()}>
+          <Pressable
+            style={st.eqWrap}
+            onPress={() => router.back()}
+            onLongPress={pickFiles}
+            delayLongPress={400}
+          >
             {Array.from({ length: BAR_COUNT }).map((_, i) => (
               <EqBar key={i} index={i} />
             ))}
           </Pressable>
-          <View style={st.titleRow}>
-            <Text style={st.pageTitle}>My Music</Text>
-            <Pressable style={st.addBtn} onPress={pickFiles} hitSlop={8}>
-              <Feather name="plus" size={20} color="#fff" />
-            </Pressable>
-          </View>
+          <Text style={st.pageTitle}>My Music</Text>
         </View>
 
         {/* Track List */}
@@ -263,7 +274,7 @@ export default function MusicMyMusicScreen() {
           <View style={st.emptyState}>
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
-            <Text style={st.emptySubtitle}>Tap + to add music from your phone</Text>
+            <Text style={st.emptySubtitle}>Long press the equaliser above to add music from your phone</Text>
             <Pressable style={st.emptyBtn} onPress={pickFiles}>
               <Feather name="plus" size={15} color="#fff" />
               <Text style={st.emptyBtnText}>Add Music</Text>
@@ -294,7 +305,7 @@ export default function MusicMyMusicScreen() {
                   <Feather
                     name={i === currentIdx && isPlaying ? "volume-2" : "music"}
                     size={18}
-                    color={i === currentIdx ? RED : "rgba(255,255,255,0.3)"}
+                    color={RED}
                   />
                 </View>
                 <Text
@@ -311,11 +322,11 @@ export default function MusicMyMusicScreen() {
           </ScrollView>
         )}
 
-        {/* Player Bar */}
+        {/* Player Bar - matches home screen style */}
         <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
           <View style={st.playerTrack}>
             <View style={st.playerArt}>
-              <Feather name="music" size={18} color={RED} />
+              <Feather name="music" size={22} color={RED} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.playerName} numberOfLines={1}>
@@ -328,15 +339,28 @@ export default function MusicMyMusicScreen() {
               )}
             </View>
           </View>
-          <View style={st.progressWrap}>
-            <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+
+          {/* Scrubable progress bar */}
+          <View
+            style={st.progressHitArea}
+            onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={handleSeek}
+            onResponderMove={handleSeek}
+            onResponderRelease={handleSeek}
+          >
+            <View style={st.progressTrack}>
+              <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+            </View>
           </View>
+
           <View style={st.controls}>
             <Pressable style={st.ctrlBtn} onPress={skipBack}>
               <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
             </Pressable>
             <Pressable style={st.playBtn} onPress={togglePlay}>
-              <Feather name={isPlaying ? "pause" : "play"} size={22} color="#fff" />
+              <Feather name={isPlaying ? "pause" : "play"} size={24} color="#fff" />
             </Pressable>
             <Pressable style={st.ctrlBtn} onPress={skipForward}>
               <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
@@ -354,27 +378,16 @@ const st = StyleSheet.create({
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
-  headerArea: { backgroundColor: BG, paddingTop: 12, paddingBottom: 4 },
+  headerArea: { backgroundColor: BG, paddingTop: 12, paddingBottom: 4, alignItems: "center" },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
   },
-  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
-
-  titleRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 20, paddingBottom: 10,
-  },
+  eqBar:     { width: 5, borderRadius: 3, backgroundColor: RED },
   pageTitle: {
-    flex: 1, textAlign: "center", color: "#fff",
+    textAlign: "center", color: "#fff",
     fontSize: 17, fontFamily: "Inter_600SemiBold",
-  },
-  addBtn: {
-    position: "absolute", right: 20,
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: RED, alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 10, shadowOpacity: 0.4, elevation: 4,
+    paddingTop: 8, paddingBottom: 10,
   },
 
   list:        { flex: 1 },
@@ -401,7 +414,7 @@ const st = StyleSheet.create({
     flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40,
   },
   emptyTitle:    { color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  emptySubtitle: { color: GREY, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptySubtitle: { color: GREY, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   emptyBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginTop: 8, backgroundColor: RED, borderRadius: 12,
@@ -413,29 +426,37 @@ const st = StyleSheet.create({
 
   player: {
     backgroundColor: ROW, borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 10,
+    paddingHorizontal: 20, paddingTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    elevation: 20,
   },
-  playerTrack: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
+  playerTrack: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 20 },
   playerArt: {
-    width: 42, height: 42, borderRadius: 9,
+    width: 52, height: 52, borderRadius: 12,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
-  playerName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  playerTime: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY, marginTop: 2 },
+  playerName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  playerTime: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY, marginTop: 3 },
 
-  progressWrap: {
-    height: 3, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, marginBottom: 10, overflow: "hidden",
+  progressHitArea: {
+    height: 24, justifyContent: "center", marginBottom: 26,
+  },
+  progressTrack: {
+    height: 4, backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 2, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
 
-  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36 },
-  ctrlBtn:  { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 10 },
+  ctrlBtn:  { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: RED,
+    width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
     shadowColor: RED, shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 14, shadowOpacity: 0.38, elevation: 4,
+    shadowRadius: 16, shadowOpacity: 0.45, elevation: 4,
   },
 });
