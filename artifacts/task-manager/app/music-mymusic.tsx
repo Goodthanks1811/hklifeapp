@@ -28,9 +28,13 @@ const RED    = "#E03131";
 const BG     = "#0b0b0c";
 const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
-const GREY   = "#A0A0A0";
+const GREY   = "#888";
 
-const ITEM_H      = 64;
+// Life Admin row height
+const ITEM_H      = 48;
+// Player height — sized to match the home-screen panel
+const PLAYER_H    = 280;
+
 const BAR_COUNT   = 7;
 const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
 const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
@@ -39,7 +43,6 @@ const MIN_H       = 5;
 
 const STORAGE_KEY = "mymusic_tracks_v2";
 const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
-const PLAYER_H    = 230;
 
 // ── EQ bar ────────────────────────────────────────────────────────────────────
 function EqBar({ index }: { index: number }) {
@@ -58,19 +61,12 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
-// ── Swipeable track row — mirrors Life Admin's TaskRow exactly ────────────────
+// ── Swipeable track row — mirrors Life Admin exactly ──────────────────────────
 function TrackRow({
-  track,
-  isActive,
-  isPlaying,
-  onPlay,
-  onDelete,
+  track, isActive, isPlaying, onPlay, onDelete,
 }: {
-  track: MusicTrack;
-  isActive: boolean;
-  isPlaying: boolean;
-  onPlay: () => void;
-  onDelete: () => void;
+  track: MusicTrack; isActive: boolean; isPlaying: boolean;
+  onPlay: () => void; onDelete: () => void;
 }) {
   const swipeRef    = useRef<Swipeable>(null);
   const revealedRef = useRef(false);
@@ -111,25 +107,15 @@ function TrackRow({
         onSwipeableClose={() => { revealedRef.current = false; }}
         containerStyle={{ borderRadius: 14, overflow: "hidden" }}
       >
-        {/* Inner row must have explicit height — same rule as Life Admin's rowWrap */}
+        {/* Explicit height — same rule as Life Admin's rowWrap */}
         <Pressable
           style={[st.row, isActive && st.rowActive]}
-          onPress={() => {
-            if (revealedRef.current) {
-              swipeRef.current?.close();
-            } else {
-              onPlay();
-            }
-          }}
+          onPress={() => revealedRef.current ? swipeRef.current?.close() : onPlay()}
         >
           <View style={[st.rowIcon, isActive && st.rowIconActive]}>
-            <Feather
-              name={isActive && isPlaying ? "volume-2" : "music"}
-              size={18}
-              color={RED}
-            />
+            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
           </View>
-          <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={2}>
+          <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
             {track.name}
           </Text>
         </Pressable>
@@ -152,11 +138,9 @@ export default function MusicMyMusicScreen() {
 
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const tracksRef = useRef<MusicTrack[]>([]);
-
-  // Keep ref in sync with state
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
-  // Load once on mount (NOT useFocusEffect — that races with DocumentPicker refocus)
+  // Load once on mount (not useFocusEffect — DocumentPicker refocus causes races)
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(raw => {
       if (raw) {
@@ -168,7 +152,7 @@ export default function MusicMyMusicScreen() {
   }, []);
 
   // Animated player bottom sheet
-  const playerAnim = useRef(new Animated.Value(0)).current;
+  const playerAnim   = useRef(new Animated.Value(0)).current;
   const playerVisRef = useRef(false);
   useEffect(() => {
     const shouldShow = player.track !== null;
@@ -185,7 +169,6 @@ export default function MusicMyMusicScreen() {
   const playerHeight  = playerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, PLAYER_H] });
   const playerOpacity = playerAnim;
 
-  // Save tracks (await storage write so refocus doesn't race)
   const saveTracks = async (list: MusicTrack[]) => {
     tracksRef.current = list;
     setTracks(list);
@@ -200,54 +183,40 @@ export default function MusicMyMusicScreen() {
         copyToCacheDirectory: true,
       });
       if (result.canceled || !result.assets?.length) return;
-
       await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
 
       const newTracks: MusicTrack[] = [];
       for (const asset of result.assets) {
-        const fileName = asset.name ?? `track_${Date.now()}.mp3`;
-        const destUri  = MUSIC_DIR + fileName;
+        const fileName    = asset.name ?? `track_${Date.now()}.mp3`;
+        const destUri     = MUSIC_DIR + fileName;
         try {
           const info = await FileSystem.getInfoAsync(destUri);
-          if (!info.exists) {
-            await FileSystem.copyAsync({ from: asset.uri, to: destUri });
-          }
-          const displayName = fileName
-            .replace(/\.[^.]+$/, "")
-            .replace(/[_-]+/g, " ")
-            .trim();
+          if (!info.exists) await FileSystem.copyAsync({ from: asset.uri, to: destUri });
+          const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
           newTracks.push({ id: destUri, name: displayName, uri: destUri });
-        } catch (err) {
-          console.warn("copy failed:", fileName, err);
-        }
+        } catch (err) { console.warn("copy failed:", fileName, err); }
       }
-
       if (newTracks.length) {
         const cur    = tracksRef.current;
         const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
         await saveTracks(merged);
       }
-    } catch (err) {
-      console.error("picker error:", err);
-    }
+    } catch (err) { console.error("picker error:", err); }
   };
 
   const handleDelete = async (idx: number) => {
     const list  = tracksRef.current;
     const track = list[idx];
     try { await FileSystem.deleteAsync(track.uri, { idempotent: true }); } catch {}
-    const updated = list.filter((_, i) => i !== idx);
-    await saveTracks(updated);
+    await saveTracks(list.filter((_, i) => i !== idx));
   };
 
   const progressBarWidth = useRef(0);
-
   const handleSeek = (e: any) => {
-    const x    = e.nativeEvent.locationX;
-    const barW = progressBarWidth.current;
-    if (!barW || !player.durMs) return;
-    const ratio  = Math.max(0, Math.min(1, x / barW));
-    player.seekTo(Math.floor(ratio * player.durMs));
+    const x = e.nativeEvent.locationX;
+    const w = progressBarWidth.current;
+    if (!w || !player.durMs) return;
+    player.seekTo(Math.floor(Math.max(0, Math.min(1, x / w)) * player.durMs));
   };
 
   const progress = player.durMs > 0 ? player.posMs / player.durMs : 0;
@@ -256,17 +225,10 @@ export default function MusicMyMusicScreen() {
     <View style={[st.root, { paddingTop: insets.top }]}>
       <View style={[st.inner, isTablet && st.innerTablet]}>
 
-        {/* Header — press EQ to go back, long-press to add tracks */}
+        {/* Header — press to go back, long-press EQ to add tracks */}
         <View style={st.headerArea}>
-          <Pressable
-            style={st.eqWrap}
-            onPress={() => router.back()}
-            onLongPress={pickFiles}
-            delayLongPress={400}
-          >
-            {Array.from({ length: BAR_COUNT }).map((_, i) => (
-              <EqBar key={i} index={i} />
-            ))}
+          <Pressable style={st.eqWrap} onPress={() => router.back()} onLongPress={pickFiles} delayLongPress={400}>
+            {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={st.pageTitle}>My Music</Text>
         </View>
@@ -276,50 +238,51 @@ export default function MusicMyMusicScreen() {
           <View style={st.emptyState}>
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
-            <Text style={st.emptySubtitle}>
-              Long press the equaliser above to add music from your phone
-            </Text>
+            <Text style={st.emptySubtitle}>Long press the equaliser above to add music from your phone</Text>
             <Pressable style={st.emptyBtn} onPress={pickFiles}>
               <Feather name="plus" size={15} color="#fff" />
               <Text style={st.emptyBtnText}>Add Music</Text>
             </Pressable>
           </View>
         ) : (
-          <ScrollView
-            style={st.list}
-            contentContainerStyle={st.listContent}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView style={st.list} contentContainerStyle={st.listContent} showsVerticalScrollIndicator={false}>
             {tracks.map((track, i) => (
               <TrackRow
                 key={track.id}
                 track={track}
                 isActive={player.track?.id === track.id}
                 isPlaying={player.isPlaying}
-                onPlay={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  player.playTrack(i, tracks);
-                }}
+                onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(i, tracks); }}
                 onDelete={() => handleDelete(i)}
               />
             ))}
           </ScrollView>
         )}
 
-        {/* Player bottom sheet — springs in when a track is selected */}
+        {/* ── Player bottom sheet — identical layout to Music home screen ─────── */}
         <Animated.View style={[st.playerWrap, { height: playerHeight, opacity: playerOpacity }]}>
-          <View style={[st.player, { paddingBottom: insets.bottom + 8 }]}>
-            <View style={st.playerTrack}>
-              <View style={st.playerArt}>
-                <Feather name="music" size={22} color={RED} />
+          <View style={[st.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
+
+            {/* Top row: artwork + title + time */}
+            <View style={st.npTop}>
+              <View style={st.npArt}>
+                <Feather name="music" size={30} color={RED} />
               </View>
-              <Text style={st.playerName} numberOfLines={1}>
-                {player.track?.name ?? ""}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={st.npTitle} numberOfLines={1}>
+                  {player.track?.name ?? ""}
+                </Text>
+                <Text style={st.npArtist} numberOfLines={1}>
+                  {player.durMs > 0
+                    ? `${fmtMs(player.posMs)} / ${fmtMs(player.durMs)}`
+                    : "Loading..."}
+                </Text>
+              </View>
             </View>
 
+            {/* Progress bar (scrubable) */}
             <View
-              style={st.progressHitArea}
+              style={st.progressWrap}
               onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
               onStartShouldSetResponder={() => true}
               onMoveShouldSetResponder={() => true}
@@ -327,18 +290,10 @@ export default function MusicMyMusicScreen() {
               onResponderMove={handleSeek}
               onResponderRelease={handleSeek}
             >
-              <View style={st.progressTrack}>
-                <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
-              </View>
+              <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
             </View>
 
-            {player.durMs > 0 && (
-              <View style={st.timeRow}>
-                <Text style={st.timeText}>{fmtMs(player.posMs)}</Text>
-                <Text style={st.timeText}>{fmtMs(player.durMs)}</Text>
-              </View>
-            )}
-
+            {/* Controls */}
             <View style={st.controls}>
               <Pressable style={st.ctrlBtn} onPress={() => player.skipBack()}>
                 <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
@@ -350,6 +305,7 @@ export default function MusicMyMusicScreen() {
                 <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
               </Pressable>
             </View>
+
           </View>
         </Animated.View>
 
@@ -368,7 +324,7 @@ const st = StyleSheet.create({
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
   },
-  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
+  eqBar:     { width: 5, borderRadius: 3, backgroundColor: RED },
   pageTitle: {
     textAlign: "center", color: "#fff",
     fontSize: 17, fontFamily: "Inter_600SemiBold",
@@ -378,24 +334,24 @@ const st = StyleSheet.create({
   list:        { flex: 1 },
   listContent: { padding: 16, paddingBottom: 12 },
 
-  // Row: explicit height = ITEM_H (identical to Life Admin's rowWrap)
+  // Track row — ITEM_H = 48, same as Life Admin
   row: {
     height: ITEM_H,
-    flexDirection: "row", alignItems: "center", gap: 14,
+    flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, paddingHorizontal: 12,
+    borderRadius: 14, paddingHorizontal: 14,
   },
   rowActive:      { borderColor: "rgba(224,49,49,0.35)" },
   rowIcon: {
-    width: 40, height: 40, borderRadius: 10,
+    width: 32, height: 32, borderRadius: 8,
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
   rowIconActive:  { borderColor: "rgba(224,49,49,0.3)" },
-  rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium", lineHeight: 19 },
+  rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium" },
   rowNamePlaying: { color: RED },
 
-  // Delete action: mirrors Life Admin (width 110, height ITEM_H, red bg)
+  // Delete action — Life Admin spec
   deleteAction: {
     width: 110, height: ITEM_H,
     backgroundColor: RED,
@@ -404,9 +360,7 @@ const st = StyleSheet.create({
   deletePillTx: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   // Empty state
-  emptyState: {
-    flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40,
-  },
+  emptyState:    { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40 },
   emptyTitle:    { color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptySubtitle: { color: GREY, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   emptyBtn: {
@@ -418,7 +372,7 @@ const st = StyleSheet.create({
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  // Player bottom sheet
+  // ── Player — identical spec to Music home screen ──────────────────────────
   playerWrap: {
     overflow: "hidden",
     shadowColor: "#000",
@@ -427,41 +381,29 @@ const st = StyleSheet.create({
     shadowRadius: 14,
     elevation: 20,
   },
-  player: {
+  playerPanel: {
     flex: 1,
     backgroundColor: ROW_BG, borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 18,
+    paddingHorizontal: 20, paddingTop: 24,
   },
-  playerTrack:  { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 },
-  playerArt: {
-    width: 52, height: 52, borderRadius: 12,
-    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
+  npTop: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
+  npArt: {
+    width: 80, height: 80, borderRadius: 14,
+    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
-  playerName: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
-
-  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
-  progressTrack: {
+  npTitle:  { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff", marginBottom: 4 },
+  npArtist: { fontSize: 13, fontFamily: "Inter_400Regular", color: GREY },
+  progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, overflow: "hidden",
+    borderRadius: 2, marginBottom: 30, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
-
-  timeRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    paddingHorizontal: 2, marginBottom: 12,
-  },
-  timeText: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY },
-
-  controls: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 36, marginBottom: 6,
-  },
-  ctrlBtn: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  controls:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
+  ctrlBtn:      { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
     width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 16, shadowOpacity: 0.45, elevation: 4,
+    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, shadowOpacity: 0.45,
   },
 });
