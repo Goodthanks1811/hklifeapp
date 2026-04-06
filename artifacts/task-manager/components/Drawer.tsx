@@ -337,8 +337,9 @@ export function Drawer() {
         router.replace(route as any);
       }
     } else {
-      closeDrawer();
-      setTimeout(() => router.replace(route as any), 20);
+      skipAutoCloseRef.current = true;   // prevent double-close from the pathname effect
+      router.replace(route as any);      // screen starts arriving immediately
+      closeDrawer();                     // drawer closes simultaneously — new screen pushes it away
     }
   };
 
