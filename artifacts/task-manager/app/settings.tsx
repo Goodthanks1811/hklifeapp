@@ -1342,7 +1342,7 @@ export default function SettingsScreen() {
 // ── Menu card styles ──────────────────────────────────────────────────────────
 const mStyles = StyleSheet.create({
   card: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#0f0f0f",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#2A2A2A",
