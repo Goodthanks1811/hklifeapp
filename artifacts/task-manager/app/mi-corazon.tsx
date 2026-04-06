@@ -29,6 +29,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useDrawer } from "@/context/DrawerContext";
@@ -477,7 +478,11 @@ export default function MiNenaScreen() {
   const insets           = useSafeAreaInsets();
   const { width }        = useWindowDimensions();
   const topPad           = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
-  const { toggleDrawer } = useDrawer();
+  const { toggleDrawer, instantClose } = useDrawer();
+
+  useFocusEffect(
+    useCallback(() => { instantClose(); }, [instantClose])
+  );
 
   const [folders,       setFolders]       = useState<Folder[]>([]);
   const [loading,       setLoading]       = useState(true);
