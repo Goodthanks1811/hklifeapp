@@ -89,19 +89,6 @@ function epicColor(epic: string): { bg: string; border: string; text: string } {
   return EPIC_COLOUR_MAP[epic] ?? EPIC_FALLBACK;
 }
 
-// More saturated version for the inline picker popover rows (larger area → needs higher alpha)
-const EPIC_POP_BG: Record<string, { bg: string; border: string }> = {
-  "Enhancement": { bg: "rgba(64,192,87,0.18)",   border: "rgba(64,192,87,0.80)" },
-  "HK Life":     { bg: "rgba(224,49,49,0.18)",   border: "rgba(224,49,49,0.80)" },
-  "IR App":      { bg: "rgba(51,154,240,0.18)",  border: "rgba(51,154,240,0.80)" },
-  "General":     { bg: "rgba(134,142,150,0.16)", border: "rgba(134,142,150,0.75)" },
-  "New App":     { bg: "rgba(250,176,5,0.18)",   border: "rgba(250,176,5,0.80)" },
-};
-function epicPopColor(epic: string): { bg: string; border: string; text: string } {
-  const base = epicColor(epic);
-  const pop  = EPIC_POP_BG[epic] ?? { bg: "rgba(134,142,150,0.16)", border: "rgba(134,142,150,0.75)" };
-  return { ...base, ...pop };
-}
 
 // ── Loader timing (ms) ────────────────────────────────────────────────────────
 const T_FADE_IN    = 200;
@@ -382,7 +369,7 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={[s.epicPopover, { top: topY, left: leftX, width: popW }]}>
         {epicOptions.map(ep => {
-          const ec       = epicPopColor(ep);
+          const ec       = epicColor(ep);
           const selected = ep === currentEpic;
           return (
             <Pressable
@@ -2096,10 +2083,10 @@ const s = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
   epicPopRow: {
-    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5,
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
   },
   epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
-  epicPopText: { fontSize: 13, fontFamily: "Inter_700Bold", textAlign: "center" },
+  epicPopText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, textAlign: "center" },
   emojiPopCell: {
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.cardBgElevated,
