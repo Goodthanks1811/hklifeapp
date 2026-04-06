@@ -388,7 +388,6 @@ function InlineEpicPicker({ anchor, epicOptions, currentEpic, onSelect, onClose 
               }}
             >
               <Text style={[s.epicPopText, { color: ec.text, fontFamily: selected ? "Inter_700Bold" : "Inter_500Medium" }]}>{ep}</Text>
-              {selected && <Feather name="check" size={12} color={ec.text} />}
             </Pressable>
           );
         })}
@@ -2083,11 +2082,10 @@ const s = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
   epicPopRow: {
-    flexDirection: "row", alignItems: "center", gap: 8,
     paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8, borderWidth: 1,
   },
   epicPopDot:  { width: 6, height: 6, borderRadius: 3 },
-  epicPopText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  epicPopText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
   emojiPopCell: {
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.cardBgElevated,
