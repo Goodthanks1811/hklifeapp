@@ -848,48 +848,11 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const insets    = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const [title,        setTitle]       = useState("");
-  const [notes,        setNotes]       = useState("");
-  const [linkUrl,      setLinkUrl]     = useState("");
   const [selEmoji,     setSelEmoji]    = useState<string | null>(null);
   const [localCat,     setLocalCat]    = useState<string>(catValue);
   const [selEpic,      setSelEpic]     = useState<string | null>(null);
   const [loaderVisible, setLoaderVisible] = useState(false);
-  const qaSelRef      = useRef({ start: 0, end: 0 });
-  const qaNotesRef    = useRef<TextInput>(null);
-  const prevQANotesRef = useRef("");
-
-  const handleFormatQA = useCallback((type: string) => {
-    setNotes(prev => applyFormat(type, prev, qaSelRef.current));
-  }, []);
-
-  const handleQABodyChange = useCallback((newText: string) => {
-    const prev = prevQANotesRef.current;
-    prevQANotesRef.current = newText;
-
-    if (newText.length === prev.length + 1) {
-      const insertIdx = qaSelRef.current.start;
-      if (insertIdx >= 0 && insertIdx < newText.length && newText[insertIdx] === "\n") {
-        let lineStart = insertIdx;
-        while (lineStart > 0 && prev[lineStart - 1] !== "\n") lineStart--;
-        const currentLine = prev.slice(lineStart, insertIdx);
-
-        if (currentLine === "- ") {
-          const result = prev.slice(0, lineStart) + newText.slice(insertIdx + 1);
-          prevQANotesRef.current = result;
-          setNotes(result);
-          return;
-        }
-        if (currentLine.startsWith("- ")) {
-          const result = newText.slice(0, insertIdx + 1) + "- " + newText.slice(insertIdx + 1);
-          prevQANotesRef.current = result;
-          setNotes(result);
-          return;
-        }
-      }
-    }
-
-    setNotes(newText);
-  }, []);
+  const titleInputRef = useRef<TextInput>(null);
 
   // Emojis for the currently-selected category
   const displayEmojis = useMemo(() => {
@@ -943,7 +906,8 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
   useEffect(() => {
     if (visible) {
-      setTitle(""); setNotes(""); setLinkUrl(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
+      setTitle(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
+      setTimeout(() => titleInputRef.current?.focus(), 350);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
       if (isTablet) {
@@ -1031,11 +995,6 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       priOptions: schema?.priOptions ?? null,
       categoryType: schema?.categoryType ?? "select",
       ...(localCat === EPIC_CAT_VALUE && selEpic ? { epic: selEpic, epicType: schema?.epicType ?? "select" } : {}),
-      ...(linkUrl.trim() ? {
-        url: linkUrl.trim(),
-        referenceType: schema?.referenceType ?? "url",
-        referencePropertyName: schema?.referencePropertyName ?? null,
-      } : {}),
     };
     console.log("[handleSave] payload:", JSON.stringify(payload));
     console.log("[handleSave] schema:", JSON.stringify(schema));
@@ -1047,19 +1006,11 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       .then(r => r.json())
       .then(data => {
         if (!data.id) throw new Error("no id");
-        const n = notes.trim();
-        if (n) {
-          fetch(`${BASE_URL}/api/notion/page-blocks/${data.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
-            body: JSON.stringify({ body: n }),
-          }).catch(() => {});
-        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null });
       });
     runLoader(apiPromise);
-  }, [title, notes, linkUrl, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
+  }, [title, selEmoji, localCat, apiKey, schema, loaderVisible, runLoader, onAdded]);
 
   const bg      = bgAnim.interpolate({ inputRange: [0,1], outputRange: ["rgba(0,0,0,0)","rgba(0,0,0,0.88)"] });
   const cardW   = Math.min(740, screenW * 0.90);
@@ -1086,6 +1037,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       <Text style={s.dsFieldLabel}>Summary</Text>
       <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
         <TextInput
+          ref={titleInputRef}
           style={s.dsTitleInput}
           value={title}
           onChangeText={setTitle}
@@ -1160,24 +1112,6 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       )}
 
       <View style={[s.dsDivider, { marginTop: 16 }]} />
-      <FormattingToolbar onFormat={handleFormatQA} link={linkUrl} onLinkChange={setLinkUrl} />
-
-      {/* Notes body */}
-      <TextInput
-        ref={qaNotesRef}
-        style={[s.dsNotesInput, { minHeight: isTablet ? 180 : 80, paddingHorizontal: 20, paddingVertical: 14, marginTop: 4 }]}
-        value={notes}
-        onChangeText={handleQABodyChange}
-        onSelectionChange={e => { qaSelRef.current = e.nativeEvent.selection; }}
-        multiline
-        placeholder="Add notes…"
-        placeholderTextColor={Colors.textMuted}
-        selectionColor={Colors.primary}
-        keyboardAppearance="dark"
-        textAlignVertical="top"
-      />
-
-      <View style={s.dsDivider} />
 
       {/* Buttons */}
       <View style={s.dsActions}>
