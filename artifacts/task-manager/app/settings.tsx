@@ -122,7 +122,7 @@ function Accordion({
 
 const acc = StyleSheet.create({
   wrapper: {
-    backgroundColor: "#17171a",
+    backgroundColor: "#141416",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",
@@ -140,7 +140,7 @@ const acc = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 13,
-    backgroundColor: "rgba(255,255,255,0.025)",
+    backgroundColor: "transparent",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
   iconBox: {
