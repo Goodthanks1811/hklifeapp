@@ -324,6 +324,24 @@ Without step 3–5, the entitlement is in the binary but not in the provisioning
 
 ---
 
+### 14. Apple Music shows "Install Required" in real native build
+
+**Symptom**: Even in an EAS-built IPA (not Expo Go), the Apple Music screen shows "Install Required". The JS bundle loads fine but `requireNativeModule("AppleMusicKit")` throws because the Swift module was never compiled into the binary.
+
+**Cause**: `apple-musickit` is declared as `"file:./modules/apple-musickit"` in `package.json`. pnpm hoists it to the **workspace root** `node_modules/` during install, not `artifacts/task-manager/node_modules/`. Expo's auto-linker (`expo-modules-autolinking`) generates the Xcode project by scanning `node_modules` relative to the app package — it doesn't find the module at the workspace root, so the Swift code is never compiled in. The Metro `LOCAL_MODULES` fix only solves the JS bundle side; native auto-linking is a separate step.
+
+**Fix**: Add `expo.autolinking.extraSearchPaths` to `package.json` so Expo's auto-linker scans the `modules/` directory directly, regardless of where pnpm puts the package:
+```json
+"expo": {
+  "autolinking": {
+    "extraSearchPaths": ["./modules"]
+  }
+}
+```
+This makes `expo prebuild` find `modules/apple-musickit/expo-module.config.json` and compile `AppleMusicKitModule.swift` into every build.
+
+---
+
 ### 13. Apple Music native module (apple-musickit)
 
 A local Expo module at `modules/apple-musickit/` provides direct access to the user's Apple Music library using `MPMediaLibrary` and `MPMusicPlayerController`. It is **EAS-only** — the native Swift code is not available in Expo Go, which shows an "Install Required" state on the Apple Music screen.
