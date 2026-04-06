@@ -2187,11 +2187,11 @@ const s = StyleSheet.create({
   },
   dsMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   dsEmojiChip: {
-    width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.cardBgElevated,
+    width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.cardBgElevated,
     alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border,
   },
   dsEmojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
-  dsEmojiText: { fontSize: 22 },
+  dsEmojiText: { fontSize: 20 },
   dsEpicChip: {
     paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
     borderWidth: 1, borderColor: Colors.border,
@@ -2265,11 +2265,11 @@ const s = StyleSheet.create({
   },
   qaEmojiRow: { flexDirection: "row", gap: 10, marginBottom: 20, flexWrap: "wrap" },
   qaEmoji: {
-    width: 50, height: 50, borderRadius: 12, backgroundColor: Colors.cardBgElevated,
+    width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.cardBgElevated,
     alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border,
   },
   qaEmojiActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
-  qaEmojiText: { fontSize: 24 },
+  qaEmojiText: { fontSize: 20 },
   qaAddBtn: {
     backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 15,
     alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6,
