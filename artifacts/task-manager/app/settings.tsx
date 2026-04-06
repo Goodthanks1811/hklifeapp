@@ -122,10 +122,10 @@ function Accordion({
 
 const acc = StyleSheet.create({
   wrapper: {
-    backgroundColor: "#141416",
+    backgroundColor: "#0f0f0f",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "#2A2A2A",
     overflow: "hidden",
     marginBottom: 10,
     shadowColor: "#000",
@@ -230,10 +230,10 @@ const sacc = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#141416",
+    backgroundColor: "#1a1a1a",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "#2A2A2A",
     paddingHorizontal: 14,
     paddingVertical: 12,
     shadowColor: "#000",
@@ -1519,8 +1519,8 @@ const styles = StyleSheet.create({
   fieldLabel: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4, marginBottom: 6 },
   inputRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "#141416", borderRadius: 12,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", paddingRight: 10,
+    backgroundColor: "#1a1a1a", borderRadius: 12,
+    borderWidth: 1, borderColor: "#2A2A2A", paddingRight: 10,
   },
   input: {
     flex: 1, color: Colors.textPrimary, fontSize: 14, fontFamily: "Inter_400Regular",
@@ -1587,9 +1587,9 @@ const styles = StyleSheet.create({
 
   toggleRow: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "#141416",
+    backgroundColor: "#1a1a1a",
     borderRadius: 14, borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "#2A2A2A",
     padding: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1613,8 +1613,8 @@ const styles = StyleSheet.create({
 
   mPLRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#141416", borderRadius: 12,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "#1a1a1a", borderRadius: 12,
+    borderWidth: 1, borderColor: "#2A2A2A",
     paddingHorizontal: 14, paddingVertical: 11,
     marginBottom: 6,
   },
@@ -1628,8 +1628,8 @@ const styles = StyleSheet.create({
   mPLInput: {
     flex: 1, color: Colors.textPrimary, fontSize: 14,
     fontFamily: "Inter_400Regular",
-    backgroundColor: "#141416", borderRadius: 12,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "#1a1a1a", borderRadius: 12,
+    borderWidth: 1, borderColor: "#2A2A2A",
     paddingHorizontal: 14, paddingVertical: 11,
   },
   mPLAddBtn: {
