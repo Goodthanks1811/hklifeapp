@@ -907,7 +907,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   useEffect(() => {
     if (visible) {
       setTitle(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
-      setTimeout(() => titleInputRef.current?.focus(), 350);
+      setTimeout(() => titleInputRef.current?.focus(), 50);
       scaleAnim.setValue(0.93);
       slideAnim.setValue(500);
       if (isTablet) {
