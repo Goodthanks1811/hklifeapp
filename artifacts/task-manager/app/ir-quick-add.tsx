@@ -486,9 +486,8 @@ export default function IRQuickAdd() {
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
-            style={[styles.saveBtn, (!schema || saveDisabled) && styles.saveBtnDisabled]}
+            style={styles.saveBtn}
             onPress={handleSave}
-            disabled={!schema || saveDisabled}
           >
             <Text style={styles.saveBtnText}>Save</Text>
           </TouchableOpacity>
