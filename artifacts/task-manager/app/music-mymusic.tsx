@@ -30,9 +30,7 @@ const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#888";
 
-// Life Admin row height
-const ITEM_H      = 48;
-// Player height — sized to match the home-screen panel
+const ITEM_H      = 52;
 const PLAYER_H    = 280;
 
 const BAR_COUNT   = 7;
@@ -280,9 +278,9 @@ export default function MusicMyMusicScreen() {
               </View>
             </View>
 
-            {/* Progress bar (scrubable) */}
+            {/* Progress bar — 24px hit area wrapping the 4px visible track */}
             <View
-              style={st.progressWrap}
+              style={st.progressHitArea}
               onLayout={e => { progressBarWidth.current = e.nativeEvent.layout.width; }}
               onStartShouldSetResponder={() => true}
               onMoveShouldSetResponder={() => true}
@@ -290,7 +288,9 @@ export default function MusicMyMusicScreen() {
               onResponderMove={handleSeek}
               onResponderRelease={handleSeek}
             >
-              <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+              <View style={st.progressWrap}>
+                <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
+              </View>
             </View>
 
             {/* Controls */}
@@ -343,7 +343,7 @@ const st = StyleSheet.create({
   },
   rowActive:      { borderColor: "rgba(224,49,49,0.35)" },
   rowIcon: {
-    width: 32, height: 32, borderRadius: 8,
+    width: 36, height: 36, borderRadius: 9,
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
   },
@@ -394,9 +394,10 @@ const st = StyleSheet.create({
   },
   npTitle:  { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff", marginBottom: 4 },
   npArtist: { fontSize: 13, fontFamily: "Inter_400Regular", color: GREY },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 30 },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, marginBottom: 30, overflow: "hidden",
+    borderRadius: 2, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
   controls:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
