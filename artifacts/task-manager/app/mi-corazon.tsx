@@ -151,12 +151,13 @@ function Viewer({
 
   const panResponder = useRef(
     PanResponder.create({
-      // Bubble: grab any downward drag
-      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-        dy > 2 && Math.abs(dy) >= Math.abs(dx),
-      // Capture: steal from inner ScrollView/FlatList before they see the event
-      onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
-        dy > 4 && Math.abs(dy) > Math.abs(dx) * 0.8,
+      // Bubble: grab any downward drag — single finger only (2 fingers = pinch zoom)
+      onMoveShouldSetPanResponder: (evt, { dx, dy }) =>
+        evt.nativeEvent.touches.length === 1 && dy > 2 && Math.abs(dy) >= Math.abs(dx),
+      // Capture: steal from inner ScrollView/FlatList — single finger only
+      // iPad was intercepting 2-finger pinch here before the ScrollView could zoom
+      onMoveShouldSetPanResponderCapture: (evt, { dx, dy }) =>
+        evt.nativeEvent.touches.length === 1 && dy > 4 && Math.abs(dy) > Math.abs(dx) * 0.8,
       onPanResponderMove: (_, { dy }) => {
         if (dy > 0) dragY.setValue(dy);
       },
