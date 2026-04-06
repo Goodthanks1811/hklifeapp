@@ -261,7 +261,7 @@ export default function MusicMyMusicScreen() {
         <Animated.View style={[st.playerWrap, { height: playerHeight, opacity: playerOpacity }]}>
           <View style={[st.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
 
-            {/* Top row: artwork + title + time */}
+            {/* Top row: artwork + title */}
             <View style={st.npTop}>
               <View style={st.npArt}>
                 <Feather name="music" size={30} color={RED} />
@@ -269,11 +269,6 @@ export default function MusicMyMusicScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={st.npTitle} numberOfLines={1}>
                   {player.track?.name ?? ""}
-                </Text>
-                <Text style={st.npArtist} numberOfLines={1}>
-                  {player.durMs > 0
-                    ? `${fmtMs(player.posMs)} / ${fmtMs(player.durMs)}`
-                    : "Loading..."}
                 </Text>
               </View>
             </View>
@@ -291,6 +286,12 @@ export default function MusicMyMusicScreen() {
               <View style={st.progressWrap}>
                 <View style={[st.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
               </View>
+            </View>
+
+            {/* Timestamps below scrubber */}
+            <View style={st.timeRow}>
+              <Text style={st.timeText}>{fmtMs(player.posMs)}</Text>
+              <Text style={st.timeText}>{player.durMs > 0 ? fmtMs(player.durMs) : "--:--"}</Text>
             </View>
 
             {/* Controls */}
@@ -394,9 +395,10 @@ const st = StyleSheet.create({
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
-  npTitle:  { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff", marginBottom: 4 },
-  npArtist: { fontSize: 13, fontFamily: "Inter_400Regular", color: GREY },
-  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 14 },
+  npTitle:  { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
+  timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  timeText: { fontSize: 12, fontFamily: "Inter_400Regular", color: GREY },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, overflow: "hidden",

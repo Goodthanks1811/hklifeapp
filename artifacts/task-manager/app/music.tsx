@@ -177,11 +177,9 @@ export default function MusicScreen() {
               <Text style={s.npTitle} numberOfLines={1}>
                 {hasTrack ? player.track!.name : "Nothing playing"}
               </Text>
-              <Text style={s.npArtist} numberOfLines={1}>
-                {hasTrack && player.durMs > 0
-                  ? `${fmtMs(player.posMs)} / ${fmtMs(player.durMs)}`
-                  : "Play a track in My Music"}
-              </Text>
+              {!hasTrack && (
+                <Text style={s.npArtist} numberOfLines={1}>Play a track in My Music</Text>
+              )}
             </View>
           </View>
           <View
@@ -197,6 +195,12 @@ export default function MusicScreen() {
               <View style={[s.progressFill, { width: `${(progress * 100).toFixed(1)}%` }]} />
             </View>
           </View>
+          {hasTrack && (
+            <View style={s.timeRow}>
+              <Text style={s.timeText}>{fmtMs(player.posMs)}</Text>
+              <Text style={s.timeText}>{player.durMs > 0 ? fmtMs(player.durMs) : "--:--"}</Text>
+            </View>
+          )}
           <View style={s.controls}>
             <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipBack()}>
               <Ionicons name="play-skip-back" size={26} color={hasTrack ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)"} />
@@ -273,7 +277,9 @@ const s = StyleSheet.create({
   },
   npTitle:  { fontSize: 18, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 4 },
   npArtist: { fontSize: 13, color: GREY, fontFamily: "Inter_400Regular" },
-  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 14 },
+  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
+  timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  timeText: { fontSize: 12, fontFamily: "Inter_400Regular", color: GREY },
   progressWrap: {
     height: 4, backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 2, overflow: "hidden",
