@@ -811,8 +811,12 @@ export default function SettingsScreen() {
 
   const addSpotifyPL    = () => { const n = newSpotifyName.trim(); if (!n) return; saveSpotify([...spotifyPL, { name: n, url: newSpotifyURL.trim() }]); setNewSpotifyName(""); setNewSpotifyURL(""); };
   const removeSpotifyPL = (i: number) => { if (editSpotifyIdx === i) setEditSpotifyIdx(null); saveSpotify(spotifyPL.filter((_, idx) => idx !== i)); };
+  const moveSpotifyUp   = (i: number) => { if (i === 0) return; const next = [...spotifyPL]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; saveSpotify(next); };
+  const moveSpotifyDown = (i: number) => { if (i === spotifyPL.length - 1) return; const next = [...spotifyPL]; [next[i], next[i + 1]] = [next[i + 1], next[i]]; saveSpotify(next); };
   const addApplePL      = () => { const n = newAppleName.trim(); if (!n) return; saveApple([...applePL, { name: n, url: newAppleURL.trim() }]); setNewAppleName(""); setNewAppleURL(""); };
   const removeApplePL   = (i: number) => { if (editAppleIdx === i) setEditAppleIdx(null); saveApple(applePL.filter((_, idx) => idx !== i)); };
+  const moveAppleUp     = (i: number) => { if (i === 0) return; const next = [...applePL]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; saveApple(next); };
+  const moveAppleDown   = (i: number) => { if (i === applePL.length - 1) return; const next = [...applePL]; [next[i], next[i + 1]] = [next[i + 1], next[i]]; saveApple(next); };
 
   const [editSpotifyIdx,  setEditSpotifyIdx]  = useState<number | null>(null);
   const [editSpotifyName, setEditSpotifyName] = useState("");
@@ -1296,7 +1300,23 @@ export default function SettingsScreen() {
                         {pl.url || "Tap pencil to add URL"}
                       </Text>
                     </View>
-                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startEditSpotify(i); }} hitSlop={8} style={{ marginRight: 10 }}>
+                    <View style={mStyles.arrows}>
+                      <Pressable
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveSpotifyUp(i); }}
+                        style={({ pressed }) => [mStyles.arrowBtn, (i === 0 || pressed) && mStyles.arrowBtnDim]}
+                        hitSlop={5}
+                      >
+                        <Feather name="chevron-up" size={15} color={i === 0 ? Colors.textMuted : Colors.textSecondary} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveSpotifyDown(i); }}
+                        style={({ pressed }) => [mStyles.arrowBtn, (i === spotifyPL.length - 1 || pressed) && mStyles.arrowBtnDim]}
+                        hitSlop={5}
+                      >
+                        <Feather name="chevron-down" size={15} color={i === spotifyPL.length - 1 ? Colors.textMuted : Colors.textSecondary} />
+                      </Pressable>
+                    </View>
+                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startEditSpotify(i); }} hitSlop={8} style={{ marginLeft: 6, marginRight: 10 }}>
                       <Feather name="edit-2" size={14} color={Colors.textMuted} />
                     </Pressable>
                     <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeSpotifyPL(i); }} hitSlop={8}>
@@ -1380,7 +1400,23 @@ export default function SettingsScreen() {
                         {pl.url || "Tap pencil to add URL"}
                       </Text>
                     </View>
-                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startEditApple(i); }} hitSlop={8} style={{ marginRight: 10 }}>
+                    <View style={mStyles.arrows}>
+                      <Pressable
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveAppleUp(i); }}
+                        style={({ pressed }) => [mStyles.arrowBtn, (i === 0 || pressed) && mStyles.arrowBtnDim]}
+                        hitSlop={5}
+                      >
+                        <Feather name="chevron-up" size={15} color={i === 0 ? Colors.textMuted : Colors.textSecondary} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveAppleDown(i); }}
+                        style={({ pressed }) => [mStyles.arrowBtn, (i === applePL.length - 1 || pressed) && mStyles.arrowBtnDim]}
+                        hitSlop={5}
+                      >
+                        <Feather name="chevron-down" size={15} color={i === applePL.length - 1 ? Colors.textMuted : Colors.textSecondary} />
+                      </Pressable>
+                    </View>
+                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startEditApple(i); }} hitSlop={8} style={{ marginLeft: 6, marginRight: 10 }}>
                       <Feather name="edit-2" size={14} color={Colors.textMuted} />
                     </Pressable>
                     <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeApplePL(i); }} hitSlop={8}>
