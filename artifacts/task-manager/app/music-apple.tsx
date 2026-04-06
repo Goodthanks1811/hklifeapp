@@ -57,10 +57,25 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[s.eqBar, { height }]} />;
 }
 
-const DEFAULT_PLAYLISTS = ["Bone Greatest Hits","2pac Greatest Hits","Snoop Greatest Hits","DMX Greatest Hits","Eminem Greatest Hits","The Repeat List","Old School Rnb","Driving","Pre Gym","2022 New Stuff","Faydee","Carnal Hits"];
+type ApplePL = { name: string; url: string };
+
+const DEFAULT_PLAYLISTS: ApplePL[] = [
+  { name: "Bone Greatest Hits",   url: "" },
+  { name: "2pac Greatest Hits",   url: "" },
+  { name: "Snoop Greatest Hits",  url: "" },
+  { name: "DMX Greatest Hits",    url: "" },
+  { name: "Eminem Greatest Hits", url: "" },
+  { name: "The Repeat List",      url: "" },
+  { name: "Old School Rnb",       url: "" },
+  { name: "Driving",              url: "" },
+  { name: "Pre Gym",              url: "" },
+  { name: "2022 New Stuff",       url: "" },
+  { name: "Faydee",               url: "" },
+  { name: "Carnal Hits",          url: "" },
+];
 
 export default function MusicAppleScreen() {
-  const [playlists, setPlaylists] = useState<string[]>(DEFAULT_PLAYLISTS);
+  const [playlists, setPlaylists] = useState<ApplePL[]>(DEFAULT_PLAYLISTS);
 
   useFocusEffect(useCallback(() => {
     AsyncStorage.getItem("music_apple_playlists").then(v => {
@@ -70,8 +85,17 @@ export default function MusicAppleScreen() {
   const insets = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
-  const openAppleMusic = () => {
-    Linking.openURL("music://").catch(() => Linking.openURL("https://music.apple.com"));
+  const openPlaylist = (pl: ApplePL) => {
+    const target = pl.url.trim();
+    if (target) {
+      Linking.openURL(target).catch(() =>
+        Linking.openURL("https://music.apple.com")
+      );
+    } else {
+      Linking.openURL("music://").catch(() =>
+        Linking.openURL("https://music.apple.com")
+      );
+    }
   };
 
   return (
@@ -87,16 +111,16 @@ export default function MusicAppleScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-        {playlists.map((name, i) => (
+        {playlists.map((pl, i) => (
           <Pressable
             key={i}
             style={({ pressed }) => [s.row, pressed && s.rowPressed]}
-            onPress={openAppleMusic}
+            onPress={() => openPlaylist(pl)}
           >
             <View style={s.iconCell}>
               <Feather name="headphones" size={18} color={RED} />
             </View>
-            <Text style={s.rowName}>{name}</Text>
+            <Text style={s.rowName}>{pl.name}</Text>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.2)" />
           </Pressable>
         ))}
