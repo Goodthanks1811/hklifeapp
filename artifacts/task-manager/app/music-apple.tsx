@@ -60,9 +60,10 @@ export default function MusicAppleScreen() {
   const isTablet = Dimensions.get("window").width >= 768;
 
   const [authStatus, setAuthStatus]   = useState<AuthStatus>("loading");
-  const [playlists, setPlaylists]     = useState<ApplePlaylist[]>([]);
-  const [playingId, setPlayingId]     = useState<string | null>(null);
-  const [loadingId, setLoadingId]     = useState<string | null>(null);
+  const [playlists,   setPlaylists]   = useState<ApplePlaylist[]>([]);
+  const [playingId,   setPlayingId]   = useState<string | null>(null);
+  const [loadingId,   setLoadingId]   = useState<string | null>(null);
+  const [noneSelected, setNoneSelected] = useState(false);
 
   const fetchPlaylists = useCallback(async () => {
     if (!AppleMusicKit) { setAuthStatus("unavailable"); return; }
@@ -73,10 +74,18 @@ export default function MusicAppleScreen() {
         const all: ApplePlaylist[] = await AppleMusicKit.getPlaylists();
         // Save full library so Settings can show the toggle list
         await AsyncStorage.setItem("music_apple_known_playlists", JSON.stringify(all));
-        // Filter by pinned IDs if the user has configured a selection
+        // null = never configured (first time) → show all
+        // [] or [ids] = user has made a selection → respect it exactly
         const pinnedRaw = await AsyncStorage.getItem("music_apple_pinned");
-        const pinned: string[] = pinnedRaw ? JSON.parse(pinnedRaw) : [];
-        setPlaylists(pinned.length > 0 ? all.filter(p => pinned.includes(p.id)) : all);
+        if (pinnedRaw === null) {
+          setNoneSelected(false);
+          setPlaylists(all);
+        } else {
+          const pinned: string[] = JSON.parse(pinnedRaw);
+          const filtered = all.filter(p => pinned.includes(p.id));
+          setNoneSelected(filtered.length === 0);
+          setPlaylists(filtered);
+        }
       }
     } catch {
       setAuthStatus("denied");
@@ -142,7 +151,11 @@ export default function MusicAppleScreen() {
     if (playlists.length === 0) {
       return (
         <View style={s.centred}>
-          <Text style={s.stateBody}>No playlists found in your library.</Text>
+          <Text style={s.stateBody}>
+            {noneSelected
+              ? "No playlists selected.\nGo to Settings → Music → Apple Music Playlists to choose what to show."
+              : "No playlists found in your library."}
+          </Text>
         </View>
       );
     }

@@ -1345,10 +1345,15 @@ export default function SettingsScreen() {
                 </View>
               ) : (
                 <>
+                  <View style={{ paddingVertical: 6, paddingHorizontal: 2, marginBottom: 4 }}>
+                    <Text style={styles.mPLUrl}>
+                      {applePinned.length === 0
+                        ? "None selected — tap playlists to add them"
+                        : `${applePinned.length} playlist${applePinned.length !== 1 ? "s" : ""} selected`}
+                    </Text>
+                  </View>
                   {appleKnown.map(pl => {
-                    const pinned = applePinned.includes(pl.id);
-                    const allShown = applePinned.length === 0;
-                    const active = allShown || pinned;
+                    const isPinned = applePinned.includes(pl.id);
                     return (
                       <Pressable
                         key={pl.id}
@@ -1356,19 +1361,19 @@ export default function SettingsScreen() {
                         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleApplePinned(pl.id); }}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.mPLName, !active && { color: Colors.textMuted }]} numberOfLines={1}>{pl.name}</Text>
+                          <Text style={[styles.mPLName, !isPinned && { color: Colors.textMuted }]} numberOfLines={1}>{pl.name}</Text>
                           {pl.count > 0 && <Text style={styles.mPLUrl}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>}
                         </View>
-                        <View style={[mStyles.appleCheck, active && mStyles.appleCheckOn]}>
-                          {active && <Feather name="check" size={12} color="#fff" />}
+                        <View style={[mStyles.appleCheck, isPinned && mStyles.appleCheckOn]}>
+                          {isPinned && <Feather name="check" size={12} color="#fff" />}
                         </View>
                       </Pressable>
                     );
                   })}
                   {applePinned.length > 0 && (
                     <Pressable style={({ pressed }) => [styles.clearBtn, { marginTop: 4 }, pressed && { opacity: 0.7 }]} onPress={clearApplePinned}>
-                      <Feather name="refresh-ccw" size={14} color={Colors.textSecondary} />
-                      <Text style={styles.clearBtnText}>Show all playlists</Text>
+                      <Feather name="x" size={14} color={Colors.textSecondary} />
+                      <Text style={styles.clearBtnText}>Clear selection</Text>
                     </Pressable>
                   )}
                 </>
