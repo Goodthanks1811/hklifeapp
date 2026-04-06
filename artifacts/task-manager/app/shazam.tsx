@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable } from "react-native-gesture-handler";
+import { Swipeable, TouchableOpacity as GHTouchable } from "react-native-gesture-handler";
 import { router } from "expo-router";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
@@ -371,8 +371,8 @@ export default function ShazamScreen() {
         )}
       </Animated.View>
 
-      {/* ── Fixed back zone — rendered last so it's above all scroll content ── */}
-      <Pressable style={styles.backZone} onPress={() => router.back()} />
+      {/* ── Fixed back zone — RNGH TouchableOpacity so it isn't eaten by Swipeable ── */}
+      <GHTouchable style={styles.backZone} onPress={() => router.back()} activeOpacity={1} />
     </View>
   );
 }
