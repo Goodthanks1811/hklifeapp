@@ -2073,7 +2073,7 @@ const s = StyleSheet.create({
   // ── Epic picker popover (vertical list, to the left) ────────────────────
   epicPopover: {
     position: "absolute",
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.pageBg,
     borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
     padding: 6, gap: 4,
     shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
