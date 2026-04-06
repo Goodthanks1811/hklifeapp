@@ -758,23 +758,37 @@ export default function SettingsScreen() {
   // Holds the temp file path for a newly picked image (not yet committed to context)
   const [pendingUri, setPendingUri] = useState<string | null>(null);
 
-  const DEFAULT_SPOTIFY_PL = ["Liked Songs","March 2026","Sept 2022","Carnal Favourites","Krayzie Bone","October 2025","Jony","UB40","Tyga Mix","Old School RnB"];
-  const DEFAULT_APPLE_PL   = ["Bone Greatest Hits","2pac Greatest Hits","Snoop Greatest Hits","DMX Greatest Hits","Eminem Greatest Hits","The Repeat List","Old School Rnb","Driving","Pre Gym","2022 New Stuff","Faydee","Carnal Hits"];
+  type SpotifyPL = { name: string; url: string };
 
-  const [spotifyPL,    setSpotifyPL]    = useState<string[]>(DEFAULT_SPOTIFY_PL);
-  const [applePL,      setApplePL]      = useState<string[]>(DEFAULT_APPLE_PL);
-  const [newSpotifyPL, setNewSpotifyPL] = useState("");
-  const [newApplePL,   setNewApplePL]   = useState("");
+  const DEFAULT_SPOTIFY_PL: SpotifyPL[] = [
+    { name: "Liked Songs",       url: "" },
+    { name: "March 2026",        url: "" },
+    { name: "Sept 2022",         url: "" },
+    { name: "Carnal Favourites", url: "" },
+    { name: "Krayzie Bone",      url: "" },
+    { name: "October 2025",      url: "" },
+    { name: "Jony",              url: "" },
+    { name: "UB40",              url: "" },
+    { name: "Tyga Mix",          url: "" },
+    { name: "Old School RnB",    url: "" },
+  ];
+  const DEFAULT_APPLE_PL = ["Bone Greatest Hits","2pac Greatest Hits","Snoop Greatest Hits","DMX Greatest Hits","Eminem Greatest Hits","The Repeat List","Old School Rnb","Driving","Pre Gym","2022 New Stuff","Faydee","Carnal Hits"];
+
+  const [spotifyPL,       setSpotifyPL]       = useState<SpotifyPL[]>(DEFAULT_SPOTIFY_PL);
+  const [applePL,         setApplePL]         = useState<string[]>(DEFAULT_APPLE_PL);
+  const [newSpotifyName,  setNewSpotifyName]  = useState("");
+  const [newSpotifyURL,   setNewSpotifyURL]   = useState("");
+  const [newApplePL,      setNewApplePL]      = useState("");
 
   useEffect(() => {
     AsyncStorage.getItem("music_spotify_playlists").then(v => { if (v) setSpotifyPL(JSON.parse(v)); });
     AsyncStorage.getItem("music_apple_playlists").then(v => { if (v) setApplePL(JSON.parse(v)); });
   }, []);
 
-  const saveSpotify = (list: string[]) => { setSpotifyPL(list); AsyncStorage.setItem("music_spotify_playlists", JSON.stringify(list)); };
-  const saveApple   = (list: string[]) => { setApplePL(list);   AsyncStorage.setItem("music_apple_playlists",   JSON.stringify(list)); };
+  const saveSpotify = (list: SpotifyPL[]) => { setSpotifyPL(list); AsyncStorage.setItem("music_spotify_playlists", JSON.stringify(list)); };
+  const saveApple   = (list: string[])    => { setApplePL(list);    AsyncStorage.setItem("music_apple_playlists",   JSON.stringify(list)); };
 
-  const addSpotifyPL    = () => { const n = newSpotifyPL.trim(); if (!n) return; saveSpotify([...spotifyPL, n]); setNewSpotifyPL(""); };
+  const addSpotifyPL    = () => { const n = newSpotifyName.trim(); if (!n) return; saveSpotify([...spotifyPL, { name: n, url: newSpotifyURL.trim() }]); setNewSpotifyName(""); setNewSpotifyURL(""); };
   const removeSpotifyPL = (i: number) => saveSpotify(spotifyPL.filter((_, idx) => idx !== i));
   const addApplePL      = () => { const n = newApplePL.trim(); if (!n) return; saveApple([...applePL, n]); setNewApplePL(""); };
   const removeApplePL   = (i: number) => saveApple(applePL.filter((_, idx) => idx !== i));
@@ -1184,22 +1198,41 @@ export default function SettingsScreen() {
 
             {/* ── Spotify Playlists ── */}
             <SubAccordion title="Spotify Playlists" icon="headphones" defaultOpen={false}>
-              {spotifyPL.map((name, i) => (
+              {spotifyPL.map((pl, i) => (
                 <View key={i} style={styles.mPLRow}>
-                  <Text style={styles.mPLName} numberOfLines={1}>{name}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.mPLName} numberOfLines={1}>{pl.name}</Text>
+                    {!!pl.url && (
+                      <Text style={styles.mPLUrl} numberOfLines={1}>{pl.url}</Text>
+                    )}
+                    {!pl.url && (
+                      <Text style={[styles.mPLUrl, { color: "rgba(255,255,255,0.2)" }]}>No URL set</Text>
+                    )}
+                  </View>
                   <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeSpotifyPL(i); }} hitSlop={8}>
                     <Feather name="x" size={15} color={Colors.textMuted} />
                   </Pressable>
                 </View>
               ))}
+              <TextInput
+                style={[styles.mPLInput, { marginTop: 8 }]}
+                value={newSpotifyName}
+                onChangeText={setNewSpotifyName}
+                placeholder="Playlist name..."
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                keyboardAppearance="dark"
+                returnKeyType="next"
+              />
               <View style={styles.mPLAddRow}>
                 <TextInput
-                  style={styles.mPLInput}
-                  value={newSpotifyPL}
-                  onChangeText={setNewSpotifyPL}
-                  placeholder="Add playlist name..."
+                  style={[styles.mPLInput, { flex: 1 }]}
+                  value={newSpotifyURL}
+                  onChangeText={setNewSpotifyURL}
+                  placeholder="Spotify URL..."
                   placeholderTextColor={Colors.textMuted}
-                  autoCapitalize="words"
+                  autoCapitalize="none"
                   autoCorrect={false}
                   keyboardAppearance="dark"
                   returnKeyType="done"
@@ -1527,7 +1560,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 11,
     marginBottom: 6,
   },
-  mPLName: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
+  mPLName: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
+  mPLUrl:  { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
 
   mPLAddRow: {
     flexDirection: "row", alignItems: "center", gap: 8,

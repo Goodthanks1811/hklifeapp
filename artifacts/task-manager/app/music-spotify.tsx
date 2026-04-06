@@ -58,10 +58,23 @@ function EqBar({ index, color }: { index: number; color: string }) {
   return <Animated.View style={[s.eqBar, { height, backgroundColor: color }]} />;
 }
 
-const DEFAULT_PLAYLISTS = ["Liked Songs","March 2026","Sept 2022","Carnal Favourites","Krayzie Bone","October 2025","Jony","UB40","Tyga Mix","Old School RnB"];
+type SpotifyPL = { name: string; url: string };
+
+const DEFAULT_PLAYLISTS: SpotifyPL[] = [
+  { name: "Liked Songs",       url: "" },
+  { name: "March 2026",        url: "" },
+  { name: "Sept 2022",         url: "" },
+  { name: "Carnal Favourites", url: "" },
+  { name: "Krayzie Bone",      url: "" },
+  { name: "October 2025",      url: "" },
+  { name: "Jony",              url: "" },
+  { name: "UB40",              url: "" },
+  { name: "Tyga Mix",          url: "" },
+  { name: "Old School RnB",    url: "" },
+];
 
 export default function MusicSpotifyScreen() {
-  const [playlists, setPlaylists] = useState<string[]>(DEFAULT_PLAYLISTS);
+  const [playlists, setPlaylists] = useState<SpotifyPL[]>(DEFAULT_PLAYLISTS);
 
   useFocusEffect(useCallback(() => {
     AsyncStorage.getItem("music_spotify_playlists").then(v => {
@@ -71,8 +84,12 @@ export default function MusicSpotifyScreen() {
   const insets = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
-  const openSpotify = () => {
-    Linking.openURL("spotify://").catch(() => Linking.openURL("https://open.spotify.com"));
+  const openPlaylist = (url: string) => {
+    if (!url) {
+      Linking.openURL("spotify://").catch(() => Linking.openURL("https://open.spotify.com"));
+      return;
+    }
+    Linking.openURL(url).catch(() => Linking.openURL("https://open.spotify.com"));
   };
 
   return (
@@ -88,16 +105,16 @@ export default function MusicSpotifyScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-        {playlists.map((name, i) => (
+        {playlists.map((pl, i) => (
           <Pressable
             key={i}
             style={({ pressed }) => [s.row, pressed && s.rowPressed]}
-            onPress={openSpotify}
+            onPress={() => openPlaylist(pl.url)}
           >
             <View style={s.iconCell}>
               <Feather name="headphones" size={20} color={GREEN} />
             </View>
-            <Text style={s.rowName}>{name}</Text>
+            <Text style={s.rowName}>{pl.name}</Text>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.2)" />
           </Pressable>
         ))}
