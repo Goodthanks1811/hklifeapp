@@ -47,6 +47,12 @@ for (const pkg of ["react", "react-dom", "scheduler"]) {
 // Stub path for packages that require native modules unavailable on web
 const RNTP_STUB = path.resolve(projectRoot, "stubs/react-native-track-player.js");
 
+// Local native modules that pnpm hoists to the workspace root — point Metro
+// directly at the source so require() works regardless of where pnpm puts them.
+const LOCAL_MODULES = {
+  "apple-musickit": path.resolve(projectRoot, "modules/apple-musickit/index.ts"),
+};
+
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // On web, redirect react-native-track-player (and its internal web shaka dep)
@@ -58,6 +64,11 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     ) {
       return { type: "sourceFile", filePath: RNTP_STUB };
     }
+  }
+
+  // Local native modules: resolve directly so pnpm hoisting doesn't break them.
+  if (LOCAL_MODULES[moduleName]) {
+    return { type: "sourceFile", filePath: LOCAL_MODULES[moduleName] };
   }
 
   const override = SINGLETONS[moduleName];

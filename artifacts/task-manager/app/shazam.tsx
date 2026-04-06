@@ -189,7 +189,6 @@ function ListHeader() {
   return (
     <View style={styles.logoWrap}>
       <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
-      <Pressable style={styles.backZone} onPress={() => router.back()} />
     </View>
   );
 }
@@ -371,6 +370,9 @@ export default function ShazamScreen() {
           />
         )}
       </Animated.View>
+
+      {/* ── Fixed back zone — rendered last so it's above all scroll content ── */}
+      <Pressable style={styles.backZone} onPress={() => router.back()} />
     </View>
   );
 }
@@ -386,8 +388,9 @@ const styles = StyleSheet.create({
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
   // Logo header (in body, like IR Quick Add)
-  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36, position: "relative" },
+  logoWrap: { alignItems: "center", paddingTop: 24, paddingBottom: 36 },
   logo:     { width: 78, height: 78, borderRadius: 18 },
+  // Fixed overlay — rendered after all scroll content so z-order wins
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
 
   // States

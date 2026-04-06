@@ -335,6 +335,10 @@ Three functions:
 
 The module is added as `"apple-musickit": "file:./modules/apple-musickit"` in package.json and auto-linked by Expo during the native build.
 
+**pnpm hoisting problem**: pnpm installs `apple-musickit` at the workspace root `node_modules/`, not inside `artifacts/task-manager/node_modules/`. Metro's `nodeModulesPaths` is intentionally restricted to the project's own `node_modules` (to avoid singleton React issues), so `require("apple-musickit")` would fail and the try/catch in `music-apple.tsx` would silently set `AppleMusicKit = null`, showing "Install Required" even in the real build.
+
+**Fix (already applied)**: A direct path override in `metro.config.js` (`LOCAL_MODULES` map) bypasses node_modules resolution entirely for `apple-musickit` and points Metro straight to `modules/apple-musickit/index.ts`. This works regardless of where pnpm hoists the package.
+
 ---
 
 ## EAS Project Details
