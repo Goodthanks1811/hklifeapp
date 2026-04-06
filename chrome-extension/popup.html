@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HK Life</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Settings overlay ──────────────────────────────────────────── -->
+  <div id="settings-overlay" class="hidden">
+    <div class="settings-card">
+      <div class="settings-header">
+        <span class="settings-title">Settings</span>
+        <button class="icon-btn" id="settings-close">✕</button>
+      </div>
+      <label class="settings-label">Notion API Key</label>
+      <input
+        id="notion-key-input"
+        class="settings-input"
+        type="password"
+        placeholder="secret_xxxxxxxxxxxxxxxx"
+        autocomplete="off"
+      />
+      <button id="save-key-btn" class="save-btn">Save</button>
+      <p id="save-msg" class="save-msg hidden">Saved ✓</p>
+    </div>
+  </div>
+
+  <!-- ── Main shell ─────────────────────────────────────────────────── -->
+  <div id="app">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="header-logo">HK</span>
+        <span class="header-title">Life</span>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn add-header-btn" id="header-add-btn" title="Quick Add">+</button>
+        <button class="icon-btn" id="settings-open-btn" title="Settings">⚙</button>
+      </div>
+    </header>
+
+    <!-- Category tabs -->
+    <nav class="cat-nav" id="cat-nav">
+      <!-- Injected by JS -->
+    </nav>
+
+    <!-- Quick-add bar (hidden by default) -->
+    <div class="quick-add-bar hidden" id="quick-add-bar">
+      <div class="qa-row">
+        <input
+          id="qa-input"
+          class="qa-input"
+          type="text"
+          placeholder="Add summary…"
+          autocomplete="off"
+        />
+        <button class="qa-submit-btn" id="qa-submit">Add</button>
+      </div>
+      <div class="emoji-row" id="qa-emoji-row">
+        <!-- Injected by JS -->
+      </div>
+    </div>
+
+    <!-- Task list -->
+    <main class="task-list" id="task-list">
+      <div class="loader" id="loader">
+        <div class="spinner"></div>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
