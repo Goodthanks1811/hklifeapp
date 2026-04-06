@@ -134,8 +134,8 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
         renderRightActions={renderRightActions}
         overshootLeft={false}
         overshootRight={false}
-        rightThreshold={40}
-        friction={3}
+        rightThreshold={28}
+        friction={1.5}
         onSwipeableWillOpen={() => { pressOverlay.setValue(0); }}
         onSwipeableOpen={() => { revealedRef.current = true; }}
         onSwipeableClose={() => { revealedRef.current = false; }}
