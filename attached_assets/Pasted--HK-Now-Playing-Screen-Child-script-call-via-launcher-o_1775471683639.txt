@@ -1,0 +1,293 @@
+// HK Now Playing Screen
+// Child script — call via launcher or run standalone
+
+const IS_IPAD = Device.isPad();
+
+function buildHTML(track) {
+  const t = track || {
+    title: 'Nothing Else Matters',
+    artist: 'Metallica',
+    album: 'Arab Desert Epic Remix',
+    bpm: '128',
+    duration: 222,
+    elapsed: 84,
+    source: 'My Music',
+    liked: true,
+  };
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:#0b0b0c;
+  font-family:'DM Sans',sans-serif;
+  color:#fff;
+  position:fixed;left:0;right:0;top:0;height:100vh;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.screen{display:flex;flex-direction:column;flex:1;padding:0 22px 28px;overflow:hidden;}
+.topnav{display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;flex-shrink:0;}
+.navlbl{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:2.5px;color:#444;text-transform:uppercase;}
+.iconbtn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.art-zone{flex-shrink:0;margin-top:14px;}
+.art-bg{
+  width:100%;aspect-ratio:1;border-radius:16px;
+  background:#0a0a0a;border:1px solid #222;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.art-gloss{
+  position:absolute;top:0;left:0;right:0;height:45%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.04) 0%,transparent 100%);
+  border-radius:16px 16px 0 0;pointer-events:none;
+}
+.track-block{margin-top:16px;flex-shrink:0;}
+.track-title{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#fff;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.track-sub{font-size:13px;color:#555;margin-top:3px;font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.track-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.heart-wrap{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.scrub-block{margin-top:14px;flex-shrink:0;}
+.scrub-track{width:100%;height:2px;background:#1e1e1e;border-radius:1px;cursor:pointer;position:relative;}
+.scrub-fill{height:100%;background:#ff1e1e;border-radius:1px;position:relative;transition:width .3s linear;}
+.scrub-fill::after{content:'';position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:12px;height:12px;background:#ff1e1e;border-radius:50%;}
+.scrub-times{display:flex;justify-content:space-between;margin-top:6px;font-family:'Rajdhani',sans-serif;font-size:10px;color:#3a3a3a;letter-spacing:.5px;}
+.ctrl-row{display:flex;align-items:center;justify-content:space-between;margin-top:22px;flex-shrink:0;}
+.c-icon{display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,color .15s;background:none;border:none;padding:0;-webkit-tap-highlight-color:transparent;}
+.c-icon:active{transform:scale(.88);}
+.play-circle{
+  width:62px;height:62px;border-radius:50%;background:#ff1e1e;
+  border:none;outline:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform .1s,background .1s;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.play-circle:active{transform:scale(.93);background:#cc0000;}
+.vol-row{display:flex;align-items:center;gap:8px;margin-top:18px;flex-shrink:0;}
+.vol-track{flex:1;height:2px;background:#1e1e1e;border-radius:1px;cursor:pointer;}
+.vol-fill{height:100%;width:68%;background:#2e2e2e;border-radius:1px;}
+.queue-block{margin-top:16px;flex:1;min-height:0;display:flex;flex-direction:column;}
+.qlbl{font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:600;letter-spacing:2px;color:#2a2a2a;text-transform:uppercase;margin-bottom:8px;flex-shrink:0;}
+.qlist{display:flex;flex-direction:column;gap:4px;overflow:hidden;}
+.qrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid #141414;-webkit-tap-highlight-color:transparent;}
+.qnum{font-family:'Rajdhani',sans-serif;font-size:11px;color:#2e2e2e;width:14px;text-align:center;flex-shrink:0;}
+.qinfo{flex:1;min-width:0;}
+.qt{font-size:11px;color:#777;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.qa{font-size:10px;color:#333;margin-top:1px;font-weight:300;}
+.qdur{font-family:'Rajdhani',sans-serif;font-size:10px;color:#2e2e2e;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <div class="topnav">
+    <div class="iconbtn" onclick="dismiss()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12l7-7M5 12l7 7" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <span class="navlbl">Now Playing</span>
+    <div class="iconbtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.5" fill="#555"/><circle cx="12" cy="12" r="1.5" fill="#555"/><circle cx="19" cy="12" r="1.5" fill="#555"/></svg>
+    </div>
+  </div>
+
+  <div class="art-zone">
+    <div class="art-bg">
+      <div class="art-gloss"></div>
+      <svg width="110" height="120" viewBox="0 0 110 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="ng" x1="20" y1="10" x2="90" y2="110" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#ff7070"/>
+            <stop offset="35%" stop-color="#ff1e1e"/>
+            <stop offset="100%" stop-color="#5a0000"/>
+          </linearGradient>
+          <linearGradient id="ng2" x1="20" y1="10" x2="90" y2="110" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#ff9090"/>
+            <stop offset="40%" stop-color="#cc1010"/>
+            <stop offset="100%" stop-color="#3a0000"/>
+          </linearGradient>
+        </defs>
+        <rect x="52" y="12" width="10" height="72" rx="5" fill="url(#ng)"/>
+        <path d="M62 12 C85 18, 88 30, 88 40 C88 52, 76 56, 62 52 C72 48, 80 42, 78 32 C76 22, 62 20, 62 20 Z" fill="url(#ng2)"/>
+        <ellipse cx="42" cy="84" rx="18" ry="13" transform="rotate(-15 42 84)" fill="url(#ng)"/>
+        <ellipse cx="38" cy="79" rx="9" ry="5" transform="rotate(-15 38 79)" fill="rgba(255,160,160,0.18)"/>
+        <rect x="54" y="14" width="4" height="20" rx="2" fill="rgba(255,180,180,0.15)"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="track-block">
+    <div class="track-title" id="trackTitle">${t.title}</div>
+    <div class="track-sub" id="trackSub">${t.artist} — ${t.album}</div>
+    <div class="track-row">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div style="width:6px;height:6px;border-radius:50%;background:#ff1e1e;"></div>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;color:#444;letter-spacing:1px;" id="bpmLabel">${t.bpm} BPM</span>
+      </div>
+      <div class="heart-wrap" id="heartBtn" onclick="toggleHeart()">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path id="hpath" d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"
+            fill="${t.liked ? '#ff1e1e' : 'none'}"
+            stroke="${t.liked ? 'none' : '#555'}"
+            stroke-width="${t.liked ? '0' : '1.5'}"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrub-block">
+    <div class="scrub-track" id="scrubTrack" onclick="scrub(event)">
+      <div class="scrub-fill" id="scrubFill" style="width:${Math.round((t.elapsed/t.duration)*100)}%"></div>
+    </div>
+    <div class="scrub-times">
+      <span id="tElapsed">${fmt(t.elapsed)}</span>
+      <span id="tTotal">${fmt(t.duration)}</span>
+    </div>
+  </div>
+
+  <div class="ctrl-row">
+    <div class="c-icon" id="shuffleBtn" style="color:#ff1e1e;width:36px;height:36px;" onclick="toggleShuffle()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16 3l4 4-4 4M20 7H8c-2.8 0-5 2.2-5 5v.5M8 21l-4-4 4-4M4 17h12c2.8 0 5-2.2 5-5v-.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="c-icon" style="color:#aaa;width:44px;height:44px;" onclick="prevTrack()">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,5 9,12 19,19"/><rect x="5" y="5" width="3" height="14" rx="1.5"/></svg>
+    </div>
+    <div class="play-circle" id="playBtn" onclick="togglePlay()">
+      <svg width="24" height="24" viewBox="0 0 24 24" id="playIcon">
+        <polygon points="7,4 20,12 7,20" fill="#fff"/>
+      </svg>
+    </div>
+    <div class="c-icon" style="color:#aaa;width:44px;height:44px;" onclick="nextTrack()">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,5 15,12 5,19"/><rect x="16" y="5" width="3" height="14" rx="1.5"/></svg>
+    </div>
+    <div class="c-icon" id="repeatBtn" style="color:#3a3a3a;width:36px;height:36px;" onclick="toggleRepeat()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+
+  <div class="vol-row">
+    <svg width="13" height="13" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="#2e2e2e"/></svg>
+    <div class="vol-track" id="volTrack" onclick="setVol(event)"><div class="vol-fill" id="volFill"></div></div>
+    <svg width="13" height="13" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="#2e2e2e"/><path d="M15 9a5 5 0 010 6M19 5a11 11 0 010 14" stroke="#2e2e2e" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </div>
+
+  <div class="queue-block">
+    <div class="qlbl">Up next</div>
+    <div class="qlist" id="qlist"></div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────
+let playing = false;
+let secs = ${t.elapsed};
+let total = ${t.duration};
+let hearted = ${t.liked};
+let shuffle = true;
+let repeat = false;
+
+const queue = [
+  {n:'2', t:'In Da Club Remix 2022',       a:'2Pac',        d:'4:12'},
+  {n:'3', t:'Shape of You (Reggae Flip)',   a:'Ed Sheeran',  d:'3:55'},
+  {n:'4', t:'Heartless Reggae Dub Cover',   a:'Kanye West',  d:'3:28'},
+];
+
+// ── Helpers ────────────────────────────────────────
+function fmt(s) {
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function updateScrub() {
+  document.getElementById('scrubFill').style.width = Math.round((secs/total)*100) + '%';
+  document.getElementById('tElapsed').textContent = fmt(secs);
+}
+
+// ── Queue ──────────────────────────────────────────
+document.getElementById('qlist').innerHTML = queue.map(t =>
+  '<div class="qrow"><span class="qnum">'+t.n+'</span><div class="qinfo"><div class="qt">'+t.t+'</div><div class="qa">'+t.a+'</div></div><span class="qdur">'+t.d+'</span></div>'
+).join('');
+
+// ── Controls ───────────────────────────────────────
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('playIcon').innerHTML = playing
+    ? '<rect x="5" y="4" width="4" height="16" rx="2" fill="#fff"/><rect x="15" y="4" width="4" height="16" rx="2" fill="#fff"/>'
+    : '<polygon points="7,4 20,12 7,20" fill="#fff"/>';
+}
+
+function toggleHeart() {
+  hearted = !hearted;
+  const p = document.getElementById('hpath');
+  p.setAttribute('fill', hearted ? '#ff1e1e' : 'none');
+  p.setAttribute('stroke', hearted ? 'none' : '#555');
+  p.setAttribute('stroke-width', hearted ? '0' : '1.5');
+}
+
+function toggleShuffle() {
+  shuffle = !shuffle;
+  document.getElementById('shuffleBtn').style.color = shuffle ? '#ff1e1e' : '#3a3a3a';
+}
+
+function toggleRepeat() {
+  repeat = !repeat;
+  document.getElementById('repeatBtn').style.color = repeat ? '#ff1e1e' : '#3a3a3a';
+}
+
+function prevTrack() {
+  secs = 0; updateScrub();
+}
+
+function nextTrack() {
+  secs = 0; updateScrub();
+}
+
+function scrub(e) {
+  const r = document.getElementById('scrubTrack').getBoundingClientRect();
+  secs = Math.round(((e.clientX - r.left) / r.width) * total);
+  updateScrub();
+}
+
+function setVol(e) {
+  const r = document.getElementById('volTrack').getBoundingClientRect();
+  document.getElementById('volFill').style.width = Math.round(((e.clientX - r.left) / r.width) * 100) + '%';
+}
+
+function dismiss() {
+  window.location.href = 'nav://back';
+}
+
+// ── Ticker ─────────────────────────────────────────
+setInterval(() => {
+  if (!playing) return;
+  secs = (secs + 1) % total;
+  updateScrub();
+}, 1000);
+
+// ── Viewport fix (canonical HK pattern) ───────────
+function onVP() {
+  const vp = window.visualViewport;
+  if (!vp) return;
+  document.body.style.top = vp.offsetTop + 'px';
+  document.body.style.height = vp.height + 'px';
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onVP);
+  window.visualViewport.addEventListener('scroll', onVP);
+  onVP();
+}
+<\/script>
+</body>
+</html>`;
+}
+
+async function run() {
+  const wv = new WebView();
+  await wv.loadHTML(buildHTML());
+  await wv.present(true);
+}
+
+module.exports = { buildHTML, run };
+await run();
