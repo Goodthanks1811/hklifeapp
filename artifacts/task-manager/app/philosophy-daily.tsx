@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,6 +19,17 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { PageLoader } from "@/components/PageLoader";
 import { useAnthropic } from "@/context/AnthropicContext";
 import { Colors } from "@/constants/colors";
+
+// ── Animation timing ─────────────────────────────────────────────────────────
+const T_FADE_IN  = 200;
+const T_SPIN_IN  = 250;
+const T_POP      = 420;
+const T_TICK     = 400;
+const T_HOLD     = 700;
+const T_FADE_OUT = 450;
+const SPINNER_SIZE   = 72;
+const SPINNER_STROKE = 8;
+const CIRCLE_SIZE    = 74;
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 
@@ -340,12 +353,62 @@ export default function PhilosophyDailyScreen() {
   const isTablet   = width >= 768;
   const maxW       = isTablet ? Math.min(Math.round(width * 0.72), 720) : 520;
 
-  const [html,    setHtml]    = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [saving,  setSaving]  = useState(false);
-  const conceptRef = useRef<Concept | null>(null);
-  const webViewRef = useRef<any>(null);
+  const [html,         setHtml]        = useState<string | null>(null);
+  const [loading,      setLoading]     = useState(false);
+  const [error,        setError]       = useState<string | null>(null);
+  const [saving,       setSaving]      = useState(false);
+  const [loaderVisible, setLoaderVisible] = useState(false);
+  const conceptRef     = useRef<Concept | null>(null);
+  const webViewRef     = useRef<any>(null);
+
+  const overlayOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerRotation = useRef(new Animated.Value(0)).current;
+  const circleScale     = useRef(new Animated.Value(0)).current;
+  const circleOpacity   = useRef(new Animated.Value(0)).current;
+  const tickScale       = useRef(new Animated.Value(0)).current;
+  const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
+
+  const resetLoaderValues = useCallback(() => {
+    overlayOpacity.setValue(0); spinnerOpacity.setValue(0);
+    spinnerRotation.setValue(0); circleScale.setValue(0);
+    circleOpacity.setValue(0); tickScale.setValue(0);
+  }, [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale]);
+
+  const startSaveLoader = useCallback(() => {
+    resetLoaderValues();
+    setLoaderVisible(true);
+    spinLoopRef.current = Animated.loop(
+      Animated.timing(spinnerRotation, { toValue: 1, duration: 600, easing: Easing.linear, useNativeDriver: true })
+    );
+    spinLoopRef.current.start();
+    Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
+      Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPIN_IN, useNativeDriver: true }).start();
+    });
+  }, [overlayOpacity, spinnerOpacity, spinnerRotation, resetLoaderValues]);
+
+  const resolveSaveLoader = useCallback((success: boolean) => {
+    spinLoopRef.current?.stop();
+    if (success) {
+      Animated.parallel([
+        Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP, useNativeDriver: true }),
+        Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
+        Animated.timing(circleScale, { toValue: 1, duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
+      ]).start(() => {
+        Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
+          setTimeout(() => {
+            Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+              setLoaderVisible(false); resetLoaderValues(); setSaving(false);
+            });
+          }, T_HOLD);
+        });
+      });
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
+        setLoaderVisible(false); resetLoaderValues(); setSaving(false);
+      });
+    }
+  }, [overlayOpacity, spinnerOpacity, circleScale, circleOpacity, tickScale, resetLoaderValues]);
 
   useEffect(() => {
     if (!apiKey) return;
@@ -381,25 +444,27 @@ export default function PhilosophyDailyScreen() {
       return;
     }
     setSaving(true);
+    startSaveLoader();
     webViewRef.current?.injectJavaScript(CAPTURE_JS);
   };
 
   const handleMessage = async (event: any) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type !== "capture") { setSaving(false); return; }
+      if (msg.type !== "capture") { resolveSaveLoader(false); return; }
       const base64 = (msg.data as string).replace(/^data:image\/\w+;base64,/, "");
       const uri = FileSystem.cacheDirectory + `phil_${Date.now()}.jpg`;
       await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
       await MediaLibrary.saveToLibraryAsync(uri);
       await FileSystem.deleteAsync(uri, { idempotent: true });
-      setSaving(false);
-      Alert.alert("Saved!", "Image saved to your camera roll.");
+      resolveSaveLoader(true);
     } catch {
-      setSaving(false);
+      resolveSaveLoader(false);
       Alert.alert("Error", "Couldn't save image. Please try again.");
     }
   };
+
+  const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -440,34 +505,72 @@ export default function PhilosophyDailyScreen() {
             onMessage={handleMessage}
           />
           <View style={[styles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
-            <TouchableOpacity style={[styles.shareBtn, saving && { opacity: 0.5 }]} activeOpacity={0.8} onPress={handleSaveImage} disabled={saving}>
+            <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} activeOpacity={0.8} onPress={handleSaveImage} disabled={saving}>
               <Feather name="download" size={16} color="#fff" />
-              <Text style={styles.shareBtnText}>{saving ? "Saving…" : "Save to Photos"}</Text>
+              <Text style={styles.saveBtnText}>Save to Photos</Text>
             </TouchableOpacity>
           </View>
         </>
+      )}
+
+      {loaderVisible && (
+        <Animated.View style={[styles.loaderOverlay, { opacity: overlayOpacity }]} pointerEvents="auto">
+          <Animated.View style={[styles.spinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+            <View style={styles.spinnerRing} />
+          </Animated.View>
+          <Animated.View style={[styles.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+            <Animated.View style={{ transform: [{ scale: tickScale }] }}>
+              <Feather name="check" size={40} color="#fff" />
+            </Animated.View>
+          </Animated.View>
+        </Animated.View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: "#09090b" },
-  web:         { flex: 1, backgroundColor: "#09090b" },
-  center:      { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },
-  emptyTitle:  { color: "#e2e2e0", fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  emptyBody:   { color: "#888", fontSize: 13, textAlign: "center", lineHeight: 20 },
-  toolbar:     { paddingHorizontal: 20, paddingTop: 10, backgroundColor: "#09090b", borderTopWidth: 1, borderTopColor: "#252527" },
-  shareBtn: {
+  root:       { flex: 1, backgroundColor: "#09090b" },
+  web:        { flex: 1, backgroundColor: "#09090b" },
+  center:     { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },
+  emptyTitle: { color: "#e2e2e0", fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  emptyBody:  { color: "#888", fontSize: 13, textAlign: "center", lineHeight: 20 },
+  toolbar:    { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4, backgroundColor: "#09090b", borderTopWidth: 1, borderTopColor: "#252527" },
+  saveBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#111113",
-    borderWidth: 1,
-    borderColor: "#252527",
+    backgroundColor: Colors.primary,
     borderRadius: 30,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  shareBtnText: { color: "#e2e2e0", fontSize: 14, fontFamily: "Inter_500Medium" },
+  saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    alignItems: "center", justifyContent: "center", zIndex: 999,
+  },
+  spinnerWrap: {
+    width: SPINNER_SIZE, height: SPINNER_SIZE,
+    alignItems: "center", justifyContent: "center",
+    position: "absolute",
+  },
+  spinnerRing: {
+    width: SPINNER_SIZE, height: SPINNER_SIZE, borderRadius: SPINNER_SIZE / 2,
+    borderWidth: SPINNER_STROKE,
+    borderColor: "rgba(255,255,255,0.85)",
+    borderTopColor: "rgba(255,255,255,0.12)",
+  },
+  circleWrap: {
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
+    backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center",
+    position: "absolute",
+  },
 });
