@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
-import { router } from "expo-router";
+import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
 import { Colors } from "@/constants/colors";
 
@@ -193,6 +193,9 @@ function ListSpacer() {
 export default function ShazamScreen() {
   const insets = useSafeAreaInsets();
   const { apiKey } = useNotion();
+  const { skipNextAutoClose, openDrawer } = useDrawer();
+
+  const goBack = () => { skipNextAutoClose(); openDrawer(); };
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const botPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
@@ -308,7 +311,7 @@ export default function ShazamScreen() {
       {/* ── Fixed logo header — fades in with content, not during loader ── */}
       <Animated.View style={[styles.fixedHeader, { opacity: contentOpacity }]}>
         <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
-        <Pressable style={styles.backZone} onPress={() => router.back()} />
+        <Pressable style={styles.backZone} onPress={goBack} />
       </Animated.View>
 
       {/* ── Container for loader + content — fills space below fixed header ── */}
