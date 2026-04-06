@@ -56,23 +56,54 @@ Expo / React Native mobile app targeting **iPhone + iPad Pro 12.9"**.
 - **Main app theme**: Bold red (`#E03131`) + black
 - **IR Quick Add theme**: Navy (`#0C1846`) / Gold (`#FE9A01`)
 
+### Colour Tokens (DO NOT deviate)
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `primary` | `#E03131` | Accent, play button, highlights |
+| `pageBG` | `#0b0b0c` | Every screen background |
+| `cardBG` | `#0f0f0f` | Cards, rows, list items |
+| `border` | `#2A2A2A` | Separators, outlines |
+| `text` | `#fff` | Primary text |
+| `subtext` | `#888` | Secondary / muted text |
+
+**NEVER use `#1a1a1a`** anywhere in settings or any new screen — use `#0f0f0f` for card/row BG.
+
 ### Screens
 
 | File | Purpose |
 |------|---------|
 | `app/(tabs)/index.tsx` | Task Board — Notion tasks grouped by status |
-| `app/settings.tsx` | API key entry with eye-toggle, status dot, clear; gear icon in drawer bottom |
-| `app/ir-quick-add.tsx` | IR Quick Add script port — navy/gold theme |
+| `app/settings.tsx` | Settings — API keys, playlist ordering (Spotify/Apple), section headers |
+| `app/ir-quick-add.tsx` | IR Quick Add — navy/gold theme |
+| `app/life/[slug].tsx` | Life Admin task list — drag-to-reorder, swipe-to-delete |
+| `app/music.tsx` | Music Player — player UI, track info, controls, queue |
+| `app/music-mymusic.tsx` | My Music — local file library with drag-to-reorder |
+| `app/music-apple.tsx` | Apple Music — Apple Music library with drag-to-reorder |
+| `app/mi-corazon.tsx` | Mi Corazon — photo/video gallery with full-screen pager viewer |
+| `app/shazam.tsx` | Shazam — music recognition screen |
+| `app/nrl.tsx` | NRL — rugby league schedule |
+| `app/calendar.tsx` | Calendar — event calendar |
+| `app/psychology.tsx` | Psychology/Philosophy Daily |
 | `app/ui-kit/` | UI Kit showcase: Buttons, Sliders, Drag & Reorder, Loaders, Modals |
 
-### Key Components
+### Key Components & Context
 
 | File | Purpose |
 |------|---------|
 | `components/Drawer.tsx` | Hamburger slide-in drawer |
 | `context/NotionContext.tsx` | API key + tasks via AsyncStorage |
 | `context/DrawerContext.tsx` | Drawer open/close state |
+| `context/MusicPlayerContext.tsx` | Global music player state — current track, queue, play/pause/skip, background audio |
 | `constants/colors.ts` | Shared colour tokens |
+
+### Drawer Structure
+
+NAVIGATION → Task Board / Life Admin / Mi Corazon / NRL / Calendar / Psychology / Shazam  
+Music → Music Player / My Music / Apple Music  
+Scripts → IR Quick Add  
+─── divider ───  
+Settings (gear icon, pinned to bottom)
 
 ### Critical Architecture Notes
 
@@ -82,13 +113,11 @@ Expo / React Native mobile app targeting **iPhone + iPad Pro 12.9"**.
 
 **Animated.parallel**: NEVER mix `useNativeDriver: true` and `false` in the same parallel call.
 
-### Drawer Structure
+**Music screens**: ALL use plain `Animated` (NOT Reanimated). `Easing.sin` for curves. iPad breakpoint: `Dimensions.get("window").width >= 768`.
 
-NAVIGATION → Task Board  
-Scripts → IR Quick Add  
-UI KIT (Buttons / Sliders / Drag & Reorder / Loaders / Modals)  
-─── divider ───  
-Settings (gear icon, pinned to bottom)
+**expo-router crash rule**: ALL route files in `app/` are eagerly evaluated at Metro bundle time — any module-level error (bad import, missing export, etc.) crashes the entire app immediately. Always guard module-level code carefully.
+
+**expo-file-system import**: Always import from `"expo-file-system/legacy"` (SDK 54 breaking change).
 
 ---
 
@@ -112,6 +141,130 @@ T_TICK       = 350ms   tick draw
 T_HOLD       = 700ms   hold on success
 T_FADE_OUT   = 400ms   fade out
 ```
+
+---
+
+## Database / Notion IDs
+
+| Purpose | DB ID |
+|---------|-------|
+| Life / HK Quick Add | `2c8b7eba3523802abbe2e934df42a4e2` |
+| IR Quick Add | `2c9b7eba35238084a6decf83993961e4` |
+| Mood Log | `2dfb7eba3523805bb4b1ffbe52682e4c` |
+| Win Of The Day | `2dfb7eba352380c08db5ec15aa296e3e` |
+
+---
+
+## Music Player — Complete Spec
+
+### Background Audio
+
+`app.json` has `staysActiveInBackground: true` + `UIBackgroundModes: ["audio"]`.  
+**Only works in EAS native build, NOT Expo Go.**  
+`MusicPlayerContext` (`context/MusicPlayerContext.tsx`) manages global play state — current track, queue, play/pause/skip — shared across all music screens.
+
+### Music Controls (Standardised — DO NOT change these values)
+
+All three control buttons use identical sizing:
+
+| Property | Value |
+|----------|-------|
+| Hit area | `62×62` `borderRadius: 31` |
+| Icon library | `Ionicons` (solid variants) |
+| Icon size | `30px` |
+| Play button | Red circle (`backgroundColor: "#E03131"`) |
+| Skip button colour | `#fff` (pure white) |
+| Gap between buttons | `16px` |
+
+Applied to both `music.tsx` and `music-mymusic.tsx`.
+
+### My Music — Storage & Loading
+
+- AsyncStorage key: `mymusic_tracks_v2`
+- Files stored at: `documentDirectory + "music/"` (using `expo-file-system/legacy`)
+- Track list loaded with `useEffect` — **NOT** `useFocusEffect` (causes double-load bugs)
+- `saveTracks` must be `async/await` — never fire-and-forget
+
+### Drag-to-Reorder Pattern (Life Admin + My Music + Apple Music)
+
+All three drag lists use an identical PanResponder-based drag pattern. **Do not deviate.**
+
+```
+posAnims     — Animated.Value[] per item: translateY for non-dragging items
+addedAnims   — Animated.Value[] per item: supplemental offset for hover slot animation
+panY         — Animated.Value: live translateY of the dragging row
+dimAnim      — Animated.Value: 0→1 on drag start, used for overlay opacity
+ZERO_ANIM    — { current: Animated.Value(0) }: passed to dragging row so posAnim is ignored
+
+isDraggingRef.current — set true on drag start; onMoveShouldSetPanResponderCapture returns this
+                        (prevents scroll stealing mid-drag)
+
+relY = moveY - containerTopRef + (scrollOffset - startScroll)
+     — absolute Y of finger relative to list top, accounting for scroll delta
+
+Slot calculation: floor((relY - SLOT_H/2) / SLOT_H) clamped 0..(n-1)
+```
+
+**Slot heights:**
+| List | SLOT_H | Row height | Gap |
+|------|--------|-----------|-----|
+| Life Admin | `60` | `52px` | `8px` |
+| My Music | `60` | `52px` | `8px` |
+| Apple Music | `74` | `66px` | `8px` |
+
+**Animation spec:**
+- Duration: `110ms`, easing: `Easing.out(Easing.quad)`
+- Heavy haptic on drag start
+- Light haptic on hover slot change
+- Overlay dims with `dimAnim` 0→1 on drag start; tap-to-cancel overlay when `isDragging`
+- Order persisted to AsyncStorage on drop
+
+**Container setup:**
+- Absolute-positioned container (`position: "absolute"`) so rows can overlap during drag
+- `containerTopRef` captured in `onLayout` of the list container
+- `scrollOffset` tracked via `onScroll` on parent ScrollView
+
+---
+
+## Mi Corazon — Photo/Video Gallery
+
+### Screen: `app/mi-corazon.tsx`
+
+- Grid view → tap item → opens full-screen `Modal` Viewer
+- Viewer is a paginated horizontal `FlatList` (`pagingEnabled`) — swipe left/right to browse
+- Dismiss gesture: drag down `> 80px` → animated dismiss (spring back or close)
+- Status bar hidden inside Viewer (`<StatusBar hidden />`)
+
+### Landscape Orientation (added 2026-04-06)
+
+Package: `expo-screen-orientation@~9.0.8` (SDK 54 compatible — NOT v55)
+
+**Viewer behaviour:**
+```tsx
+// On open:
+ScreenOrientation.unlockAsync()   // allow free rotation
+
+// On close (cleanup):
+ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+// ↑ restores portrait-only for the rest of the app
+
+// After rotation — re-snap pager to current item:
+useEffect(() => {
+  setTimeout(() => listRef.current?.scrollToIndex({ index: idx, animated: false }), 80);
+}, [width, height]);   // useWindowDimensions() is reactive — layout auto-updates
+```
+
+`app.json` already has `"orientation": "default"` which whitelists all four orientations in iOS Info.plist.  
+**Requires a new EAS build — does not work in Expo Go (native module).**
+
+---
+
+## Settings — Playlist Ordering
+
+`app/settings.tsx` has chevron `▲`/`▼` arrow buttons on each Spotify and Apple Music playlist row.  
+Helper functions: `moveSpotifyUp`, `moveSpotifyDown`, `moveAppleUp`, `moveAppleDown`  
+Style: `mStyles.arrowBtn` pattern — boundary rows have buttons dimmed (opacity 0.3)  
+Haptic feedback on each tap; saves immediately to AsyncStorage.
 
 ---
 
@@ -361,6 +514,7 @@ When the project has been idle, Replit puts it to sleep. On wake:
 > - [ ] `react-native-worklets: 0.5.1` present (required for Reanimated 4)
 > - [ ] `NSFaceIDUsageDescription` present in `app.config.js → ios.infoPlist`
 > - [ ] `expoRouterCtxInlinePlugin` present in `babel.config.js`
+> - [ ] `expo-screen-orientation@~9.0.8` present (landscape in Mi Corazon Viewer — requires native build)
 > - [ ] No new native packages added without lockfile sync (`pnpm install --no-frozen-lockfile` from root)
 > - [ ] Build command includes `NODE_PATH`, `EAS_NO_VCS=1`, `EAS_SKIP_AUTO_FINGERPRINT=1`
 
@@ -426,17 +580,25 @@ EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform ios --profile prev
 **Stable bundle ID**: `com.hklife.app` (ad-hoc, existing provisioning)
 
 **Latest builds**:
-- Preview `1c961f4b` — IPA: `https://expo.dev/artifacts/eas/4wJPYw93dTMs9nwp6PeCXM.ipa` (2026-04-01, current — both iPhone + iPad provisioned)
+- Preview `1c961f4b` — IPA: `https://expo.dev/artifacts/eas/4wJPYw93dTMs9nwp6PeCXM.ipa` (2026-04-01, current installed — both iPhone + iPad provisioned)
 - Preview `3db84ee0` — IPA: `https://expo.dev/artifacts/eas/8C3wZ9WeBafYqxPhTKutSW.ipa` (2026-04-01, iPhone only)
 - Preview `a7fdfa7d` — IPA: `https://expo.dev/artifacts/eas/mKb6FYcCXcxqFJotr2Yhs7.ipa` (2026-04-01, NRL tabs, drawer banner, 2-page news)
 - Preview `721cf08b` — IPA: `https://expo.dev/artifacts/eas/f6hFsdnvpZ9fArwDrpRKo4.ipa` (previous)
 - Preview `033cea67` — IPA: `https://expo.dev/artifacts/eas/pc3PpyEWkxNigpLAawGTY.ipa` (older)
 - Dev client: ALL FAILED — see above
 
+**Pending for next build** (code committed, not yet in installed IPA):
+- Music controls standardised (62×62 hit area, 30px icons, 16px gap) — `music.tsx`, `music-mymusic.tsx`
+- Drag-to-reorder for My Music (`music-mymusic.tsx`) and Apple Music (`music-apple.tsx`)
+- Settings playlist ordering — chevron ▲/▼ buttons for Spotify and Apple Music playlists
+- Mi Corazon landscape rotation — `expo-screen-orientation` unlocks orientation in Viewer
+
 Things that only work in a native EAS build (not Expo Go):
 - `keyboardAppearance="dark"` on TextInput
 - Face ID (`expo-local-authentication`) — add `NSFaceIDUsageDescription` to `app.json` first
 - Splash screen and app icon rendering
+- Background audio (music continues when screen is locked / app is backgrounded)
+- Mi Corazon landscape rotation (`expo-screen-orientation` is a native module)
 
 ### 12. Porting from Scriptable
 
