@@ -797,28 +797,27 @@ export default function SettingsScreen() {
   const [editSpotifyName, setEditSpotifyName] = useState("");
   const [editSpotifyURL,  setEditSpotifyURL]  = useState("");
 
-  // Apple Music playlist filter
-  type AppleKnownPL = { id: string; name: string; count: number };
-  const [appleKnown,  setAppleKnown]  = useState<AppleKnownPL[]>([]);
-  const [applePinned, setApplePinned] = useState<string[]>([]); // IDs; empty = show all
+  // Apple Music playlist name filter
+  const [appleNames,   setAppleNames]   = useState<string[]>([]);
+  const [appleNewName, setAppleNewName] = useState("");
 
   useEffect(() => {
-    AsyncStorage.getItem("music_apple_known_playlists").then(v => { if (v) setAppleKnown(JSON.parse(v)); });
-    AsyncStorage.getItem("music_apple_pinned").then(v => { if (v) setApplePinned(JSON.parse(v)); });
+    AsyncStorage.getItem("music_apple_filter_names").then(v => { if (v) setAppleNames(JSON.parse(v)); });
   }, []);
 
-  const toggleApplePinned = (id: string) => {
-    const next = applePinned.includes(id)
-      ? applePinned.filter(x => x !== id)
-      : [...applePinned, id];
-    setApplePinned(next);
-    AsyncStorage.setItem("music_apple_pinned", JSON.stringify(next));
+  const saveAppleNames = (next: string[]) => {
+    setAppleNames(next);
+    AsyncStorage.setItem("music_apple_filter_names", JSON.stringify(next));
   };
 
-  const clearApplePinned = () => {
-    setApplePinned([]);
-    AsyncStorage.setItem("music_apple_pinned", JSON.stringify([]));
+  const addAppleName = () => {
+    const trimmed = appleNewName.trim();
+    if (!trimmed || appleNames.includes(trimmed)) return;
+    saveAppleNames([...appleNames, trimmed]);
+    setAppleNewName("");
   };
+
+  const removeAppleName = (i: number) => saveAppleNames(appleNames.filter((_, idx) => idx !== i));
 
   const startEditSpotify = (i: number) => {
     setEditSpotifyIdx(i);
@@ -1337,47 +1336,36 @@ export default function SettingsScreen() {
 
             {/* ── Apple Music Playlists ── */}
             <SubAccordion title="Apple Music Playlists" icon="music" defaultOpen={false}>
-              {appleKnown.length === 0 ? (
-                <View style={{ paddingVertical: 12, paddingHorizontal: 4 }}>
-                  <Text style={[styles.mPLUrl, { textAlign: "center" }]}>
-                    Open the Apple Music tab first to sync your library.
-                  </Text>
+              <Text style={[styles.mPLUrl, { marginBottom: 10 }]}>
+                Type playlist names exactly as they appear in your library. Apple Music will only show matches.
+              </Text>
+
+              {appleNames.map((name, i) => (
+                <View key={i} style={[styles.mPLRow, { alignItems: "center" }]}>
+                  <Text style={[styles.mPLName, { flex: 1 }]} numberOfLines={1}>{name}</Text>
+                  <Pressable
+                    style={({ pressed }) => [styles.mPLDeleteBtn, pressed && { opacity: 0.6 }]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeAppleName(i); }}
+                  >
+                    <Feather name="trash-2" size={16} color="#E03131" />
+                  </Pressable>
                 </View>
-              ) : (
-                <>
-                  <View style={{ paddingVertical: 6, paddingHorizontal: 2, marginBottom: 4 }}>
-                    <Text style={styles.mPLUrl}>
-                      {applePinned.length === 0
-                        ? "None selected — tap playlists to add them"
-                        : `${applePinned.length} playlist${applePinned.length !== 1 ? "s" : ""} selected`}
-                    </Text>
-                  </View>
-                  {appleKnown.map(pl => {
-                    const isPinned = applePinned.includes(pl.id);
-                    return (
-                      <Pressable
-                        key={pl.id}
-                        style={({ pressed }) => [styles.mPLRow, { alignItems: "center" }, pressed && { opacity: 0.7 }]}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleApplePinned(pl.id); }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.mPLName, !isPinned && { color: Colors.textMuted }]} numberOfLines={1}>{pl.name}</Text>
-                          {pl.count > 0 && <Text style={styles.mPLUrl}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>}
-                        </View>
-                        <View style={[mStyles.appleCheck, isPinned && mStyles.appleCheckOn]}>
-                          {isPinned && <Feather name="check" size={12} color="#fff" />}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                  {applePinned.length > 0 && (
-                    <Pressable style={({ pressed }) => [styles.clearBtn, { marginTop: 4 }, pressed && { opacity: 0.7 }]} onPress={clearApplePinned}>
-                      <Feather name="x" size={14} color={Colors.textSecondary} />
-                      <Text style={styles.clearBtnText}>Clear selection</Text>
-                    </Pressable>
-                  )}
-                </>
-              )}
+              ))}
+
+              <View style={[styles.mPLAddRow, { marginTop: appleNames.length > 0 ? 8 : 0 }]}>
+                <TextInput
+                  style={styles.mPLInput}
+                  value={appleNewName}
+                  onChangeText={setAppleNewName}
+                  placeholder="Playlist name…"
+                  placeholderTextColor={Colors.textMuted}
+                  returnKeyType="done"
+                  onSubmitEditing={addAppleName}
+                />
+                <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={addAppleName}>
+                  <Feather name="plus" size={16} color="#fff" />
+                </Pressable>
+              </View>
             </SubAccordion>
 
           </View>
@@ -1455,11 +1443,6 @@ const mStyles = StyleSheet.create({
   arrows: { flexDirection: "row", gap: 1 },
   arrowBtn: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderRadius: 6 },
   arrowBtnDim: { opacity: 0.3 },
-  appleCheck: {
-    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
-    borderColor: "#3a3a3a", alignItems: "center", justifyContent: "center",
-  },
-  appleCheckOn: { backgroundColor: "#E03131", borderColor: "#E03131" },
 
   moveBtn: {
     width: 28, height: 28, alignItems: "center", justifyContent: "center",
@@ -1693,6 +1676,10 @@ const styles = StyleSheet.create({
   mPLAddBtn: {
     width: 42, height: 42, borderRadius: 12,
     backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center",
+  },
+  mPLDeleteBtn: {
+    width: 34, height: 34, borderRadius: 9,
     alignItems: "center", justifyContent: "center",
   },
 });

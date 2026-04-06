@@ -60,10 +60,9 @@ export default function MusicAppleScreen() {
   const isTablet = Dimensions.get("window").width >= 768;
 
   const [authStatus, setAuthStatus]   = useState<AuthStatus>("loading");
-  const [playlists,   setPlaylists]   = useState<ApplePlaylist[]>([]);
-  const [playingId,   setPlayingId]   = useState<string | null>(null);
-  const [loadingId,   setLoadingId]   = useState<string | null>(null);
-  const [noneSelected, setNoneSelected] = useState(false);
+  const [playlists, setPlaylists] = useState<ApplePlaylist[]>([]);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const fetchPlaylists = useCallback(async () => {
     if (!AppleMusicKit) { setAuthStatus("unavailable"); return; }
@@ -72,20 +71,17 @@ export default function MusicAppleScreen() {
       setAuthStatus(status as AuthStatus);
       if (status === "authorized") {
         const all: ApplePlaylist[] = await AppleMusicKit.getPlaylists();
-        // Save full library so Settings can show the toggle list
-        await AsyncStorage.setItem("music_apple_known_playlists", JSON.stringify(all));
-        // null = never configured (first time) → show all
-        // [] or [ids] = user has made a selection → respect it exactly
-        const pinnedRaw = await AsyncStorage.getItem("music_apple_pinned");
-        if (pinnedRaw === null) {
-          setNoneSelected(false);
-          setPlaylists(all);
-        } else {
-          const pinned: string[] = JSON.parse(pinnedRaw);
-          const filtered = all.filter(p => pinned.includes(p.id));
-          setNoneSelected(filtered.length === 0);
-          setPlaylists(filtered);
+        // Filter by user-defined name list from Settings
+        const namesRaw = await AsyncStorage.getItem("music_apple_filter_names");
+        if (namesRaw) {
+          const names: string[] = JSON.parse(namesRaw);
+          if (names.length > 0) {
+            const lower = names.map(n => n.toLowerCase().trim());
+            setPlaylists(all.filter(p => lower.includes(p.name.toLowerCase().trim())));
+            return;
+          }
         }
+        setPlaylists(all);
       }
     } catch {
       setAuthStatus("denied");
@@ -152,9 +148,7 @@ export default function MusicAppleScreen() {
       return (
         <View style={s.centred}>
           <Text style={s.stateBody}>
-            {noneSelected
-              ? "No playlists selected.\nGo to Settings → Music → Apple Music Playlists to choose what to show."
-              : "No playlists found in your library."}
+            No playlists found.{"\n"}Check Settings → Music → Apple Music Playlists to ensure names match exactly.
           </Text>
         </View>
       );
