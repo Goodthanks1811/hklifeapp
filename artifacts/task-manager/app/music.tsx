@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useDrawer } from "@/context/DrawerContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -104,13 +105,20 @@ function ProviderRow({
 export default function MusicScreen() {
   const insets = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
+  const { openDrawer, skipNextAutoClose } = useDrawer();
+
+  const goHome = () => {
+    skipNextAutoClose();
+    router.replace("/life/automation" as any);
+    openDrawer();
+  };
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
 
         <View style={s.body}>
-          <Pressable style={s.eqWrap} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)" as any)}>
+          <Pressable style={s.eqWrap} onPress={goHome}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => (
               <EqBar key={i} index={i} />
             ))}
