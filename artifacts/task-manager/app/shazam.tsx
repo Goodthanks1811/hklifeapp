@@ -305,11 +305,11 @@ export default function ShazamScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
 
-      {/* ── Fixed logo header — OUTSIDE scroll & swipeable content ── */}
-      <View style={styles.fixedHeader}>
+      {/* ── Fixed logo header — fades in with content, not during loader ── */}
+      <Animated.View style={[styles.fixedHeader, { opacity: contentOpacity }]}>
         <Image source={SHAZAM_IMG} style={styles.logo} resizeMode="contain" />
         <Pressable style={styles.backZone} onPress={() => router.back()} />
-      </View>
+      </Animated.View>
 
       {/* ── Container for loader + content — fills space below fixed header ── */}
       <View style={{ flex: 1 }}>
