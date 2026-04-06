@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDrawer } from "@/context/DrawerContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
@@ -199,13 +199,13 @@ export default function MusicScreen() {
           </View>
           <View style={s.controls}>
             <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipBack()}>
-              <Feather name="skip-back" size={26} color={hasTrack ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)"} />
+              <Ionicons name="play-skip-back" size={26} color={hasTrack ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)"} />
             </Pressable>
             <Pressable style={s.playBtn} onPress={() => hasTrack && player.togglePlay()}>
-              <Feather name={player.isPlaying ? "pause" : "play"} size={24} color="#fff" />
+              <Ionicons name={player.isPlaying ? "pause" : "play"} size={26} color="#fff" />
             </Pressable>
             <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipForward()}>
-              <Feather name="skip-forward" size={26} color={hasTrack ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)"} />
+              <Ionicons name="play-skip-forward" size={26} color={hasTrack ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)"} />
             </Pressable>
           </View>
         </View>

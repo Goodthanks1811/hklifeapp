@@ -137,7 +137,7 @@ const s = StyleSheet.create({
 
   headerArea: {
     backgroundColor: BG,
-    paddingTop: 12, paddingBottom: 10,
+    paddingTop: 28, paddingBottom: 10,
   },
 
   eqWrap: {

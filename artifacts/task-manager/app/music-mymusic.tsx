@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -296,13 +296,13 @@ export default function MusicMyMusicScreen() {
             {/* Controls */}
             <View style={st.controls}>
               <Pressable style={st.ctrlBtn} onPress={() => player.skipBack()}>
-                <Feather name="skip-back" size={26} color="rgba(255,255,255,0.6)" />
+                <Ionicons name="play-skip-back" size={26} color="rgba(255,255,255,0.7)" />
               </Pressable>
               <Pressable style={st.playBtn} onPress={() => player.togglePlay()}>
-                <Feather name={player.isPlaying ? "pause" : "play"} size={24} color="#fff" />
+                <Ionicons name={player.isPlaying ? "pause" : "play"} size={26} color="#fff" />
               </Pressable>
               <Pressable style={st.ctrlBtn} onPress={() => player.skipForward()}>
-                <Feather name="skip-forward" size={26} color="rgba(255,255,255,0.6)" />
+                <Ionicons name="play-skip-forward" size={26} color="rgba(255,255,255,0.7)" />
               </Pressable>
             </View>
 
@@ -319,7 +319,7 @@ const st = StyleSheet.create({
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
-  headerArea: { backgroundColor: BG, paddingTop: 12, paddingBottom: 4, alignItems: "center" },
+  headerArea: { backgroundColor: BG, paddingTop: 28, paddingBottom: 4, alignItems: "center" },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
