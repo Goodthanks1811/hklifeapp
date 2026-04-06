@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Dimensions,
@@ -132,10 +132,19 @@ export default function MusicScreen() {
   durMsRef.current  = player.durMs;
   seekToRef.current = player.seekTo;
 
-  const [dragProgress, setDragProgress] = useState<number | null>(null);
-  const displayProgress = dragProgress !== null
-    ? dragProgress
-    : player.durMs > 0 ? player.posMs / player.durMs : 0;
+  const isDragging = useRef(false);
+  const scrubAnim  = useRef(new Animated.Value(0)).current;
+
+  // Keep bar in sync with playback position when not scrubbing
+  useEffect(() => {
+    if (!isDragging.current && player.durMs > 0) {
+      scrubAnim.setValue(player.posMs / player.durMs);
+    }
+  }, [player.posMs, player.durMs]);
+
+  const fillWidth = scrubAnim.interpolate({
+    inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp",
+  });
 
   const scrubber = useRef(
     PanResponder.create({
@@ -143,21 +152,21 @@ export default function MusicScreen() {
       onMoveShouldSetPanResponder:  () => true,
       onPanResponderGrant: (e) => {
         if (!barWidth.current || !durMsRef.current) return;
-        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-        setDragProgress(ratio);
+        isDragging.current = true;
+        scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
       },
       onPanResponderMove: (e) => {
         if (!barWidth.current) return;
-        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-        setDragProgress(ratio);
+        scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
       },
       onPanResponderRelease: (e) => {
-        if (!barWidth.current || !durMsRef.current) { setDragProgress(null); return; }
+        isDragging.current = false;
+        if (!barWidth.current || !durMsRef.current) return;
         const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-        setDragProgress(null);
+        scrubAnim.setValue(ratio);
         seekToRef.current(Math.floor(ratio * durMsRef.current));
       },
-      onPanResponderTerminate: () => setDragProgress(null),
+      onPanResponderTerminate: () => { isDragging.current = false; },
     })
   ).current;
 
@@ -222,8 +231,10 @@ export default function MusicScreen() {
             }}
             {...scrubber.panHandlers}
           >
-            <View style={s.progressWrap}>
-              <View style={[s.progressFill, { width: `${(displayProgress * 100).toFixed(1)}%` }]} />
+            <View style={s.progressTrack}>
+              <Animated.View style={[s.progressFill, { width: fillWidth }]}>
+                <View style={s.progressThumb} />
+              </Animated.View>
             </View>
           </View>
           {hasTrack && (
@@ -311,11 +322,18 @@ const s = StyleSheet.create({
   progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
   timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
   timeText: { fontSize: 12, fontFamily: "Inter_400Regular", color: GREY },
-  progressWrap: {
-    height: 4, backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 2, overflow: "hidden",
+  progressTrack: {
+    height: 4, backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 2, overflow: "visible",
   },
-  progressFill: { height: "100%", backgroundColor: RED, borderRadius: 2 },
+  progressFill: {
+    height: "100%", backgroundColor: RED,
+    borderRadius: 2, overflow: "visible",
+  },
+  progressThumb: {
+    position: "absolute", right: -6, top: -4,
+    width: 12, height: 12, borderRadius: 6, backgroundColor: RED,
+  },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 36, marginBottom: 14 },
   ctrlBtn:  { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   playBtn: {
