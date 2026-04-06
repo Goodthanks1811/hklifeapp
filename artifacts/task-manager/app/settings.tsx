@@ -778,53 +778,24 @@ export default function SettingsScreen() {
     { name: "Tyga Mix",          url: "" },
     { name: "Old School RnB",    url: "" },
   ];
-  type ApplePL = { name: string; url: string };
-  const DEFAULT_APPLE_PL: ApplePL[] = [
-    { name: "Bone Greatest Hits",   url: "" },
-    { name: "2pac Greatest Hits",   url: "" },
-    { name: "Snoop Greatest Hits",  url: "" },
-    { name: "DMX Greatest Hits",    url: "" },
-    { name: "Eminem Greatest Hits", url: "" },
-    { name: "The Repeat List",      url: "" },
-    { name: "Old School Rnb",       url: "" },
-    { name: "Driving",              url: "" },
-    { name: "Pre Gym",              url: "" },
-    { name: "2022 New Stuff",       url: "" },
-    { name: "Faydee",               url: "" },
-    { name: "Carnal Hits",          url: "" },
-  ];
-
   const [spotifyPL,       setSpotifyPL]       = useState<SpotifyPL[]>(DEFAULT_SPOTIFY_PL);
-  const [applePL,         setApplePL]         = useState<ApplePL[]>(DEFAULT_APPLE_PL);
   const [newSpotifyName,  setNewSpotifyName]  = useState("");
   const [newSpotifyURL,   setNewSpotifyURL]   = useState("");
-  const [newAppleName,    setNewAppleName]    = useState("");
-  const [newAppleURL,     setNewAppleURL]     = useState("");
 
   useEffect(() => {
     AsyncStorage.getItem("music_spotify_playlists").then(v => { if (v) setSpotifyPL(JSON.parse(v)); });
-    AsyncStorage.getItem("music_apple_playlists").then(v => { if (v) setApplePL(JSON.parse(v)); });
   }, []);
 
   const saveSpotify = (list: SpotifyPL[]) => { setSpotifyPL(list); AsyncStorage.setItem("music_spotify_playlists", JSON.stringify(list)); };
-  const saveApple   = (list: ApplePL[])  => { setApplePL(list);  AsyncStorage.setItem("music_apple_playlists",   JSON.stringify(list)); };
 
   const addSpotifyPL    = () => { const n = newSpotifyName.trim(); if (!n) return; saveSpotify([...spotifyPL, { name: n, url: newSpotifyURL.trim() }]); setNewSpotifyName(""); setNewSpotifyURL(""); };
   const removeSpotifyPL = (i: number) => { if (editSpotifyIdx === i) setEditSpotifyIdx(null); saveSpotify(spotifyPL.filter((_, idx) => idx !== i)); };
   const moveSpotifyUp   = (i: number) => { if (i === 0) return; const next = [...spotifyPL]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; saveSpotify(next); };
   const moveSpotifyDown = (i: number) => { if (i === spotifyPL.length - 1) return; const next = [...spotifyPL]; [next[i], next[i + 1]] = [next[i + 1], next[i]]; saveSpotify(next); };
-  const addApplePL      = () => { const n = newAppleName.trim(); if (!n) return; saveApple([...applePL, { name: n, url: newAppleURL.trim() }]); setNewAppleName(""); setNewAppleURL(""); };
-  const removeApplePL   = (i: number) => { if (editAppleIdx === i) setEditAppleIdx(null); saveApple(applePL.filter((_, idx) => idx !== i)); };
-  const moveAppleUp     = (i: number) => { if (i === 0) return; const next = [...applePL]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; saveApple(next); };
-  const moveAppleDown   = (i: number) => { if (i === applePL.length - 1) return; const next = [...applePL]; [next[i], next[i + 1]] = [next[i + 1], next[i]]; saveApple(next); };
 
   const [editSpotifyIdx,  setEditSpotifyIdx]  = useState<number | null>(null);
   const [editSpotifyName, setEditSpotifyName] = useState("");
   const [editSpotifyURL,  setEditSpotifyURL]  = useState("");
-
-  const [editAppleIdx,  setEditAppleIdx]  = useState<number | null>(null);
-  const [editAppleName, setEditAppleName] = useState("");
-  const [editAppleURL,  setEditAppleURL]  = useState("");
 
   const startEditSpotify = (i: number) => {
     setEditSpotifyIdx(i);
@@ -838,20 +809,6 @@ export default function SettingsScreen() {
     );
     saveSpotify(updated);
     setEditSpotifyIdx(null);
-  };
-
-  const startEditApple = (i: number) => {
-    setEditAppleIdx(i);
-    setEditAppleName(applePL[i].name);
-    setEditAppleURL(applePL[i].url);
-  };
-  const saveEditApple = () => {
-    if (editAppleIdx === null) return;
-    const updated = applePL.map((pl, i) =>
-      i === editAppleIdx ? { name: editAppleName.trim() || pl.name, url: editAppleURL.trim() } : pl
-    );
-    saveApple(updated);
-    setEditAppleIdx(null);
   };
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
@@ -1350,106 +1307,6 @@ export default function SettingsScreen() {
                   onSubmitEditing={addSpotifyPL}
                 />
                 <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={addSpotifyPL}>
-                  <Feather name="plus" size={16} color="#fff" />
-                </Pressable>
-              </View>
-            </SubAccordion>
-
-            {/* ── Apple Music Playlists ── */}
-            <SubAccordion title="Apple Music Playlists" icon="music" defaultOpen={false}>
-              {applePL.map((pl, i) =>
-                editAppleIdx === i ? (
-                  <View key={i} style={[styles.mPLRow, { flexDirection: "column", alignItems: "stretch", gap: 6 }]}>
-                    <View style={styles.mPLAddRow}>
-                      <TextInput
-                        style={[styles.mPLInput, { flex: 1 }]}
-                        value={editAppleName}
-                        onChangeText={setEditAppleName}
-                        placeholder="Playlist name..."
-                        placeholderTextColor={Colors.textMuted}
-                        autoCapitalize="words"
-                        autoCorrect={false}
-                        keyboardAppearance="dark"
-                        returnKeyType="next"
-                        autoFocus
-                      />
-                    </View>
-                    <View style={styles.mPLAddRow}>
-                      <TextInput
-                        style={[styles.mPLInput, { flex: 1 }]}
-                        value={editAppleURL}
-                        onChangeText={setEditAppleURL}
-                        placeholder="Apple Music URL..."
-                        placeholderTextColor={Colors.textMuted}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardAppearance="dark"
-                        returnKeyType="done"
-                        onSubmitEditing={saveEditApple}
-                      />
-                      <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={saveEditApple}>
-                        <Feather name="check" size={16} color="#fff" />
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <View key={i} style={styles.mPLRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.mPLName} numberOfLines={1}>{pl.name}</Text>
-                      <Text style={[styles.mPLUrl, !pl.url && { color: "rgba(255,255,255,0.2)" }]} numberOfLines={1}>
-                        {pl.url || "Tap pencil to add URL"}
-                      </Text>
-                    </View>
-                    <View style={mStyles.arrows}>
-                      <Pressable
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveAppleUp(i); }}
-                        style={({ pressed }) => [mStyles.arrowBtn, (i === 0 || pressed) && mStyles.arrowBtnDim]}
-                        hitSlop={5}
-                      >
-                        <Feather name="chevron-up" size={15} color={i === 0 ? Colors.textMuted : Colors.textSecondary} />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveAppleDown(i); }}
-                        style={({ pressed }) => [mStyles.arrowBtn, (i === applePL.length - 1 || pressed) && mStyles.arrowBtnDim]}
-                        hitSlop={5}
-                      >
-                        <Feather name="chevron-down" size={15} color={i === applePL.length - 1 ? Colors.textMuted : Colors.textSecondary} />
-                      </Pressable>
-                    </View>
-                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startEditApple(i); }} hitSlop={8} style={{ marginLeft: 6, marginRight: 10 }}>
-                      <Feather name="edit-2" size={14} color={Colors.textMuted} />
-                    </Pressable>
-                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeApplePL(i); }} hitSlop={8}>
-                      <Feather name="x" size={15} color={Colors.textMuted} />
-                    </Pressable>
-                  </View>
-                )
-              )}
-              <TextInput
-                style={[styles.mPLInput, { marginTop: 8 }]}
-                value={newAppleName}
-                onChangeText={setNewAppleName}
-                placeholder="New playlist name..."
-                placeholderTextColor={Colors.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-                keyboardAppearance="dark"
-                returnKeyType="next"
-              />
-              <View style={styles.mPLAddRow}>
-                <TextInput
-                  style={[styles.mPLInput, { flex: 1 }]}
-                  value={newAppleURL}
-                  onChangeText={setNewAppleURL}
-                  placeholder="Apple Music URL..."
-                  placeholderTextColor={Colors.textMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardAppearance="dark"
-                  returnKeyType="done"
-                  onSubmitEditing={addApplePL}
-                />
-                <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={addApplePL}>
                   <Feather name="plus" size={16} color="#fff" />
                 </Pressable>
               </View>
