@@ -24,6 +24,9 @@ module.exports = {
         NSFaceIDUsageDescription: 'HK Life uses Face ID to lock the app.',
         UIBackgroundModes: ['audio'],
       },
+      entitlements: {
+        'com.apple.developer.carplay-audio': true,
+      },
     },
     android: {
       package: IS_DEV ? 'com.hklife.app.dev' : 'com.hklife.app',

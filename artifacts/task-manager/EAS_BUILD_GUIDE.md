@@ -302,9 +302,25 @@ These are the exact pinned versions required for a successful build with Expo 54
 | `react-native-worklets` | `0.5.1` | Required by Reanimated 4; needs `react-native-worklets/plugin` in babel |
 | `expo-screen-orientation` | `~9.0.8` | Used to unlock landscape in Mi Corazon Viewer; requires EAS build. **Must be listed in `app.config.js` plugins array** (`'expo-screen-orientation'`) — without the plugin, iOS ignores `unlockAsync()` even if `orientation:'default'` is set. |
 | `react-native-keyboard-controller` | **REMOVED** | Crashes on iOS 26 (use-after-free in JSI bindings) |
+| `react-native-track-player` | `^4.1.2` | Drives Lock Screen Now Playing widget, Control Center controls, and CarPlay. Replaces `expo-av` for music playback. Background service registered via `TrackPlayer.registerPlaybackService(() => PlaybackService)` in `_layout.tsx`. CarPlay also requires the `com.apple.developer.carplay-audio` entitlement (see CarPlay Setup below). |
 
 `newArchEnabled: true` in `app.config.js`.
 `react-native-worklets/plugin` must be in `babel.config.js` plugins whenever any Reanimated worklet hooks are used.
+
+---
+
+## CarPlay Setup (one-time — Apple Developer portal)
+
+`react-native-track-player` with `com.apple.developer.carplay-audio` in `app.config.js` provides the JS/native side. But Apple must also enable the entitlement on the App ID:
+
+1. Go to **developer.apple.com → Certificates, IDs & Profiles → Identifiers**
+2. Select `com.hklife.app`
+3. Under **Capabilities**, enable **CarPlay** (it will be in the "Paid/Approved" section — tick the checkbox and Save)
+4. Apple approves this automatically for audio apps — no review needed
+5. Regenerate the provisioning profile in EAS: run `eas credentials` → iOS → select the profile → **sync**
+6. Rebuild with EAS
+
+Without step 3–5, the entitlement is in the binary but not in the provisioning profile, causing a code signing error at install time.
 
 ---
 

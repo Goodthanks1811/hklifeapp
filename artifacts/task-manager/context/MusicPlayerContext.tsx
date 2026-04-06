@@ -2,10 +2,18 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
+import TrackPlayer, {
+  Capability,
+  Event,
+  State,
+  useActiveTrack,
+  usePlaybackState,
+  useProgress,
+} from "react-native-track-player";
 
 export type MusicTrack = { id: string; name: string; uri: string };
 
@@ -28,104 +36,134 @@ type MusicPlayerContextValue = PlayerState & {
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null);
 
+let playerSetup = false;
+
+async function ensureSetup() {
+  if (playerSetup) return;
+  playerSetup = true;
+  try {
+    await TrackPlayer.setupPlayer({
+      autoHandleInterruptions: true,
+    });
+    await TrackPlayer.updateOptions({
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.SeekTo,
+        Capability.Stop,
+      ],
+      compactCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+      ],
+      progressUpdateEventInterval: 1,
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.SeekTo,
+      ],
+    });
+  } catch (e) {
+    // setupPlayer throws if already called — safe to ignore
+    playerSetup = true;
+  }
+}
+
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
-  const soundRef      = useRef<Audio.Sound | null>(null);
   const tracksRef     = useRef<MusicTrack[]>([]);
   const trackIdxRef   = useRef<number | null>(null);
 
-  const [state, setState] = useState<PlayerState>({
-    track: null, trackIndex: null, tracks: [],
-    isPlaying: false, posMs: 0, durMs: 0,
-  });
+  // RNTP hooks — these update MPNowPlayingInfoCenter automatically
+  const activeTrack   = useActiveTrack();
+  const pbState       = usePlaybackState();
+  const progress      = useProgress(500);   // polls every 500ms
 
-  const patch = (p: Partial<PlayerState>) => setState(s => ({ ...s, ...p }));
+  // Mirror RNTP state into our context shape (posMs / durMs stay in ms)
+  const isPlaying = pbState.state === State.Playing || pbState.state === State.Buffering;
+  const posMs     = Math.floor((progress.position ?? 0) * 1000);
+  const durMs     = Math.floor((progress.duration  ?? 0) * 1000);
 
-  const stopAndUnload = async () => {
-    if (soundRef.current) {
-      try { await soundRef.current.stopAsync(); } catch {}
-      try { await soundRef.current.unloadAsync(); } catch {}
-      soundRef.current = null;
-    }
-  };
+  // Derive our MusicTrack from the active RNTP track
+  const track: MusicTrack | null = activeTrack
+    ? { id: String(activeTrack.id), name: String(activeTrack.title ?? ""), uri: String(activeTrack.url) }
+    : null;
 
   const playTrack = useCallback(async (idx: number, list: MusicTrack[]) => {
     if (idx < 0 || idx >= list.length) return;
-    const t = list[idx];
+    await ensureSetup();
+
     tracksRef.current   = list;
     trackIdxRef.current = idx;
 
-    await stopAndUnload();
-    patch({ track: t, trackIndex: idx, tracks: list, isPlaying: false, posMs: 0, durMs: 0 });
+    const rnTracks = list.map(t => ({
+      id:    t.id,
+      url:   t.uri,
+      title: t.name,
+    }));
 
     try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        shouldDuckAndroid: false,
-      });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: t.uri },
-        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
-        (status) => {
-          if (!status.isLoaded) return;
-          patch({
-            posMs: status.positionMillis,
-            durMs: status.durationMillis ?? 0,
-            isPlaying: status.isPlaying,
-          });
-          if (status.didJustFinish) {
-            const cur  = trackIdxRef.current ?? 0;
-            const next = (cur + 1) % tracksRef.current.length;
-            setTimeout(() => playTrack(next, tracksRef.current), 400);
-          }
-        }
-      );
-      soundRef.current = sound;
+      await TrackPlayer.reset();
+      await TrackPlayer.add(rnTracks);
+      await TrackPlayer.skip(idx);
+      await TrackPlayer.play();
     } catch (err) {
-      console.error("[MusicPlayer] play error:", err);
+      console.error("[MusicPlayer] playTrack error:", err);
     }
   }, []);
 
   const togglePlay = useCallback(async () => {
-    if (!soundRef.current) return;
-    const status = await soundRef.current.getStatusAsync();
-    if (!status.isLoaded) return;
-    if (status.isPlaying) {
-      await soundRef.current.pauseAsync();
+    if (isPlaying) {
+      await TrackPlayer.pause();
     } else {
-      await soundRef.current.playAsync();
+      await TrackPlayer.play();
     }
-  }, []);
+  }, [isPlaying]);
 
   const skipBack = useCallback(async () => {
-    const s = state;
-    if (s.posMs > 3000 && soundRef.current) {
-      await soundRef.current.setPositionAsync(0);
+    if (posMs > 3000) {
+      await TrackPlayer.seekTo(0);
     } else {
-      const list = tracksRef.current;
-      const cur  = trackIdxRef.current;
-      const idx  = cur === null ? 0 : (cur - 1 + list.length) % list.length;
-      await playTrack(idx, list);
+      try { await TrackPlayer.skipToPrevious(); } catch {}
     }
-  }, [state, playTrack]);
+  }, [posMs]);
 
   const skipForward = useCallback(async () => {
-    const list = tracksRef.current;
-    const cur  = trackIdxRef.current;
-    const idx  = cur === null ? 0 : (cur + 1) % list.length;
-    await playTrack(idx, list);
-  }, [playTrack]);
-
-  const seekTo = useCallback(async (ms: number) => {
-    if (!soundRef.current) return;
-    patch({ posMs: ms });
-    try { await soundRef.current.setPositionAsync(ms); } catch {}
+    try { await TrackPlayer.skipToNext(); } catch {}
   }, []);
 
+  const seekTo = useCallback(async (ms: number) => {
+    await TrackPlayer.seekTo(ms / 1000);
+  }, []);
+
+  // Keep our refs in sync so skipBack has the right posMs
+  useEffect(() => {
+    if (activeTrack) {
+      const idx = tracksRef.current.findIndex(t => t.id === String(activeTrack.id));
+      if (idx !== -1) trackIdxRef.current = idx;
+    }
+  }, [activeTrack]);
+
+  const value: MusicPlayerContextValue = {
+    track,
+    trackIndex: trackIdxRef.current,
+    tracks: tracksRef.current,
+    isPlaying,
+    posMs,
+    durMs,
+    playTrack,
+    togglePlay,
+    skipBack,
+    skipForward,
+    seekTo,
+  };
+
   return (
-    <MusicPlayerContext.Provider value={{ ...state, playTrack, togglePlay, skipBack, skipForward, seekTo }}>
+    <MusicPlayerContext.Provider value={value}>
       {children}
     </MusicPlayerContext.Provider>
   );
