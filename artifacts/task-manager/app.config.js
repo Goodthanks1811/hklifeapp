@@ -73,6 +73,7 @@ module.exports = {
           photosPermission: 'Allow Mi Corazon to access your photos and videos.',
         },
       ],
+      'expo-screen-orientation',
     ],
     experiments: {
       typedRoutes: true,

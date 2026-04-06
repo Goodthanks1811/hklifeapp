@@ -300,7 +300,7 @@ These are the exact pinned versions required for a successful build with Expo 54
 | `expo` | `~54.0.27` | |
 | `react-native-reanimated` | `~4.1.1` | |
 | `react-native-worklets` | `0.5.1` | Required by Reanimated 4; needs `react-native-worklets/plugin` in babel |
-| `expo-screen-orientation` | `~9.0.8` | Used to unlock landscape in Mi Corazon Viewer; requires EAS build |
+| `expo-screen-orientation` | `~9.0.8` | Used to unlock landscape in Mi Corazon Viewer; requires EAS build. **Must be listed in `app.config.js` plugins array** (`'expo-screen-orientation'`) — without the plugin, iOS ignores `unlockAsync()` even if `orientation:'default'` is set. |
 | `react-native-keyboard-controller` | **REMOVED** | Crashes on iOS 26 (use-after-free in JSI bindings) |
 
 `newArchEnabled: true` in `app.config.js`.
