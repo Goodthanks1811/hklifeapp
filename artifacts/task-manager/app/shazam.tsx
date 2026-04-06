@@ -10,6 +10,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -152,11 +153,12 @@ function SongRow({ song, onChecked, onDelete, onStartDelete, onPress }: {
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
             onPressIn={() => {
-              Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
-              if (!revealedRef.current) onPress();
+              if (!revealedRef.current)
+                Animated.timing(pressOverlay, { toValue: 0.28, duration: 60, useNativeDriver: true }).start();
             }}
             onPress={() => {
               if (revealedRef.current) swipeableRef.current?.close();
+              else onPress();
             }}
             onPressOut={onPressOut}
             hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
@@ -204,9 +206,9 @@ export default function ShazamScreen() {
   const [errorMsg,   setErrorMsg]   = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Loader starts INVISIBLE — fades in only after the image has decoded.
+  // Loader starts VISIBLE immediately so it always shows (even on URL cold-open).
   // Content starts invisible — fades in after all three gates pass.
-  const loaderOpacity  = useRef(new Animated.Value(0)).current;
+  const loaderOpacity  = useRef(new Animated.Value(1)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   // Three gates that must ALL resolve before content is revealed:
@@ -226,13 +228,12 @@ export default function ShazamScreen() {
     ]).start();
   }, [loaderOpacity, contentOpacity]);
 
-  // Called by ShazamLoader once the image has finished decoding — fade in the
-  // pulsing icon (already animating) and attempt reveal.
+  // Called by ShazamLoader once the image has finished decoding — pulse starts,
+  // gate opens, attempt reveal.
   const handleImgReady = useCallback(() => {
     imgReady.current = true;
-    Animated.timing(loaderOpacity, { toValue: 1, duration: 180, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
     reveal();
-  }, [loaderOpacity, reveal]);
+  }, [reveal]);
 
   // 2-second minimum timer — starts on mount alongside the fetch
   useEffect(() => {
@@ -317,7 +318,12 @@ export default function ShazamScreen() {
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]}>
 
         {status === "error" && (
-          <>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: botPad + 24 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
+            }
+          >
             <ListHeader />
             <View style={styles.center}>
               <Feather name="alert-circle" size={28} color={Colors.primary} />
@@ -326,16 +332,21 @@ export default function ShazamScreen() {
                 <Text style={styles.retryTxt}>Retry</Text>
               </TouchableOpacity>
             </View>
-          </>
+          </ScrollView>
         )}
 
         {status === "done" && songs.length === 0 && (
-          <>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: botPad + 24 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.primary} />
+            }
+          >
             <ListHeader />
             <View style={styles.center}>
               <Text style={styles.emptyTxt}>No Shazam songs yet</Text>
             </View>
-          </>
+          </ScrollView>
         )}
 
         {status === "done" && songs.length > 0 && (
