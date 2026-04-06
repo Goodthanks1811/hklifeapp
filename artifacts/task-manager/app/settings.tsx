@@ -224,22 +224,28 @@ function SubAccordion({
 
 const sacc = StyleSheet.create({
   wrapper: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    marginTop: 4,
+    marginBottom: 8,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    backgroundColor: "#141416",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   iconBox: {
-    width: 36, height: 36,
+    width: 32, height: 32,
     backgroundColor: "rgba(224,49,49,0.12)",
-    borderRadius: 10,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: "rgba(224,49,49,0.25)",
     alignItems: "center", justifyContent: "center",
@@ -249,7 +255,7 @@ const sacc = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
-  body: { paddingTop: 4 },
+  body: { paddingTop: 8 },
 });
 
 // ── Menu section card ─────────────────────────────────────────────────────────
@@ -789,9 +795,27 @@ export default function SettingsScreen() {
   const saveApple   = (list: string[])    => { setApplePL(list);    AsyncStorage.setItem("music_apple_playlists",   JSON.stringify(list)); };
 
   const addSpotifyPL    = () => { const n = newSpotifyName.trim(); if (!n) return; saveSpotify([...spotifyPL, { name: n, url: newSpotifyURL.trim() }]); setNewSpotifyName(""); setNewSpotifyURL(""); };
-  const removeSpotifyPL = (i: number) => saveSpotify(spotifyPL.filter((_, idx) => idx !== i));
+  const removeSpotifyPL = (i: number) => { if (editSpotifyIdx === i) setEditSpotifyIdx(null); saveSpotify(spotifyPL.filter((_, idx) => idx !== i)); };
   const addApplePL      = () => { const n = newApplePL.trim(); if (!n) return; saveApple([...applePL, n]); setNewApplePL(""); };
   const removeApplePL   = (i: number) => saveApple(applePL.filter((_, idx) => idx !== i));
+
+  const [editSpotifyIdx,  setEditSpotifyIdx]  = useState<number | null>(null);
+  const [editSpotifyName, setEditSpotifyName] = useState("");
+  const [editSpotifyURL,  setEditSpotifyURL]  = useState("");
+
+  const startEditSpotify = (i: number) => {
+    setEditSpotifyIdx(i);
+    setEditSpotifyName(spotifyPL[i].name);
+    setEditSpotifyURL(spotifyPL[i].url);
+  };
+  const saveEditSpotify = () => {
+    if (editSpotifyIdx === null) return;
+    const updated = spotifyPL.map((pl, i) =>
+      i === editSpotifyIdx ? { name: editSpotifyName.trim() || pl.name, url: editSpotifyURL.trim() } : pl
+    );
+    saveSpotify(updated);
+    setEditSpotifyIdx(null);
+  };
 
   const tickOpacity = useRef(new Animated.Value(0)).current;
 
@@ -1199,26 +1223,60 @@ export default function SettingsScreen() {
             {/* ── Spotify Playlists ── */}
             <SubAccordion title="Spotify Playlists" icon="headphones" defaultOpen={false}>
               {spotifyPL.map((pl, i) => (
-                <View key={i} style={styles.mPLRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mPLName} numberOfLines={1}>{pl.name}</Text>
-                    {!!pl.url && (
-                      <Text style={styles.mPLUrl} numberOfLines={1}>{pl.url}</Text>
-                    )}
-                    {!pl.url && (
-                      <Text style={[styles.mPLUrl, { color: "rgba(255,255,255,0.2)" }]}>No URL set</Text>
-                    )}
+                editSpotifyIdx === i ? (
+                  <View key={i} style={[styles.mPLRow, { flexDirection: "column", alignItems: "stretch", gap: 6 }]}>
+                    <TextInput
+                      style={styles.mPLInput}
+                      value={editSpotifyName}
+                      onChangeText={setEditSpotifyName}
+                      placeholder="Playlist name..."
+                      placeholderTextColor={Colors.textMuted}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      keyboardAppearance="dark"
+                      returnKeyType="next"
+                      autoFocus
+                    />
+                    <View style={styles.mPLAddRow}>
+                      <TextInput
+                        style={[styles.mPLInput, { flex: 1 }]}
+                        value={editSpotifyURL}
+                        onChangeText={setEditSpotifyURL}
+                        placeholder="Spotify URL..."
+                        placeholderTextColor={Colors.textMuted}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardAppearance="dark"
+                        returnKeyType="done"
+                        onSubmitEditing={saveEditSpotify}
+                      />
+                      <Pressable style={({ pressed }) => [styles.mPLAddBtn, pressed && { opacity: 0.7 }]} onPress={saveEditSpotify}>
+                        <Feather name="check" size={16} color="#fff" />
+                      </Pressable>
+                    </View>
                   </View>
-                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeSpotifyPL(i); }} hitSlop={8}>
-                    <Feather name="x" size={15} color={Colors.textMuted} />
-                  </Pressable>
-                </View>
+                ) : (
+                  <View key={i} style={styles.mPLRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.mPLName} numberOfLines={1}>{pl.name}</Text>
+                      <Text style={[styles.mPLUrl, !pl.url && { color: "rgba(255,255,255,0.2)" }]} numberOfLines={1}>
+                        {pl.url || "Tap pencil to add URL"}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startEditSpotify(i); }} hitSlop={8} style={{ marginRight: 10 }}>
+                      <Feather name="edit-2" size={14} color={Colors.textMuted} />
+                    </Pressable>
+                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeSpotifyPL(i); }} hitSlop={8}>
+                      <Feather name="x" size={15} color={Colors.textMuted} />
+                    </Pressable>
+                  </View>
+                )
               ))}
               <TextInput
                 style={[styles.mPLInput, { marginTop: 8 }]}
                 value={newSpotifyName}
                 onChangeText={setNewSpotifyName}
-                placeholder="Playlist name..."
+                placeholder="New playlist name..."
                 placeholderTextColor={Colors.textMuted}
                 autoCapitalize="words"
                 autoCorrect={false}
