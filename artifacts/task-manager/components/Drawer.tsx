@@ -86,7 +86,7 @@ function SectionChildrenView({
 
       <ScrollView
         style={styles.scrollArea}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 32, paddingBottom: bottomPad + 40 }}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: bottomPad + 40 }}
         showsVerticalScrollIndicator={false}
       >
         {items.map((item, i) => (
