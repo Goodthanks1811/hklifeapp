@@ -186,8 +186,8 @@ export function Drawer() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.spring(slideAnim, {
       toValue: 1,
-      tension: 220,
-      friction: 26,
+      tension: 60,
+      friction: 20,
       useNativeDriver: true,
     }).start();
   }, [slideAnim]);
@@ -196,8 +196,8 @@ export function Drawer() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.spring(slideAnim, {
       toValue: 0,
-      tension: 220,
-      friction: 26,
+      tension: 60,
+      friction: 20,
       useNativeDriver: true,
     }).start(() => {
       setActiveSectionKey(null);
