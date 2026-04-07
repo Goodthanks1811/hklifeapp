@@ -409,8 +409,8 @@ function buildMainHtml(
     `<button class="round-pill${r === selRound ? " active" : ""}" id="pill-${r}" onclick="handleRound(${r})">${r}</button>`
   ).join("");
 
-  const tabBarH  = 52 + bottomPad;
-  const contentPb = 68 + bottomPad;
+  const tabBarH  = 104 + bottomPad;
+  const contentPb = 120 + bottomPad;
 
   const css = `
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap');
@@ -429,7 +429,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .rounds-scroll::-webkit-scrollbar{display:none}
 .round-pill{flex-shrink:0;background:#1a1a1a;border:1px solid #2a2a2a;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:5px 14px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .round-pill.active{background:${NRL_GREEN};border-color:${NRL_GREEN};color:#fff}
-.ladder-pill-spacer{height:44px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
+.ladder-pill-spacer{height:96px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
 .drg-header{position:sticky;top:0;z-index:100;background:${NRL_DARK};border-bottom:2px solid ${DRG_RED};}
 .drg-header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;}
 .drg-header-banner{height:121px;width:auto;display:block;object-fit:contain;mix-blend-mode:screen;}
