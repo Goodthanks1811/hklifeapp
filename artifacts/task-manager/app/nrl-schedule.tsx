@@ -426,7 +426,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .header{position:sticky;top:0;z-index:100;background:#000;border-bottom:2px solid ${NRL_GREEN};}
 .header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;background:#000;}
 .header-banner{height:110px;width:auto;display:block;object-fit:contain;}
-.rounds-scroll{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:linear-gradient(160deg,#0d1f0d 0%,#0a0a0a 60%);max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
+.rounds-scroll{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#000;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .rounds-scroll::-webkit-scrollbar{display:none}
 .round-pill{flex-shrink:0;background:#1a1a1a;border:1px solid #2a2a2a;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:5px 14px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .round-pill.active{background:${NRL_GREEN};border-color:${NRL_GREEN};color:#fff}
