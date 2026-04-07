@@ -345,8 +345,8 @@ export default function LifeQuickAdd() {
                   onChangeText={setTitle}
                   autoCorrect
                   returnKeyType="done"
+                  onSubmitEditing={handleSave}
                   keyboardAppearance="dark"
-                  onKeyPress={({ nativeEvent }) => { if (nativeEvent.key === 'Enter') handleSave(); }}
                   editable={!saveDisabled}
                 />
               </Animated.View>

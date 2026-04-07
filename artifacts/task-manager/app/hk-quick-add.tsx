@@ -318,7 +318,7 @@ export default function HKQuickAdd() {
               placeholderTextColor={Colors.textMuted}
               selectionColor={Colors.primary}
               returnKeyType="done"
-              onKeyPress={({ nativeEvent }) => { if (nativeEvent.key === 'Enter') handleSave(); }}
+              onSubmitEditing={handleSave}
               keyboardAppearance="dark"
               editable={!saving}
             />
