@@ -34,6 +34,11 @@ console.log("Status:", res.status);
 - Permissions: `repo` (full read/write)
 - Always push files to GitHub after creating them — don't wait for the user to ask
 
+## EAS Build — IMPORTANT RULE
+
+**NEVER trigger an EAS build automatically after making fixes.**
+Always stop after the fixes are done, push files to GitHub, then explicitly ask the user: "Ready to build?" and wait for their confirmation before running the `eas build` command.
+
 ---
 
 ## Overview
