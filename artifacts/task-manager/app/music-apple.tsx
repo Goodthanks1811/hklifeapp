@@ -221,7 +221,7 @@ const s = StyleSheet.create({
     paddingTop: 28, paddingBottom: 10,
     position: "relative",
   },
-  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
+  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
 
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
