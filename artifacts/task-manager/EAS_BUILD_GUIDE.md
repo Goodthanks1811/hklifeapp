@@ -398,3 +398,34 @@ The module is added as `"apple-musickit": "file:./modules/apple-musickit"` in pa
 | Profile for installs | `preview` |
 
 Build history and IPA downloads: **expo.dev → Projects → hk-life-app → Builds**
+
+---
+
+### 15. Apple Music "Install Required" — ExpoModulesProvider never registers the module (root cause + final fix)
+
+**Root cause confirmed (builds d7290a63 → 1c3069cf)**:
+
+The pod WAS being compiled (`Installing apple-musickit (1.0.0)` in INSTALL_PODS), but `ExpoModulesProvider.swift` — the generated file that lists every native module — never included `AppleMusicKitModule`. Autolinking computes the provider's list during `expo prebuild` (PREBUILD phase), which runs **before** pnpm install. Any fix that creates a symlink during/after pnpm install (postinstall hook, eas-build-post-install) arrives too late for autolinking.
+
+**Why the old Swift ExpoModulesCore approach was never going to work without autolinking finding the module**: `requireNativeModule("AppleMusicKit")` looks up the module in ExpoModulesProvider's class list. If the class isn't there, it throws — which `music-apple.tsx` catches, sets `AppleMusicKit = null`, and shows "Install Required".
+
+**Final fix (build d7a39e73, confirmed working in logs)**:
+
+Rewrote the module as a **plain Objective-C bridge module** (`RCT_EXPORT_MODULE`) instead of an ExpoModulesCore Swift module. ObjC bridge modules self-register via the Objective-C runtime at app startup — no ExpoModulesProvider entry needed.
+
+Files changed:
+- `modules/apple-musickit/ios/AppleMusicKit.h` — ObjC header, declares `RCTBridgeModule` conformance
+- `modules/apple-musickit/ios/AppleMusicKit.m` — implementation with `RCT_EXPORT_MODULE(AppleMusicKit)` and `RCT_EXPORT_METHOD` for `requestAuthorization`, `getPlaylists`, `playPlaylist`
+- `modules/apple-musickit/apple-musickit.podspec` — `source_files = 'ios/**/*.{h,m}'`; depends on `React-Core` (not ExpoModulesCore)
+- `modules/apple-musickit/index.ts` — uses `NativeModules.AppleMusicKit` instead of `requireNativeModule`; throws if null (so the `try/catch` in `music-apple.tsx` still shows "Install Required" in Expo Go)
+
+**Build log confirms** (d7a39e73):
+- `INSTALL_DEPENDENCIES`: `postinstall: [ensure-local-modules] Symlinked apple-musickit → node_modules/`
+- `INSTALL_PODS`: `Installing apple-musickit (1.0.0)`
+- `ON_BUILD_SUCCESS_HOOK`: archive succeeded
+
+`NativeModules.AppleMusicKit` is non-null in this build because:
+1. ObjC `RCT_EXPORT_MODULE` registers the class in the ObjC runtime on binary load
+2. RN 0.81 (even with `newArchEnabled: true`) exposes bridge modules via `NativeModules` through the interop compatibility layer
+
+**The old Swift file** (`ios/AppleMusicKitModule.swift`) is still in the repo but the podspec now only compiles `ios/**/*.{h,m}` — the Swift file is ignored.

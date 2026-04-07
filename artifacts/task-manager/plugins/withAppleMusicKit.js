@@ -19,7 +19,7 @@ const withAppleMusicKit = (config) => {
 
       const podLine = "  pod 'apple-musickit', :path => '../modules/apple-musickit'";
 
-      if (!podfile.includes("pod 'apple-musickit'")) {
+      if (!podfile.includes("apple-musickit")) {
         // Insert after the `use_expo_modules!` call which is always present
         podfile = podfile.replace(
           /(\s*use_expo_modules!\s*\n)/,

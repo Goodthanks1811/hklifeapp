@@ -11,11 +11,10 @@ Pod::Spec.new do |s|
   s.author         = 'HK'
   s.homepage       = 'https://github.com/Goodthanks1811/hklifeapp'
   s.platform       = :ios, '15.1'
-  s.swift_version  = '5.4'
   s.source         = { :path => '.' }
-  s.source_files   = 'ios/**/*.swift'
+  s.source_files   = 'ios/**/*.{h,m}'
 
-  s.dependency 'ExpoModulesCore'
+  s.dependency 'React-Core'
 
   s.frameworks = 'MediaPlayer', 'StoreKit'
 end
