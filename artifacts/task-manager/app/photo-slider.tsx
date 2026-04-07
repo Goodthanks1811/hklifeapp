@@ -323,12 +323,15 @@ function filesChosen(e){
       img1=imgA;di1=prescale(imgA);
       loadFile(f2,function(imgB){
         img2=imgB;di2=prescale(imgB);
+        initMask();active=2;closeSheet();updateActiveUI();
+        brushMode=true;
+        var _bb=document.getElementById('btnBrush');if(_bb)_bb.style.display='none';
+        _setBrushInline(true);setBrushMode('erase');
+        // obar+bbar now visible — layout settled — fit both images to final stage
         requestAnimationFrame(function(){requestAnimationFrame(function(){
-          tx1=defaultTx(img1,W(),H());tx2=defaultTx(img2,W(),H());
-          initMask();active=2;draw();snapshot();closeSheet();updateActiveUI();
-          brushMode=true;
-          var _bb=document.getElementById('btnBrush');if(_bb)_bb.style.display='none';
-          _setBrushInline(true);setBrushMode('erase');
+          var w=W(),h=H();
+          tx1=defaultTx(img1,w,h);tx2=defaultTx(img2,w,h);
+          draw();snapshot();
         });});
       });
     });
@@ -338,21 +341,26 @@ function filesChosen(e){
     loadFile(f1,function(img){
       if(slot===2){
         img2=img;di2=prescale(img);
+        if(img1){initMask();}
+        active=2;closeSheet();updateActiveUI();
+        if(img1){
+          brushMode=true;
+          var _bb2=document.getElementById('btnBrush');if(_bb2)_bb2.style.display='none';
+          _setBrushInline(true);setBrushMode('erase');
+        }
+        // obar+bbar now visible — layout settled — fit both images to final stage
         requestAnimationFrame(function(){requestAnimationFrame(function(){
-          tx2=defaultTx(img2,W(),H());
-          if(img1){initMask();}
-          active=2;draw();snapshot();closeSheet();updateActiveUI();
-          if(img1){
-            brushMode=true;
-            var _bb2=document.getElementById('btnBrush');if(_bb2)_bb2.style.display='none';
-            _setBrushInline(true);setBrushMode('erase');
-          }
+          var w=W(),h=H();
+          if(img1)tx1=defaultTx(img1,w,h);
+          tx2=defaultTx(img2,w,h);
+          draw();snapshot();
         });});
       }else{
         img1=img;di1=prescale(img);
+        active=1;closeSheet();updateActiveUI();
         requestAnimationFrame(function(){requestAnimationFrame(function(){
           tx1=defaultTx(img1,W(),H());
-          active=1;draw();snapshot();closeSheet();updateActiveUI();
+          draw();snapshot();
         });});
       }
     });
