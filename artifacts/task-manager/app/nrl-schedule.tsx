@@ -425,7 +425,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .tab-panel{display:none;}.tab-panel.visible{display:block;}
 .header{position:sticky;top:0;z-index:100;background:#000;border-bottom:2px solid ${NRL_GREEN};}
 .header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;background:#000;}
-.header-banner{height:110px;width:auto;display:block;object-fit:contain;}
+.header-banner{height:115px;width:auto;display:block;object-fit:contain;}
 .rounds-scroll{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#000;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .rounds-scroll::-webkit-scrollbar{display:none}
 .round-pill{flex-shrink:0;background:#1a1a1a;border:1px solid #2a2a2a;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:5px 14px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
@@ -433,8 +433,8 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .ladder-pill-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
 .drg-header{position:sticky;top:0;z-index:100;background:${NRL_DARK};border-bottom:2px solid ${DRG_RED};}
 .drg-header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;}
-.drg-header-banner{height:121px;width:auto;display:block;object-fit:contain;mix-blend-mode:screen;}
-.drg-header-spacer{height:34px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
+.drg-header-banner{height:115px;width:auto;display:block;object-fit:contain;mix-blend-mode:screen;}
+.drg-header-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .drg-round-header{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;color:${DRG_RED};text-align:center;padding:6px 0 8px;letter-spacing:.3px;}
 .drg-divider{height:1px;background:linear-gradient(to right,transparent,#3a1414 30%,#3a1414 70%,transparent);margin:10px 20px 14px;}
 .content{width:min(92vw,${MAX_CONTENT_WIDTH}px);margin:0 auto;padding:12px 0 ${contentPb}px;}
