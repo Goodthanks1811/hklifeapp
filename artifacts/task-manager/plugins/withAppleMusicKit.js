@@ -21,8 +21,57 @@ const BUILD_UUID = 'AA11BB22CC33DD44EE55FF02';
 
 const SWIFT_CONTENT = `import ExpoModulesCore
 import MediaPlayer
+import AVFoundation
+import UIKit
 
 public class AppleMusicKitModule: Module {
+
+  private static var remoteCommandsRegistered = false
+
+  private func activateAudioSession() {
+    do {
+      try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {}
+  }
+
+  private func registerRemoteCommands() {
+    guard !AppleMusicKitModule.remoteCommandsRegistered else { return }
+    AppleMusicKitModule.remoteCommandsRegistered = true
+    let cc = MPRemoteCommandCenter.shared()
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    cc.playCommand.isEnabled = true
+    cc.pauseCommand.isEnabled = true
+    cc.nextTrackCommand.isEnabled = true
+    cc.previousTrackCommand.isEnabled = true
+    cc.playCommand.addTarget  { _ in player.play();              return .success }
+    cc.pauseCommand.addTarget { _ in player.pause();             return .success }
+    cc.nextTrackCommand.addTarget     { _ in player.skipToNextItem();     return .success }
+    cc.previousTrackCommand.addTarget { _ in player.skipToPreviousItem(); return .success }
+  }
+
+  private func updateNowPlaying(for item: MPMediaItem) {
+    var info: [String: Any] = [
+      MPMediaItemPropertyTitle:            item.title       ?? "",
+      MPMediaItemPropertyArtist:           item.artist      ?? "",
+      MPMediaItemPropertyAlbumTitle:       item.albumTitle  ?? "",
+      MPMediaItemPropertyPlaybackDuration: item.playbackDuration,
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: 0.0,
+      MPNowPlayingInfoPropertyPlaybackRate: 1.0,
+    ]
+    if let artwork = item.artwork {
+      info[MPMediaItemPropertyArtwork] = artwork
+    } else if let image = UIImage(named: "AppIcon") {
+      info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+  }
+
+  private func findCollection(persistentID: UInt64) -> MPMediaItemCollection? {
+    guard let collections = MPMediaQuery.playlists().collections else { return nil }
+    return collections.first { $0.persistentID == persistentID }
+  }
+
   public func definition() -> ModuleDefinition {
     Name("AppleMusicKit")
 
@@ -39,92 +88,73 @@ public class AppleMusicKitModule: Module {
     }
 
     AsyncFunction("getPlaylists") { (promise: Promise) in
-      let query = MPMediaQuery.playlists()
-      let collections = query.collections ?? []
+      let collections = MPMediaQuery.playlists().collections ?? []
       var result: [[String: Any]] = []
-      for collection in collections {
-        guard let playlist = collection as? MPMediaPlaylist,
-              let name = playlist.name, !name.isEmpty else { continue }
+      for col in collections {
+        guard let pl = col as? MPMediaPlaylist,
+              let name = pl.name, !name.isEmpty else { continue }
         result.append([
-          "id":    String(collection.persistentID),
-          "name":  name,
-          "count": collection.items.count,
+          "id": String(col.persistentID), "name": name, "count": col.items.count,
         ])
       }
       promise.resolve(result)
     }
 
     AsyncFunction("getSongsInPlaylist") { (persistentIDStr: String, promise: Promise) in
-      guard let persistentID = UInt64(persistentIDStr) else {
-        promise.reject("INVALID_ID", "Invalid playlist ID")
-        return
+      guard let pid = UInt64(persistentIDStr) else {
+        promise.reject("INVALID_ID", "Invalid playlist ID"); return
       }
-      let query = MPMediaQuery.playlists()
-      let collections = query.collections ?? []
-      for collection in collections {
-        if collection.persistentID == persistentID {
-          let songs: [[String: Any]] = collection.items.map { item in
-            [
-              "id":         String(item.persistentID),
-              "title":      item.title ?? "Unknown",
-              "artist":     item.artist ?? "",
-              "albumTitle": item.albumTitle ?? "",
-              "duration":   item.playbackDuration,
-            ]
-          }
-          promise.resolve(songs)
-          return
-        }
+      guard let col = self.findCollection(persistentID: pid) else {
+        promise.reject("NOT_FOUND", "Playlist not found"); return
       }
-      promise.reject("NOT_FOUND", "Playlist not found")
+      let songs: [[String: Any]] = col.items.map { item in [
+        "id":         String(item.persistentID),
+        "title":      item.title      ?? "Unknown",
+        "artist":     item.artist     ?? "",
+        "albumTitle": item.albumTitle ?? "",
+        "duration":   item.playbackDuration,
+      ]}
+      promise.resolve(songs)
     }
 
     AsyncFunction("playPlaylist") { (persistentIDStr: String, promise: Promise) in
-      guard let persistentID = UInt64(persistentIDStr), persistentID != 0 else {
-        promise.reject("INVALID_ID", "Invalid playlist ID")
-        return
+      guard let pid = UInt64(persistentIDStr), pid != 0 else {
+        promise.reject("INVALID_ID", "Invalid playlist ID"); return
       }
-      let query = MPMediaQuery.playlists()
-      let collections = query.collections ?? []
-      var found: MPMediaItemCollection? = nil
-      for collection in collections {
-        if collection.persistentID == persistentID { found = collection; break }
+      guard let col = self.findCollection(persistentID: pid) else {
+        promise.reject("NOT_FOUND", "Playlist not found"); return
       }
-      guard let collection = found else {
-        promise.reject("NOT_FOUND", "Playlist not found")
-        return
-      }
+      self.activateAudioSession()
+      self.registerRemoteCommands()
       DispatchQueue.main.async {
-        let player = MPMusicPlayerController.systemMusicPlayer
-        player.setQueue(with: collection)
+        let player = MPMusicPlayerController.applicationQueuePlayer
+        player.setQueue(with: col)
         player.shuffleMode = .off
         player.play()
+        if let first = col.items.first { self.updateNowPlaying(for: first) }
         promise.resolve(nil)
       }
     }
 
     AsyncFunction("playSongInPlaylist") { (playlistIDStr: String, songIndex: Int, promise: Promise) in
-      guard let playlistID = UInt64(playlistIDStr) else {
-        promise.reject("INVALID_ID", "Invalid playlist ID")
-        return
+      guard let pid = UInt64(playlistIDStr) else {
+        promise.reject("INVALID_ID", "Invalid playlist ID"); return
       }
-      let query = MPMediaQuery.playlists()
-      let collections = query.collections ?? []
-      for collection in collections {
-        if collection.persistentID == playlistID {
-          DispatchQueue.main.async {
-            let player = MPMusicPlayerController.systemMusicPlayer
-            player.setQueue(with: collection)
-            player.shuffleMode = .off
-            let idx = max(0, min(songIndex, collection.items.count - 1))
-            player.nowPlayingItem = collection.items[idx]
-            player.play()
-            promise.resolve(nil)
-          }
-          return
-        }
+      guard let col = self.findCollection(persistentID: pid) else {
+        promise.reject("NOT_FOUND", "Playlist not found"); return
       }
-      promise.reject("NOT_FOUND", "Playlist not found")
+      self.activateAudioSession()
+      self.registerRemoteCommands()
+      DispatchQueue.main.async {
+        let player = MPMusicPlayerController.applicationQueuePlayer
+        player.setQueue(with: col)
+        player.shuffleMode = .off
+        let idx = max(0, min(songIndex, col.items.count - 1))
+        player.nowPlayingItem = col.items[idx]
+        player.play()
+        self.updateNowPlaying(for: col.items[idx])
+        promise.resolve(nil)
+      }
     }
   }
 }
