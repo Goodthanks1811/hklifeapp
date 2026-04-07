@@ -520,7 +520,7 @@ export default function PhilosophyDailyScreen() {
           </Animated.View>
           <Animated.View style={[styles.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
             <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-              <Feather name="check" size={40} color="#fff" />
+              <Feather name="check" size={40} color="#000" />
             </Animated.View>
           </Animated.View>
         </Animated.View>
@@ -564,8 +564,8 @@ const styles = StyleSheet.create({
   spinnerRing: {
     width: SPINNER_SIZE, height: SPINNER_SIZE, borderRadius: SPINNER_SIZE / 2,
     borderWidth: SPINNER_STROKE,
-    borderColor: "rgba(255,255,255,0.85)",
-    borderTopColor: "rgba(255,255,255,0.12)",
+    borderColor: "#ff1e1e",
+    borderTopColor: "rgba(255,30,30,0.15)",
   },
   circleWrap: {
     width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,

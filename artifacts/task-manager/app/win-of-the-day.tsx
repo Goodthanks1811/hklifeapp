@@ -271,7 +271,7 @@ export default function WinOfTheDay() {
           <Animated.View style={[st.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
             <Animated.View style={{ transform: [{ scale: tickScale }] }}>
               <Svg width={52} height={52} viewBox="0 0 68 68">
-                <SvgPath fill="none" stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+                <SvgPath fill="none" stroke="#000" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
               </Svg>
             </Animated.View>
           </Animated.View>
@@ -371,8 +371,8 @@ const st = StyleSheet.create({
   spinnerRing: {
     width: SP_SIZE, height: SP_SIZE, borderRadius: SP_SIZE / 2,
     borderWidth: SP_STROKE,
-    borderColor: "rgba(255,255,255,0.85)",
-    borderTopColor: "rgba(255,255,255,0.12)",
+    borderColor: "#ff1e1e",
+    borderTopColor: "rgba(255,30,30,0.15)",
   },
   circleWrap: {
     width: CIR_SIZE, height: CIR_SIZE, borderRadius: CIR_SIZE / 2,
