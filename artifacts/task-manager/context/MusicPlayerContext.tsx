@@ -68,7 +68,10 @@ async function ensureSetup() {
   if (playerSetup) return;
   playerSetup = true;
   try {
-    await _TrackPlayer.setupPlayer({ autoHandleInterruptions: true });
+    // autoHandleInterruptions: false — RNTP 4.x has a race-condition crash
+    // when the iOS audio session is interrupted (e.g. Messages send sound).
+    // We handle RemoteDuck manually in PlaybackService instead.
+    await _TrackPlayer.setupPlayer({ autoHandleInterruptions: false });
     await _TrackPlayer.updateOptions({
       capabilities: [
         _Capability.Play, _Capability.Pause,
