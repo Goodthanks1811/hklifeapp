@@ -1043,7 +1043,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
           placeholderTextColor={Colors.textMuted}
           selectionColor={Colors.primary}
           returnKeyType="done"
-          onSubmitEditing={handleSave}
+          onKeyPress={({ nativeEvent }) => { if (nativeEvent.key === 'Enter') handleSave(); }}
           keyboardAppearance="dark"
         />
       </Animated.View>
