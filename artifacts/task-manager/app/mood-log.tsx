@@ -271,8 +271,8 @@ export default function MoodLog() {
           </Animated.View>
           <Animated.View style={[st.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
             <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-              <Svg width={52} height={52} viewBox="0 0 68 68">
-                <SvgPath fill="none" stroke="#000" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+              <Svg width={68} height={68} viewBox="0 0 68 68">
+                <SvgPath fill="none" stroke="#000" strokeWidth={9.5} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
               </Svg>
             </Animated.View>
           </Animated.View>

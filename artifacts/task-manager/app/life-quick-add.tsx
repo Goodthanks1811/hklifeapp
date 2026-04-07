@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import Svg, { Path as SvgPath } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -440,7 +441,9 @@ export default function LifeQuickAdd() {
           </Animated.View>
           <Animated.View style={[styles.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
             <Animated.View style={{ transform: [{ scale: tickScale }] }}>
-              <Feather name="check" size={40} color="#000" strokeWidth={3} />
+              <Svg width={68} height={68} viewBox="0 0 68 68">
+                <SvgPath fill="none" stroke="#000" strokeWidth={9.5} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+              </Svg>
             </Animated.View>
           </Animated.View>
         </Animated.View>
