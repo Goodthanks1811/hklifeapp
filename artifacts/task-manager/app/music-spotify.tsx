@@ -157,6 +157,8 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 14,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, padding: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
   rowPressed:    { opacity: 0.7 },
   iconCell: {

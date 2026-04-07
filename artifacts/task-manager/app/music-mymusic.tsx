@@ -588,6 +588,8 @@ const st = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, paddingHorizontal: 14,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
   rowActive:   {},
   rowDragging: {
