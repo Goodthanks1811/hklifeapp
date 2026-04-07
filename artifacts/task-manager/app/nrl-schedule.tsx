@@ -430,11 +430,11 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .rounds-scroll::-webkit-scrollbar{display:none}
 .round-pill{flex-shrink:0;background:#1a1a1a;border:1px solid #2a2a2a;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:5px 14px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .round-pill.active{background:${NRL_GREEN};border-color:${NRL_GREEN};color:#fff}
-.ladder-pill-spacer{height:96px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
+.ladder-pill-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
 .drg-header{position:sticky;top:0;z-index:100;background:${NRL_DARK};border-bottom:2px solid ${DRG_RED};}
 .drg-header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;}
 .drg-header-banner{height:121px;width:auto;display:block;object-fit:contain;mix-blend-mode:screen;}
-.drg-header-spacer{height:44px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
+.drg-header-spacer{height:34px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .drg-round-header{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;color:${DRG_RED};text-align:center;padding:6px 0 8px;letter-spacing:.3px;}
 .drg-divider{height:1px;background:linear-gradient(to right,transparent,#3a1414 30%,#3a1414 70%,transparent);margin:10px 20px 14px;}
 .content{width:min(92vw,${MAX_CONTENT_WIDTH}px);margin:0 auto;padding:12px 0 ${contentPb}px;}
