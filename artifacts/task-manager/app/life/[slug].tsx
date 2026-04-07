@@ -2048,13 +2048,13 @@ const s = StyleSheet.create({
 
   // ── Sheet base (no absolute positioning — used for tablet-centred detail sheet)
   sheetBase: {
-    backgroundColor: "#111111", borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: "#0b0b0c", borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
   },
 
   // ── Phone bottom sheet (absolute, anchored to bottom) ───────────────────
   sheet: {
-    backgroundColor: "#111111", borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: "#0b0b0c", borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 20, paddingTop: 0,
     position: "absolute", left: 0, right: 0, bottom: 0,
   },
@@ -2096,7 +2096,7 @@ const s = StyleSheet.create({
 
   // ── Detail card (centered modal) ─────────────────────────────────────────
   dsCard: {
-    backgroundColor: "#111111",
+    backgroundColor: "#0b0b0c",
     borderRadius: 22, borderWidth: 1, borderColor: Colors.border,
     overflow: "hidden",
     shadowColor: "#000", shadowOffset: { width: 0, height: 24 },
@@ -2202,7 +2202,7 @@ const s = StyleSheet.create({
 
 // ── Screen styles ──────────────────────────────────────────────────────────────
 const sc = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: Colors.darkBg },
+  root:  { flex: 1, backgroundColor: "#0b0b0c" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   mutedText: { color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular" },
   errorText: { color: Colors.primary, fontSize: 14, fontFamily: "Inter_500Medium" },
