@@ -1,5 +1,41 @@
 # Workspace
 
+## GitHub Push — How It Works
+
+**Never use `git push` from the CLI** — it has no credentials and will hang/fail.
+**Never ask the user to push manually** — use the GitHub connector API directly.
+
+To push any file to `github.com/Goodthanks1811/hklifeapp`, use this pattern in `code_execution`:
+
+```javascript
+const { ReplitConnectors } = await import("@replit/connectors-sdk");
+const connectors = new ReplitConnectors();
+const fs = await import("fs");
+
+const content = fs.readFileSync("/home/runner/workspace/PATH_TO_FILE", "utf8");
+const encoded = Buffer.from(content).toString("base64");
+
+// Get SHA if file already exists (required for updates)
+const checkRes = await connectors.proxy("github", "/repos/Goodthanks1811/hklifeapp/contents/PATH_TO_FILE", { method: "GET" });
+let sha;
+if (checkRes.status === 200) { sha = (await checkRes.json()).sha; }
+
+const body = { message: "COMMIT MESSAGE", content: encoded };
+if (sha) body.sha = sha;
+
+const res = await connectors.proxy("github", "/repos/Goodthanks1811/hklifeapp/contents/PATH_TO_FILE", {
+  method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json" }
+});
+console.log("Status:", res.status);
+```
+
+- Connection ID: `conn_github_01KNAS2Y79W6RCQGK91RFDA87M`
+- Repo: `Goodthanks1811/hklifeapp`
+- Permissions: `repo` (full read/write)
+- Always push files to GitHub after creating them — don't wait for the user to ask
+
+---
+
 ## Overview
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies. The main deliverable is a React Native / Expo mobile app (`artifacts/task-manager`) backed by an Express API server (`artifacts/api-server`).
