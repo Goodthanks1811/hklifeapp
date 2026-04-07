@@ -1,0 +1,251 @@
+const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Delete Button Styles</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: #0C1846; color: #fff; font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif; padding: 28px 16px 80px; }
+  .section { margin-bottom: 36px; }
+  .label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.28); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; }
+  .sublabel { font-size: 11px; color: rgba(255,255,255,0.18); margin-top: 6px; padding-left: 2px; }
+  .row-wrapper { border-radius: 14px; overflow: hidden; }
+  .row-track { display: flex; flex-direction: row; align-items: stretch; will-change: transform; }
+  .card-content { flex-shrink: 0; background: #162057; border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 12px; min-height: 60px; }
+  .card-emoji { font-size: 20px; flex-shrink: 0; }
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-size: 15px; font-weight: 500; color: #fff; line-height: 1.3; }
+  .card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .epic-tag { font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 6px; background: #1a5c2a; color: #4ade80; letter-spacing: 0.3px; }
+  .checkbox { width: 26px; height: 26px; border-radius: 6px; border: 2px solid #FFA300; }
+
+  /* Style 1 — Pill solid */
+  .zone-1 { flex-shrink: 0; width: 96px; display: flex; align-items: center; justify-content: center; padding: 0 12px; background: transparent; }
+  .btn-1 { background: #e8352a; border: none; color: #fff; font-size: 13px; font-weight: 700; font-family: inherit; padding: 9px 16px; border-radius: 99px; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 10px rgba(232,53,42,0.5); }
+
+  /* Style 2 — Pill glass */
+  .zone-2 { flex-shrink: 0; width: 96px; display: flex; align-items: center; justify-content: center; padding: 0 12px; background: transparent; }
+  .btn-2 { background: rgba(255,59,48,0.18); border: 1px solid rgba(255,80,70,0.5); color: #ff6b63; font-size: 13px; font-weight: 700; font-family: inherit; padding: 9px 16px; border-radius: 99px; cursor: pointer; white-space: nowrap; }
+
+  /* Style 3 — Rect solid inset */
+  .zone-3 { flex-shrink: 0; width: 88px; display: flex; align-items: center; justify-content: center; padding: 10px 8px; background: transparent; }
+  .btn-3 { background: #e8352a; border: none; color: #fff; font-size: 13px; font-weight: 700; font-family: inherit; border-radius: 10px; cursor: pointer; width: 100%; height: 100%; box-shadow: 0 2px 8px rgba(232,53,42,0.4); }
+
+  /* Style 4 — Rect glass inset */
+  .zone-4 { flex-shrink: 0; width: 88px; display: flex; align-items: center; justify-content: center; padding: 10px 8px; background: transparent; }
+  .btn-4 { background: rgba(255,59,48,0.15); border: 1px solid rgba(255,80,70,0.4); color: #ff6b63; font-size: 13px; font-weight: 700; font-family: inherit; border-radius: 10px; cursor: pointer; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<div class="section">
+  <div class="label">1 — Pill · solid + shadow</div>
+  <div class="row-wrapper" id="w1">
+    <div class="row-track" id="t1">
+      <div class="card-content" id="c1">
+        <div class="card-emoji">\uD83D\uDD25</div>
+        <div class="card-body"><div class="card-title">Roman Margin Sheet</div></div>
+        <div class="card-right"><span class="epic-tag">ADMIN</span><div class="checkbox"></div></div>
+      </div>
+      <div class="zone-1"><button class="btn-1" id="d1">Delete</button></div>
+    </div>
+  </div>
+  <div class="sublabel">Punchy. Floats clear of the row edges.</div>
+</div>
+
+<div class="section">
+  <div class="label">2 — Pill · glass tint</div>
+  <div class="row-wrapper" id="w2">
+    <div class="row-track" id="t2">
+      <div class="card-content" id="c2">
+        <div class="card-emoji">\uD83D\uDD25</div>
+        <div class="card-body"><div class="card-title">JIRA Reporting tool</div></div>
+        <div class="card-right"><span class="epic-tag">ADMIN</span><div class="checkbox"></div></div>
+      </div>
+      <div class="zone-2"><button class="btn-2" id="d2">Delete</button></div>
+    </div>
+  </div>
+  <div class="sublabel">Softer. Fits the navy palette without dominating.</div>
+</div>
+
+<div class="section">
+  <div class="label">3 — Rect · solid, inset padding</div>
+  <div class="row-wrapper" id="w3">
+    <div class="row-track" id="t3">
+      <div class="card-content" id="c3">
+        <div class="card-emoji">\uD83D\uDD25</div>
+        <div class="card-body"><div class="card-title">Milestones in project plan</div></div>
+        <div class="card-right"><span class="epic-tag" style="background:#5c3a1a;color:#fb923c">REPORTING</span><div class="checkbox"></div></div>
+      </div>
+      <div class="zone-3"><button class="btn-3" id="d3">Delete</button></div>
+    </div>
+  </div>
+  <div class="sublabel">Fills height but breathes — gap on all sides.</div>
+</div>
+
+<div class="section">
+  <div class="label">4 — Rect · glass tint, inset padding</div>
+  <div class="row-wrapper" id="w4">
+    <div class="row-track" id="t4">
+      <div class="card-content" id="c4">
+        <div class="card-emoji">\uD83D\uDD25</div>
+        <div class="card-body"><div class="card-title">Ticket by sprint report</div></div>
+        <div class="card-right"><span class="epic-tag" style="background:#2a1a5c;color:#a78bfa">TOOL</span><div class="checkbox"></div></div>
+      </div>
+      <div class="zone-4"><button class="btn-4" id="d4">Delete</button></div>
+    </div>
+  </div>
+  <div class="sublabel">Most restrained. Danger colour without the alarm.</div>
+</div>
+
+<script>
+var EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+var openRow = null;
+
+var ROWS = [
+  { w: 'w1', t: 't1', c: 'c1', d: 'd1', reveal: 96 },
+  { w: 'w2', t: 't2', c: 'c2', d: 'd2', reveal: 96 },
+  { w: 'w3', t: 't3', c: 'c3', d: 'd3', reveal: 88 },
+  { w: 'w4', t: 't4', c: 'c4', d: 'd4', reveal: 88 },
+];
+
+function collapseAndRemove(wrapper) {
+  var h = wrapper.offsetHeight;
+  wrapper.style.transition = 'none';
+  wrapper.style.height = h + 'px';
+  wrapper.style.marginBottom = '0px';
+  wrapper.style.opacity = '1';
+  wrapper.offsetHeight;
+  wrapper.style.transition = 'height 0.42s ' + EASE + ', margin-bottom 0.42s ' + EASE + ', opacity 0.3s ease';
+  wrapper.style.height = '0';
+  wrapper.style.marginBottom = '0';
+  wrapper.style.opacity = '0';
+  var section = wrapper.parentElement;
+  if (section) {
+    section.style.transition = 'margin-bottom 0.42s ' + EASE;
+    section.style.marginBottom = '0';
+  }
+  setTimeout(function() {
+    if (section) section.remove();
+  }, 480);
+}
+
+function setX(track, x, dur) {
+  track.style.transition = dur != null ? ('transform ' + dur + 'ms ' + EASE) : 'none';
+  track.style.transform = 'translateX(' + x + 'px)';
+}
+
+function initRow(cfg) {
+  var wrapper = document.getElementById(cfg.w);
+  var track   = document.getElementById(cfg.t);
+  var card    = document.getElementById(cfg.c);
+  var delBtn  = document.getElementById(cfg.d);
+  var REVEAL  = cfg.reveal;
+
+  // Set card width from probe
+  var probe = document.createElement('div');
+  probe.style.cssText = 'width:100%;height:0;';
+  wrapper.appendChild(probe);
+  requestAnimationFrame(function() {
+    var cardW = probe.getBoundingClientRect().width;
+    wrapper.removeChild(probe);
+    card.style.width = cardW + 'px';
+
+    var isOpen = false;
+    var startX = 0, startY = 0, baseX = 0;
+    var dragging = false, decided = false, isHoriz = false;
+    var lastX = 0, lastT = 0, vel = 0;
+
+    delBtn.addEventListener('click', function() {
+      openRow = null;
+      track.style.transition = 'transform 200ms cubic-bezier(0.4,0,1,1)';
+      track.style.transform = 'translateX(-' + (cardW + REVEAL) + 'px)';
+      setTimeout(function() { collapseAndRemove(wrapper); }, 230);
+    });
+
+    function closeOther() {
+      if (openRow && openRow !== wrapper) {
+        var ot = openRow.querySelector('.row-track');
+        if (ot) setX(ot, 0, 300);
+        openRow = null;
+      }
+    }
+
+    function snapOpen(v) {
+      isOpen = true; openRow = wrapper;
+      var dur = v ? Math.max(160, Math.min(320, 260 - v * 0.5)) : 280;
+      setX(track, -REVEAL, dur);
+    }
+
+    function snapClose(v) {
+      isOpen = false;
+      if (openRow === wrapper) openRow = null;
+      var dur = v ? Math.max(160, Math.min(320, 260 - v * 0.5)) : 280;
+      setX(track, 0, dur);
+    }
+
+    function onStart(e) {
+      closeOther();
+      var pt = e.touches ? e.touches[0] : e;
+      startX = pt.clientX; startY = pt.clientY;
+      lastX = startX; lastT = Date.now(); vel = 0;
+      baseX = isOpen ? -REVEAL : 0;
+      dragging = true; decided = false; isHoriz = false;
+      track.style.transition = 'none';
+    }
+
+    function onMove(e) {
+      if (!dragging) return;
+      var pt = e.touches ? e.touches[0] : e;
+      var dx = pt.clientX - startX;
+      var dy = pt.clientY - startY;
+      if (!decided) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        isHoriz = Math.abs(dx) > Math.abs(dy) * 1.1;
+        decided = true;
+      }
+      if (!isHoriz) return;
+      e.preventDefault();
+      var now = Date.now(); var dt = now - lastT;
+      if (dt > 0) vel = (pt.clientX - lastX) / dt;
+      lastX = pt.clientX; lastT = now;
+      var raw = baseX + dx;
+      var target;
+      if (raw > 0) { target = raw * 0.1; }
+      else if (raw < -REVEAL) { target = -REVEAL + (raw + REVEAL) * 0.15; }
+      else { target = raw; }
+      track.style.transition = 'none';
+      track.style.transform = 'translateX(' + target + 'px)';
+    }
+
+    function onEnd(e) {
+      if (!dragging) return;
+      dragging = false;
+      if (!isHoriz) return;
+      var pt = e.changedTouches ? e.changedTouches[0] : e;
+      var dx = pt.clientX - startX;
+      var totalX = baseX + dx;
+      var absVel = Math.abs(vel) * 1000;
+      if (isOpen) {
+        if (vel > 0.25 || dx > 25) { snapClose(absVel); } else { snapOpen(absVel); }
+      } else {
+        if (vel < -0.25 || -totalX > 25) { snapOpen(absVel); } else { snapClose(absVel); }
+      }
+    }
+
+    card.addEventListener('touchstart', onStart, { passive: true });
+    card.addEventListener('touchmove', onMove, { passive: false });
+    card.addEventListener('touchend', onEnd);
+    card.addEventListener('touchcancel', onEnd);
+  });
+}
+
+ROWS.forEach(function(cfg) { initRow(cfg); });
+<\/script>
+</body>
+</html>`;
+
+const wv = new WebView();
+await wv.loadHTML(html);
+await wv.present(true);

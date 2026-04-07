@@ -112,9 +112,11 @@ function TrackRow({
   }, [onDelete]);
 
   const renderRightActions = useCallback(() => (
-    <Pressable style={st.deleteAction} onPress={triggerDelete}>
-      <Feather name="trash-2" size={20} color="#fff" />
-    </Pressable>
+    <View style={st.deleteZone}>
+      <Pressable style={st.deleteAction} onPress={triggerDelete}>
+        <Feather name="trash-2" size={20} color="#fff" />
+      </Pressable>
+    </View>
   ), [triggerDelete]);
 
   return (
@@ -607,9 +609,15 @@ const st = StyleSheet.create({
   rowNamePlaying: { color: RED },
 
   // Delete action
+  deleteZone: {
+    width: 88, height: ITEM_H,
+    paddingVertical: 10, paddingHorizontal: 8,
+    justifyContent: "center", alignItems: "stretch",
+  },
   deleteAction: {
-    width: 72, height: ITEM_H,
+    flex: 1,
     backgroundColor: RED,
+    borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
 

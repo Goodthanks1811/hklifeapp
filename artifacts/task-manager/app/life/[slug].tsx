@@ -1259,9 +1259,11 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   );
 
   const renderRightActions = useCallback(() => (
-    <Pressable style={sc.deleteAction} onPress={triggerDelete}>
-      <Feather name="trash-2" size={20} color="#fff" />
-    </Pressable>
+    <View style={sc.deleteZone}>
+      <Pressable style={sc.deleteAction} onPress={triggerDelete}>
+        <Feather name="trash-2" size={20} color="#fff" />
+      </Pressable>
+    </View>
   ), [triggerDelete]);
 
   return (
@@ -2237,9 +2239,15 @@ const sc = StyleSheet.create({
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
 
   rowOuter: { height: ITEM_H },
+  deleteZone: {
+    width: 88, height: ITEM_H,
+    paddingVertical: 10, paddingHorizontal: 8,
+    justifyContent: "center", alignItems: "stretch",
+  },
   deleteAction: {
-    width: 72, height: ITEM_H,
+    flex: 1,
     backgroundColor: Colors.primary,
+    borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
 
