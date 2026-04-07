@@ -15,11 +15,12 @@ export type MenuItem = {
   description: string;
 };
 
-export type SectionKey = "reports" | "life" | "apps" | "footy" | "tools" | "knowledge" | "uikit";
+export type SectionKey = "reports" | "life" | "apps" | "footy" | "tools" | "knowledge" | "uikit" | "training";
 
 export const SECTION_LABELS: Record<SectionKey, string> = {
   reports:   "Reports",
   life:      "Life",
+  training:  "Training",
   apps:      "Apps",
   footy:     "Footy",
   tools:     "Tools",
@@ -30,6 +31,7 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
 export const SECTION_ICONS: Record<SectionKey, string> = {
   life:      "home",
   reports:   "trending-up",
+  training:  "activity",
   apps:      "grid",
   footy:     "shield",
   tools:     "tool",
@@ -38,10 +40,18 @@ export const SECTION_ICONS: Record<SectionKey, string> = {
 };
 
 export const SECTION_ORDER: SectionKey[] = [
-  "life", "reports", "apps", "footy", "tools", "knowledge", "uikit",
+  "life", "reports", "training", "apps", "footy", "tools", "knowledge", "uikit",
 ];
 
 export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
+  training: [
+    { label: "Chest",     icon: "activity", route: "/training/chest",     description: "Chest day exercises"     },
+    { label: "Back",      icon: "activity", route: "/training/back",      description: "Back day exercises"       },
+    { label: "Legs",      icon: "activity", route: "/training/legs",      description: "Legs day exercises"       },
+    { label: "Arms",      icon: "activity", route: "/training/arms",      description: "Arms day exercises"       },
+    { label: "Shoulders", icon: "activity", route: "/training/shoulders", description: "Shoulders day exercises"  },
+    { label: "Cardio",    icon: "activity", route: "/training/cardio",    description: "Cardio session exercises" },
+  ],
   life: [
     { label: "Calendar",    icon: "calendar",    route: "/calendar",         description: "HK upcoming events"  },
     { label: "Life Admin",  icon: "clipboard",   route: "/life/life-admin",  description: "Tasks & life admin"   },

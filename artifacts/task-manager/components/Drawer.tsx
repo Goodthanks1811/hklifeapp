@@ -155,7 +155,7 @@ export function Drawer() {
   const { getVisible, getSectionOrder, isSectionHidden, sidebarAlwaysOpen } = useDrawerConfig();
 
   const pathname     = usePathname();
-  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/") || r === "/ui-kit/gradient-header";
+  const isLifeRoute  = (r: string) => r === "/calendar" || r.startsWith("/life/") || r.startsWith("/training/") || r === "/ui-kit/gradient-header";
   const onLifeScreen = isLifeRoute(pathname);
 
   const isOpenRef = useRef(isOpen);
