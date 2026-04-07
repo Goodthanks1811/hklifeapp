@@ -32,12 +32,14 @@ console.log("Status:", res.status);
 - Connection ID: `conn_github_01KNAS2Y79W6RCQGK91RFDA87M`
 - Repo: `Goodthanks1811/hklifeapp`
 - Permissions: `repo` (full read/write)
-- Always push files to GitHub after creating them — don't wait for the user to ask
 
-## EAS Build — IMPORTANT RULE
+## GitHub Push + EAS Build — IMPORTANT RULES
 
-**NEVER trigger an EAS build automatically after making fixes.**
-Always stop after the fixes are done, push files to GitHub, then explicitly ask the user: "Ready to build?" and wait for their confirmation before running the `eas build` command.
+**Do NOT push to GitHub after every individual fix.**
+Only push to GitHub when the user explicitly asks to push, or when they confirm they are ready to build.
+
+**NEVER trigger an EAS build automatically.**
+Always stop after fixes are done and ask the user: "Ready to build?" — wait for their confirmation before pushing to GitHub or running `eas build`.
 
 ---
 
