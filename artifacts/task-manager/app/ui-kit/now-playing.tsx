@@ -7,8 +7,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import Svg, {
   Defs,
   Ellipse,
@@ -69,22 +68,26 @@ function MusicNoteIcon() {
   );
 }
 
-function HeartIcon({ filled }: { filled: boolean }) {
+function SavedIcon({ saved }: { saved: boolean }) {
+  if (!saved) {
+    return (
+      <Svg width={28} height={28} viewBox="0 0 28 28">
+        <Ellipse cx="14" cy="14" rx="13" ry="13" stroke="#444" strokeWidth={1.5} fill="none" />
+        <Path d="M7.5 14.5L11.5 18.5L20.5 9" stroke="#555" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </Svg>
+    );
+  }
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
-      <Path
-        d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"
-        fill={filled ? RED : "none"}
-        stroke={filled ? "none" : "#555"}
-        strokeWidth={filled ? 0 : 1.5}
-      />
+    <Svg width={28} height={28} viewBox="0 0 28 28">
+      <Ellipse cx="14" cy="14" rx="14" ry="14" fill={RED} />
+      <Path d="M7.5 14.5L11.5 18.5L20.5 9" stroke="#000" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </Svg>
   );
 }
 
 function ShuffleIcon({ color }: { color: string }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
+    <Svg width={22} height={22} viewBox="0 0 24 24">
       <Path
         d="M16 3l4 4-4 4M20 7H8c-2.8 0-5 2.2-5 5v.5M8 21l-4-4 4-4M4 17h12c2.8 0 5-2.2 5-5v-.5"
         stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
@@ -95,7 +98,7 @@ function ShuffleIcon({ color }: { color: string }) {
 
 function RepeatIcon({ color }: { color: string }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
+    <Svg width={22} height={22} viewBox="0 0 24 24">
       <Path
         d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"
         stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
@@ -106,18 +109,18 @@ function RepeatIcon({ color }: { color: string }) {
 
 function PrevIcon() {
   return (
-    <Svg width={28} height={28} viewBox="0 0 24 24">
-      <Path d="M19 5L9 12L19 19" fill="#aaa" />
-      <Rect x="5" y="5" width="3" height="14" rx="1.5" fill="#aaa" />
+    <Svg width={32} height={32} viewBox="0 0 32 32">
+      <Rect x="5" y="7" width="3.5" height="18" rx="1.75" fill="#fff" />
+      <Path d="M26 7L11 16L26 25Z" fill="#fff" />
     </Svg>
   );
 }
 
 function NextIcon() {
   return (
-    <Svg width={28} height={28} viewBox="0 0 24 24">
-      <Path d="M5 5L15 12L5 19" fill="#aaa" />
-      <Rect x="16" y="5" width="3" height="14" rx="1.5" fill="#aaa" />
+    <Svg width={32} height={32} viewBox="0 0 32 32">
+      <Path d="M6 7L21 16L6 25Z" fill="#fff" />
+      <Rect x="23.5" y="7" width="3.5" height="18" rx="1.75" fill="#fff" />
     </Svg>
   );
 }
@@ -159,16 +162,26 @@ export default function NowPlayingScreen() {
   const pct = Math.round((secs / total) * 100);
 
   return (
-    <View style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {/* ── Top nav ── */}
-      <View style={s.topnav}>
-        <Pressable style={s.iconBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={18} color="#555" />
-        </Pressable>
-        <Text style={s.navLbl}>NOW PLAYING</Text>
-        <Pressable style={s.iconBtn}>
-          <Feather name="more-horizontal" size={18} color="#555" />
-        </Pressable>
+    <View style={[s.root, { paddingBottom: insets.bottom + 32 }]}>
+      {/* ── Gradient header ── */}
+      <View style={[s.header, { paddingTop: insets.top + 8, paddingBottom: isTablet ? 58 : 36 }]}>
+        <ExpoLinearGradient
+          colors={[
+            "rgba(224,49,49,0.90)",
+            "rgba(215,42,42,0.74)",
+            "rgba(190,28,28,0.56)",
+            "rgba(145,16,16,0.38)",
+            "rgba(90,8,8,0.20)",
+            "rgba(35,3,3,0.08)",
+            "#0f0f0f",
+          ]}
+          locations={[0, 0.18, 0.36, 0.54, 0.70, 0.85, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={s.gradNav} />
+        <Text style={s.navLbl}>Now Playing</Text>
       </View>
 
       {/* ── Album art ── */}
@@ -181,17 +194,13 @@ export default function NowPlayingScreen() {
 
       {/* ── Track info ── */}
       <View style={s.trackBlock}>
-        <Text style={s.trackTitle} numberOfLines={1}>{MOCK.title}</Text>
-        <Text style={s.trackSub} numberOfLines={1}>{MOCK.artist} — {MOCK.album}</Text>
-        <View style={s.trackRow}>
-          <View style={s.bpmBadge}>
-            <View style={s.bpmDot} />
-            <Text style={s.bpmLbl}>{MOCK.bpm} BPM</Text>
-          </View>
+        <View style={s.titleRow}>
+          <Text style={[s.trackTitle, { flex: 1 }]} numberOfLines={1}>{MOCK.title}</Text>
           <Pressable onPress={() => setLiked(v => !v)} hitSlop={12}>
-            <HeartIcon filled={liked} />
+            <SavedIcon saved={liked} />
           </Pressable>
         </View>
+        <Text style={s.trackSub} numberOfLines={1}>{MOCK.artist} — {MOCK.album}</Text>
       </View>
 
       {/* ── Scrub bar ── */}
@@ -209,24 +218,28 @@ export default function NowPlayingScreen() {
 
       {/* ── Controls ── */}
       <View style={s.ctrlRow}>
-        <Pressable style={s.iconBtn36} onPress={() => setShuffle(v => !v)}>
+        <Pressable style={s.iconBtn44} onPress={() => setShuffle(v => !v)}>
           <ShuffleIcon color={shuffle ? RED : "#3a3a3a"} />
         </Pressable>
         <Pressable style={s.iconBtn44}>
           <PrevIcon />
         </Pressable>
         <Pressable style={s.playCircle} onPress={() => setPlaying(v => !v)}>
-          <Feather
-            name={playing ? "pause" : "play"}
-            size={24}
-            color="#fff"
-            style={playing ? undefined : { marginLeft: 3 }}
-          />
+          {playing ? (
+            <Svg width={26} height={26} viewBox="0 0 26 26">
+              <Rect x="5" y="4" width="5" height="18" rx="2" fill="#fff" />
+              <Rect x="16" y="4" width="5" height="18" rx="2" fill="#fff" />
+            </Svg>
+          ) : (
+            <Svg width={30} height={30} viewBox="0 0 26 26">
+              <Path d="M8 4L22 13L8 22Z" fill="#fff" />
+            </Svg>
+          )}
         </Pressable>
         <Pressable style={s.iconBtn44}>
           <NextIcon />
         </Pressable>
-        <Pressable style={s.iconBtn36} onPress={() => setRepeat(v => !v)}>
+        <Pressable style={s.iconBtn44} onPress={() => setRepeat(v => !v)}>
           <RepeatIcon color={repeat ? RED : "#3a3a3a"} />
         </Pressable>
       </View>
@@ -235,25 +248,13 @@ export default function NowPlayingScreen() {
       <View style={s.volRow}>
         <VolLow />
         <View style={s.volTrack}>
-          <View style={s.volFill} />
+          <View style={s.volFill}>
+            <View style={s.volThumb} />
+          </View>
         </View>
         <VolHigh />
       </View>
 
-      {/* ── Up next ── */}
-      <View style={s.queueBlock}>
-        <Text style={s.queueLbl}>UP NEXT</Text>
-        {QUEUE.map(item => (
-          <View key={item.n} style={s.qRow}>
-            <Text style={s.qNum}>{item.n}</Text>
-            <View style={s.qInfo}>
-              <Text style={s.qTitle} numberOfLines={1}>{item.title}</Text>
-              <Text style={s.qArtist}>{item.artist}</Text>
-            </View>
-            <Text style={s.qDur}>{item.dur}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }
@@ -264,28 +265,29 @@ const s = StyleSheet.create({
     backgroundColor: BG,
     paddingHorizontal: 22,
   },
-  topnav: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 14,
+  header: {
+    backgroundColor: "#0f0f0f",
+    marginHorizontal: -22,
+    paddingHorizontal: 20,
+    overflow: "hidden",
+  },
+  gradNav: {
+    height: 36,
+    marginBottom: 14,
   },
   navLbl: {
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 2.5,
-    color: "#444",
-    fontFamily: "Inter_600SemiBold",
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 4,
+    textShadowColor: "rgba(224,49,49,0.45)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 24,
   },
 
   // Art
-  artZone: { marginTop: 14 },
+  artZone: { marginTop: 2 },
   artBg: {
     width: "100%",
     aspectRatio: 1,
@@ -296,9 +298,9 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    maxHeight: 200,
+    alignSelf: "center",
   },
-  artBgTablet: { maxHeight: 280 },
+  artBgTablet: {},
   artGloss: {
     position: "absolute",
     top: 0,
@@ -310,7 +312,7 @@ const s = StyleSheet.create({
   },
 
   // Track
-  trackBlock: { marginTop: 16 },
+  trackBlock: { marginTop: 24 },
   trackTitle: {
     fontSize: 22,
     fontWeight: "700",
@@ -318,35 +320,32 @@ const s = StyleSheet.create({
     lineHeight: 26,
     fontFamily: "Inter_700Bold",
   },
-  trackSub: {
-    fontSize: 13,
-    color: "#555",
-    marginTop: 3,
-    fontWeight: "300",
-    fontFamily: "Inter_400Regular",
-  },
-  trackRow: {
+  titleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 12,
+    gap: 10,
   },
-  bpmBadge: { flexDirection: "row", alignItems: "center", gap: 6 },
-  bpmDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: RED },
-  bpmLbl:   { fontSize: 10, color: "#444", letterSpacing: 1, fontFamily: "Inter_600SemiBold" },
+  trackSub: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
+    marginTop: 10,
+    fontWeight: "300",
+    fontFamily: "Inter_400Regular",
+  },
 
   // Scrub
-  scrubBlock: { marginTop: 14 },
+  scrubBlock: { marginTop: 32 },
   scrubTrack: {
     width: "100%",
-    height: 2,
+    height: 4,
     backgroundColor: DIM,
-    borderRadius: 1,
+    borderRadius: 2,
   },
   scrubFill: {
     height: "100%",
     backgroundColor: RED,
-    borderRadius: 1,
+    borderRadius: 2,
     alignItems: "flex-end",
     justifyContent: "center",
   },
@@ -365,7 +364,7 @@ const s = StyleSheet.create({
   },
   timeText: {
     fontSize: 10,
-    color: "#3a3a3a",
+    color: "#fff",
     letterSpacing: 0.5,
     fontFamily: "Inter_600SemiBold",
   },
@@ -375,14 +374,14 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 22,
+    marginTop: 28,
   },
   iconBtn36: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   iconBtn44: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   playCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: RED,
     alignItems: "center",
     justifyContent: "center",
@@ -393,65 +392,30 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 18,
+    marginTop: 44,
   },
   volTrack: {
     flex: 1,
-    height: 2,
-    backgroundColor: DIM,
-    borderRadius: 1,
+    height: 3,
+    backgroundColor: "#3a3a3a",
+    borderRadius: 2,
+    justifyContent: "center",
   },
   volFill: {
     height: "100%",
     width: "68%",
-    backgroundColor: MID,
-    borderRadius: 1,
+    backgroundColor: "#fff",
+    borderRadius: 2,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  volThumb: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#fff",
+    position: "absolute",
+    right: -6,
   },
 
-  // Queue
-  queueBlock: { marginTop: 16, flex: 1 },
-  queueLbl: {
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 2,
-    color: "#2a2a2a",
-    fontFamily: "Inter_600SemiBold",
-    marginBottom: 8,
-  },
-  qRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#141414",
-    marginBottom: 4,
-  },
-  qNum: {
-    fontSize: 11,
-    color: "#2e2e2e",
-    width: 14,
-    textAlign: "center",
-    fontFamily: "Inter_600SemiBold",
-  },
-  qInfo: { flex: 1, minWidth: 0 },
-  qTitle: {
-    fontSize: 11,
-    color: "#777",
-    fontWeight: "500",
-    fontFamily: "Inter_500Medium",
-  },
-  qArtist: {
-    fontSize: 10,
-    color: "#333",
-    marginTop: 1,
-    fontFamily: "Inter_400Regular",
-  },
-  qDur: {
-    fontSize: 10,
-    color: "#2e2e2e",
-    fontFamily: "Inter_600SemiBold",
-  },
 });
