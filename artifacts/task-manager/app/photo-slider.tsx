@@ -76,7 +76,7 @@ html, body { height:100%; background:${C.bg}; font-family:-apple-system,BlinkMac
 .obar label { font-size:12px; color:${C.muted}; white-space:nowrap; }
 .obar input[type=range] { flex:1; -webkit-appearance:none; height:6px; border-radius:3px; background:linear-gradient(to right, ${C.primary} var(--sl-pct,0%), ${C.border} var(--sl-pct,0%)); outline:none; cursor:pointer; }
 .obar input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:${C.primary}; border:3px solid ${C.bg}; box-shadow:0 2px 8px rgba(0,0,0,.55); cursor:pointer; }
-.oval { font-size:12px; color:${C.primary}; font-weight:700; width:36px; text-align:right; }
+.oval { font-size:12px; color:${C.text}; font-weight:700; width:36px; text-align:right; }
 
 #stage { flex:1; min-height:0; position:relative; touch-action:none; user-select:none; overflow:hidden; background:${C.bg}; cursor:none; }
 #stage.eye-cursor { cursor:crosshair; }
