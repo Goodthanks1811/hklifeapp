@@ -1005,7 +1005,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
       .then(data => {
         if (!data.id) throw new Error("no id");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null });
+        onAdded({ id: data.id, title: t, emoji, sortOrder: null, url: null, epic: selEpic ?? null });
       });
     runLoader(apiPromise);
   }, [title, selEmoji, localCat, selEpic, apiKey, schema, loaderVisible, runLoader, onAdded]);
