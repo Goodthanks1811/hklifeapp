@@ -328,29 +328,44 @@ Without step 3–5, the entitlement is in the binary but not in the provisioning
 
 **Symptom**: Even in an EAS-built IPA (not Expo Go), the Apple Music screen shows "Install Required". The JS bundle loads fine but `requireNativeModule("AppleMusicKit")` throws because the Swift module was never compiled into the binary.
 
-**Cause**: `apple-musickit` is declared as `"file:./modules/apple-musickit"` in `package.json`. pnpm hoists it to the **workspace root** `node_modules/` during install, not `artifacts/task-manager/node_modules/`. Expo's auto-linker (`expo-modules-autolinking`) generates the Xcode project by scanning `node_modules` relative to the app package — it doesn't find the module at the workspace root, so the Swift code is never compiled in. The Metro `LOCAL_MODULES` fix only solves the JS bundle side; native auto-linking is a separate step.
+**Root cause (confirmed from build logs)**: Three previous attempted fixes all failed:
 
-**Fix (belt and suspenders)**:
+1. `searchPaths: ["./modules"]` in `package.json` — expo-modules-autolinking silently fails to pick it up in the EAS pnpm workspace environment. `apple-musickit` **never appears in the pod install list** in any build that relies on autolinking.
 
-1. `expo.autolinking.extraSearchPaths` in `package.json` tells the auto-linker to scan `./modules/` directly:
-```json
-"expo": {
-  "autolinking": {
-    "extraSearchPaths": ["./modules"]
-  }
-}
+2. `eas-build-post-install.sh` — EAS runs this **after** `pod install` (the `POST_INSTALL_HOOK` phase follows `INSTALL_PODS` in the build log). The symlink is created too late; autolinking has already finished without the module.
+
+3. `eas-build-post-install` npm script — same timing issue. EAS detects it and also runs it after pods.
+
+**Working fix — Expo config plugin + CocoaPods podspec:**
+
+The fix bypasses autolinking entirely:
+
+**Step 1**: `modules/apple-musickit/apple-musickit.podspec` — a real CocoaPods spec that declares the Swift source files and dependencies:
+```ruby
+Pod::Spec.new do |s|
+  s.name           = 'apple-musickit'
+  s.source_files   = 'ios/**/*.swift'
+  s.dependency 'ExpoModulesCore'
+  s.frameworks = 'MediaPlayer', 'StoreKit'
+end
 ```
 
-2. `eas-build-post-install.sh` in the project root runs `scripts/ensure-local-modules.js` **after** `pnpm install` but **before** `expo prebuild` (EAS lifecycle hook). This guarantees the standard `node_modules` scan also finds the module:
-```bash
-#!/usr/bin/env bash
-set -e
-node scripts/ensure-local-modules.js
+**Step 2**: `plugins/withAppleMusicKit.js` — an Expo config plugin using `withDangerousMod` that directly injects the pod into the generated Podfile during `expo prebuild`:
+```js
+podfile.replace(
+  /(\s*use_expo_modules!\s*\n)/,
+  `$1  pod 'apple-musickit', :path => '../modules/apple-musickit'\n`
+);
 ```
 
-**Important — do NOT use `prebuildCommand` for shell scripts.** EAS prepends `pnpm expo` to whatever value you set, so `prebuildCommand: "node scripts/foo.js && npx expo prebuild"` becomes `pnpm expo node scripts/foo.js && npx expo prebuild` — `pnpm expo node` is not a valid expo command and the build fails. `prebuildCommand` is only for passing additional flags to `expo prebuild` (e.g. `prebuild --platform ios`). Use `eas-build-post-install.sh` for any custom pre-prebuild shell work.
+**Step 3**: `app.config.js` — registers the plugin:
+```js
+plugins: [..., './plugins/withAppleMusicKit']
+```
 
-Both mechanisms together make this bulletproof regardless of how pnpm hoisting behaves in the EAS environment.
+**Verified working**: Build `d7290a63` shows `Installing apple-musickit (1.0.0)` in the `INSTALL_PODS` phase — the Swift module is compiled and `AppleMusicKitModule` is registered by `ExpoModulesCore` at runtime.
+
+**Important — do NOT use `prebuildCommand` for shell scripts.** EAS prepends `pnpm expo` to whatever value you set, so `prebuildCommand: "node scripts/foo.js && npx expo prebuild"` becomes `pnpm expo node scripts/foo.js && npx expo prebuild` — `pnpm expo node` is not a valid expo command and the build fails. `prebuildCommand` is only for passing additional flags to `expo prebuild`. Use config plugins for any Podfile/native project modifications.
 
 ---
 

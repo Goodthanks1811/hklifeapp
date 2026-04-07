@@ -75,6 +75,7 @@ module.exports = {
         },
       ],
       'expo-screen-orientation',
+      './plugins/withAppleMusicKit',
     ],
     experiments: {
       typedRoutes: true,
