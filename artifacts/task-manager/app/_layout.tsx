@@ -93,8 +93,9 @@ function RootLayoutNav() {
             <CustomStack.Screen name="ui-kit" />
             <CustomStack.Screen name="settings" />
             <CustomStack.Screen name="ir-quick-add" />
-            {/* Music screens — slide in/out horizontally */}
-            <CustomStack.Screen name="music"          options={{ cardStyleInterpolator: asymmetricSlide }} />
+            {/* Music hub — no animation (drawer closing is the transition) */}
+            <CustomStack.Screen name="music" />
+            {/* Music sub-screens — slide in on push, slide back on pop */}
             <CustomStack.Screen name="music-apple"    options={{ cardStyleInterpolator: asymmetricSlide }} />
             <CustomStack.Screen name="music-spotify"  options={{ cardStyleInterpolator: asymmetricSlide }} />
             <CustomStack.Screen name="music-mymusic"  options={{ cardStyleInterpolator: asymmetricSlide }} />
