@@ -40,7 +40,7 @@ import { useNotion } from "@/context/NotionContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LIFE_DB_ID   = "2c8b7eba3523802abbe2e934df42a4e2";
-const ITEM_H       = 48;
+const ITEM_H       = 52;
 const ITEM_GAP     = 8;
 const SLOT_H       = ITEM_H + ITEM_GAP;
 const HIDDEN_EMOJI  = "👎";
