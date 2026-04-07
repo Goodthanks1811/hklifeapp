@@ -167,9 +167,6 @@ input[type=file] { display:none; }
   <span class="oval" id="bopval">100%</span>
 </div>
 
-<!-- ── Debug overlay (tap to dismiss) ──────────── -->
-<div id="dbg" onclick="this.style.display='none'" style="position:fixed;top:60px;right:6px;z-index:9999;background:rgba(0,0,0,.82);color:#0f0;font-family:monospace;font-size:10px;padding:6px 8px;border-radius:7px;line-height:1.5;pointer-events:auto;max-width:240px;word-break:break-all;"></div>
-
 <!-- ── Stage ─────────────────────────────────────── -->
 <div id="stage">
   <canvas id="cv"></canvas>
@@ -498,17 +495,6 @@ function drawColorOverlay(etx2){
   ctx.drawImage(off.c,0,0);
 }
 
-function dbgUpdate(){
-  var d=document.getElementById('dbg');if(!d)return;
-  var lines=['stage:'+W()+'×'+H(),'cv:'+cv.width+'×'+cv.height];
-  if(img1)lines.push('img1:'+img1.naturalWidth+'×'+img1.naturalHeight);
-  if(tx1)lines.push('tx1.s:'+(tx1.scale).toFixed(4)+' cx:'+tx1.cx.toFixed(0)+' cy:'+tx1.cy.toFixed(0));
-  if(img2)lines.push('img2:'+img2.naturalWidth+'×'+img2.naturalHeight);
-  if(tx2)lines.push('tx2.s:'+(tx2.scale).toFixed(4)+' cx:'+tx2.cx.toFixed(0)+' cy:'+tx2.cy.toFixed(0));
-  if(gTx)lines.push('gTx.s:'+gTx.scale.toFixed(4));
-  d.innerHTML=lines.join('<br>');d.style.display='block';
-}
-
 function draw(){
   var w=W(),h=H();if(!w||!h)return;
   if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;cv.style.width=w+'px';cv.style.height=h+'px';}
@@ -520,7 +506,6 @@ function draw(){
     if(img2&&etx2){drawImg(img2,di2||img2,etx2,opacity2,!!maskCanvas);drawColorOverlay(etx2);}
   }
   updateSliderOverlay(w,h);
-  dbgUpdate();
 }
 
 function drawWithSlider(w,h,etx1,etx2){
