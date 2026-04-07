@@ -417,7 +417,7 @@ function buildMainHtml(
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-serif;font-size:15px;min-height:100vh;overscroll-behavior:none;}
 .tab-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;display:flex;background:#000;border-top:2px solid #1a1a1a;height:${tabBarH}px;}
-.tab-btn{flex:1;display:flex;align-items:center;justify-content:center;padding-bottom:${bottomPad}px;background:none;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;color:${NRL_MUTED};-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px;border-bottom:3px solid transparent;}
+.tab-btn{flex:1;display:flex;align-items:center;justify-content:center;padding-bottom:${bottomPad}px;background:none;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;color:${NRL_MUTED};-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px;border-bottom:3px solid transparent;}
 .tab-btn.active-nrl{color:${NRL_GREEN};border-bottom-color:${NRL_GREEN};}
 .tab-btn.active-drg{color:${DRG_RED};border-bottom-color:${DRG_RED};}
 .tab-btn.active-ladder{color:#cccccc;border-bottom-color:#cccccc;}
