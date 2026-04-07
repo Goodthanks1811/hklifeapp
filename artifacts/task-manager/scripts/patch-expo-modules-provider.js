@@ -37,6 +37,23 @@ if (content.includes("AppleMusicKitModule")) {
   process.exit(0);
 }
 
+// 1. Inject the import statement so Swift can resolve AppleMusicKitModule.
+//    Pod named "apple-musickit" → Swift module name "apple_musickit" (hyphens → underscores).
+//    Insert after the last existing import line.
+const importLine = "import apple_musickit";
+const lastImportIdx = content.lastIndexOf("\nimport ");
+if (lastImportIdx === -1) {
+  console.error("[patch-expo-modules-provider] Could not find any import lines in", outputFile);
+  process.exit(0);
+}
+// Find the end of that last import line
+const afterLastImport = content.indexOf("\n", lastImportIdx + 1);
+content =
+  content.slice(0, afterLastImport) +
+  "\n" + importLine +
+  content.slice(afterLastImport);
+
+// 2. Inject the class reference into getModuleClasses() return [...]
 const idx1 = content.indexOf("getModuleClasses");
 const idx2 = content.indexOf("return [", idx1);
 
@@ -52,4 +69,4 @@ content =
   content.slice(insertAt);
 
 fs.writeFileSync(outputFile, content, "utf8");
-console.log("[patch-expo-modules-provider] ✅ Injected AppleMusicKitModule.self into", outputFile);
+console.log("[patch-expo-modules-provider] ✅ Injected import apple_musickit + AppleMusicKitModule.self into", outputFile);
