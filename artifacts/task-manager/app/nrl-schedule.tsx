@@ -599,8 +599,8 @@ function attachNrlLogo(){
     <div class="header-logo-row">
       <img class="header-banner" id="nrl-logo" src="https://i.postimg.cc/8CFL755P/IMG-4791.png" onerror="this.style.display='none'" alt="NRL">
     </div>
-    <div class="rounds-scroll" id="roundsScroll">${pills}</div>
   </div>
+  <div class="rounds-scroll" id="roundsScroll">${pills}</div>
   <div class="content" id="content">${content}</div>
 </div>
 <!-- Dragons Tab -->
@@ -609,7 +609,6 @@ function attachNrlLogo(){
     <div class="drg-header-logo-row">
       <img class="drg-header-banner" src="https://i.postimg.cc/XJsYH7Yg/st-george-illawarra-transparent-with-glow.png" onerror="this.style.display='none'" alt="Dragons">
     </div>
-    <div class="drg-header-spacer"></div>
   </div>
   <div class="content" id="drg-content">${dragonsHtml}</div>
 </div>
@@ -619,7 +618,6 @@ function attachNrlLogo(){
     <div class="header-logo-row">
       <img class="header-banner" src="https://i.postimg.cc/8CFL755P/IMG-4791.png" onerror="this.style.display='none'" alt="NRL">
     </div>
-    <div class="ladder-pill-spacer"></div>
   </div>
   <div class="content" id="ladder-content">${ladderHtml}</div>
 </div>
