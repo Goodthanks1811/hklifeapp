@@ -272,11 +272,10 @@ const s = StyleSheet.create({
   },
   iconCell: {
     width: 38, height: 38, borderRadius: 10,
-    backgroundColor: "#141414", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
   iconCellPlaying: {
-    borderColor: "rgba(224,49,49,0.3)",
     backgroundColor: "rgba(224,49,49,0.1)",
   },
   rowTextWrap: { flex: 1 },

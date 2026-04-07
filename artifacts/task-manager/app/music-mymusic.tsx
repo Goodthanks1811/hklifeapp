@@ -599,7 +599,7 @@ const st = StyleSheet.create({
   },
   rowIcon: {
     width: 36, height: 36, borderRadius: 9,
-    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
+    backgroundColor: ROW_BG,
     alignItems: "center", justifyContent: "center",
   },
   rowIconActive:  {},

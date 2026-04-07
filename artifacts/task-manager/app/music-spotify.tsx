@@ -163,7 +163,7 @@ const s = StyleSheet.create({
   rowPressed:    { opacity: 0.7 },
   iconCell: {
     width: 44, height: 44, borderRadius: 8,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
   rowName: { flex: 1, fontSize: 15, fontWeight: "500", color: "#fff", fontFamily: "Inter_500Medium" },

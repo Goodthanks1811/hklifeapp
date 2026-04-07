@@ -294,7 +294,7 @@ const s = StyleSheet.create({
   },
   iconCell: {
     width: 48, height: 48, borderRadius: 12,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
   rowLabel: {
