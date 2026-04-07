@@ -9,7 +9,7 @@ import React, {
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 
 // Default artwork shown in the Dynamic Island / Lock Screen when no track art is available
-const DEFAULT_ARTWORK = require('../assets/images/icon.png');
+const DEFAULT_ARTWORK = require('../assets/images/hk-artwork.png');
 
 // ── Conditional RNTP load ─────────────────────────────────────────────────────
 // react-native-track-player requires a native module only present in EAS builds.
