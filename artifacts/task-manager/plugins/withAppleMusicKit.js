@@ -1,68 +1,140 @@
-const { withDangerousMod, withXcodeProject } = require('@expo/config-plugins');
+const { withDangerousMod } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
+/**
+ * Adds AppleMusicKitModule.swift directly to the main app target (HKLifeApp)
+ * so it compiles in the same Swift module as ExpoModulesProvider.swift.
+ * No cross-target imports needed. No xcode package API calls — pure string
+ * manipulation on project.pbxproj so there are no API compatibility issues.
+ *
+ * patch-expo-modules-provider.js (called from expo-configure-project.sh via
+ * ensure-local-modules.js) then injects AppleMusicKitModule.self into the
+ * ExpoModulesProvider.swift generated at Xcode build time.
+ */
+
 const SWIFT_FILENAME = 'AppleMusicKitModule.swift';
 
-/**
- * 1. withDangerousMod: copies AppleMusicKitModule.swift into ios/HKLifeApp/
- *    so it lives in the same Xcode target as ExpoModulesProvider.swift.
- *    No cross-target import needed — same compilation unit.
- *
- * 2. withXcodeProject: adds the file to the main target's Compile Sources
- *    build phase so Xcode actually compiles it.
- *    - Uses pbxFileReferenceSection() to check for duplicates (hasFile does
- *      not exist on the xcode package's project object).
- *    - pbxGroupByName may return null; addSourceFile omits the group arg in
- *      that case — the file still gets added to PBXBuildFileSection and
- *      PBXSourcesBuildPhase (compilation), just not to the nav group tree.
- */
+// Deterministic 24-char hex UUIDs — stable across builds.
+const FILE_UUID  = 'AA11BB22CC33DD44EE55FF01';
+const BUILD_UUID = 'AA11BB22CC33DD44EE55FF02';
+
+const SWIFT_CONTENT = `import ExpoModulesCore
+import MediaPlayer
+
+public class AppleMusicKitModule: Module {
+  public func definition() -> ModuleDefinition {
+    Name("AppleMusicKit")
+
+    AsyncFunction("requestAuthorization") { (promise: Promise) in
+      MPMediaLibrary.requestAuthorization { status in
+        switch status {
+        case .authorized:    promise.resolve("authorized")
+        case .denied:        promise.resolve("denied")
+        case .restricted:    promise.resolve("restricted")
+        case .notDetermined: promise.resolve("notDetermined")
+        @unknown default:    promise.resolve("notDetermined")
+        }
+      }
+    }
+
+    AsyncFunction("getPlaylists") { (promise: Promise) in
+      let query = MPMediaQuery.playlists()
+      let collections = query.collections ?? []
+      var result: [[String: Any]] = []
+      for collection in collections {
+        guard let playlist = collection as? MPMediaPlaylist,
+              let name = playlist.name, !name.isEmpty else { continue }
+        result.append([
+          "id":    String(collection.persistentID),
+          "name":  name,
+          "count": collection.items.count,
+        ])
+      }
+      promise.resolve(result)
+    }
+
+    AsyncFunction("playPlaylist") { (persistentIDStr: String, promise: Promise) in
+      guard let persistentID = UInt64(persistentIDStr), persistentID != 0 else {
+        promise.reject("INVALID_ID", "Invalid playlist ID")
+        return
+      }
+      let query = MPMediaQuery.playlists()
+      let collections = query.collections ?? []
+      var found: MPMediaItemCollection? = nil
+      for collection in collections {
+        if collection.persistentID == persistentID { found = collection; break }
+      }
+      guard let collection = found else {
+        promise.reject("NOT_FOUND", "Playlist not found")
+        return
+      }
+      DispatchQueue.main.async {
+        let player = MPMusicPlayerController.systemMusicPlayer
+        player.setQueue(with: collection)
+        player.shuffleMode = .off
+        player.play()
+        promise.resolve(nil)
+      }
+    }
+  }
+}
+`;
+
 const withAppleMusicKit = (config) => {
-  config = withDangerousMod(config, [
+  return withDangerousMod(config, [
     'ios',
     async (config) => {
-      const { platformProjectRoot, projectRoot } = config.modRequest;
-      const srcFile = path.join(projectRoot, 'modules', 'apple-musickit', 'ios', SWIFT_FILENAME);
-      const appDir = path.join(platformProjectRoot, 'HKLifeApp');
-      const dstFile = path.join(appDir, SWIFT_FILENAME);
+      const { platformProjectRoot } = config.modRequest;
 
+      // ── 1. Write AppleMusicKitModule.swift into the main app source dir ──
+      const appDir = path.join(platformProjectRoot, 'HKLifeApp');
       fs.mkdirSync(appDir, { recursive: true });
-      fs.copyFileSync(srcFile, dstFile);
-      console.log(`[withAppleMusicKit] Copied ${SWIFT_FILENAME} → ios/HKLifeApp/`);
+      fs.writeFileSync(path.join(appDir, SWIFT_FILENAME), SWIFT_CONTENT, 'utf8');
+      console.log(`[withAppleMusicKit] Wrote ${SWIFT_FILENAME} → ios/HKLifeApp/`);
+
+      // ── 2. Register it in project.pbxproj via string manipulation ─────────
+      const entries = fs.readdirSync(platformProjectRoot);
+      const xcodeprojDir = entries.find((e) => e.endsWith('.xcodeproj'));
+      if (!xcodeprojDir) {
+        console.error('[withAppleMusicKit] No .xcodeproj found — skipping pbxproj patch');
+        return config;
+      }
+
+      const pbxprojPath = path.join(platformProjectRoot, xcodeprojDir, 'project.pbxproj');
+      let pbx = fs.readFileSync(pbxprojPath, 'utf8');
+
+      if (pbx.includes(SWIFT_FILENAME)) {
+        console.log(`[withAppleMusicKit] ${SWIFT_FILENAME} already in project.pbxproj`);
+        return config;
+      }
+
+      // a) PBXFileReference
+      pbx = pbx.replace(
+        '/* End PBXFileReference section */',
+        `\t\t${FILE_UUID} /* ${SWIFT_FILENAME} */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ${SWIFT_FILENAME}; sourceTree = "<group>"; };\n/* End PBXFileReference section */`
+      );
+
+      // b) PBXBuildFile
+      pbx = pbx.replace(
+        '/* End PBXBuildFile section */',
+        `\t\t${BUILD_UUID} /* ${SWIFT_FILENAME} in Sources */ = {isa = PBXBuildFile; fileRef = ${FILE_UUID} /* ${SWIFT_FILENAME} */; };\n/* End PBXBuildFile section */`
+      );
+
+      // c) PBXSourcesBuildPhase — insert into the files = ( ... ) list.
+      //    The Sources phase contains "isa = PBXSourcesBuildPhase" followed by
+      //    a "files = (" list. Inject our build-file entry right after "files = (".
+      pbx = pbx.replace(
+        /(isa = PBXSourcesBuildPhase;[\s\S]*?files = \()/,
+        `$1\n\t\t\t\t${BUILD_UUID} /* ${SWIFT_FILENAME} in Sources */,`
+      );
+
+      fs.writeFileSync(pbxprojPath, pbx, 'utf8');
+      console.log(`[withAppleMusicKit] Patched project.pbxproj with ${SWIFT_FILENAME}`);
 
       return config;
     },
   ]);
-
-  config = withXcodeProject(config, (config) => {
-    const xcodeProject = config.modResults;
-    const filePath = path.join('HKLifeApp', SWIFT_FILENAME);
-
-    // Check if file reference already exists — hasFile() is not in the API,
-    // use pbxFileReferenceSection() instead.
-    const refs = xcodeProject.pbxFileReferenceSection();
-    const alreadyAdded = Object.values(refs).some(
-      (ref) =>
-        ref &&
-        typeof ref === 'object' &&
-        ref.path &&
-        String(ref.path).replace(/"/g, '') === SWIFT_FILENAME
-    );
-
-    if (!alreadyAdded) {
-      // pbxGroupByName returns null if not found; addSourceFile still adds to
-      // PBXSourcesBuildPhase (compilation) even without a group.
-      const group = xcodeProject.pbxGroupByName('HKLifeApp');
-      xcodeProject.addSourceFile(filePath, {}, group || undefined);
-      console.log(`[withAppleMusicKit] Added ${SWIFT_FILENAME} to Xcode project`);
-    } else {
-      console.log(`[withAppleMusicKit] ${SWIFT_FILENAME} already registered in Xcode project`);
-    }
-
-    return config;
-  });
-
-  return config;
 };
 
 module.exports = withAppleMusicKit;
