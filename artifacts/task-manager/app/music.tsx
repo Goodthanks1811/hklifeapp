@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useMusicPlayer } from "@/context/MusicPlayerContext";
 
 const RED    = "#E8230A";
-const BG     = "#0b0b0c";
+const BG     = "#111111";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#888";

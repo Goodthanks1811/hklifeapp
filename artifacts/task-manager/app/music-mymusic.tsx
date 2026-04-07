@@ -27,7 +27,7 @@ import * as Haptics from "expo-haptics";
 import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
 
 const RED    = "#E03131";
-const BG     = "#0b0b0c";
+const BG     = "#111111";
 const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#888";

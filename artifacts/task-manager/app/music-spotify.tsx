@@ -17,7 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GREEN  = "#1DB954";
 const RED    = "#E03131";
-const BG     = "#0b0b0c";
+const BG     = "#111111";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
 
