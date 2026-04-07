@@ -9,7 +9,7 @@ import { BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { CardStyleInterpolators } from "@react-navigation/stack";
-import { CustomStack, TRANSITION_SPEC } from "./custom-stack";
+import { CustomStack, TRANSITION_SPEC, asymmetricSlide } from "./custom-stack";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useCallback, useEffect, useState } from "react";
 import { Image, View } from "react-native";
@@ -93,6 +93,11 @@ function RootLayoutNav() {
             <CustomStack.Screen name="ui-kit" />
             <CustomStack.Screen name="settings" />
             <CustomStack.Screen name="ir-quick-add" />
+            {/* Music screens — slide in/out horizontally */}
+            <CustomStack.Screen name="music"          options={{ cardStyleInterpolator: asymmetricSlide }} />
+            <CustomStack.Screen name="music-apple"    options={{ cardStyleInterpolator: asymmetricSlide }} />
+            <CustomStack.Screen name="music-spotify"  options={{ cardStyleInterpolator: asymmetricSlide }} />
+            <CustomStack.Screen name="music-mymusic"  options={{ cardStyleInterpolator: asymmetricSlide }} />
           </CustomStack>
         </TabletShell>
         <Drawer />
