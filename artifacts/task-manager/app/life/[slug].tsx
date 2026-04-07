@@ -1890,9 +1890,9 @@ export default function LifeTaskScreen() {
           <Pressable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); drawerOpen ? closeDrawer() : openDrawerToSection("life"); }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={sc.gradIconBtn}
+            style={sc.gradIconGhost}
           >
-            <Feather name="menu" size={18} color="rgba(255,255,255,0.75)" />
+            <Feather name="menu" size={26} color="rgba(255,255,255,0.92)" />
           </Pressable>
           <View style={{ flex: 1 }} />
         </View>
