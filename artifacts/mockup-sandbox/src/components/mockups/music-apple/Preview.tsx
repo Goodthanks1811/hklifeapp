@@ -45,7 +45,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
   background:var(--row);border:1px solid var(--border);border-radius:14px;
   padding:14px 14px;cursor:pointer;
 }
-.pl-icon{width:38px;height:38px;border-radius:10px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pl-icon{width:38px;height:38px;border-radius:10px;background:var(--row);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pl-name{flex:1;font-size:15px;font-weight:500;}
 .pl-chevron{color:rgba(255,255,255,0.2);}
 

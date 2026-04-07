@@ -71,8 +71,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 /* icon — 48px to match original card size */
 .row-icon{
   width:48px;height:48px;border-radius:12px;
-  background:#1a1a1a;
-  border:1px solid rgba(255,255,255,0.06);
+  background:var(--row);
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;
 }

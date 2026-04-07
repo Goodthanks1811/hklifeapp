@@ -9,7 +9,7 @@ const HTML = `<!DOCTYPE html>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#0b0b0c;--bg2:#111113;--bg3:#1a1a1a;
+  --bg:#0b0b0c;--bg2:#111113;--bg3:#1a1a1a;--row:#0f0f0f;
   --red:#E8230A;--white:#ffffff;--grey:#888;--border:rgba(255,255,255,0.07);
 }
 html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;height:100%;overflow-x:hidden;}
@@ -55,7 +55,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 .card-local::before{background:var(--red);}
 
 /* icon base — all black */
-.card-logo{width:48px;height:48px;border-radius:12px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;}
+.card-logo{width:48px;height:48px;border-radius:12px;background:var(--row);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;}
 
 .spotify-icon{color:#1DB954;}
 .local-icon{color:var(--red);}
@@ -73,7 +73,7 @@ html,body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-ser
 .last-played-section{position:relative;z-index:10;padding:0 16px;}
 .np-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px 16px 16px;cursor:pointer;}
 .np-top{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
-.track-art{width:46px;height:46px;border-radius:10px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.track-art{width:46px;height:46px;border-radius:10px;background:var(--row);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
 .track-info{flex:1;min-width:0;}
 .track-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .track-artist{font-size:12px;color:var(--grey);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
