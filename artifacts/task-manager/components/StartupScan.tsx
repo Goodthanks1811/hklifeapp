@@ -82,11 +82,12 @@ export function StartupScan({ onDone }: Props) {
       if (p >= 100) {
         clearInterval(id);
         setTimeout(() => {
+          onDone();
           Animated.timing(fadeOut, {
             toValue: 0,
             duration: 400,
             useNativeDriver: true,   // ✓ opacity only
-          }).start(onDone);
+          }).start();
         }, 350);
       }
     }, 26);

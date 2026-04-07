@@ -109,18 +109,19 @@ function RootLayoutNav() {
 
 // Lives inside DrawerProvider so it can call openDrawer / skipNextAutoClose
 function StartupGate() {
-  const { instantOpen, skipNextAutoClose } = useDrawer();
+  const { openDrawer, skipNextAutoClose } = useDrawer();
   const [show, setShow] = useState(!isTablet);
 
   const handleDone = useCallback(() => {
     // Prevent the upcoming route-change from auto-closing the drawer
     skipNextAutoClose();
-    // Snap drawer open instantly — before the scan overlay disappears
-    instantOpen();
+    // Slide drawer in — animates while scan fades out simultaneously
+    openDrawer();
     // Land on Development screen so it shows in the background
     router.replace("/life/automation" as any);
-    setShow(false);
-  }, [instantOpen, skipNextAutoClose]);
+    // Unmount scan after drawer + fade have both settled (~450ms)
+    setTimeout(() => setShow(false), 450);
+  }, [openDrawer, skipNextAutoClose]);
 
   if (!show) return null;
   return <StartupScan onDone={handleDone} />;
