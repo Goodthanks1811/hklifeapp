@@ -218,6 +218,7 @@ input[type=file] { display:none; }
 // ── State ──────────────────────────────────────────────
 var img1=null,img2=null,tx1=null,tx2=null;
 var di1=null,di2=null;
+var pendingSlot=1;
 var DISP_MAX=2048;
 var name1='Image 1',name2='Image 2';
 var active=0,zoomMode=false,sliderMode=false,sliderVert=true,sliderPos=0.5,opacity2=1.0;
@@ -307,7 +308,7 @@ function imgBtnTap(n){
     }
     updateActiveUI();
   }
-  else{openLoadSheet();}
+  else{pendingSlot=n;openLoadSheet();}
 }
 
 // ── File loading ───────────────────────────────────────
@@ -316,21 +317,37 @@ function loadFile(file,cb){var reader=new FileReader();reader.onload=function(ev
 function filesChosen(e){
   var files=e.target.files;if(!files||files.length===0){e.target.value='';return;}
   var f1=files[0],f2=files[1]||null;
-  loadFile(f1,function(imgA){
-    img1=imgA;di1=prescale(imgA);tx1=defaultTx(img1,W(),H());
-    if(f2){
+  if(f2){
+    // Two files picked at once — always img1 + img2
+    loadFile(f1,function(imgA){
+      img1=imgA;di1=prescale(imgA);tx1=defaultTx(img1,W(),H());
       loadFile(f2,function(imgB){
         img2=imgB;di2=prescale(imgB);tx2=defaultTx(img2,W(),H());
         initMask();active=2;draw();snapshot();closeSheet();updateActiveUI();
-        // auto-enable erase as soon as both images are loaded
         brushMode=true;
         var _bb=document.getElementById('btnBrush');if(_bb)_bb.style.display='none';
         _setBrushInline(true);setBrushMode('erase');
       });
-    }else{
-      active=1;draw();snapshot();closeSheet();updateActiveUI();
-    }
-  });
+    });
+  }else{
+    // Single file — route to whichever slot opened the picker
+    var slot=pendingSlot||1;
+    loadFile(f1,function(img){
+      if(slot===2){
+        img2=img;di2=prescale(img);tx2=defaultTx(img2,W(),H());
+        if(img1){initMask();}
+        active=2;draw();snapshot();closeSheet();updateActiveUI();
+        if(img1){
+          brushMode=true;
+          var _bb2=document.getElementById('btnBrush');if(_bb2)_bb2.style.display='none';
+          _setBrushInline(true);setBrushMode('erase');
+        }
+      }else{
+        img1=img;di1=prescale(img);tx1=defaultTx(img1,W(),H());
+        active=1;draw();snapshot();closeSheet();updateActiveUI();
+      }
+    });
+  }
   e.target.value='';
 }
 
