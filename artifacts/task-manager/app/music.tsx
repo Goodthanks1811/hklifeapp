@@ -112,12 +112,10 @@ function fmtMs(ms: number): string {
 export default function MusicScreen() {
   const insets  = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
-  const { openDrawer, skipNextAutoClose } = useDrawer();
+  const { openDrawer } = useDrawer();
   const player  = useMusicPlayer();
 
   const goHome = () => {
-    skipNextAutoClose();
-    router.replace("/life/automation" as any);
     openDrawer();
   };
 
