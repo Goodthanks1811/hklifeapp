@@ -2,40 +2,27 @@ const { withDangerousMod, withXcodeProject } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
-/**
- * Expo config plugin for the AppleMusicKit native module.
- *
- * WHY this approach (main app target, not a pod):
- *   pnpm hoists file: deps to the workspace root, so expo-modules-autolinking
- *   never finds apple-musickit. The pod approach required importing a static
- *   library Swift module across targets, which silently fails without
- *   use_frameworks!. Putting the Swift file directly in the main app target
- *   (HKLifeApp) means it's in the same compilation unit as
- *   ExpoModulesProvider.swift — no import needed, no cross-target visibility
- *   issues. ExpoModulesCore is already linked in the main app target, so
- *   `import ExpoModulesCore` inside the Swift file works fine.
- *
- * HOW it works:
- *   1. withDangerousMod copies AppleMusicKitModule.swift into ios/HKLifeApp/
- *   2. withXcodeProject adds the file to the main app target's Compile Sources
- *   3. patch-expo-modules-provider.js (called from expo-configure-project.sh
- *      via ensure-local-modules.js) injects AppleMusicKitModule.self into the
- *      ExpoModulesProvider.swift generated at Xcode build time
- *   4. requireNativeModule("AppleMusicKit") finds the registered module at
- *      runtime via ExpoModulesCore
- */
-
 const SWIFT_FILENAME = 'AppleMusicKitModule.swift';
 
+/**
+ * 1. withDangerousMod: copies AppleMusicKitModule.swift into ios/HKLifeApp/
+ *    so it lives in the same Xcode target as ExpoModulesProvider.swift.
+ *    No cross-target import needed — same compilation unit.
+ *
+ * 2. withXcodeProject: adds the file to the main target's Compile Sources
+ *    build phase so Xcode actually compiles it.
+ *    - Uses pbxFileReferenceSection() to check for duplicates (hasFile does
+ *      not exist on the xcode package's project object).
+ *    - pbxGroupByName may return null; addSourceFile omits the group arg in
+ *      that case — the file still gets added to PBXBuildFileSection and
+ *      PBXSourcesBuildPhase (compilation), just not to the nav group tree.
+ */
 const withAppleMusicKit = (config) => {
-  // Step 1: Copy the Swift source file into ios/HKLifeApp/ during prebuild
   config = withDangerousMod(config, [
     'ios',
     async (config) => {
       const { platformProjectRoot, projectRoot } = config.modRequest;
-      const srcFile = path.join(
-        projectRoot, 'modules', 'apple-musickit', 'ios', SWIFT_FILENAME
-      );
+      const srcFile = path.join(projectRoot, 'modules', 'apple-musickit', 'ios', SWIFT_FILENAME);
       const appDir = path.join(platformProjectRoot, 'HKLifeApp');
       const dstFile = path.join(appDir, SWIFT_FILENAME);
 
@@ -47,17 +34,29 @@ const withAppleMusicKit = (config) => {
     },
   ]);
 
-  // Step 2: Register the Swift file with the Xcode project so it gets compiled
-  // as part of the HKLifeApp target's Compile Sources build phase.
   config = withXcodeProject(config, (config) => {
     const xcodeProject = config.modResults;
     const filePath = path.join('HKLifeApp', SWIFT_FILENAME);
 
-    if (!xcodeProject.hasFile(filePath)) {
-      xcodeProject.addSourceFile(filePath, {}, xcodeProject.pbxGroupByName('HKLifeApp'));
+    // Check if file reference already exists — hasFile() is not in the API,
+    // use pbxFileReferenceSection() instead.
+    const refs = xcodeProject.pbxFileReferenceSection();
+    const alreadyAdded = Object.values(refs).some(
+      (ref) =>
+        ref &&
+        typeof ref === 'object' &&
+        ref.path &&
+        String(ref.path).replace(/"/g, '') === SWIFT_FILENAME
+    );
+
+    if (!alreadyAdded) {
+      // pbxGroupByName returns null if not found; addSourceFile still adds to
+      // PBXSourcesBuildPhase (compilation) even without a group.
+      const group = xcodeProject.pbxGroupByName('HKLifeApp');
+      xcodeProject.addSourceFile(filePath, {}, group || undefined);
       console.log(`[withAppleMusicKit] Added ${SWIFT_FILENAME} to Xcode project`);
     } else {
-      console.log(`[withAppleMusicKit] ${SWIFT_FILENAME} already registered`);
+      console.log(`[withAppleMusicKit] ${SWIFT_FILENAME} already registered in Xcode project`);
     }
 
     return config;
