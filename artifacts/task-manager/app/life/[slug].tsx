@@ -480,6 +480,8 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   const handleCatChange = useCallback((cat: string) => {
     setLocalCat(cat);
+    // Clear epic selection when leaving Development category
+    if (cat !== EPIC_CAT_VALUE) setLocalEpic(null);
     // Optimistically update the list immediately — same pattern as emoji/epic
     if (task) onCatChange?.(task.id, cat);
   }, [task, onCatChange]);
@@ -677,8 +679,8 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
         </View>
       )}
 
-      {/* Epic row */}
-      {epicOptions && epicOptions.length > 0 && (
+      {/* Epic row — only visible when the selected category is Development */}
+      {epicOptions && epicOptions.length > 0 && localCat === EPIC_CAT_VALUE && (
         <View style={[s.dsMetaRow, { marginTop: 8 }]}>
           {epicOptions.map(ep => {
             const selected = ep === localEpic;
@@ -1996,9 +1998,9 @@ export default function LifeTaskScreen() {
         onClose={() => setDetailTask(null)}
         onSave={handleSaveTitle}
         onEmojiChange={handleEmojiChange}
-        onEpicChange={config?.showEpic ? handleEpicChange : undefined}
+        onEpicChange={handleEpicChange}
         onCatChange={handleCatOptimistic}
-        epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
+        epicOptions={filterEpics(schema?.epicOptions)}
         catValue={config?.catValue ?? ""}
         allCategories={ALL_CATS}
         categoryType={schema?.categoryType}
