@@ -428,4 +428,4 @@ Files changed:
 1. ObjC `RCT_EXPORT_MODULE` registers the class in the ObjC runtime on binary load
 2. RN 0.81 (even with `newArchEnabled: true`) exposes bridge modules via `NativeModules` through the interop compatibility layer
 
-**The old Swift file** (`ios/AppleMusicKitModule.swift`) is still in the repo but the podspec now only compiles `ios/**/*.{h,m}` — the Swift file is ignored.
+**Important**: `ios/AppleMusicKitModule.swift` has been **deleted** from the repo. Even though the podspec only compiled `*.{h,m}`, Expo's autolinking scanner still finds any Swift file that conforms to the `Module` protocol and adds it to the generated `ExpoModulesProvider.swift`. The generated file then references `AppleMusicKitModule.self` — a class that never compiles (because the podspec excludes it) — causing Xcode error: `cannot find 'AppleMusicKitModule' in scope`. Fix: delete the Swift file entirely so autolinking never sees it.
