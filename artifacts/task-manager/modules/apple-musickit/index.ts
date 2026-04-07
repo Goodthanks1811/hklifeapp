@@ -1,18 +1,10 @@
-import { NativeModules } from "react-native";
+import { requireNativeModule } from "expo-modules-core";
 
-// AppleMusicKit is an ObjC bridge module (RCT_EXPORT_MODULE) — it
-// self-registers via the ObjC runtime and is accessed through NativeModules,
-// NOT requireNativeModule (which requires an ExpoModulesProvider entry).
-//
-// In Expo Go or any build without the compiled native module,
-// NativeModules.AppleMusicKit will be undefined, and the throw below causes
-// music-apple.tsx's require() catch to set AppleMusicKit = null, showing
-// the "Install Required" state.
-const AM = NativeModules.AppleMusicKit;
-
-if (!AM) {
-  throw new Error("AppleMusicKit native module not available (Expo Go or simulator)");
-}
+// AppleMusicKitModule is an ExpoModulesCore Swift module compiled into the
+// native (ad-hoc) build. requireNativeModule throws in Expo Go (where the
+// Swift code isn't compiled), which music-apple.tsx catches to show the
+// "Install Required" state. In the real native build, this returns the module.
+const AM = requireNativeModule("AppleMusicKit");
 
 export type ApplePlaylist = {
   id: string;
