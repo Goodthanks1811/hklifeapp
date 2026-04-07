@@ -63,8 +63,10 @@ export default function MusicAppleScreen() {
   const [playlists, setPlaylists] = useState<ApplePlaylist[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg]   = useState<string | null>(null);
 
   const fetchPlaylists = useCallback(async () => {
+    setErrorMsg(null);
     if (!AppleMusicKit) { setAuthStatus("unavailable"); return; }
     try {
       const status: string = await AppleMusicKit.requestAuthorization();
@@ -83,8 +85,9 @@ export default function MusicAppleScreen() {
         }
         setPlaylists(all);
       }
-    } catch {
+    } catch (e: any) {
       setAuthStatus("denied");
+      setErrorMsg(e?.message ?? String(e));
     }
   }, []);
 
@@ -119,6 +122,7 @@ export default function MusicAppleScreen() {
           <Feather name="smartphone" size={44} color={RED} style={{ marginBottom: 16 }} />
           <Text style={s.stateTitle}>Install Required</Text>
           <Text style={s.stateBody}>Apple Music access is only available{"\n"}in the installed build, not Expo Go.</Text>
+          {errorMsg ? <Text style={s.errorDetail}>{errorMsg}</Text> : null}
         </View>
       );
     }
@@ -129,6 +133,7 @@ export default function MusicAppleScreen() {
           <Feather name="lock" size={44} color={RED} style={{ marginBottom: 16 }} />
           <Text style={s.stateTitle}>Access Denied</Text>
           <Text style={s.stateBody}>Go to Settings → HK Life App{"\n"}and enable Media & Apple Music.</Text>
+          {errorMsg ? <Text style={s.errorDetail}>{errorMsg}</Text> : null}
         </View>
       );
     }
@@ -246,6 +251,10 @@ const s = StyleSheet.create({
   stateBody: {
     color: "rgba(255,255,255,0.45)", fontSize: 14,
     fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22,
+  },
+  errorDetail: {
+    color: RED, fontSize: 11, fontFamily: "Inter_400Regular",
+    textAlign: "center", marginTop: 12, paddingHorizontal: 16,
   },
 
   grantBtn: {
