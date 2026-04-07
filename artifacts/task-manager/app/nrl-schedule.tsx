@@ -2,8 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
+  Easing,
   Image,
   Modal,
   Platform,
@@ -156,6 +156,29 @@ const TEAM_COLOURS: Record<string, string> = {
   "wests-tigers": "FF7F00", "dolphins": "DC143C",
 };
 
+
+// ── Spinner (matches NRL News) ─────────────────────────────────────────────────
+function NrlSpinner() {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 1000, easing: Easing.bezier(0.6, 0.2, 0.4, 0.8), useNativeDriver: true })
+    ).start();
+  }, []);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={{
+        width: 52, height: 52, borderRadius: 26,
+        borderWidth: 5,
+        borderColor: "#1a1a1a",
+        borderTopColor: NRL_GREEN,
+        borderRightColor: NRL_GREEN,
+        transform: [{ rotate }],
+      }} />
+    </View>
+  );
+}
 
 // ── Team logos (base64 data URIs) ──────────────────────────────────────────────
 const TEAM_LOGOS: Record<string, string> = {
@@ -346,10 +369,14 @@ function buildLadderHTML(ladderData: LadderRow[]): string {
     const diffStr  = t.diff > 0 ? `+${t.diff}` : String(t.diff);
     const sepAfter = t.pos === 8 && ladderData.length > 8
       ? `<tr class="ladder-sep"><td colspan="8"></td></tr>` : "";
+    const logo     = TEAM_LOGOS[t.name];
+    const iconHtml = logo
+      ? `<img class="tlogo" src="${logo}">`
+      : `<span class="tdot" style="background:${t.colour}"></span>`;
     return `
 <tr class="${isDrg ? "ladder-drg" : i % 2 === 0 ? "ladder-even" : ""}">
   <td class="lpos${isTop8 ? " top8" : ""}">${t.pos}</td>
-  <td class="lteam"><span class="tdot" style="background:${t.colour}"></span><span class="tname">${t.name}</span></td>
+  <td class="lteam">${iconHtml}<span class="tname">${t.name}</span></td>
   <td class="lstat">${t.p}</td><td class="lstat">${t.w}</td>
   <td class="lstat">${t.l}</td><td class="lstat">${t.d}</td>
   <td class="lstat lpts">${t.pts}</td>
@@ -445,6 +472,7 @@ td.lpos{text-align:center;font-weight:700;font-size:15px;color:${NRL_MUTED};widt
 td.lpos.top8{color:#ddd;}
 td.lteam{text-align:left;padding-left:8px;font-size:16px;font-weight:700;color:${NRL_TEXT};white-space:nowrap;overflow:hidden;}
 .tdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;position:relative;top:-1px;}
+.tlogo{width:26px;height:26px;vertical-align:middle;margin-right:6px;object-fit:contain;}
 .tname{vertical-align:middle;}
 td.lstat{text-align:center;color:#aaa;font-size:14px;width:36px;}
 td.lpts{color:#fff;font-weight:700;font-size:15px;}
@@ -931,7 +959,7 @@ export default function NRLScheduleScreen() {
 
       {loading && (
         <View style={styles.loadingCover}>
-          <ActivityIndicator size="large" color={NRL_GREEN} />
+          <NrlSpinner />
         </View>
       )}
 
