@@ -423,7 +423,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .tab-btn.active-drg{color:${DRG_RED};border-bottom-color:${DRG_RED};}
 .tab-btn.active-ladder{color:#cccccc;border-bottom-color:#cccccc;}
 .tab-panel{display:none;}.tab-panel.visible{display:block;}
-.header{position:sticky;top:0;z-index:100;background:#000;border-bottom:2px solid ${NRL_GREEN};}
+.header{position:sticky;top:0;z-index:100;background:#000;}
 .header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;background:#000;}
 .header-banner{height:115px;width:auto;display:block;object-fit:contain;}
 .rounds-scroll{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#000;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
@@ -431,7 +431,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .round-pill{flex-shrink:0;background:#1a1a1a;border:1px solid #2a2a2a;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:5px 14px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .round-pill.active{background:${NRL_GREEN};border-color:${NRL_GREEN};color:#fff}
 .ladder-pill-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
-.drg-header{position:sticky;top:0;z-index:100;background:${NRL_DARK};border-bottom:2px solid ${DRG_RED};}
+.drg-header{position:sticky;top:0;z-index:100;background:${NRL_DARK};}
 .drg-header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;}
 .drg-header-banner{height:115px;width:auto;display:block;object-fit:contain;mix-blend-mode:screen;}
 .drg-header-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
