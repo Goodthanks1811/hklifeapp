@@ -85,7 +85,7 @@ export function StartupScan({ onDone }: Props) {
           onDone();
           Animated.timing(fadeOut, {
             toValue: 0,
-            duration: 400,
+            duration: 600,
             useNativeDriver: true,   // ✓ opacity only
           }).start();
         }, 350);

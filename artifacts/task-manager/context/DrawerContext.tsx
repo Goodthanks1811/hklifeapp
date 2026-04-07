@@ -40,6 +40,7 @@ interface DrawerContextType {
   drawerModeRef:       React.MutableRefObject<DrawerMode>;
   setDrawerMode:       (mode: DrawerMode) => void;
   openDrawer:          () => void;
+  slowOpen:            () => void;
   closeDrawer:         () => void;
   instantClose:        () => void;
   instantOpen:         () => void;
@@ -131,6 +132,21 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
     setIsOpen(true);
   }, [drawerAnim, overlayAnim]);
 
+  const SLOW_DUR = 600;
+  const slowOpen = useCallback(() => {
+    setIsOpen(true);
+    Animated.timing(drawerAnim, { toValue: 0, duration: SLOW_DUR, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    if (isTablet) {
+      if (drawerModeRef.current === "sidebar") {
+        spacerWidth.value = withTiming(SIDEBAR_WIDTH, { duration: SLOW_DUR, easing: REasing.out(REasing.cubic) });
+      } else {
+        Animated.timing(overlayAnim, { toValue: 1, duration: SLOW_DUR, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      }
+    } else {
+      Animated.timing(overlayAnim, { toValue: 1, duration: SLOW_DUR, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }
+  }, [drawerAnim, overlayAnim, spacerWidth]);
+
   const toggleDrawer = useCallback(() => {
     if (isOpen) closeDrawer();
     else openDrawer();
@@ -188,7 +204,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
     <DrawerContext.Provider value={{
       isOpen, drawerAnim, overlayAnim, spacerWidth,
       drawerMode, drawerModeRef, setDrawerMode,
-      openDrawer, closeDrawer, instantClose, instantOpen, toggleDrawer,
+      openDrawer, slowOpen, closeDrawer, instantClose, instantOpen, toggleDrawer,
       openDrawerToSection, drawerPrepareRef,
       skipNextAutoClose, skipAutoCloseRef,
       DRAWER_WIDTH, isTablet, SIDEBAR_WIDTH,
