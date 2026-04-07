@@ -473,7 +473,7 @@ td.lpos{text-align:center;font-weight:700;font-size:15px;color:${NRL_MUTED};widt
 td.lpos.top8{color:#ddd;}
 td.lteam{text-align:left;padding-left:8px;font-size:16px;font-weight:700;color:${NRL_TEXT};white-space:nowrap;overflow:hidden;}
 .tdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;position:relative;top:-1px;}
-.tlogo{width:26px;height:26px;vertical-align:middle;margin-right:6px;object-fit:contain;}
+.tlogo{width:52px;height:52px;vertical-align:middle;margin-right:8px;object-fit:contain;}
 .tname{vertical-align:middle;}
 td.lstat{text-align:center;color:#aaa;font-size:14px;width:36px;}
 td.lpts{color:#fff;font-weight:700;font-size:15px;}
@@ -1121,8 +1121,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   pickerTeamLogo: {
-    width: 26,
-    height: 26,
+    width: 52,
+    height: 52,
   },
   pickerTeamBtnActive: {
     backgroundColor: NRL_GREEN + "22",

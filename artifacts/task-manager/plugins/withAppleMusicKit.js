@@ -87,11 +87,13 @@ const withAppleMusicKit = (config) => {
     async (config) => {
       const { platformProjectRoot } = config.modRequest;
 
-      // ── 1. Write AppleMusicKitModule.swift into the main app source dir ──
-      const appDir = path.join(platformProjectRoot, 'HKLifeApp');
-      fs.mkdirSync(appDir, { recursive: true });
-      fs.writeFileSync(path.join(appDir, SWIFT_FILENAME), SWIFT_CONTENT, 'utf8');
-      console.log(`[withAppleMusicKit] Wrote ${SWIFT_FILENAME} → ios/HKLifeApp/`);
+      // ── 1. Write AppleMusicKitModule.swift to ios/ root ──────────────────
+      // The PBXFileReference uses sourceTree="<group>" with path=filename only,
+      // which resolves relative to the Xcode project root (ios/).
+      // Writing to ios/HKLifeApp/ would need a group entry to resolve correctly;
+      // ios/ root matches the bare path entry we inject into the pbxproj.
+      fs.writeFileSync(path.join(platformProjectRoot, SWIFT_FILENAME), SWIFT_CONTENT, 'utf8');
+      console.log(`[withAppleMusicKit] Wrote ${SWIFT_FILENAME} → ios/`);
 
       // ── 2. Register it in project.pbxproj via string manipulation ─────────
       const entries = fs.readdirSync(platformProjectRoot);
