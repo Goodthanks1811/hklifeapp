@@ -509,7 +509,7 @@ function handleRound(round){
   clearPickResults();
   document.querySelectorAll('.round-pill').forEach(function(p){p.classList.remove('active');});
   var pill=document.getElementById('pill-'+round);
-  if(pill){pill.classList.add('active');pill.scrollIntoView({inline:'center',block:'nearest'});}
+  if(pill){pill.classList.add('active');}
   document.getElementById('content').innerHTML='<div class="loading"><div class="loader"></div>Loading Round '+round+'\u2026</div>';
   postMsg({type:'changeRound',round:round});
 }
