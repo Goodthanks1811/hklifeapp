@@ -54,6 +54,31 @@ public class AppleMusicKitModule: Module {
       promise.resolve(result)
     }
 
+    AsyncFunction("getSongsInPlaylist") { (persistentIDStr: String, promise: Promise) in
+      guard let persistentID = UInt64(persistentIDStr) else {
+        promise.reject("INVALID_ID", "Invalid playlist ID")
+        return
+      }
+      let query = MPMediaQuery.playlists()
+      let collections = query.collections ?? []
+      for collection in collections {
+        if collection.persistentID == persistentID {
+          let songs: [[String: Any]] = collection.items.map { item in
+            [
+              "id":         String(item.persistentID),
+              "title":      item.title ?? "Unknown",
+              "artist":     item.artist ?? "",
+              "albumTitle": item.albumTitle ?? "",
+              "duration":   item.playbackDuration,
+            ]
+          }
+          promise.resolve(songs)
+          return
+        }
+      }
+      promise.reject("NOT_FOUND", "Playlist not found")
+    }
+
     AsyncFunction("playPlaylist") { (persistentIDStr: String, promise: Promise) in
       guard let persistentID = UInt64(persistentIDStr), persistentID != 0 else {
         promise.reject("INVALID_ID", "Invalid playlist ID")
@@ -76,6 +101,30 @@ public class AppleMusicKitModule: Module {
         player.play()
         promise.resolve(nil)
       }
+    }
+
+    AsyncFunction("playSongInPlaylist") { (playlistIDStr: String, songIndex: Int, promise: Promise) in
+      guard let playlistID = UInt64(playlistIDStr) else {
+        promise.reject("INVALID_ID", "Invalid playlist ID")
+        return
+      }
+      let query = MPMediaQuery.playlists()
+      let collections = query.collections ?? []
+      for collection in collections {
+        if collection.persistentID == playlistID {
+          DispatchQueue.main.async {
+            let player = MPMusicPlayerController.systemMusicPlayer
+            player.setQueue(with: collection)
+            player.shuffleMode = .off
+            let idx = max(0, min(songIndex, collection.items.count - 1))
+            player.nowPlayingItem = collection.items[idx]
+            player.play()
+            promise.resolve(nil)
+          }
+          return
+        }
+      }
+      promise.reject("NOT_FOUND", "Playlist not found")
     }
   }
 }

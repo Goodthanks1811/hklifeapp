@@ -28,7 +28,8 @@ const MAX_H = 42;
 const MIN_H = 5;
 
 type ApplePlaylist = { id: string; name: string; count: number };
-type AuthStatus = "authorized" | "denied" | "restricted" | "notDetermined" | "unavailable" | "loading";
+type AppleSong     = { id: string; title: string; artist: string; albumTitle: string; duration: number };
+type AuthStatus    = "authorized" | "denied" | "restricted" | "notDetermined" | "unavailable" | "loading";
 
 let AppleMusicKit: any = null;
 try {
@@ -37,6 +38,27 @@ try {
   AppleMusicKit = null;
 }
 
+// ── Fuzzy match ───────────────────────────────────────────────────────────────
+// Returns true if `filter` (the saved name) fuzzy-matches `playlistName`.
+function fuzzyMatch(playlistName: string, filter: string): boolean {
+  const norm = (s: string) =>
+    s.toLowerCase().trim().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+  const p = norm(playlistName);
+  const f = norm(filter);
+  if (!f) return false;
+  if (p === f) return true;
+  if (p.includes(f) || f.includes(p)) return true;
+  // Word overlap — passes if ≥60% of the shorter name's words appear in the other
+  const pWords = p.split(" ").filter(w => w.length > 1);
+  const fWords = f.split(" ").filter(w => w.length > 1);
+  if (!pWords.length || !fWords.length) return false;
+  const shorter = pWords.length <= fWords.length ? pWords : fWords;
+  const longer  = pWords.length <= fWords.length ? fWords : pWords;
+  const matches = shorter.filter(w => longer.includes(w)).length;
+  return matches / shorter.length >= 0.6;
+}
+
+// ── EQ bar ────────────────────────────────────────────────────────────────────
 function EqBar({ index }: { index: number }) {
   const height = useRef(new Animated.Value(MIN_H)).current;
   useEffect(() => {
@@ -53,17 +75,130 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[s.eqBar, { height }]} />;
 }
 
+// ── Format duration ───────────────────────────────────────────────────────────
+function fmtDuration(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// ── Playlist row with expandable songs ────────────────────────────────────────
+function PlaylistRow({
+  pl,
+  playingPlaylistId,
+  playingSongIndex,
+  onPlaySong,
+}: {
+  pl: ApplePlaylist;
+  playingPlaylistId: string | null;
+  playingSongIndex: number | null;
+  onPlaySong: (pl: ApplePlaylist, songIndex: number) => void;
+}) {
+  const [expanded, setExpanded]   = useState(false);
+  const [songs, setSongs]         = useState<AppleSong[]>([]);
+  const [loadingSongs, setLoadingSongs] = useState(false);
+  const isThisPlaying = playingPlaylistId === pl.id;
+
+  const toggle = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (expanded) { setExpanded(false); return; }
+    setExpanded(true);
+    if (songs.length === 0 && AppleMusicKit) {
+      setLoadingSongs(true);
+      try {
+        const result: AppleSong[] = await AppleMusicKit.getSongsInPlaylist(pl.id);
+        setSongs(result);
+      } catch { setSongs([]); }
+      finally { setLoadingSongs(false); }
+    }
+  };
+
+  return (
+    <View style={[s.card, isThisPlaying && s.cardPlaying]}>
+      {/* Playlist header row */}
+      <Pressable
+        style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
+        onPress={toggle}
+      >
+        <View style={[s.iconCell, isThisPlaying && s.iconCellPlaying]}>
+          {isThisPlaying
+            ? <Feather name="volume-2" size={18} color={RED} />
+            : <Feather name="headphones" size={18} color={RED} />}
+        </View>
+        <View style={s.rowTextWrap}>
+          <Text style={[s.rowName, isThisPlaying && s.rowNamePlaying]}>{pl.name}</Text>
+          {pl.count > 0 && (
+            <Text style={s.rowCount}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>
+          )}
+        </View>
+        <Feather
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={18}
+          color="rgba(255,255,255,0.3)"
+        />
+      </Pressable>
+
+      {/* Expanded song list */}
+      {expanded && (
+        <View style={s.songList}>
+          <View style={s.songDivider} />
+          {loadingSongs ? (
+            <View style={s.songLoading}>
+              <ActivityIndicator color={RED} size="small" />
+            </View>
+          ) : songs.length === 0 ? (
+            <Text style={s.songEmpty}>No songs found</Text>
+          ) : (
+            songs.map((song, idx) => {
+              const isActiveSong = isThisPlaying && playingSongIndex === idx;
+              return (
+                <Pressable
+                  key={song.id}
+                  style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }, isActiveSong && s.songRowActive]}
+                  onPress={() => onPlaySong(pl, idx)}
+                >
+                  <View style={s.songIndex}>
+                    {isActiveSong
+                      ? <Feather name="volume-2" size={13} color={RED} />
+                      : <Text style={s.songIndexTx}>{idx + 1}</Text>}
+                  </View>
+                  <View style={s.songInfo}>
+                    <Text style={[s.songTitle, isActiveSong && s.songTitleActive]} numberOfLines={1}>{song.title}</Text>
+                    {song.artist ? (
+                      <Text style={s.songArtist} numberOfLines={1}>{song.artist}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={s.songDuration}>{fmtDuration(song.duration)}</Text>
+                  <Feather
+                    name="play"
+                    size={14}
+                    color={isActiveSong ? RED : "rgba(255,255,255,0.18)"}
+                    style={{ marginLeft: 6 }}
+                  />
+                </Pressable>
+              );
+            })
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicAppleScreen() {
   const goBack = () => router.back();
-
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
 
   const [authStatus, setAuthStatus]   = useState<AuthStatus>("loading");
-  const [playlists, setPlaylists] = useState<ApplePlaylist[]>([]);
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg]   = useState<string | null>(null);
+  const [playlists, setPlaylists]     = useState<ApplePlaylist[]>([]);
+  const [errorMsg, setErrorMsg]       = useState<string | null>(null);
+
+  // Track which song is playing: {playlistId, songIndex} — null = not playing
+  const [playingPlaylistId, setPlayingPlaylistId] = useState<string | null>(null);
+  const [playingSongIndex, setPlayingSongIndex]   = useState<number | null>(null);
+  const [loadingKey, setLoadingKey]               = useState<string | null>(null);
 
   const fetchPlaylists = useCallback(async () => {
     setErrorMsg(null);
@@ -73,13 +208,12 @@ export default function MusicAppleScreen() {
       setAuthStatus(status as AuthStatus);
       if (status === "authorized") {
         const all: ApplePlaylist[] = await AppleMusicKit.getPlaylists();
-        // Filter by user-defined name list from Settings
         const namesRaw = await AsyncStorage.getItem("music_apple_filter_names");
         if (namesRaw) {
           const names: string[] = JSON.parse(namesRaw);
           if (names.length > 0) {
-            const lower = names.map(n => n.toLowerCase().trim());
-            setPlaylists(all.filter(p => lower.includes(p.name.toLowerCase().trim())));
+            // Fuzzy match — each playlist passes if ANY filter name matches it
+            setPlaylists(all.filter(p => names.some(n => fuzzyMatch(p.name, n))));
             return;
           }
         }
@@ -93,17 +227,19 @@ export default function MusicAppleScreen() {
 
   useFocusEffect(useCallback(() => { fetchPlaylists(); }, [fetchPlaylists]));
 
-  const handlePlay = async (pl: ApplePlaylist) => {
-    if (!AppleMusicKit || loadingId) return;
+  const handlePlaySong = async (pl: ApplePlaylist, songIndex: number) => {
+    if (!AppleMusicKit || loadingKey) return;
+    const key = `${pl.id}:${songIndex}`;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setLoadingId(pl.id);
+    setLoadingKey(key);
     try {
-      await AppleMusicKit.playPlaylist(pl.id);
-      setPlayingId(pl.id);
+      await AppleMusicKit.playSongInPlaylist(pl.id, songIndex);
+      setPlayingPlaylistId(pl.id);
+      setPlayingSongIndex(songIndex);
     } catch {
-      setPlayingId(null);
+      // ignore
     } finally {
-      setLoadingId(null);
+      setLoadingKey(null);
     }
   };
 
@@ -115,7 +251,6 @@ export default function MusicAppleScreen() {
         </View>
       );
     }
-
     if (authStatus === "unavailable") {
       return (
         <View style={s.centred}>
@@ -126,7 +261,6 @@ export default function MusicAppleScreen() {
         </View>
       );
     }
-
     if (authStatus === "denied" || authStatus === "restricted") {
       return (
         <View style={s.centred}>
@@ -137,7 +271,6 @@ export default function MusicAppleScreen() {
         </View>
       );
     }
-
     if (authStatus === "notDetermined") {
       return (
         <View style={s.centred}>
@@ -148,54 +281,29 @@ export default function MusicAppleScreen() {
         </View>
       );
     }
-
     if (playlists.length === 0) {
       return (
         <View style={s.centred}>
           <Text style={s.stateBody}>
-            No playlists found.{"\n"}Check Settings → Music → Apple Music Playlists to ensure names match exactly.
+            No playlists found.{"\n"}Check Settings → Music → Apple Music Playlists.
           </Text>
         </View>
       );
     }
-
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 16, paddingBottom: 32, paddingHorizontal: 16 }}
       >
-        {playlists.map((pl) => {
-          const isPlaying = playingId === pl.id;
-          const isLoading = loadingId === pl.id;
-          return (
-            <Pressable
-              key={pl.id}
-              style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }, isPlaying && s.rowPlaying]}
-              onPress={() => handlePlay(pl)}
-            >
-              <View style={[s.iconCell, isPlaying && s.iconCellPlaying]}>
-                {isLoading ? (
-                  <ActivityIndicator color={RED} size="small" />
-                ) : isPlaying ? (
-                  <Feather name="volume-2" size={18} color={RED} />
-                ) : (
-                  <Feather name="headphones" size={18} color={RED} />
-                )}
-              </View>
-              <View style={s.rowTextWrap}>
-                <Text style={[s.rowName, isPlaying && s.rowNamePlaying]}>{pl.name}</Text>
-                {pl.count > 0 && (
-                  <Text style={s.rowCount}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>
-                )}
-              </View>
-              <Feather
-                name={isPlaying ? "pause-circle" : "play-circle"}
-                size={22}
-                color={isPlaying ? RED : "rgba(255,255,255,0.2)"}
-              />
-            </Pressable>
-          );
-        })}
+        {playlists.map((pl) => (
+          <PlaylistRow
+            key={pl.id}
+            pl={pl}
+            playingPlaylistId={playingPlaylistId}
+            playingSongIndex={playingSongIndex}
+            onPlaySong={handlePlaySong}
+          />
+        ))}
       </ScrollView>
     );
   };
@@ -267,26 +375,28 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  row: {
-    flexDirection: "row", alignItems: "center", gap: 14,
+  // Playlist card (wraps header row + expanded songs)
+  card: {
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
-    marginBottom: 8,
+    borderRadius: 14, marginBottom: 8,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
-  rowPlaying: {
+  cardPlaying: {
     borderColor: "rgba(224,49,49,0.35)",
-    backgroundColor: "rgba(224,49,49,0.06)",
+    backgroundColor: "rgba(224,49,49,0.05)",
+  },
+
+  row: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingHorizontal: 14, paddingVertical: 13,
   },
   iconCell: {
     width: 38, height: 38, borderRadius: 10,
-    backgroundColor: ROW,
+    backgroundColor: "#111",
     alignItems: "center", justifyContent: "center",
   },
-  iconCellPlaying: {
-    backgroundColor: "rgba(224,49,49,0.1)",
-  },
+  iconCellPlaying: { backgroundColor: "rgba(224,49,49,0.1)" },
   rowTextWrap: { flex: 1 },
   rowName: {
     fontSize: 15, fontWeight: "500", color: "#fff",
@@ -297,4 +407,25 @@ const s = StyleSheet.create({
     fontSize: 12, color: "rgba(255,255,255,0.35)",
     fontFamily: "Inter_400Regular", marginTop: 2,
   },
+
+  // Song list
+  songList: { paddingBottom: 8 },
+  songDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 14, marginBottom: 4 },
+  songLoading: { paddingVertical: 16, alignItems: "center" },
+  songEmpty:   { color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", paddingVertical: 12, fontFamily: "Inter_400Regular" },
+
+  songRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 14, paddingVertical: 10, gap: 10,
+  },
+  songRowActive: { backgroundColor: "rgba(224,49,49,0.07)" },
+
+  songIndex: { width: 22, alignItems: "center" },
+  songIndexTx: { fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: "Inter_400Regular" },
+
+  songInfo: { flex: 1, minWidth: 0 },
+  songTitle: { fontSize: 14, fontWeight: "500", color: "#ddd", fontFamily: "Inter_500Medium" },
+  songTitleActive: { color: RED },
+  songArtist: { fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular", marginTop: 1 },
+  songDuration: { fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
 });
