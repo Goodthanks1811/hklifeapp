@@ -431,6 +431,49 @@ router.post("/pages", async (req, res) => {
   }
 });
 
+// ── Footy Highlight ───────────────────────────────────────────────────────────
+// POST /api/notion/footy-highlight
+// Body: { dbId, player, round, team, minute, recorded? }
+router.post("/footy-highlight", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+  const { dbId, player, round, team, minute, recorded } = req.body;
+  if (!apiKey)  { res.status(400).json({ message: "Missing Notion API key" }); return; }
+  if (!dbId)    { res.status(400).json({ message: "Missing dbId" }); return; }
+  if (!player)  { res.status(400).json({ message: "Missing player" }); return; }
+  if (!team)    { res.status(400).json({ message: "Missing team" }); return; }
+
+  try {
+    const body: any = {
+      parent: { database_id: dbId },
+      properties: {
+        Player:   { title:    [{ type: "text", text: { content: String(player).trim() } }] },
+        Team:     { select:   { name: String(team) } },
+        Recorded: { checkbox: recorded === true || recorded === "true" },
+      },
+    };
+    if (round !== undefined && round !== "") body.properties.Round = { number: parseFloat(String(round)) };
+    if (minute !== undefined && minute !== "") body.properties.Minute = { number: parseFloat(String(minute)) };
+
+    const response = await fetch("https://api.notion.com/v1/pages", {
+      method: "POST",
+      headers: notionHeaders(apiKey),
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      console.error("[POST /footy-highlight] Notion error:", JSON.stringify(err), "body sent:", JSON.stringify(body));
+      res.status(response.status).json({ message: err.message || "Notion error" });
+      return;
+    }
+    const page = await response.json();
+    res.json({ success: true, id: page.id });
+  } catch (e: any) {
+    console.error("[POST /footy-highlight] exception:", e);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 // ── Generic Log Entry ─────────────────────────────────────────────────────────
 // POST /api/notion/log
 // Body: { dbId, titleProp, titleValue, date?, notesProp?, notesValue? }

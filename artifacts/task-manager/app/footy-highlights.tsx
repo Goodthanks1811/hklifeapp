@@ -120,18 +120,16 @@ export default function FootyHighlightsScreen() {
     setSaveState("saving");
 
     try {
-      const res = await fetch(`${BASE_URL}/api/notion/pages`, {
+      const res = await fetch(`${BASE_URL}/api/notion/footy-highlight`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
         body: JSON.stringify({
-          parent: { database_id: DB_ID },
-          properties: {
-            Player:   { title:    [{ text: { content: player.trim() } }] },
-            Round:    { number:   parseFloat(round) },
-            Team:     { select:   { name: team } },
-            Minute:   { number:   parseFloat(minute) },
-            Recorded: { checkbox: false },
-          },
+          dbId:     DB_ID,
+          player:   player.trim(),
+          round:    round.trim(),
+          team,
+          minute:   minute.trim(),
+          recorded: false,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
