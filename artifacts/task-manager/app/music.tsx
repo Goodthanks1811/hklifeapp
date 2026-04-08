@@ -121,7 +121,7 @@ export default function MusicScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
 
-        <View style={[s.body, { paddingBottom: 36 + playerH }]}>
+        <View style={[s.body, { paddingBottom: playerVisible ? playerH : 36 }]}>
           <View style={s.headerArea}>
             <Pressable style={s.eqArea} onPress={goHome}>
               <View style={s.eqWrap}>
