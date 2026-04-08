@@ -595,6 +595,7 @@ export default function TrainingDayScreen() {
   // ── Drag & drop — EXACT life-section implementation ────────────────────────
   const posAnims         = useRef<Record<string, Animated.Value>>({});
   const addedAnims       = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const enterAnims       = useRef<Record<string, Animated.Value>>({});
   const containerRef     = useRef<View>(null);
   const containerTopRef  = useRef(0);
   const scrollOffsetRef  = useRef(0);
@@ -730,12 +731,17 @@ export default function TrainingDayScreen() {
       const ex = crossDragExercise;
       const localId = `${ex.id}-${Date.now()}`;
       const entry: TodayExercise = { ...ex, localId, sets: [], notes: "", done: false };
+      const enterAnim = new Animated.Value(0);
+      enterAnims.current[localId] = enterAnim;
       setTodayList(prev => {
         const next = [...prev, entry];
         posAnims.current[localId] = new Animated.Value((next.length - 1) * SLOT_H);
         addedAnims.current[localId] = Animated.add(posAnims.current[localId], panY);
         return next;
       });
+      Animated.timing(enterAnim, {
+        toValue: 1, duration: 320, useNativeDriver: true, easing: Easing.out(Easing.quad),
+      }).start();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     setCrossDragExercise(null);
@@ -745,12 +751,17 @@ export default function TrainingDayScreen() {
   const addToToday = useCallback((exercise: Exercise) => {
     const localId = `${exercise.id}-${Date.now()}`;
     const entry: TodayExercise = { ...exercise, localId, sets: [], notes: "", done: false };
+    const enterAnim = new Animated.Value(0);
+    enterAnims.current[localId] = enterAnim;
     setTodayList(prev => {
       const next = [...prev, entry];
       posAnims.current[localId] = new Animated.Value((next.length - 1) * SLOT_H);
       addedAnims.current[localId] = Animated.add(posAnims.current[localId], panY);
       return next;
     });
+    Animated.timing(enterAnim, {
+      toValue: 1, duration: 320, useNativeDriver: true, easing: Easing.out(Easing.quad),
+    }).start();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [panY]);
 
@@ -913,10 +924,11 @@ export default function TrainingDayScreen() {
                 const translateY = isDragging
                   ? (addedAnims.current[ex.localId] ?? posAnim)
                   : posAnim;
+                const enterOpacity = enterAnims.current[ex.localId] ?? 1;
                 return (
                   <Animated.View
                     key={ex.localId}
-                    style={[sc.absItem, { top: 0, zIndex: isDragging ? 100 : swipedId === ex.localId ? 10 : 1, transform: [{ translateY }] }]}
+                    style={[sc.absItem, { top: 0, zIndex: isDragging ? 100 : swipedId === ex.localId ? 10 : 1, transform: [{ translateY }], opacity: enterOpacity }]}
                   >
                     <TodayRow
                       exercise={ex}
