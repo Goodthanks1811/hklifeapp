@@ -284,7 +284,7 @@ export default function FootyHighlightsScreen() {
               style={s.input}
               value={minute}
               onChangeText={t => { setMinute(t); setErrMsg(null); }}
-              keyboardType="default"
+              keyboardType={isIpad ? "default" : "number-pad"}
               placeholder="0"
               placeholderTextColor={MUTED}
               returnKeyType="done"
