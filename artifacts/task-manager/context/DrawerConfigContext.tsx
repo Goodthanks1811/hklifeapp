@@ -77,8 +77,9 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Caffeine Counter", icon: "coffee", route: "/caffeine-counter",  description: "Daily caffeine tracker" },
   ],
   footy: [
-    { label: "Schedule", icon: "calendar", route: "/nrl-schedule", description: "NRL fixtures & ladder" },
-    { label: "News",     icon: "rss",      route: "/nrl-news",     description: "NRL headlines from Fox Sports" },
+    { label: "Schedule",   icon: "calendar", route: "/nrl-schedule",      description: "NRL fixtures & ladder" },
+    { label: "News",       icon: "rss",      route: "/nrl-news",          description: "NRL headlines from Fox Sports" },
+    { label: "Highlights", icon: "star",     route: "/footy-highlights",  description: "Log a footy highlight" },
   ],
   tools: [
     { label: "Shazam",         icon: "music",     route: "/shazam",          description: "Songs you've Shazamed"  },
