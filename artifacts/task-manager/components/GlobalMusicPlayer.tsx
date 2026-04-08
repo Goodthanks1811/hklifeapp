@@ -410,7 +410,7 @@ const s = StyleSheet.create({
   timeText: { fontSize: 10, color: "#fff", letterSpacing: 0.5, fontFamily: "Inter_600SemiBold" },
   ctrlRow: {
     flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginTop: 24,
+    justifyContent: "space-between", marginTop: 40,
   },
   iconBtn:    { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   bigPlayBtn: {
@@ -419,6 +419,6 @@ const s = StyleSheet.create({
     shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, shadowOpacity: 0.45,
   },
   volRow: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 36,
+    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 52,
   },
 });
