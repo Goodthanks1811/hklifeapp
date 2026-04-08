@@ -137,7 +137,7 @@ export function GlobalMusicPlayer() {
   const [repeat,   setRepeat]   = useState(false);
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
-  const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
+  const slideAnim = useRef(new Animated.Value(Dimensions.get("window").height)).current;
   const dragY     = useRef(new Animated.Value(0)).current;
   const dragRef   = useRef(0);
 
@@ -147,7 +147,7 @@ export function GlobalMusicPlayer() {
   }, [slideAnim]);
 
   const collapse = useCallback(() => {
-    Animated.timing(slideAnim, { toValue: SCREEN_H, duration: 280, useNativeDriver: true })
+    Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
       .start(() => { setExpanded(false); dragY.setValue(0); });
   }, [slideAnim, dragY]);
 
@@ -158,7 +158,7 @@ export function GlobalMusicPlayer() {
     onPanResponderRelease: (_, g) => {
       if (g.dy > 100 || g.vy > 0.9) {
         dragY.setValue(0);
-        Animated.timing(slideAnim, { toValue: SCREEN_H, duration: 280, useNativeDriver: true })
+        Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
           .start(() => { setExpanded(false); dragY.setValue(0); });
       } else {
         Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
