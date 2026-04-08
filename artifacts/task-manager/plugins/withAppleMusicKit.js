@@ -50,6 +50,15 @@ public class AppleMusicKitModule: Module {
     cc.previousTrackCommand.addTarget { _ in player.skipToPreviousItem(); return .success }
   }
 
+  // Always display the HK gradient icon as the Lock Screen / Dynamic Island artwork.
+  // We use UIImage(named:"AppIcon") which resolves to the app's icon asset —
+  // the same gradient that appears in the Dynamic Island pill.
+  private func hkArtwork() -> MPMediaItemArtwork? {
+    guard let image = UIImage(named: "AppIcon") else { return nil }
+    let size = CGSize(width: 1024, height: 1024)
+    return MPMediaItemArtwork(boundsSize: size) { _ in image }
+  }
+
   private func updateNowPlaying(for item: MPMediaItem) {
     var info: [String: Any] = [
       MPMediaItemPropertyTitle:            item.title       ?? "",
@@ -59,10 +68,8 @@ public class AppleMusicKitModule: Module {
       MPNowPlayingInfoPropertyElapsedPlaybackTime: 0.0,
       MPNowPlayingInfoPropertyPlaybackRate: 1.0,
     ]
-    if let artwork = item.artwork {
-      info[MPMediaItemPropertyArtwork] = artwork
-    } else if let image = UIImage(named: "AppIcon") {
-      info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    if let art = hkArtwork() {
+      info[MPMediaItemPropertyArtwork] = art
     }
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
   }

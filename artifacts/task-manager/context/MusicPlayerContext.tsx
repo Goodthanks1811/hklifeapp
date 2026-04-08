@@ -6,11 +6,17 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Image } from 'react-native';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
-// Default artwork shown in the Dynamic Island / Lock Screen when no track art is available
-const DEFAULT_ARTWORK = require('../assets/images/hk-artwork.png');
+// Resolve the bundled asset to a file:// URI that RNTP can load reliably.
+// Using require() alone (number type) can fail in production EAS builds;
+// resolveAssetSource returns the actual path Metro wrote to the bundle dir.
+const _hkIconAsset = require('../assets/images/icon.png');
+const DEFAULT_ARTWORK: string | number = (() => {
+  try { return Image.resolveAssetSource(_hkIconAsset).uri; } catch { return _hkIconAsset; }
+})();
 
 // ── Conditional RNTP load ─────────────────────────────────────────────────────
 // react-native-track-player requires a native module only present in EAS builds.
