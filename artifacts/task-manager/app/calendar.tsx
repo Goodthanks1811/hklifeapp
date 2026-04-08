@@ -1055,26 +1055,46 @@ function RescheduleModal({
   const save = async () => {
     setSaving(true); setErrMsg("");
     try {
-      const newStart = new Date(selectedDate);
-      if (!event.allDay) {
+      if (event.allDay) {
+        // ── All-day reschedule ──────────────────────────────────────────────
+        const dayStart = new Date(selectedDate); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd   = new Date(selectedDate); dayEnd.setHours(23, 59, 59, 0);
+
+        if (gcalConnected && event.calendarId) {
+          // Google expects exclusive end date (next calendar day)
+          const startStr = `${dayStart.getFullYear()}-${pad(dayStart.getMonth() + 1)}-${pad(dayStart.getDate())}`;
+          const nextDay  = new Date(dayStart); nextDay.setDate(nextDay.getDate() + 1);
+          const endStr   = `${nextDay.getFullYear()}-${pad(nextDay.getMonth() + 1)}-${pad(nextDay.getDate())}`;
+          await gcalUpdate(event.calendarId, event.id, {
+            summary: event.title,
+            start: { date: startStr },
+            end:   { date: endStr },
+          });
+        } else {
+          // Native path — must pass allDay: true or iOS drops it to a 12am timed event
+          await Calendar.updateEventAsync(event.id, {
+            title: event.title, startDate: dayStart, endDate: dayEnd, allDay: true,
+          });
+        }
+      } else {
+        // ── Timed event reschedule ──────────────────────────────────────────
+        const newStart = new Date(selectedDate);
         let h = parseInt(HOURS_W[hourIdx], 10);
         const m = parseInt(MINUTES_W[minIdx], 10);
         if (ampmIdx === 1) { if (h !== 12) h += 12; } else { if (h === 12) h = 0; }
         newStart.setHours(h, m, 0, 0);
-      }
-      const duration = event.endDate.getTime() - event.startDate.getTime();
-      const newEnd   = new Date(newStart.getTime() + Math.max(duration, 0));
+        const duration = event.endDate.getTime() - event.startDate.getTime();
+        const newEnd   = new Date(newStart.getTime() + Math.max(duration, 0));
 
-      if (gcalConnected && event.calendarId) {
-        // Use Google Calendar PATCH API — avoids native↔Google sync delay
-        // and correctly handles Google event IDs (different from native EventKit IDs)
-        const patch: Record<string, unknown> = event.allDay
-          ? { summary: event.title, start: { date: newStart.toISOString().split("T")[0] }, end: { date: newEnd.toISOString().split("T")[0] } }
-          : { summary: event.title, start: { dateTime: newStart.toISOString() }, end: { dateTime: newEnd.toISOString() } };
-        await gcalUpdate(event.calendarId, event.id, patch);
-      } else {
-        // Native calendar path
-        await Calendar.updateEventAsync(event.id, { title: event.title, startDate: newStart, endDate: newEnd });
+        if (gcalConnected && event.calendarId) {
+          await gcalUpdate(event.calendarId, event.id, {
+            summary: event.title,
+            start: { dateTime: newStart.toISOString() },
+            end:   { dateTime: newEnd.toISOString() },
+          });
+        } else {
+          await Calendar.updateEventAsync(event.id, { title: event.title, startDate: newStart, endDate: newEnd });
+        }
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
