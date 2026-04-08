@@ -66,6 +66,7 @@ export default function FootyHighlightsScreen() {
   const playerRef    = useRef<TextInput>(null);
   const inputFocused = useRef(false);
   const kbVisible    = useRef(false);
+  const kbHeight     = useRef(0);
   const inputKbAnim  = useRef(new Animated.Value(0)).current;
 
   function focusInput() {
@@ -81,12 +82,14 @@ export default function FootyHighlightsScreen() {
   useFocusEffect(useCallback(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
       kbVisible.current = true;
-      if (inputFocused.current) {
+      if (inputFocused.current && kbHeight.current === 0) {
+        kbHeight.current = e.endCoordinates.height;
         Animated.timing(inputKbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
       }
     });
     const hide = Keyboard.addListener("keyboardWillHide", () => {
       kbVisible.current = false;
+      kbHeight.current  = 0;
       Animated.timing(inputKbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
     });
     return () => { show.remove(); hide.remove(); };
