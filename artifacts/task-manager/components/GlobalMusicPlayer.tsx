@@ -191,32 +191,36 @@ export function GlobalMusicPlayer() {
   const collapse = useCallback(() => {
     if (dismissing.current) return;
     dismissing.current = true;
+    dragY.setValue(0);
     Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-      .start(() => { setExpanded(false); dragY.setValue(0); });
-    // NOTE: dismissing.current is NOT reset here — only expand() resets it
-    // This prevents the animation callback from firing twice
+      .start(({ finished }) => {
+        if (finished) { setExpanded(false); dragY.setValue(0); }
+      });
+    // dismissing.current is ONLY reset in expand() — guards against any re-entry
   }, [slideAnim, dragY]);
 
-  // Swipe-down pan responder — large top zone
+  // Keep a stable ref so the PanResponder (created once) always calls the live collapse
+  const collapseRef = useRef(collapse);
+  useEffect(() => { collapseRef.current = collapse; }, [collapse]);
+
+  // Swipe-down pan responder — full-screen, only activates on clear downward drag
   const dismissPR = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder:  (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+    onMoveShouldSetPanResponder:  (_, g) => !dismissing.current && g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.8,
     onPanResponderMove: (_, g) => {
       if (g.dy > 0) dragY.setValue(g.dy);
     },
     onPanResponderRelease: (_, g) => {
-      if (dismissing.current) return;
       if (g.dy > 80 || g.vy > 0.8) {
-        dismissing.current = true;
-        dragY.setValue(0);
-        Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-          .start(() => { setExpanded(false); dragY.setValue(0); });
+        collapseRef.current();
       } else {
         Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
       }
     },
     onPanResponderTerminate: () => {
-      Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+      if (!dismissing.current) {
+        Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+      }
     },
   })).current;
 
@@ -288,11 +292,11 @@ export function GlobalMusicPlayer() {
             s.fullScreen,
             { transform: [{ translateY: Animated.add(slideAnim, dragY) }] },
           ]}
+          {...dismissPR.panHandlers}
         >
-          {/* Large swipe-down zone */}
+          {/* Header zone (handle + title) */}
           <View
             style={s.dragZoneOuter}
-            {...dismissPR.panHandlers}
           >
             <View style={[s.gradHeader, { paddingTop: insets.top + 6 }]}>
               <LinearGradient
