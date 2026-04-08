@@ -17,6 +17,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 const DB_ID  = "2d0b7eba3523806d96f1e5c22ef094c1";
+const MAX_W  = 600;
 const BG     = "#0a0a0a";
 const CARD   = "#111111";
 const BORDER = "#1f1f1f";
@@ -149,7 +150,7 @@ export default function FootyHighlightsScreen() {
       <Animated.ScrollView
         ref={scrollRef as any}
         style={s.scroll}
-        contentContainerStyle={[s.content, { paddingBottom: 32 }]}
+        contentContainerStyle={[s.content, { paddingBottom: 32, maxWidth: MAX_W, alignSelf: "center" as const, width: "100%" }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -228,19 +229,21 @@ export default function FootyHighlightsScreen() {
 
       {/* Save button — floats above keyboard */}
       <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(inputKbAnim, insets.bottom + 12) as any }]}>
-        <Pressable
-          style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
-          onPress={save}
-          disabled={saveState === "saving"}
-        >
-          {saveState === "saving" ? (
-            <Text style={s.saveTx}>Saving…</Text>
-          ) : saveState === "ok" ? (
-            <Text style={s.saveTx}>✓ Saved</Text>
-          ) : (
-            <Text style={s.saveTx}>Save Highlight</Text>
-          )}
-        </Pressable>
+        <View style={s.saveInner}>
+          <Pressable
+            style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
+            onPress={save}
+            disabled={saveState === "saving"}
+          >
+            {saveState === "saving" ? (
+              <Text style={s.saveTx}>Saving…</Text>
+            ) : saveState === "ok" ? (
+              <Text style={s.saveTx}>✓ Saved</Text>
+            ) : (
+              <Text style={s.saveTx}>Save Highlight</Text>
+            )}
+          </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -292,8 +295,12 @@ const s = StyleSheet.create({
   errTx: { fontSize: 13, color: "#ff6060", fontFamily: "Inter_400Regular", flex: 1 },
 
   saveWrap: {
-    paddingHorizontal: 18, paddingTop: 12,
+    paddingTop: 12,
     backgroundColor: BG, borderTopWidth: 1, borderTopColor: BORDER,
+  },
+  saveInner: {
+    maxWidth: MAX_W, alignSelf: "center", width: "100%",
+    paddingHorizontal: 18,
   },
   saveBtn: {
     backgroundColor: RED, borderRadius: 12,
