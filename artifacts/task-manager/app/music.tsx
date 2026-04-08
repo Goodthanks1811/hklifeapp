@@ -159,7 +159,7 @@ const s = StyleSheet.create({
   innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
 
   body: {
-    flex: 1, justifyContent: "center", paddingBottom: 70,
+    flex: 1, justifyContent: "center",
   },
 
   headerArea: { position: "relative", alignItems: "center" },
