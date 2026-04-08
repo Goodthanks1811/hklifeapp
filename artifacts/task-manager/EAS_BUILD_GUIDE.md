@@ -429,3 +429,30 @@ Files changed:
 2. RN 0.81 (even with `newArchEnabled: true`) exposes bridge modules via `NativeModules` through the interop compatibility layer
 
 **Important**: `ios/AppleMusicKitModule.swift` has been **deleted** from the repo. Even though the podspec only compiled `*.{h,m}`, Expo's autolinking scanner still finds any Swift file that conforms to the `Module` protocol and adds it to the generated `ExpoModulesProvider.swift`. The generated file then references `AppleMusicKitModule.self` — a class that never compiles (because the podspec excludes it) — causing Xcode error: `cannot find 'AppleMusicKitModule' in scope`. Fix: delete the Swift file entirely so autolinking never sees it.
+
+---
+
+### 16. Swift compile error — `'volume' is unavailable in iOS: Use MPVolumeView`
+
+**Error message** (from Xcode / EAS Run fastlane step):
+```
+'volume' is unavailable in iOS: Use MPVolumeView for volume control.
+```
+
+**Cause**: `MPMusicPlayerController.applicationQueuePlayer.volume = Float(volume)` in `AppleMusicKitModule.swift` (written by `withAppleMusicKit.js`). Apple removed the `volume` setter from `MPMusicPlayerController` in the iOS SDK — it no longer compiles.
+
+**Fix** (in `plugins/withAppleMusicKit.js` SWIFT_CONTENT, `setVolume` function): Replace the direct `.volume` assignment with an `MPVolumeView` slider approach:
+```swift
+let vv = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 1, height: 1))
+if let scene = UIApplication.shared.connectedScenes
+    .compactMap({ $0 as? UIWindowScene }).first,
+   let window = scene.windows.first {
+  window.addSubview(vv)
+  if let slider = vv.subviews.first(where: { $0 is UISlider }) as? UISlider {
+    slider.setValue(Float(volume), animated: false)
+    slider.sendActions(for: .valueChanged)
+  }
+  vv.removeFromSuperview()
+}
+```
+Creates an offscreen `MPVolumeView` (-2000, -2000), attaches it to the key window momentarily, finds the system volume `UISlider` subview, sets its value and fires `.valueChanged` to commit the change, then removes the view. This is the Apple-recommended pattern for programmatic volume control.

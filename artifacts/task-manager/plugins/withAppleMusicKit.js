@@ -208,7 +208,18 @@ public class AppleMusicKitModule: Module {
 
     AsyncFunction("setVolume") { (volume: Double, promise: Promise) in
       DispatchQueue.main.async {
-        MPMusicPlayerController.applicationQueuePlayer.volume = Float(volume)
+        // MPMusicPlayerController.volume is unavailable in iOS — use MPVolumeView slider instead
+        let vv = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 1, height: 1))
+        if let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first,
+           let window = scene.windows.first {
+          window.addSubview(vv)
+          if let slider = vv.subviews.first(where: { $0 is UISlider }) as? UISlider {
+            slider.setValue(Float(volume), animated: false)
+            slider.sendActions(for: .valueChanged)
+          }
+          vv.removeFromSuperview()
+        }
         promise.resolve(nil)
       }
     }
