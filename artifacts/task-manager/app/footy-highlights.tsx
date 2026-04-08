@@ -240,6 +240,7 @@ export default function FootyHighlightsScreen() {
           value={round}
           onChangeText={t => { setRound(t); setErrMsg(null); }}
           keyboardType="number-pad"
+          inputAccessoryViewID={Platform.OS === "ios" ? "minuteHideBar" : undefined}
           placeholder="e.g. 12"
           placeholderTextColor={MUTED}
           returnKeyType="done"
