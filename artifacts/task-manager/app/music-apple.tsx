@@ -309,7 +309,7 @@ export default function MusicAppleScreen() {
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 16, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: am.nowPlaying ? 210 : 16, paddingHorizontal: 16 }}
       >
         {playlists.map((pl) => (
           <PlaylistRow

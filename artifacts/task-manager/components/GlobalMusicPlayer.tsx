@@ -198,27 +198,28 @@ export function GlobalMusicPlayer() {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
 
-  // Mini bar floats above the tab bar (49px) + home-indicator safe area
-  const miniBottom = 49 + insets.bottom;
-
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
       {/* ── Mini bar ── */}
       {!expanded && (
         <Pressable
-          style={[s.miniBar, { bottom: miniBottom }]}
+          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom, 16) }]}
           onPress={expand}
         >
-          {/* Art + title/artist + controls */}
+          {/* Row 1: Art + title/artist */}
           <View style={s.npTop}>
             <View style={s.npArt}>
               <Feather name="music" size={22} color={RED} />
             </View>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-              <Text style={s.npTitle}  numberOfLines={1}>{title}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.npTitle} numberOfLines={1}>{title}</Text>
               {artist ? <Text style={s.npArtist} numberOfLines={1}>{artist}</Text> : null}
             </View>
+          </View>
+
+          {/* Row 2: Playback controls */}
+          <View style={s.miniControls}>
             <Pressable style={s.ctrlBtn} onPress={(e) => { e.stopPropagation(); doSkipBack(); }}>
               <Ionicons name="play-skip-back" size={24} color="#fff" />
             </Pressable>
@@ -338,34 +339,37 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999,
   },
 
-  // ── Mini bar (matches music.tsx playerPanel, floats above tab bar) ──────────
+  // ── Mini bar — edge-to-edge, anchored to bottom, covers safe area ───────────
   miniBar: {
-    position: "absolute", left: 0, right: 0,
+    position: "absolute", bottom: 0, left: 0, right: 0,
     backgroundColor: ROW,
-    borderRadius: 18,
-    marginHorizontal: 10,
-    borderWidth: 1, borderColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10,
+    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    borderTopWidth: 1, borderTopColor: BORDER,
+    paddingHorizontal: 20, paddingTop: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
   npTop: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10,
+    flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12,
   },
   npArt: {
-    width: 56, height: 56, borderRadius: 10,
+    width: 48, height: 48, borderRadius: 10,
     backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
   npTitle:  { fontSize: 15, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 2 },
   npArtist: { fontSize: 13, color: GREY, fontFamily: "Inter_400Regular" },
-  ctrlBtn:  { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  miniControls: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 20, marginBottom: 14,
+  },
+  ctrlBtn:  { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   playBtn: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
     shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, shadowOpacity: 0.4,
   },
-  miniProgress: { paddingBottom: 2 },
+  miniProgress: { paddingBottom: 4 },
   miniProgressTrack: {
     height: 2, backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 1, overflow: "hidden",
