@@ -188,18 +188,19 @@ export function GlobalMusicPlayer() {
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
   }, [slideAnim]);
 
-  const collapse = useCallback(() => {
+  // fromOffset: how far the user had already dragged so we continue smoothly from there
+  const collapse = useCallback((fromOffset = 0) => {
     if (dismissing.current) return;
     dismissing.current = true;
+    // Absorb any drag distance into slideAnim so there's no jump
+    slideAnim.setValue(fromOffset);
     dragY.setValue(0);
-    Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-      .start(({ finished }) => {
-        if (finished) { setExpanded(false); dragY.setValue(0); }
-      });
-    // dismissing.current is ONLY reset in expand() — guards against any re-entry
+    Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 260, useNativeDriver: true })
+      .start(() => { setExpanded(false); dragY.setValue(0); });
+    // dismissing.current is ONLY reset in expand() — guards against re-entry
   }, [slideAnim, dragY]);
 
-  // Keep a stable ref so the PanResponder (created once) always calls the live collapse
+  // Stable ref so the once-created PanResponder always calls the live collapse
   const collapseRef = useRef(collapse);
   useEffect(() => { collapseRef.current = collapse; }, [collapse]);
 
@@ -212,7 +213,8 @@ export function GlobalMusicPlayer() {
     },
     onPanResponderRelease: (_, g) => {
       if (g.dy > 80 || g.vy > 0.8) {
-        collapseRef.current();
+        // Pass current drag so animation continues from finger position, no jump
+        collapseRef.current(Math.max(0, g.dy));
       } else {
         Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
       }
@@ -264,13 +266,16 @@ export function GlobalMusicPlayer() {
           style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20) }]}
           onPress={expand}
         >
-          {/* Title block — left side */}
+          {/* Music note icon */}
+          <Ionicons name="musical-notes" size={20} color={RED} style={s.miniIcon} />
+
+          {/* Title + artist — centre-aligned with icon via alignItems on parent */}
           <View style={s.miniLeft}>
             <Text style={s.miniTitle} numberOfLines={1}>{title}</Text>
             {artist ? <Text style={s.miniArtist} numberOfLines={1}>{artist}</Text> : null}
           </View>
 
-          {/* Controls — right side: play/pause only */}
+          {/* Controls — play/pause only */}
           <View style={s.miniControls}>
             <Pressable style={s.miniPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
@@ -375,7 +380,7 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 10, left: 0, right: 0,
+    position: "absolute", bottom: 0, left: 0, right: 0,
     backgroundColor: ROW,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderTopWidth: 1, borderTopColor: BORDER,
@@ -383,6 +388,9 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
+  },
+  miniIcon: {
+    marginRight: 12,
   },
   miniLeft: {
     flex: 1, marginRight: 12,
