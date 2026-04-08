@@ -207,38 +207,47 @@ export function GlobalMusicPlayer() {
           style={[s.miniBar, { paddingBottom: Math.max(insets.bottom * 3, 48) }]}
           onPress={expand}
         >
-          {/* Row 1: Art + title/artist */}
-          <View style={s.npTop}>
-            <View style={s.npArt}>
-              <Feather name="music" size={22} color={RED} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.npTitle} numberOfLines={1}>{title}</Text>
-              {artist ? <Text style={s.npArtist} numberOfLines={1}>{artist}</Text> : null}
+          {/* Track info */}
+          <View style={[s.trackBlock, { marginTop: 0 }]}>
+            <Text style={s.trackTitle} numberOfLines={1}>{title}</Text>
+            {artist ? <Text style={s.trackSub} numberOfLines={1}>{artist}</Text> : null}
+          </View>
+
+          {/* Scrub bar */}
+          <View style={s.scrubSection}>
+            <SliderBar value={progress} onChange={(r) => doSeek(r)} height={4} thumbSize={14} />
+            <View style={s.timeRow}>
+              <Text style={s.timeText}>{fmtMs(posMs)}</Text>
+              <Text style={s.timeText}>{durMs > 0 ? fmtMs(durMs) : "--:--"}</Text>
             </View>
           </View>
 
-          {/* Row 2: Playback controls */}
-          <View style={s.miniControls}>
-            <Pressable style={s.ctrlBtn} onPress={(e) => { e.stopPropagation(); doSkipBack(); }}>
-              <Ionicons name="play-skip-back" size={24} color="#fff" />
+          {/* Controls */}
+          <View style={s.ctrlRow}>
+            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); setShuffle(v => !v); }}>
+              <Ionicons name="shuffle" size={22} color={shuffle ? RED : "#3a3a3a"} />
             </Pressable>
-            <Pressable
-              style={s.playBtn}
-              onPress={(e) => { e.stopPropagation(); doToggle(); }}
-            >
-              <Ionicons name={isPlay ? "pause" : "play"} size={26} color="#fff" />
+            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); doSkipBack(); }}>
+              <Ionicons name="play-skip-back" size={30} color="#fff" />
             </Pressable>
-            <Pressable style={s.ctrlBtn} onPress={(e) => { e.stopPropagation(); doSkipFwd(); }}>
-              <Ionicons name="play-skip-forward" size={24} color="#fff" />
+            <Pressable style={s.bigPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
+              <Ionicons name={isPlay ? "pause" : "play"} size={30} color="#fff" />
+            </Pressable>
+            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); doSkipFwd(); }}>
+              <Ionicons name="play-skip-forward" size={30} color="#fff" />
+            </Pressable>
+            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); setRepeat(v => !v); }}>
+              <Ionicons name="repeat" size={22} color={repeat ? RED : "#3a3a3a"} />
             </Pressable>
           </View>
 
-          {/* Live progress bar */}
-          <View style={s.miniProgress}>
-            <View style={s.miniProgressTrack}>
-              <View style={[s.miniProgressFill, { width: `${Math.round(progress * 100)}%` as any }]} />
+          {/* Volume slider */}
+          <View style={s.volRow}>
+            <Feather name="volume" size={14} color="#3a3a3a" />
+            <View style={{ flex: 1 }}>
+              <SliderBar value={vol} onChange={doSetVolume} height={3} thumbSize={12} />
             </View>
+            <Feather name="volume-2" size={14} color="#3a3a3a" />
           </View>
         </Pressable>
       )}
@@ -349,33 +358,6 @@ const s = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
-  npTop: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12,
-  },
-  npArt: {
-    width: 48, height: 48, borderRadius: 10,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
-    alignItems: "center", justifyContent: "center",
-  },
-  npTitle:  { fontSize: 15, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold", marginBottom: 2 },
-  npArtist: { fontSize: 13, color: GREY, fontFamily: "Inter_400Regular" },
-  miniControls: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 20, marginBottom: 14,
-  },
-  ctrlBtn:  { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  playBtn: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: RED,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, shadowOpacity: 0.4,
-  },
-  miniProgress: { paddingBottom: 4 },
-  miniProgressTrack: {
-    height: 2, backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 1, overflow: "hidden",
-  },
-  miniProgressFill: { height: "100%", backgroundColor: RED, borderRadius: 1 },
-
   // ── Full screen ───────────────────────────────────────────────────────────
   fullScreen: {
     position: "absolute", top: 0, left: 0, right: 0, height: SCREEN_H,
