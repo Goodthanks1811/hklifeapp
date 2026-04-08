@@ -29,7 +29,6 @@ const DIM    = "#1e1e1e";
 const GREY   = "#888";
 const BG     = "#0b0b0c";
 
-const SCREEN_H = Dimensions.get("window").height;
 const SCREEN_W = Dimensions.get("window").width;
 
 // ── Music note SVG (from ui-kit design) ──────────────────────────────────────
@@ -360,7 +359,7 @@ const s = StyleSheet.create({
   },
   // ── Full screen ───────────────────────────────────────────────────────────
   fullScreen: {
-    position: "absolute", top: 0, left: 0, right: 0, height: SCREEN_H,
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: BG, paddingHorizontal: 22,
   },
   dragZone: { alignItems: "center", paddingBottom: 10 },
