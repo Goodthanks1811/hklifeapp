@@ -239,6 +239,7 @@ function SetLoggerSheet({
                 value={setup}
                 onChangeText={setSetup}
                 multiline
+                scrollEnabled={false}
                 placeholder="Setup notes…"
                 placeholderTextColor="#444"
                 selectionColor={Colors.primary}
@@ -307,6 +308,7 @@ function SetLoggerSheet({
                   selectionColor={Colors.primary}
                   keyboardAppearance="dark"
                   textAlignVertical="top"
+                  scrollEnabled={false}
                   onFocus={() => {
                     setTimeout(() => {
                       scrollRef.current?.scrollTo({ y: notesY.current, animated: true });
