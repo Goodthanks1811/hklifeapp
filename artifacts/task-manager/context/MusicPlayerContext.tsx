@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
+import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 // Default artwork shown in the Dynamic Island / Lock Screen when no track art is available
 const DEFAULT_ARTWORK = require('../assets/images/hk-artwork.png');
@@ -119,6 +120,11 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
   const trackIdxRef = useRef<number | null>(null);
   const [volume, setVolumeState] = useState(1);
 
+  // Register our pause fn so Apple Music can silence us when it starts
+  useEffect(() => {
+    MusicSourceBus.registerPauseMyMusic(() => { _TrackPlayer.pause().catch(() => {}); });
+  }, []);
+
   const [rtpState, setRtpState] = useState<RNTPState>({
     activeTrack: null,
     pbState:     { state: null },
@@ -136,6 +142,7 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
 
   const playTrack = useCallback(async (idx: number, list: MusicTrack[]) => {
     if (idx < 0 || idx >= list.length) return;
+    MusicSourceBus.notifyMyMusicPlaying(); // stop Apple Music before we start
     await ensureSetup();
     tracksRef.current   = list;
     trackIdxRef.current = idx;
@@ -215,6 +222,13 @@ function ExpoAvProvider({ children }: { children: React.ReactNode }) {
   const tracksRef   = useRef<MusicTrack[]>([]);
   const trackIdxRef = useRef<number | null>(null);
 
+  // Register our pause so Apple Music can silence us
+  useEffect(() => {
+    MusicSourceBus.registerPauseMyMusic(() => {
+      soundRef.current?.pauseAsync().catch(() => {});
+    });
+  }, []);
+
   const [state, setState] = useState<PlayerState>({
     track: null, trackIndex: null, tracks: [],
     isPlaying: false, posMs: 0, durMs: 0,
@@ -232,6 +246,7 @@ function ExpoAvProvider({ children }: { children: React.ReactNode }) {
 
   const playTrack = useCallback(async (idx: number, list: MusicTrack[]) => {
     if (idx < 0 || idx >= list.length) return;
+    MusicSourceBus.notifyMyMusicPlaying(); // stop Apple Music before we start
     const t = list[idx];
     tracksRef.current   = list;
     trackIdxRef.current = idx;

@@ -6,8 +6,8 @@ export const modules: ModuleMap = {
   "./components/mockups/music-heading-a/Preview.tsx": () => import("../components/mockups/music-heading-a/Preview.tsx"),
   "./components/mockups/music-heading-b/Preview.tsx": () => import("../components/mockups/music-heading-b/Preview.tsx"),
   "./components/mockups/music-heading-c/Preview.tsx": () => import("../components/mockups/music-heading-c/Preview.tsx"),
-  "./components/mockups/music-hub-glass/Preview.tsx": () => import("../components/mockups/music-hub-glass/Preview.tsx"),
   "./components/mockups/music-hub/Preview.tsx": () => import("../components/mockups/music-hub/Preview.tsx"),
+  "./components/mockups/music-hub-glass/Preview.tsx": () => import("../components/mockups/music-hub-glass/Preview.tsx"),
   "./components/mockups/music-mymusic/Preview.tsx": () => import("../components/mockups/music-mymusic/Preview.tsx"),
   "./components/mockups/music-spotify/Preview.tsx": () => import("../components/mockups/music-spotify/Preview.tsx")
 };

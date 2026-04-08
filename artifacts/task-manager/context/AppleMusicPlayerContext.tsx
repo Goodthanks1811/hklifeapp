@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 let AppleMusicKit: any = null;
 try { AppleMusicKit = require("apple-musickit"); } catch {}
@@ -54,7 +55,17 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
   const nowPlayingRef = useRef(nowPlaying);
   nowPlayingRef.current = nowPlaying;
 
+  // Register our pause fn so My Music can silence us when it starts
+  useEffect(() => {
+    MusicSourceBus.registerPauseAppleMusic(() => {
+      if (!AppleMusicKit) return;
+      AppleMusicKit.pause().catch(() => {});
+      setIsPlaying(false);
+    });
+  }, []);
+
   const setNowPlaying = useCallback((np: AppleNowPlaying | null) => {
+    if (np) MusicSourceBus.notifyAppleMusicPlaying(); // stop My Music before we start
     setNowPlayingState(np);
     setIsPlaying(np !== null);
     setPosMs(0);
