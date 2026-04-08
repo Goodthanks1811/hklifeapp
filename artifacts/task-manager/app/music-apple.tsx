@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
+import { AppleNowPlayingPanel } from "@/components/AppleNowPlayingPanel";
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -184,35 +185,6 @@ function PlaylistRow({
   );
 }
 
-// ── Mini player bar ───────────────────────────────────────────────────────────
-function MiniPlayer({ insetBottom }: { insetBottom: number }) {
-  const am = useAppleMusicPlayer();
-  if (!am.nowPlaying) return null;
-  return (
-    <View style={[s.miniPlayer, { paddingBottom: insetBottom + 10 }]}>
-      <View style={s.miniArt}>
-        <Feather name="music" size={16} color={RED} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={s.miniTitle} numberOfLines={1}>{am.nowPlaying.title}</Text>
-        <Text style={s.miniArtist} numberOfLines={1}>{am.nowPlaying.artist}</Text>
-      </View>
-      <Pressable style={s.miniBtn} onPress={() => am.skipToPrevious()}>
-        <Ionicons name="play-skip-back" size={20} color="#fff" />
-      </Pressable>
-      <Pressable
-        style={[s.miniBtn, s.miniPlayBtn]}
-        onPress={() => am.isPlaying ? am.pause() : am.play()}
-      >
-        <Ionicons name={am.isPlaying ? "pause" : "play"} size={20} color="#fff" />
-      </Pressable>
-      <Pressable style={s.miniBtn} onPress={() => am.skipToNext()}>
-        <Ionicons name="play-skip-forward" size={20} color="#fff" />
-      </Pressable>
-    </View>
-  );
-}
-
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicAppleScreen() {
   const goBack = () => router.back();
@@ -365,7 +337,7 @@ export default function MusicAppleScreen() {
         </View>
         {renderBody()}
       </View>
-      <MiniPlayer insetBottom={insets.bottom} />
+      <AppleNowPlayingPanel insetBottom={insets.bottom} />
     </View>
   );
 }
@@ -471,25 +443,4 @@ const s = StyleSheet.create({
   songArtist: { fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular", marginTop: 1 },
   songDuration: { fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
 
-  // Mini player
-  miniPlayer: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: ROW,
-    borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 16, paddingTop: 10,
-    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.4, shadowRadius: 10,
-  },
-  miniArt: {
-    width: 40, height: 40, borderRadius: 8,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
-    alignItems: "center", justifyContent: "center",
-  },
-  miniTitle: { fontSize: 13, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
-  miniArtist: { fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1 },
-  miniBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  miniPlayBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: RED, alignItems: "center", justifyContent: "center",
-  },
 });
