@@ -62,11 +62,13 @@ function SliderBar({
   onChange,
   height = 4,
   thumbSize = 12,
+  color = RED,
 }: {
   value: number;
   onChange: (ratio: number) => void;
   height?: number;
   thumbSize?: number;
+  color?: string;
 }) {
   const barRef   = useRef<View>(null);
   const barLeft  = useRef(0);
@@ -120,10 +122,10 @@ function SliderBar({
       {...pr.panHandlers}
     >
       <View style={{ height, backgroundColor: DIM, borderRadius: height / 2, overflow: "visible" }}>
-        <Animated.View style={{ height: "100%", width: fillWidth, backgroundColor: RED, borderRadius: height / 2, overflow: "visible" }}>
+        <Animated.View style={{ height: "100%", width: fillWidth, backgroundColor: color, borderRadius: height / 2, overflow: "visible" }}>
           <View style={{
             position: "absolute", right: -thumbSize / 2, top: -(thumbSize - height) / 2,
-            width: thumbSize, height: thumbSize, borderRadius: thumbSize / 2, backgroundColor: RED,
+            width: thumbSize, height: thumbSize, borderRadius: thumbSize / 2, backgroundColor: color,
           }} />
         </Animated.View>
       </View>
@@ -342,11 +344,11 @@ export function GlobalMusicPlayer() {
 
           {/* Volume slider */}
           <View style={s.volRow}>
-            <Feather name="volume" size={14} color="#3a3a3a" />
+            <Feather name="volume" size={14} color="rgba(255,255,255,0.5)" />
             <View style={{ flex: 1 }}>
-              <SliderBar value={vol} onChange={doSetVolume} height={3} thumbSize={12} />
+              <SliderBar value={vol} onChange={doSetVolume} height={3} thumbSize={12} color="#fff" />
             </View>
-            <Feather name="volume-2" size={14} color="#3a3a3a" />
+            <Feather name="volume-2" size={14} color="rgba(255,255,255,0.5)" />
           </View>
 
           <View style={{ height: insets.bottom + 24 }} />
@@ -424,6 +426,6 @@ const s = StyleSheet.create({
     shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, shadowOpacity: 0.45,
   },
   volRow: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 28,
+    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 40,
   },
 });
