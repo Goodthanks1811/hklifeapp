@@ -61,6 +61,7 @@ export default function FootyHighlightsScreen() {
   const padH        = isIpad ? 56 : 18;
   const gridGap     = isIpad ? 14 : 7;
   const logoSize    = isIpad ? 82 : 66;
+  const tileIPadW   = logoSize + 16;
 
   const [round,     setRound]     = useState("");
   const [player,    setPlayer]    = useState("");
@@ -174,14 +175,14 @@ export default function FootyHighlightsScreen() {
 
         {/* Team grid */}
         <Text style={[s.label, { marginTop: 20 }]}>Team</Text>
-        <View style={[s.grid, { gap: gridGap }]}>
+        <View style={[s.grid, { gap: gridGap, justifyContent: isIpad ? "space-evenly" : "flex-start" }]}>
           {TEAMS.map(t => {
             const chosen  = team === t.name;
             const dimmed  = hasSelection && !chosen;
             return (
               <Pressable
                 key={t.name}
-                style={[s.teamCell, chosen && s.teamChosen, dimmed && s.teamDimmed]}
+                style={[s.teamCell, isIpad && { width: tileIPadW, flexGrow: 0 }, chosen && s.teamChosen, dimmed && s.teamDimmed]}
                 onPress={() => toggleTeam(t.name)}
               >
                 <Image source={t.logo} style={[s.teamLogo, { width: logoSize, height: logoSize }]} contentFit="contain" cachePolicy="memory-disk" transition={0} />
