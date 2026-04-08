@@ -214,8 +214,8 @@ function SetLoggerSheet({
 
         {/* Sheet — slides in from bottom */}
         <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
-          {/* Pressable wrapper blocks dismiss from firing when tapping sheet content */}
-          <Pressable onPress={() => {}} style={sh.sheet}>
+          {/* View wrapper blocks dismiss from firing when tapping sheet content */}
+          <View style={sh.sheet}>
 
             {/* Handle — drag here to swipe-down-dismiss */}
             <View style={sh.handle} {...handlePan.panHandlers} />
@@ -332,7 +332,7 @@ function SetLoggerSheet({
                 <Text style={sh.doneTx}>Done</Text>
               </TouchableOpacity>
             </View>
-          </Pressable>
+          </View>
 
           {/* Background extension — covers home indicator gap when keyboard is hidden */}
           <View style={{ backgroundColor: "#111111", height: kbH > 0 ? 0 : 60 }} />
