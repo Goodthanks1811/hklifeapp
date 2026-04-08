@@ -80,17 +80,27 @@ function SliderBar({
 
   const fillWidth = anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp" });
 
+  // Re-measure on every layout change using measureInWindow for true screen coords
+  const measure = () => {
+    barRef.current?.measureInWindow((x, _y, w) => {
+      barLeft.current  = x;
+      barWidth.current = w;
+    });
+  };
+
   const pr = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder:  () => true,
     onPanResponderGrant: (e) => {
-      if (!barWidth.current) return;
       dragging.current = true;
-      anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
+      if (!barWidth.current) return;
+      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+      anim.setValue(ratio);
     },
     onPanResponderMove: (e) => {
       if (!barWidth.current) return;
-      anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
+      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+      anim.setValue(ratio);
     },
     onPanResponderRelease: (e) => {
       dragging.current = false;
@@ -105,13 +115,8 @@ function SliderBar({
   return (
     <View
       ref={barRef}
-      style={{ height: 24, justifyContent: "center" }}
-      onLayout={() => {
-        barRef.current?.measure((_fx, _fy, w, _h, px) => {
-          barLeft.current  = px;
-          barWidth.current = w;
-        });
-      }}
+      style={{ height: 36, justifyContent: "center" }}
+      onLayout={measure}
       {...pr.panHandlers}
     >
       <View style={{ height, backgroundColor: DIM, borderRadius: height / 2, overflow: "visible" }}>
@@ -137,38 +142,49 @@ export function GlobalMusicPlayer() {
   const [repeat,   setRepeat]   = useState(false);
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
-  const slideAnim = useRef(new Animated.Value(Dimensions.get("window").height)).current;
-  const dragY     = useRef(new Animated.Value(0)).current;
-  const dragRef   = useRef(0);
+  const slideAnim  = useRef(new Animated.Value(Dimensions.get("window").height)).current;
+  const dragY      = useRef(new Animated.Value(0)).current;
+  const dismissing = useRef(false);
 
   const expand = useCallback(() => {
+    dismissing.current = false;
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
   }, [slideAnim]);
 
   const collapse = useCallback(() => {
+    if (dismissing.current) return;
+    dismissing.current = true;
     Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-      .start(() => { setExpanded(false); dragY.setValue(0); });
+      .start(() => { setExpanded(false); dragY.setValue(0); dismissing.current = false; });
   }, [slideAnim, dragY]);
 
+  // Swipe-down pan responder — attached to the full top zone of the screen
   const dismissPR = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder:  (_, g) => Math.abs(g.dy) > 8,
-    onPanResponderMove: (_, g) => { if (g.dy > 0) { dragRef.current = g.dy; dragY.setValue(g.dy); } },
+    // Only claim the gesture when the user is clearly swiping down
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder:  (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+    onPanResponderMove: (_, g) => {
+      if (g.dy > 0) dragY.setValue(g.dy);
+    },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 100 || g.vy > 0.9) {
+      if (dismissing.current) return;
+      if (g.dy > 80 || g.vy > 0.8) {
+        dismissing.current = true;
         dragY.setValue(0);
         Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-          .start(() => { setExpanded(false); dragY.setValue(0); });
+          .start(() => { setExpanded(false); dragY.setValue(0); dismissing.current = false; });
       } else {
         Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
       }
-      dragRef.current = 0;
+    },
+    onPanResponderTerminate: (_, g) => {
+      // If the OS steals the gesture (e.g. notification centre) also snap back
+      Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
     },
   })).current;
 
   // ── Determine active source ──────────────────────────────────────────────
-  // Prefer whichever is actively playing; if both paused, prefer My Music if loaded
   const source: "mymusic" | "apple" | null =
     player.isPlaying ? "mymusic"
     : am.isPlaying   ? "apple"
@@ -179,7 +195,7 @@ export function GlobalMusicPlayer() {
   if (!source) return null;
 
   const title    = source === "mymusic" ? (player.track?.name ?? "") : (am.nowPlaying?.title ?? "");
-  const artist   = "HK";
+  const artist   = source === "mymusic" ? (player.track?.artist ?? "") : (am.nowPlaying?.artist ?? "");
   const isPlay   = source === "mymusic" ? player.isPlaying : am.isPlaying;
   const posMs    = source === "mymusic" ? player.posMs : am.posMs;
   const durMs    = source === "mymusic" ? player.durMs : am.durMs;
@@ -259,23 +275,25 @@ export function GlobalMusicPlayer() {
             { transform: [{ translateY: Animated.add(slideAnim, dragY) }] },
           ]}
         >
-          {/* Gradient top — covers drag handle all the way down through the title */}
-          <View style={[s.gradHeader, { paddingTop: insets.top + 6 }]}>
-            <LinearGradient
-              colors={[
-                "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
-                "rgba(190,28,28,0.58)", "rgba(145,16,16,0.38)",
-                "rgba(90,8,8,0.20)",   "rgba(35,3,3,0.08)", BG,
-              ]}
-              locations={[0, 0.18, 0.36, 0.54, 0.70, 0.86, 1]}
-              start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-            {/* Drag handle sits inside the gradient zone */}
-            <View style={s.dragZone} {...dismissPR.panHandlers}>
+          {/* Large top drag zone — covers gradient header + some extra space */}
+          <View
+            style={[s.dragZoneOuter, { paddingTop: insets.top }]}
+            {...dismissPR.panHandlers}
+          >
+            <View style={s.gradHeader}>
+              <LinearGradient
+                colors={[
+                  "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
+                  "rgba(190,28,28,0.58)", "rgba(145,16,16,0.38)",
+                  "rgba(90,8,8,0.20)",   "rgba(35,3,3,0.08)", BG,
+                ]}
+                locations={[0, 0.18, 0.36, 0.54, 0.70, 0.86, 1]}
+                start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
               <View style={s.dragHandle} />
+              <Text style={s.navLbl}>Now Playing</Text>
             </View>
-            <Text style={s.navLbl}>Now Playing</Text>
           </View>
 
           {/* Artwork */}
@@ -327,15 +345,6 @@ export function GlobalMusicPlayer() {
             </View>
             <Feather name="volume-2" size={14} color="#3a3a3a" />
           </View>
-
-          {/* Collapse */}
-          <Pressable
-            style={[s.collapseBtn, { bottom: insets.bottom + 20 }]}
-            onPress={collapse}
-          >
-            <Feather name="chevron-down" size={20} color="rgba(255,255,255,0.35)" />
-            <Text style={s.collapseTx}>Minimise</Text>
-          </Pressable>
         </Animated.View>
       )}
     </View>
@@ -362,11 +371,20 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: BG, paddingHorizontal: 22,
   },
-  dragZone: { alignItems: "center", paddingBottom: 10 },
-  dragHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.25)" },
+  // Large swipe zone covering the top of the full-screen player
+  dragZoneOuter: {
+    marginHorizontal: -22,
+  },
+  dragHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignSelf: "center", marginBottom: 10,
+  },
   gradHeader: {
-    marginHorizontal: -22, paddingHorizontal: 20,
-    paddingBottom: 30, overflow: "hidden",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 30,
+    overflow: "hidden",
   },
   navLbl: {
     fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center",
@@ -403,9 +421,4 @@ const s = StyleSheet.create({
   volRow: {
     flexDirection: "row", alignItems: "center", gap: 10, marginTop: 36,
   },
-  collapseBtn: {
-    position: "absolute", left: 0, right: 0,
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
-  },
-  collapseTx: { fontSize: 13, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular" },
 });
