@@ -62,17 +62,17 @@ export default function FootyHighlightsScreen() {
   const [errMsg,    setErrMsg]    = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  const playerFocused = useRef(false);
-  const playerKbAnim  = useRef(new Animated.Value(0)).current;
+  const inputFocused = useRef(false);
+  const inputKbAnim  = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(useCallback(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
-      if (playerFocused.current) {
-        Animated.timing(playerKbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
+      if (inputFocused.current) {
+        Animated.timing(inputKbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
       }
     });
     const hide = Keyboard.addListener("keyboardWillHide", () => {
-      Animated.timing(playerKbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
+      Animated.timing(inputKbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
     });
     return () => { show.remove(); hide.remove(); };
   }, []));
@@ -132,6 +132,7 @@ export default function FootyHighlightsScreen() {
         contentContainerStyle={[s.content, { paddingBottom: 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={true}
       >
         {/* Round */}
         <Text style={s.label}>Round</Text>
@@ -175,11 +176,8 @@ export default function FootyHighlightsScreen() {
               placeholderTextColor={MUTED}
               autoCorrect={false}
               returnKeyType="done"
-              onFocus={() => { playerFocused.current = true; }}
-              onBlur={() => {
-                playerFocused.current = false;
-                Animated.timing(playerKbAnim, { toValue: 0, duration: 180, useNativeDriver: false }).start();
-              }}
+              onFocus={() => { inputFocused.current = true; }}
+              onBlur={() => { inputFocused.current = false; }}
             />
           </View>
           <View style={s.minuteWrap}>
@@ -192,6 +190,8 @@ export default function FootyHighlightsScreen() {
               placeholder="0"
               placeholderTextColor={MUTED}
               returnKeyType="done"
+              onFocus={() => { inputFocused.current = true; }}
+              onBlur={() => { inputFocused.current = false; }}
             />
           </View>
         </View>
@@ -207,7 +207,7 @@ export default function FootyHighlightsScreen() {
       </Animated.ScrollView>
 
       {/* Save button — floats above keyboard */}
-      <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(playerKbAnim, insets.bottom + 12) as any }]}>
+      <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(inputKbAnim, insets.bottom + 12) as any }]}>
         <Pressable
           style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
           onPress={save}
