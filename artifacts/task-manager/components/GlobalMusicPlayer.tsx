@@ -208,7 +208,7 @@ export function GlobalMusicPlayer() {
         >
           {/* Track info */}
           <View style={[s.trackBlock, { marginTop: 0 }]}>
-            <Text style={s.trackTitle} numberOfLines={1}>{title}</Text>
+            <Text style={[s.trackTitle, { fontSize: 15 }]} numberOfLines={1}>{title}</Text>
             {artist ? <Text style={s.trackSub} numberOfLines={1}>{artist}</Text> : null}
           </View>
 
