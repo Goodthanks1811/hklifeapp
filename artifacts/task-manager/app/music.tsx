@@ -3,7 +3,6 @@ import {
   Animated,
   Dimensions,
   Easing,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -11,12 +10,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDrawer } from "@/context/DrawerContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
-import { useMusicPlayer } from "@/context/MusicPlayerContext";
-import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
 
 const RED    = "#E8230A";
 const BG     = "#111111";
@@ -105,72 +102,12 @@ function ProviderRow({
   );
 }
 
-function fmtMs(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
 export default function MusicScreen() {
-  const insets  = useSafeAreaInsets();
+  const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
   const { openDrawer } = useDrawer();
-  const player  = useMusicPlayer();
-  const am      = useAppleMusicPlayer();
 
-  const goHome = () => {
-    openDrawer();
-  };
-
-  const hasTrack = player.track !== null;
-  // Apple Music is the active source when it's set and My Music isn't playing
-  const showApple = am.nowPlaying !== null && !hasTrack;
-
-  // ── Smooth scrubber ─────────────────────────────────────────────────────────
-  const barRef    = useRef<View>(null);
-  const barLeft   = useRef(0);
-  const barWidth  = useRef(0);
-  const durMsRef  = useRef(player.durMs);
-  const seekToRef = useRef(player.seekTo);
-  durMsRef.current  = player.durMs;
-  seekToRef.current = player.seekTo;
-
-  const isDragging = useRef(false);
-  const scrubAnim  = useRef(new Animated.Value(0)).current;
-
-  // Keep bar in sync with playback position when not scrubbing
-  useEffect(() => {
-    if (!isDragging.current && player.durMs > 0) {
-      scrubAnim.setValue(player.posMs / player.durMs);
-    }
-  }, [player.posMs, player.durMs]);
-
-  const fillWidth = scrubAnim.interpolate({
-    inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp",
-  });
-
-  const scrubber = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder:  () => true,
-      onPanResponderGrant: (e) => {
-        if (!barWidth.current || !durMsRef.current) return;
-        isDragging.current = true;
-        scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
-      },
-      onPanResponderMove: (e) => {
-        if (!barWidth.current) return;
-        scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
-      },
-      onPanResponderRelease: (e) => {
-        isDragging.current = false;
-        if (!barWidth.current || !durMsRef.current) return;
-        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-        scrubAnim.setValue(ratio);
-        seekToRef.current(Math.floor(ratio * durMsRef.current));
-      },
-      onPanResponderTerminate: () => { isDragging.current = false; },
-    })
-  ).current;
+  const goHome = () => { openDrawer(); };
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -208,109 +145,6 @@ export default function MusicScreen() {
               label="Apple Music"
               onPress={() => router.push("/music-apple" as any)}
             />
-          </View>
-        </View>
-
-        {/* Now playing panel — My Music or Apple Music, whichever is active */}
-        <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
-          <View style={s.npTop}>
-            <View style={s.npArt}>
-              <Feather name="music" size={22} color={RED} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.npTitle} numberOfLines={1}>
-                {hasTrack
-                  ? player.track!.name
-                  : showApple
-                    ? am.nowPlaying!.title
-                    : "Nothing playing"}
-              </Text>
-              <Text style={s.npArtist} numberOfLines={1}>
-                {hasTrack
-                  ? ""
-                  : showApple
-                    ? am.nowPlaying!.artist
-                    : "Play a track in My Music or Apple Music"}
-              </Text>
-            </View>
-          </View>
-
-          {/* Progress bar — only for My Music (we have position data) */}
-          {hasTrack && (
-            <>
-              <View
-                ref={barRef}
-                style={s.progressHitArea}
-                onLayout={() => {
-                  barRef.current?.measure((_fx, _fy, w, _h, px) => {
-                    barLeft.current  = px;
-                    barWidth.current = w;
-                  });
-                }}
-                {...scrubber.panHandlers}
-              >
-                <View style={s.progressTrack}>
-                  <Animated.View style={[s.progressFill, { width: fillWidth }]}>
-                    <View style={s.progressThumb} />
-                  </Animated.View>
-                </View>
-              </View>
-              <View style={s.timeRow}>
-                <Text style={s.timeText}>{fmtMs(player.posMs)}</Text>
-                <Text style={s.timeText}>{player.durMs > 0 ? fmtMs(player.durMs) : "--:--"}</Text>
-              </View>
-            </>
-          )}
-
-          {/* Thin static bar for Apple Music (no position data available) */}
-          {showApple && (
-            <View style={[s.progressHitArea, { pointerEvents: "none" }]}>
-              <View style={s.progressTrack}>
-                <View style={[s.progressFill, { width: "40%" }]} />
-              </View>
-            </View>
-          )}
-
-          <View style={s.controls}>
-            <Pressable
-              style={s.ctrlBtn}
-              onPress={() => {
-                if (hasTrack) player.skipBack();
-                else if (showApple) am.skipToPrevious();
-              }}
-            >
-              <Ionicons
-                name="play-skip-back"
-                size={30}
-                color={(hasTrack || showApple) ? "#fff" : "rgba(255,255,255,0.2)"}
-              />
-            </Pressable>
-            <Pressable
-              style={s.playBtn}
-              onPress={() => {
-                if (hasTrack) player.togglePlay();
-                else if (showApple) am.isPlaying ? am.pause() : am.play();
-              }}
-            >
-              <Ionicons
-                name={(hasTrack ? player.isPlaying : am.isPlaying) ? "pause" : "play"}
-                size={30}
-                color="#fff"
-              />
-            </Pressable>
-            <Pressable
-              style={s.ctrlBtn}
-              onPress={() => {
-                if (hasTrack) player.skipForward();
-                else if (showApple) am.skipToNext();
-              }}
-            >
-              <Ionicons
-                name="play-skip-forward"
-                size={30}
-                color={(hasTrack || showApple) ? "#fff" : "rgba(255,255,255,0.2)"}
-              />
-            </Pressable>
           </View>
         </View>
 

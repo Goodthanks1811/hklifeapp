@@ -499,62 +499,6 @@ export default function MusicMyMusicScreen() {
           </ScrollView>
         )}
 
-        {/* ── Player bottom sheet — identical layout to Music home screen ─────── */}
-        <Animated.View style={[st.playerWrap, { height: playerHeight, opacity: playerOpacity }]}>
-          <View style={[st.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
-
-            {/* Top row: artwork + title */}
-            <View style={st.npTop}>
-              <View style={st.npArt}>
-                <Feather name="music" size={22} color={RED} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={st.npTitle} numberOfLines={1}>
-                  {player.track?.name ?? ""}
-                </Text>
-              </View>
-            </View>
-
-            {/* Progress bar — 24px hit area, PanResponder for smooth dragging */}
-            <View
-              ref={barRef}
-              style={st.progressHitArea}
-              onLayout={() => {
-                barRef.current?.measure((_fx, _fy, w, _h, px) => {
-                  barLeft.current  = px;
-                  barWidth.current = w;
-                });
-              }}
-              {...scrubber.panHandlers}
-            >
-              <View style={st.progressTrack}>
-                <Animated.View style={[st.progressFill, { width: fillWidth }]}>
-                  <View style={st.progressThumb} />
-                </Animated.View>
-              </View>
-            </View>
-
-            {/* Timestamps below scrubber */}
-            <View style={st.timeRow}>
-              <Text style={st.timeText}>{fmtMs(player.posMs)}</Text>
-              <Text style={st.timeText}>{player.durMs > 0 ? fmtMs(player.durMs) : "--:--"}</Text>
-            </View>
-
-            {/* Controls */}
-            <View style={st.controls}>
-              <Pressable style={st.ctrlBtn} onPress={() => player.skipBack()}>
-                <Ionicons name="play-skip-back" size={30} color="#fff" />
-              </Pressable>
-              <Pressable style={st.playBtn} onPress={() => player.togglePlay()}>
-                <Ionicons name={player.isPlaying ? "pause" : "play"} size={30} color="#fff" />
-              </Pressable>
-              <Pressable style={st.ctrlBtn} onPress={() => player.skipForward()}>
-                <Ionicons name="play-skip-forward" size={30} color="#fff" />
-              </Pressable>
-            </View>
-
-          </View>
-        </Animated.View>
 
       </View>
     </View>

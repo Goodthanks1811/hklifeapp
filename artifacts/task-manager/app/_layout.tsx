@@ -31,6 +31,7 @@ import { HeaderImageProvider } from "@/context/HeaderImageContext";
 import { GoogleCalendarProvider } from "@/context/GoogleCalendarContext";
 import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
 import { AppleMusicPlayerProvider } from "@/context/AppleMusicPlayerContext";
+import { GlobalMusicPlayer } from "@/components/GlobalMusicPlayer";
 import { PlaybackService } from "@/service";
 
 // Guard RNTP registration — native module doesn't exist in Expo Go
@@ -163,6 +164,7 @@ export default function RootLayout() {
                         <GestureHandlerRootView style={{ flex: 1 }}>
                           <RootLayoutNav />
                           <StartupGate />
+                          <GlobalMusicPlayer />
                         </GestureHandlerRootView>
                       </AppleMusicPlayerProvider>
                     </MusicPlayerProvider>

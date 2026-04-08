@@ -52,9 +52,12 @@ type PlayerState = {
 type MusicPlayerContextValue = PlayerState & {
   playTrack:   (idx: number, list: MusicTrack[]) => Promise<void>;
   togglePlay:  () => Promise<void>;
+  pause:       () => Promise<void>;
   skipBack:    () => Promise<void>;
   skipForward: () => Promise<void>;
   seekTo:      (ms: number) => Promise<void>;
+  volume:      number;
+  setVolume:   (v: number) => Promise<void>;
 };
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null);
@@ -114,6 +117,7 @@ function RNTPBridge({ onState }: { onState: (s: RNTPState) => void }) {
 function RNTPProvider({ children }: { children: React.ReactNode }) {
   const tracksRef   = useRef<MusicTrack[]>([]);
   const trackIdxRef = useRef<number | null>(null);
+  const [volume, setVolumeState] = useState(1);
 
   const [rtpState, setRtpState] = useState<RNTPState>({
     activeTrack: null,
@@ -146,21 +150,40 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const togglePlay  = useCallback(async () => {
+  const togglePlay = useCallback(async () => {
     if (isPlaying) { await _TrackPlayer.pause(); } else { await _TrackPlayer.play(); }
   }, [isPlaying]);
 
-  const skipBack = useCallback(async () => {
-    if (posMs > 3000) { await _TrackPlayer.seekTo(0); }
-    else               { try { await _TrackPlayer.skipToPrevious(); } catch {} }
-  }, [posMs]);
-
-  const skipForward = useCallback(async () => {
-    try { await _TrackPlayer.skipToNext(); } catch {}
+  const pause = useCallback(async () => {
+    try { await _TrackPlayer.pause(); } catch {}
   }, []);
+
+  // Direct skip — skip() + play() avoids any crossfade / buffering delay
+  const skipForward = useCallback(async () => {
+    const list = tracksRef.current;
+    const cur  = trackIdxRef.current;
+    if (cur === null || !list.length) return;
+    const nextIdx = (cur + 1) % list.length;
+    try { await _TrackPlayer.skip(nextIdx); await _TrackPlayer.play(); } catch {}
+  }, []);
+
+  const skipBack = useCallback(async () => {
+    const list = tracksRef.current;
+    const cur  = trackIdxRef.current;
+    if (posMs > 3000) { await _TrackPlayer.seekTo(0); return; }
+    if (cur === null || !list.length) return;
+    const prevIdx = (cur - 1 + list.length) % list.length;
+    try { await _TrackPlayer.skip(prevIdx); await _TrackPlayer.play(); } catch {}
+  }, [posMs]);
 
   const seekTo = useCallback(async (ms: number) => {
     await _TrackPlayer.seekTo(ms / 1000);
+  }, []);
+
+  const setVolume = useCallback(async (v: number) => {
+    const clamped = Math.max(0, Math.min(1, v));
+    setVolumeState(clamped);
+    try { await _TrackPlayer.setVolume(clamped); } catch {}
   }, []);
 
   useEffect(() => {
@@ -172,7 +195,8 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
 
   const value: MusicPlayerContextValue = {
     track, trackIndex: trackIdxRef.current, tracks: tracksRef.current,
-    isPlaying, posMs, durMs, playTrack, togglePlay, skipBack, skipForward, seekTo,
+    isPlaying, posMs, durMs, volume,
+    playTrack, togglePlay, pause, skipBack, skipForward, seekTo, setVolume,
   };
 
   return (
@@ -246,12 +270,19 @@ function ExpoAvProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const [volume, setVolumeState] = useState(1);
+
   const togglePlay = useCallback(async () => {
     if (!soundRef.current) return;
     const status = await soundRef.current.getStatusAsync();
     if (!status.isLoaded) return;
     if (status.isPlaying) { await soundRef.current.pauseAsync(); }
     else                   { await soundRef.current.playAsync();  }
+  }, []);
+
+  const pause = useCallback(async () => {
+    if (!soundRef.current) return;
+    try { await soundRef.current.pauseAsync(); } catch {}
   }, []);
 
   const skipBack = useCallback(async () => {
@@ -278,8 +309,16 @@ function ExpoAvProvider({ children }: { children: React.ReactNode }) {
     try { await soundRef.current.setPositionAsync(ms); } catch {}
   }, []);
 
+  const setVolume = useCallback(async (v: number) => {
+    const clamped = Math.max(0, Math.min(1, v));
+    setVolumeState(clamped);
+    try { await soundRef.current?.setVolumeAsync(clamped); } catch {}
+  }, []);
+
   return (
-    <MusicPlayerContext.Provider value={{ ...state, playTrack, togglePlay, skipBack, skipForward, seekTo }}>
+    <MusicPlayerContext.Provider value={{
+      ...state, volume, playTrack, togglePlay, pause, skipBack, skipForward, seekTo, setVolume,
+    }}>
       {children}
     </MusicPlayerContext.Provider>
   );

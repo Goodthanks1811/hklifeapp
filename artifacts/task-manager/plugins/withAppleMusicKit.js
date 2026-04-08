@@ -184,6 +184,34 @@ public class AppleMusicKitModule: Module {
         promise.resolve(nil)
       }
     }
+
+    AsyncFunction("getCurrentTime") { (promise: Promise) in
+      DispatchQueue.main.async {
+        let t = MPMusicPlayerController.applicationQueuePlayer.currentPlaybackTime
+        promise.resolve(max(0, t))
+      }
+    }
+
+    AsyncFunction("getDuration") { (promise: Promise) in
+      DispatchQueue.main.async {
+        let d = MPMusicPlayerController.applicationQueuePlayer.nowPlayingItem?.playbackDuration ?? 0
+        promise.resolve(d)
+      }
+    }
+
+    AsyncFunction("seekTo") { (time: Double, promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.currentPlaybackTime = time
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("setVolume") { (volume: Double, promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.volume = Float(volume)
+        promise.resolve(nil)
+      }
+    }
   }
 }
 `;

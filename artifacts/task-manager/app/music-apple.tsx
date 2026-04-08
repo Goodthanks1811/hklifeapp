@@ -16,7 +16,6 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
-import { AppleNowPlayingPanel } from "@/components/AppleNowPlayingPanel";
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -337,7 +336,6 @@ export default function MusicAppleScreen() {
         </View>
         {renderBody()}
       </View>
-      <AppleNowPlayingPanel insetBottom={insets.bottom} />
     </View>
   );
 }
