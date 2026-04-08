@@ -221,8 +221,8 @@ export function GlobalMusicPlayer() {
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
-      {/* ── Mini bar — only visible when NOT on a music page and NOT expanded ── */}
-      {!expanded && !isOnMusicPage && (
+      {/* ── Mini bar — only visible ON music pages (hidden elsewhere), not when expanded ── */}
+      {!expanded && isOnMusicPage && (
         <Pressable
           style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20) }]}
           onPress={expand}
