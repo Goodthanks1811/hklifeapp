@@ -60,7 +60,7 @@ export default function FootyHighlightsScreen() {
   const isIpad      = screenW >= 768;
   const padH        = isIpad ? 56 : 18;
   const gridGap     = isIpad ? 14 : 7;
-  const tileW       = isIpad ? "17%" : "30%";
+  const logoSize    = isIpad ? 110 : 66;
 
   const [round,     setRound]     = useState("");
   const [player,    setPlayer]    = useState("");
@@ -181,10 +181,10 @@ export default function FootyHighlightsScreen() {
             return (
               <Pressable
                 key={t.name}
-                style={[s.teamCell, { width: tileW }, chosen && s.teamChosen, dimmed && s.teamDimmed]}
+                style={[s.teamCell, chosen && s.teamChosen, dimmed && s.teamDimmed]}
                 onPress={() => toggleTeam(t.name)}
               >
-                <Image source={t.logo} style={s.teamLogo} contentFit="contain" cachePolicy="memory-disk" transition={0} />
+                <Image source={t.logo} style={[s.teamLogo, { width: logoSize, height: logoSize }]} contentFit="contain" cachePolicy="memory-disk" transition={0} />
               </Pressable>
             );
           })}
