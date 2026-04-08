@@ -388,7 +388,7 @@ const s = StyleSheet.create({
   gradHeader: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 30,
+    paddingBottom: 100,
     overflow: "hidden",
   },
   navLbl: {
