@@ -169,9 +169,10 @@ export function GlobalMusicPlayer() {
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
 
-  const [expanded, setExpanded] = useState(false);
-  const [shuffle,  setShuffle]  = useState(false);
-  const [repeat,   setRepeat]   = useState(false);
+  const [expanded,   setExpanded]   = useState(false);
+  const [collapsing, setCollapsing] = useState(false); // true while dismiss animation plays
+  const [shuffle,    setShuffle]    = useState(false);
+  const [repeat,     setRepeat]     = useState(false);
 
   // Hide mini player (but not full-screen) on music pages
   const isOnMusicPage = pathname === "/music"
@@ -185,23 +186,24 @@ export function GlobalMusicPlayer() {
 
   const expand = useCallback(() => {
     dismissing.current = false; // only place we reset — prevents double-fire
+    setCollapsing(false);
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
   }, [slideAnim]);
 
-  // fromOffset: how far the user had already dragged so we continue smoothly from there
+  // fromOffset: how far the user already dragged — continue smoothly from there
   const collapse = useCallback((fromOffset = 0) => {
     if (dismissing.current) return;
     dismissing.current = true;
-    // Absorb any drag distance into slideAnim so there's no jump
+    // Show mini bar immediately so it's visible underneath as the panel slides away
+    setCollapsing(true);
+    // Absorb drag distance so there's no snap-back jump
     slideAnim.setValue(fromOffset);
     dragY.setValue(0);
-    // Animate to (screenHeight - miniBarH) so the panel collapses INTO the mini bar
-    // rather than sliding entirely off screen
-    const screenH  = Dimensions.get("window").height;
-    const miniBarH = 90; // approximate mini bar height; close enough across devices
-    Animated.timing(slideAnim, { toValue: screenH - miniBarH, duration: 300, useNativeDriver: true })
-      .start(() => { setExpanded(false); dragY.setValue(0); });
+    // Slide fully off-screen — mini bar is already visible at the bottom underneath
+    const screenH = Dimensions.get("window").height;
+    Animated.timing(slideAnim, { toValue: screenH, duration: 320, useNativeDriver: true })
+      .start(() => { setExpanded(false); setCollapsing(false); dragY.setValue(0); });
     // dismissing.current is ONLY reset in expand() — guards against re-entry
   }, [slideAnim, dragY]);
 
@@ -265,8 +267,9 @@ export function GlobalMusicPlayer() {
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
-      {/* ── Mini bar — only visible ON music pages (hidden elsewhere), not when expanded ── */}
-      {!expanded && isOnMusicPage && (
+      {/* ── Mini bar — visible on music pages when not expanded, OR while collapsing so
+               the full-screen panel slides down over it (creating the "sucked in" effect) ── */}
+      {(!expanded || collapsing) && isOnMusicPage && (
         <Pressable
           style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20) }]}
           onPress={expand}
