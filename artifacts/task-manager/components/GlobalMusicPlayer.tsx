@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { PanGestureHandler, State } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -103,11 +104,15 @@ function SliderBar({
   thumbSize?: number;
   color?: string;
 }) {
-  const barRef   = useRef<View>(null);
-  const barLeft  = useRef(0);
-  const barWidth = useRef(0);
-  const anim     = useRef(new Animated.Value(value)).current;
-  const dragging = useRef(false);
+  const barRef    = useRef<View>(null);
+  const barLeft   = useRef(0);
+  const barWidth  = useRef(0);
+  const anim      = useRef(new Animated.Value(value)).current;
+  const thumbScale = useRef(new Animated.Value(1)).current;
+  const dragging  = useRef(false);
+
+  const thumbIn  = () => Animated.spring(thumbScale, { toValue: 1.7, useNativeDriver: true, damping: 14, stiffness: 280 }).start();
+  const thumbOut = () => Animated.spring(thumbScale, { toValue: 1,   useNativeDriver: true, damping: 14, stiffness: 280 }).start();
 
   useEffect(() => {
     if (!dragging.current) anim.setValue(value);
@@ -127,6 +132,7 @@ function SliderBar({
     onMoveShouldSetPanResponder:  () => true,
     onPanResponderGrant: (e) => {
       dragging.current = true;
+      thumbIn();
       if (!barWidth.current) return;
       anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
     },
@@ -136,12 +142,13 @@ function SliderBar({
     },
     onPanResponderRelease: (e) => {
       dragging.current = false;
+      thumbOut();
       if (!barWidth.current) return;
       const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
       anim.setValue(ratio);
       onChange(ratio);
     },
-    onPanResponderTerminate: () => { dragging.current = false; },
+    onPanResponderTerminate: () => { dragging.current = false; thumbOut(); },
   })).current;
 
   return (
@@ -153,9 +160,10 @@ function SliderBar({
     >
       <View style={{ height, backgroundColor: DIM, borderRadius: height / 2, overflow: "visible" }}>
         <Animated.View style={{ height: "100%", width: fillWidth, backgroundColor: color, borderRadius: height / 2, overflow: "visible" }}>
-          <View style={{
+          <Animated.View style={{
             position: "absolute", right: -thumbSize / 2, top: -(thumbSize - height) / 2,
             width: thumbSize, height: thumbSize, borderRadius: thumbSize / 2, backgroundColor: color,
+            transform: [{ scale: thumbScale }],
           }} />
         </Animated.View>
       </View>
@@ -181,25 +189,34 @@ export function GlobalMusicPlayer() {
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
   const screenH      = Dimensions.get("window").height;
-  // Single value drives everything — no Animated.add, no mixed-driver issues
+  // slideAnim: expand spring + non-gesture collapse timing (stays at 0 while expanded)
   const slideAnim    = useRef(new Animated.Value(screenH)).current;
+  // panDrag: native-thread gesture tracking via PanGestureHandler + Animated.event
+  // Both are useNativeDriver — Animated.add works; no JS involvement per frame
+  const panDrag      = useRef(new Animated.Value(0)).current;
   const miniBarAlpha = useRef(new Animated.Value(1)).current;
   const dismissing   = useRef(false);
-  // dy captured at the moment the pan responder is granted — used to zero-base movement
-  const grantDy      = useRef(0);
+
+  // Clamp panDrag ≥ 0 so upward swipes don't push the sheet above the screen
+  const panDragClamped = panDrag.interpolate({
+    inputRange: [-screenH, 0, screenH],
+    outputRange: [0, 0, screenH],
+    extrapolate: "clamp",
+  });
 
   const expand = useCallback(() => {
     dismissing.current = false;
+    panDrag.setValue(0);
     miniBarAlpha.setValue(0);
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
-  }, [slideAnim, miniBarAlpha]);
+  }, [slideAnim, panDrag, miniBarAlpha]);
 
+  // collapse() — called from non-gesture triggers only (panDrag is 0 here)
   const collapse = useCallback(() => {
     if (dismissing.current) return;
     dismissing.current = true;
     miniBarAlpha.setValue(1);
-    // slideAnim is already at current drag offset (set via setValue) — timing continues from there
     Animated.timing(slideAnim, {
       toValue: screenH,
       duration: 340,
@@ -211,32 +228,32 @@ export function GlobalMusicPlayer() {
   const collapseRef = useRef(collapse);
   useEffect(() => { collapseRef.current = collapse; }, [collapse]);
 
-  // Swipe-down pan responder
-  const dismissPR = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder:  (_, g) => !dismissing.current && g.dy > 5 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
-    onPanResponderGrant: (_, g) => {
-      // Capture dy at grant so the first move starts from 0, not from 5+px
-      grantDy.current = g.dy;
-    },
-    onPanResponderMove: (_, g) => {
-      const rel = Math.max(0, g.dy - grantDy.current);
-      slideAnim.setValue(rel);
-    },
-    onPanResponderRelease: (_, g) => {
-      const rel = Math.max(0, g.dy - grantDy.current);
-      if (rel > 80 || g.vy > 0.8) {
-        collapseRef.current();
+  // RNGH PanGestureHandler: translationY is a true native event → useNativeDriver: true works
+  const panGestureRef = useRef<any>(null);
+
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationY: panDrag } }],
+    { useNativeDriver: true },
+  );
+
+  const onHandlerStateChange = useCallback((e: any) => {
+    const { state, translationY, velocityY } = e.nativeEvent;
+    if (state === State.END || state === State.FAILED || state === State.CANCELLED) {
+      const pos = Math.max(0, translationY);
+      if (pos > 80 || velocityY > 800) {
+        dismissing.current = true;
+        miniBarAlpha.setValue(1);
+        Animated.timing(panDrag, {
+          toValue: screenH,
+          duration: 340,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => { panDrag.setValue(0); setExpanded(false); });
       } else {
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(panDrag, { toValue: 0, useNativeDriver: true }).start();
       }
-    },
-    onPanResponderTerminate: () => {
-      if (!dismissing.current) {
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
-      }
-    },
-  })).current;
+    }
+  }, [panDrag, miniBarAlpha, screenH]);
 
   // ── System volume (hardware scale) ──────────────────────────────────────
   const { sysVol, setSystemVolume } = useSystemVolume();
@@ -292,7 +309,10 @@ export function GlobalMusicPlayer() {
             </View>
 
             {/* Play/pause */}
-            <Pressable style={s.miniPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
+            <Pressable
+              style={({ pressed }) => [s.miniPlayBtn, { transform: [{ scale: pressed ? 0.91 : 1 }] }]}
+              onPress={(e) => { e.stopPropagation(); doToggle(); }}
+            >
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
           </Pressable>
@@ -301,12 +321,18 @@ export function GlobalMusicPlayer() {
 
       {/* ── Full-screen now playing ── */}
       {expanded && (
+        <PanGestureHandler
+          ref={panGestureRef}
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+          activeOffsetY={10}
+          failOffsetX={[-25, 25]}
+        >
         <Animated.View
           style={[
             s.fullScreen,
-            { transform: [{ translateY: slideAnim }] },
+            { transform: [{ translateY: Animated.add(slideAnim, panDragClamped) }] },
           ]}
-          {...dismissPR.panHandlers}
         >
           {/* Header zone (handle + title) */}
           <View
@@ -355,19 +381,34 @@ export function GlobalMusicPlayer() {
 
           {/* Controls */}
           <View style={s.ctrlRow}>
-            <Pressable style={s.iconBtn} onPress={() => setShuffle(v => !v)}>
+            <Pressable
+              style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
+              onPress={() => setShuffle(v => !v)}
+            >
               <Ionicons name="shuffle" size={22} color={shuffle ? RED : "#3a3a3a"} />
             </Pressable>
-            <Pressable style={s.iconBtn} onPress={doSkipBack}>
+            <Pressable
+              style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
+              onPress={doSkipBack}
+            >
               <Ionicons name="play-skip-back" size={30} color="#fff" />
             </Pressable>
-            <Pressable style={s.bigPlayBtn} onPress={doToggle}>
+            <Pressable
+              style={({ pressed }) => [s.bigPlayBtn, { transform: [{ scale: pressed ? 0.91 : 1 }] }]}
+              onPress={doToggle}
+            >
               <Ionicons name={isPlay ? "pause" : "play"} size={30} color="#fff" />
             </Pressable>
-            <Pressable style={s.iconBtn} onPress={doSkipFwd}>
+            <Pressable
+              style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
+              onPress={doSkipFwd}
+            >
               <Ionicons name="play-skip-forward" size={30} color="#fff" />
             </Pressable>
-            <Pressable style={s.iconBtn} onPress={() => setRepeat(v => !v)}>
+            <Pressable
+              style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
+              onPress={() => setRepeat(v => !v)}
+            >
               <Ionicons name="repeat" size={22} color={repeat ? RED : "#3a3a3a"} />
             </Pressable>
           </View>
@@ -385,6 +426,7 @@ export function GlobalMusicPlayer() {
 
           <View style={{ height: insets.bottom + 24 }} />
         </Animated.View>
+        </PanGestureHandler>
       )}
     </View>
   );
