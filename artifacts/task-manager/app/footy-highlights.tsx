@@ -31,22 +31,22 @@ const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
 
 const TEAMS = [
   { name: "Broncos",    logo: require("../assets/images/nrl/Broncos.webp") },
-  { name: "Knights",    logo: require("../assets/images/nrl/Knights.webp") },
-  { name: "Sharks",     logo: require("../assets/images/nrl/Sharks.webp") },
   { name: "Bulldogs",   logo: require("../assets/images/nrl/Bulldogs.webp") },
-  { name: "Panthers",   logo: require("../assets/images/nrl/Panthers.webp") },
-  { name: "Storm",      logo: require("../assets/images/nrl/Storm.webp") },
   { name: "Cowboys",    logo: require("../assets/images/nrl/Cowboys.webp") },
-  { name: "Rabbitohs",  logo: require("../assets/images/nrl/Rabbitohs.webp") },
-  { name: "Tigers",     logo: require("../assets/images/nrl/Wests Tigers.webp") },
   { name: "Dolphins",   logo: require("../assets/images/nrl/Dolphins.webp") },
-  { name: "Raiders",    logo: require("../assets/images/nrl/Raiders.webp") },
-  { name: "Titans",     logo: require("../assets/images/nrl/Titans.webp") },
   { name: "Dragons",    logo: require("../assets/images/nrl/Dragons.webp") },
-  { name: "Roosters",   logo: require("../assets/images/nrl/Roosters.webp") },
-  { name: "Warriors",   logo: require("../assets/images/nrl/Warriors.webp") },
   { name: "Eels",       logo: require("../assets/images/nrl/Eels.webp") },
+  { name: "Knights",    logo: require("../assets/images/nrl/Knights.webp") },
+  { name: "Panthers",   logo: require("../assets/images/nrl/Panthers.webp") },
+  { name: "Rabbitohs",  logo: require("../assets/images/nrl/Rabbitohs.webp") },
+  { name: "Raiders",    logo: require("../assets/images/nrl/Raiders.webp") },
+  { name: "Roosters",   logo: require("../assets/images/nrl/Roosters.webp") },
   { name: "Sea Eagles", logo: require("../assets/images/nrl/Sea Eagles.webp") },
+  { name: "Sharks",     logo: require("../assets/images/nrl/Sharks.webp") },
+  { name: "Storm",      logo: require("../assets/images/nrl/Storm.webp") },
+  { name: "Tigers",     logo: require("../assets/images/nrl/Wests Tigers.webp") },
+  { name: "Titans",     logo: require("../assets/images/nrl/Titans.webp") },
+  { name: "Warriors",   logo: require("../assets/images/nrl/Warriors.webp") },
 ];
 
 type SaveState = "idle" | "saving" | "ok" | "err";
