@@ -180,67 +180,79 @@ export function GlobalMusicPlayer() {
     || pathname.startsWith("/music/");
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
-  // Single Animated.Value drives everything — no Animated.add, no discontinuity on dismiss
-  const slideAnim    = useRef(new Animated.Value(Dimensions.get("window").height)).current;
-  const miniBarAlpha = useRef(new Animated.Value(1)).current; // 1=visible,0=hidden — set synchronously
+  const screenH      = Dimensions.get("window").height;
+  // slideAnim: expand/collapse + non-drag dismiss (stays at 0 while expanded)
+  const slideAnim    = useRef(new Animated.Value(screenH)).current;
+  // panDrag: real-time gesture tracking via Animated.event (native thread, no JS per frame)
+  // transform = Animated.add(slideAnim, panDrag) — both native-driver values
+  const panDrag      = useRef(new Animated.Value(0)).current;
+  const miniBarAlpha = useRef(new Animated.Value(1)).current;
   const dismissing   = useRef(false);
 
   const expand = useCallback(() => {
     dismissing.current = false;
-    miniBarAlpha.setValue(0);   // hide mini bar synchronously before full-screen appears
+    panDrag.setValue(0);
+    miniBarAlpha.setValue(0);
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
-  }, [slideAnim, miniBarAlpha]);
+  }, [slideAnim, panDrag, miniBarAlpha]);
 
+  // collapse() is only called from the tap-X button / external triggers (not from swipe-release)
   const collapse = useCallback(() => {
     if (dismissing.current) return;
     dismissing.current = true;
-    // Reveal mini bar synchronously — Animated.Value has no render delay
     miniBarAlpha.setValue(1);
-    // slideAnim is already at the current drag position (set via setValue during move),
-    // so Animated.timing picks up exactly from there — zero discontinuity
-    const screenH = Dimensions.get("window").height;
+    // panDrag should be 0 here (no active gesture); slideAnim starts at 0
     Animated.timing(slideAnim, {
       toValue: screenH,
       duration: 340,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(() => { setExpanded(false); });
-    // dismissing.current is ONLY reset in expand()
-  }, [slideAnim, miniBarAlpha]);
+  }, [slideAnim, screenH, miniBarAlpha]);
 
-  // Stable ref so the once-created PanResponder always calls the live collapse
   const collapseRef = useRef(collapse);
   useEffect(() => { collapseRef.current = collapse; }, [collapse]);
 
-  // dy at the moment the pan responder was awarded — used to zero-base the movement
-  const grantDy = useRef(0);
-
-  // Swipe-down pan responder — full-screen, only activates on clear downward drag
+  // Swipe-down pan responder — gesture runs entirely on the native thread via Animated.event
   const dismissPR = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder:  (_, g) => !dismissing.current && g.dy > 5 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
     onPanResponderGrant: (_, g) => {
-      // Capture the dy at award time so we can offset it to zero
-      grantDy.current = g.dy;
+      // setOffset(-g.dy) zeros the displayed value at grant time:
+      //   displayed = rawValue + offset = g.dy + (-g.dy) = 0
+      // As g.dy grows, Animated.event maps it to panDrag._value → displayed = delta
+      panDrag.setOffset(-g.dy);
+      panDrag.setValue(g.dy);
     },
-    onPanResponderMove: (_, g) => {
-      // Subtract grantDy so movement starts from 0, eliminating the initial jump
-      const rel = Math.max(0, g.dy - grantDy.current);
-      slideAnim.setValue(rel);
-    },
+    onPanResponderMove: Animated.event(
+      [null, { dy: panDrag }],
+      { useNativeDriver: true },
+    ),
     onPanResponderRelease: (_, g) => {
-      const rel = Math.max(0, g.dy - grantDy.current);
-      if (rel > 80 || g.vy > 0.8) {
-        collapseRef.current(); // slideAnim is already at rel — animation continues from there
+      // flattenOffset merges offset into value so _value = net drag delta, offset = 0
+      panDrag.flattenOffset();
+      const delta = (panDrag as any).__getValue() as number;
+      if (Math.max(0, delta) > 80 || g.vy > 0.8) {
+        // Animate panDrag to screenH — no setValue swapping needed, no flicker
+        dismissing.current = true;
+        miniBarAlpha.setValue(1);
+        Animated.timing(panDrag, {
+          toValue: screenH,
+          duration: 340,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => {
+          panDrag.setValue(0);
+          setExpanded(false);
+        });
       } else {
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(panDrag, { toValue: 0, useNativeDriver: true }).start();
       }
     },
     onPanResponderTerminate: () => {
-      if (!dismissing.current) {
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
-      }
+      panDrag.flattenOffset();
+      Animated.spring(panDrag, { toValue: 0, useNativeDriver: true }).start();
     },
   })).current;
 
@@ -310,7 +322,7 @@ export function GlobalMusicPlayer() {
         <Animated.View
           style={[
             s.fullScreen,
-            { transform: [{ translateY: slideAnim }] },
+            { transform: [{ translateY: Animated.add(slideAnim, panDrag) }] },
           ]}
           {...dismissPR.panHandlers}
         >
