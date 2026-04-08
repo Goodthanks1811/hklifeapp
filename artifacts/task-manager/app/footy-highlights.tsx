@@ -155,7 +155,6 @@ export default function FootyHighlightsScreen() {
                 onPress={() => toggleTeam(t.name)}
               >
                 <Image source={t.logo} style={s.teamLogo} resizeMode="contain" />
-                <Text style={[s.teamName, dimmed && s.teamNameDim]}>{t.name}</Text>
               </Pressable>
             );
           })}
@@ -241,17 +240,15 @@ const s = StyleSheet.create({
   teamCell: {
     width: "30%", flexGrow: 1,
     backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 4,
-    alignItems: "center", gap: 6,
+    borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6,
+    alignItems: "center", justifyContent: "center",
   },
   teamChosen: {
     borderColor: RED, borderWidth: 1.5,
     backgroundColor: "rgba(224,49,49,0.08)",
   },
   teamDimmed: { opacity: 0.22 },
-  teamLogo:   { width: 44, height: 44 },
-  teamName:   { fontSize: 10, color: TEXT, textAlign: "center", fontFamily: "Inter_600SemiBold" },
-  teamNameDim:{ color: MUTED },
+  teamLogo: { width: 62, height: 62 },
 
   row:        { flexDirection: "row", gap: 12, marginTop: 20 },
   flex1:      { flex: 1 },
