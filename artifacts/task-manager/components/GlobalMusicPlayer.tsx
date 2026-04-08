@@ -204,7 +204,7 @@ export function GlobalMusicPlayer() {
       {/* ── Mini bar ── */}
       {!expanded && (
         <Pressable
-          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom, 16) }]}
+          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom * 3, 48) }]}
           onPress={expand}
         >
           {/* Row 1: Art + title/artist */}

@@ -453,7 +453,7 @@ export default function MusicMyMusicScreen() {
             showsVerticalScrollIndicator={false}
             onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: player.track ? 210 : 24 }}
+            contentContainerStyle={{ paddingTop: 16, paddingBottom: player.track ? 300 : 24 }}
           >
             {/* Absolute-position container — enables live drag animation (Life Admin pattern) */}
             <View
