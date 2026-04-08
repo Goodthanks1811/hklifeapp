@@ -23,6 +23,37 @@ import { usePathname } from "expo-router";
 import { useMusicPlayer } from "@/context/MusicPlayerContext";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
 
+// ── System volume hook — reads hardware volume and listens for button changes ─
+let _VolumeManager: any = null;
+try { _VolumeManager = require("react-native-volume-manager").VolumeManager; } catch {}
+
+function useSystemVolume() {
+  const [sysVol, setSysVol] = useState<number>(1);
+
+  useEffect(() => {
+    if (!_VolumeManager) return;
+    // Read current system volume
+    _VolumeManager.getVolume().then((v: any) => {
+      const val = typeof v === "object" ? (v.volume ?? v) : v;
+      setSysVol(Math.max(0, Math.min(1, Number(val))));
+    }).catch(() => {});
+    // Listen for hardware button changes
+    const sub = _VolumeManager.addVolumeListener((v: any) => {
+      const val = typeof v === "object" ? (v.volume ?? v) : v;
+      setSysVol(Math.max(0, Math.min(1, Number(val))));
+    });
+    return () => { try { sub?.remove?.(); } catch {} };
+  }, []);
+
+  const setSystemVolume = useCallback((v: number) => {
+    const clamped = Math.max(0, Math.min(1, v));
+    setSysVol(clamped);
+    try { _VolumeManager?.setVolume(clamped, { showUI: false }); } catch {}
+  }, []);
+
+  return { sysVol, setSystemVolume };
+}
+
 const RED    = "#E03131";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
@@ -189,6 +220,9 @@ export function GlobalMusicPlayer() {
     },
   })).current;
 
+  // ── System volume (hardware scale) ──────────────────────────────────────
+  const { sysVol, setSystemVolume } = useSystemVolume();
+
   // ── Determine active source ──────────────────────────────────────────────
   const source: "mymusic" | "apple" | null =
     player.isPlaying ? "mymusic"
@@ -204,14 +238,13 @@ export function GlobalMusicPlayer() {
   const isPlay   = source === "mymusic" ? player.isPlaying : am.isPlaying;
   const posMs    = source === "mymusic" ? player.posMs : am.posMs;
   const durMs    = source === "mymusic" ? player.durMs : am.durMs;
-  const vol      = source === "mymusic" ? player.volume : am.volume;
   const progress = durMs > 0 ? posMs / durMs : 0;
 
   const doToggle    = () => source === "mymusic" ? player.togglePlay() : (am.isPlaying ? am.pause() : am.play());
   const doSkipBack  = () => source === "mymusic" ? player.skipBack()   : am.skipToPrevious();
   const doSkipFwd   = () => source === "mymusic" ? player.skipForward() : am.skipToNext();
   const doSeek      = (r: number) => source === "mymusic" ? player.seekTo(r * durMs) : am.seekTo(r * durMs);
-  const doSetVolume = (r: number) => source === "mymusic" ? player.setVolume(r) : am.setVolume(r);
+  const doSetVolume = (r: number) => setSystemVolume(r);
 
   function fmtMs(ms: number) {
     const s = Math.floor(ms / 1000);
@@ -325,7 +358,7 @@ export function GlobalMusicPlayer() {
           <View style={s.volRow}>
             <Feather name="volume" size={14} color="rgba(255,255,255,0.5)" />
             <View style={{ flex: 1 }}>
-              <SliderBar value={vol} onChange={doSetVolume} height={3} thumbSize={12} color="#fff" />
+              <SliderBar value={sysVol} onChange={doSetVolume} height={3} thumbSize={12} color="#fff" />
             </View>
             <Feather name="volume-2" size={14} color="rgba(255,255,255,0.5)" />
           </View>
