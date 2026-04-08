@@ -248,7 +248,7 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(224,49,49,0.08)",
   },
   teamDimmed: { opacity: 0.22 },
-  teamLogo: { width: 62, height: 62 },
+  teamLogo: { width: 66, height: 66 },
 
   row:        { flexDirection: "row", gap: 12, marginTop: 20 },
   flex1:      { flex: 1 },
