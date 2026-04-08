@@ -63,12 +63,16 @@ export default function FootyHighlightsScreen() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const scrollRef    = useRef<ScrollView>(null);
+  const playerRef    = useRef<TextInput>(null);
   const inputFocused = useRef(false);
+  const kbVisible    = useRef(false);
   const inputKbAnim  = useRef(new Animated.Value(0)).current;
 
   function focusInput() {
     inputFocused.current = true;
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
+    if (!kbVisible.current) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
+    }
   }
   function blurInput() {
     inputFocused.current = false;
@@ -76,11 +80,13 @@ export default function FootyHighlightsScreen() {
 
   useFocusEffect(useCallback(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
+      kbVisible.current = true;
       if (inputFocused.current) {
         Animated.timing(inputKbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
       }
     });
     const hide = Keyboard.addListener("keyboardWillHide", () => {
+      kbVisible.current = false;
       Animated.timing(inputKbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
     });
     return () => { show.remove(); hide.remove(); };
@@ -89,6 +95,7 @@ export default function FootyHighlightsScreen() {
   function toggleTeam(name: string) {
     setTeam(prev => prev === name ? null : name);
     setErrMsg(null);
+    setTimeout(() => playerRef.current?.focus(), 100);
   }
 
   async function save() {
@@ -178,6 +185,7 @@ export default function FootyHighlightsScreen() {
           <View style={s.flex1}>
             <Text style={s.label}>Player</Text>
             <TextInput
+              ref={playerRef}
               style={s.input}
               value={player}
               onChangeText={t => { setPlayer(t); setErrMsg(null); }}
