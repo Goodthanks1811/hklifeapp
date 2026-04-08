@@ -58,11 +58,11 @@ export default function FootyHighlightsScreen() {
   const { apiKey }  = useNotion();
   const { width: screenW } = useWindowDimensions();
   const isIpad      = screenW >= 768;
-  const padH        = isIpad ? 56 : 18;
+  const padH        = isIpad ? 80 : 18;
   const gridGap     = isIpad ? 14 : 7;
   const gridW       = Math.min(screenW, MAX_W) - padH * 2;
   const tileW       = (gridW - 2 * gridGap) / 3;
-  const logoSize    = isIpad ? Math.round(tileW * 0.75) : 66;
+  const logoSize    = isIpad ? Math.round(tileW * 0.60) : 66;
 
   const [round,     setRound]     = useState("");
   const [player,    setPlayer]    = useState("");
