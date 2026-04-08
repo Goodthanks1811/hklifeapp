@@ -126,7 +126,7 @@ export default function FootyHighlightsScreen() {
 
       <Animated.ScrollView
         style={s.scroll}
-        contentContainerStyle={[s.content, { paddingBottom: 40 }]}
+        contentContainerStyle={[s.content, { paddingBottom: 16 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -196,7 +196,10 @@ export default function FootyHighlightsScreen() {
           </View>
         ) : null}
 
-        {/* Save button */}
+      </Animated.ScrollView>
+
+      {/* Save button — floats above keyboard */}
+      <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(kbAnim, insets.bottom + 12) as any }]}>
         <Pressable
           style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
           onPress={save}
@@ -210,10 +213,7 @@ export default function FootyHighlightsScreen() {
             <Text style={s.saveTx}>Save Highlight</Text>
           )}
         </Pressable>
-      </Animated.ScrollView>
-
-      {/* Keyboard spacer */}
-      <Animated.View style={{ height: kbAnim }} />
+      </Animated.View>
     </View>
   );
 }
@@ -242,6 +242,7 @@ const s = StyleSheet.create({
     backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
     borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6,
     alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
   },
   teamChosen: {
     borderColor: RED, borderWidth: 1.5,
@@ -262,9 +263,13 @@ const s = StyleSheet.create({
   },
   errTx: { fontSize: 13, color: "#ff6060", fontFamily: "Inter_400Regular", flex: 1 },
 
+  saveWrap: {
+    paddingHorizontal: 18, paddingTop: 12,
+    backgroundColor: BG, borderTopWidth: 1, borderTopColor: BORDER,
+  },
   saveBtn: {
     backgroundColor: RED, borderRadius: 12,
-    paddingVertical: 16, alignItems: "center", marginTop: 24,
+    paddingVertical: 16, alignItems: "center",
   },
   saveBusy: { opacity: 0.5 },
   saveOk:   { backgroundColor: "#1a8a3a" },
