@@ -112,8 +112,8 @@ export default function MusicScreen() {
   const am     = useAppleMusicPlayer();
 
   const playerVisible = !!(player.track || am.nowPlaying);
-  // Mini bar height: ~290px content + safe area padding
-  const playerH = playerVisible ? (240 + Math.max(insets.bottom + 20, 34)) : 0;
+  // Mini bar height: paddingTop(12) + content(~50px) + safe-area paddingBottom
+  const playerH = playerVisible ? (62 + Math.max(insets.bottom + 10, 20)) : 0;
 
   const goHome = () => { openDrawer(); };
 

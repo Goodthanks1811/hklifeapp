@@ -195,7 +195,11 @@ export function GlobalMusicPlayer() {
     // Absorb any drag distance into slideAnim so there's no jump
     slideAnim.setValue(fromOffset);
     dragY.setValue(0);
-    Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 260, useNativeDriver: true })
+    // Animate to (screenHeight - miniBarH) so the panel collapses INTO the mini bar
+    // rather than sliding entirely off screen
+    const screenH  = Dimensions.get("window").height;
+    const miniBarH = 90; // approximate mini bar height; close enough across devices
+    Animated.timing(slideAnim, { toValue: screenH - miniBarH, duration: 300, useNativeDriver: true })
       .start(() => { setExpanded(false); dragY.setValue(0); });
     // dismissing.current is ONLY reset in expand() — guards against re-entry
   }, [slideAnim, dragY]);
