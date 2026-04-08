@@ -19,6 +19,7 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
+import { usePathname } from "expo-router";
 import { useMusicPlayer } from "@/context/MusicPlayerContext";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
 
@@ -26,12 +27,11 @@ const RED    = "#E03131";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const DIM    = "#1e1e1e";
-const GREY   = "#888";
 const BG     = "#0b0b0c";
 
 const SCREEN_W = Dimensions.get("window").width;
 
-// ── Music note SVG (from ui-kit design) ──────────────────────────────────────
+// ── Music note SVG ────────────────────────────────────────────────────────────
 function MusicNoteIcon() {
   return (
     <Svg width={110} height={120} viewBox="0 0 110 120">
@@ -82,7 +82,6 @@ function SliderBar({
 
   const fillWidth = anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp" });
 
-  // Re-measure on every layout change using measureInWindow for true screen coords
   const measure = () => {
     barRef.current?.measureInWindow((x, _y, w) => {
       barLeft.current  = x;
@@ -96,13 +95,11 @@ function SliderBar({
     onPanResponderGrant: (e) => {
       dragging.current = true;
       if (!barWidth.current) return;
-      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-      anim.setValue(ratio);
+      anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
     },
     onPanResponderMove: (e) => {
       if (!barWidth.current) return;
-      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-      anim.setValue(ratio);
+      anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
     },
     onPanResponderRelease: (e) => {
       dragging.current = false;
@@ -135,13 +132,19 @@ function SliderBar({
 
 // ── Global persistent player ──────────────────────────────────────────────────
 export function GlobalMusicPlayer() {
-  const player = useMusicPlayer();
-  const am     = useAppleMusicPlayer();
-  const insets = useSafeAreaInsets();
+  const player   = useMusicPlayer();
+  const am       = useAppleMusicPlayer();
+  const insets   = useSafeAreaInsets();
+  const pathname = usePathname();
 
   const [expanded, setExpanded] = useState(false);
   const [shuffle,  setShuffle]  = useState(false);
   const [repeat,   setRepeat]   = useState(false);
+
+  // Hide mini player (but not full-screen) on music pages
+  const isOnMusicPage = pathname === "/music"
+    || pathname.startsWith("/music-")
+    || pathname.startsWith("/music/");
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
   const slideAnim  = useRef(new Animated.Value(Dimensions.get("window").height)).current;
@@ -149,7 +152,7 @@ export function GlobalMusicPlayer() {
   const dismissing = useRef(false);
 
   const expand = useCallback(() => {
-    dismissing.current = false;
+    dismissing.current = false; // only place we reset — prevents double-fire
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
   }, [slideAnim]);
@@ -158,12 +161,13 @@ export function GlobalMusicPlayer() {
     if (dismissing.current) return;
     dismissing.current = true;
     Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-      .start(() => { setExpanded(false); dragY.setValue(0); dismissing.current = false; });
+      .start(() => { setExpanded(false); dragY.setValue(0); });
+    // NOTE: dismissing.current is NOT reset here — only expand() resets it
+    // This prevents the animation callback from firing twice
   }, [slideAnim, dragY]);
 
-  // Swipe-down pan responder — attached to the full top zone of the screen
+  // Swipe-down pan responder — large top zone
   const dismissPR = useRef(PanResponder.create({
-    // Only claim the gesture when the user is clearly swiping down
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder:  (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
     onPanResponderMove: (_, g) => {
@@ -175,13 +179,12 @@ export function GlobalMusicPlayer() {
         dismissing.current = true;
         dragY.setValue(0);
         Animated.timing(slideAnim, { toValue: Dimensions.get("window").height, duration: 280, useNativeDriver: true })
-          .start(() => { setExpanded(false); dragY.setValue(0); dismissing.current = false; });
+          .start(() => { setExpanded(false); dragY.setValue(0); });
       } else {
         Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
       }
     },
-    onPanResponderTerminate: (_, g) => {
-      // If the OS steals the gesture (e.g. notification centre) also snap back
+    onPanResponderTerminate: () => {
       Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
     },
   })).current;
@@ -197,18 +200,18 @@ export function GlobalMusicPlayer() {
   if (!source) return null;
 
   const title    = source === "mymusic" ? (player.track?.name ?? "") : (am.nowPlaying?.title ?? "");
-  const artist   = source === "mymusic" ? (player.track?.artist ?? "") : (am.nowPlaying?.artist ?? "");
+  const artist   = source === "mymusic" ? ((player.track as any)?.artist ?? "") : (am.nowPlaying?.artist ?? "");
   const isPlay   = source === "mymusic" ? player.isPlaying : am.isPlaying;
   const posMs    = source === "mymusic" ? player.posMs : am.posMs;
   const durMs    = source === "mymusic" ? player.durMs : am.durMs;
   const vol      = source === "mymusic" ? player.volume : am.volume;
   const progress = durMs > 0 ? posMs / durMs : 0;
 
-  const doToggle     = () => source === "mymusic" ? player.togglePlay() : (am.isPlaying ? am.pause() : am.play());
-  const doSkipBack   = () => source === "mymusic" ? player.skipBack()   : am.skipToPrevious();
-  const doSkipFwd    = () => source === "mymusic" ? player.skipForward() : am.skipToNext();
-  const doSeek       = (r: number) => source === "mymusic" ? player.seekTo(r * durMs) : am.seekTo(r * durMs);
-  const doSetVolume  = (r: number) => source === "mymusic" ? player.setVolume(r) : am.setVolume(r);
+  const doToggle    = () => source === "mymusic" ? player.togglePlay() : (am.isPlaying ? am.pause() : am.play());
+  const doSkipBack  = () => source === "mymusic" ? player.skipBack()   : am.skipToPrevious();
+  const doSkipFwd   = () => source === "mymusic" ? player.skipForward() : am.skipToNext();
+  const doSeek      = (r: number) => source === "mymusic" ? player.seekTo(r * durMs) : am.seekTo(r * durMs);
+  const doSetVolume = (r: number) => source === "mymusic" ? player.setVolume(r) : am.setVolume(r);
 
   function fmtMs(ms: number) {
     const s = Math.floor(ms / 1000);
@@ -218,53 +221,29 @@ export function GlobalMusicPlayer() {
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
-      {/* ── Mini bar ── */}
-      {!expanded && (
+      {/* ── Mini bar — only visible when NOT on a music page and NOT expanded ── */}
+      {!expanded && !isOnMusicPage && (
         <Pressable
-          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 20, 34) }]}
+          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20) }]}
           onPress={expand}
         >
-          {/* Track info */}
-          <View style={[s.trackBlock, { marginTop: 0 }]}>
-            <Text style={[s.trackTitle, { fontSize: 15 }]} numberOfLines={1}>{title}</Text>
-            {artist ? <Text style={s.trackSub} numberOfLines={1}>{artist}</Text> : null}
+          {/* Title block — left side */}
+          <View style={s.miniLeft}>
+            <Text style={s.miniTitle} numberOfLines={1}>{title}</Text>
+            {artist ? <Text style={s.miniArtist} numberOfLines={1}>{artist}</Text> : null}
           </View>
 
-          {/* Scrub bar */}
-          <View style={[s.scrubSection, { marginTop: 10 }]}>
-            <SliderBar value={progress} onChange={(r) => doSeek(r)} height={4} thumbSize={14} />
-            <View style={s.timeRow}>
-              <Text style={s.timeText}>{fmtMs(posMs)}</Text>
-              <Text style={s.timeText}>{durMs > 0 ? fmtMs(durMs) : "--:--"}</Text>
-            </View>
-          </View>
-
-          {/* Controls */}
-          <View style={[s.ctrlRow, { marginTop: 16 }]}>
-            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); setShuffle(v => !v); }}>
-              <Ionicons name="shuffle" size={22} color={shuffle ? RED : "#3a3a3a"} />
+          {/* Controls — right side */}
+          <View style={s.miniControls}>
+            <Pressable style={s.miniIconBtn} onPress={(e) => { e.stopPropagation(); doSkipBack(); }}>
+              <Ionicons name="play-skip-back" size={20} color="#fff" />
             </Pressable>
-            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); doSkipBack(); }}>
-              <Ionicons name="play-skip-back" size={30} color="#fff" />
+            <Pressable style={s.miniPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
+              <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
-            <Pressable style={s.bigPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
-              <Ionicons name={isPlay ? "pause" : "play"} size={30} color="#fff" />
+            <Pressable style={s.miniIconBtn} onPress={(e) => { e.stopPropagation(); doSkipFwd(); }}>
+              <Ionicons name="play-skip-forward" size={20} color="#fff" />
             </Pressable>
-            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); doSkipFwd(); }}>
-              <Ionicons name="play-skip-forward" size={30} color="#fff" />
-            </Pressable>
-            <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); setRepeat(v => !v); }}>
-              <Ionicons name="repeat" size={22} color={repeat ? RED : "#3a3a3a"} />
-            </Pressable>
-          </View>
-
-          {/* Volume slider */}
-          <View style={[s.volRow, { marginTop: 18 }]}>
-            <Feather name="volume" size={14} color="#3a3a3a" />
-            <View style={{ flex: 1 }}>
-              <SliderBar value={vol} onChange={doSetVolume} height={3} thumbSize={12} />
-            </View>
-            <Feather name="volume-2" size={14} color="#3a3a3a" />
           </View>
         </Pressable>
       )}
@@ -277,7 +256,7 @@ export function GlobalMusicPlayer() {
             { transform: [{ translateY: Animated.add(slideAnim, dragY) }] },
           ]}
         >
-          {/* Large top drag zone — covers gradient header + some extra space */}
+          {/* Large swipe-down zone */}
           <View
             style={s.dragZoneOuter}
             {...dismissPR.panHandlers}
@@ -316,7 +295,7 @@ export function GlobalMusicPlayer() {
 
           {/* Scrub bar */}
           <View style={s.scrubSection}>
-            <SliderBar value={progress} onChange={(r) => doSeek(r)} height={4} thumbSize={14} />
+            <SliderBar value={progress} onChange={doSeek} height={4} thumbSize={14} />
             <View style={s.timeRow}>
               <Text style={s.timeText}>{fmtMs(posMs)}</Text>
               <Text style={s.timeText}>{durMs > 0 ? fmtMs(durMs) : "--:--"}</Text>
@@ -363,35 +342,50 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999,
   },
 
-  // ── Mini bar — edge-to-edge, anchored to bottom, covers safe area ───────────
+  // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     backgroundColor: ROW,
-    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    borderTopLeftRadius: 14, borderTopRightRadius: 14,
     borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 8,
+    paddingHorizontal: 18, paddingTop: 12,
+    flexDirection: "row", alignItems: "center",
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
+  miniLeft: {
+    flex: 1, marginRight: 12,
+  },
+  miniTitle: {
+    fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff",
+  },
+  miniArtist: {
+    fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
+  },
+  miniControls: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+  },
+  miniIconBtn: {
+    width: 38, height: 38, alignItems: "center", justifyContent: "center",
+  },
+  miniPlayBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: RED,
+    alignItems: "center", justifyContent: "center",
+  },
+
   // ── Full screen ───────────────────────────────────────────────────────────
   fullScreen: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: BG, paddingHorizontal: 22,
   },
-  // Large swipe zone covering the top of the full-screen player
-  dragZoneOuter: {
-    marginHorizontal: -22,
-  },
+  dragZoneOuter: { marginHorizontal: -22 },
   dragHandle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.25)",
     alignSelf: "center", marginBottom: 10,
   },
   gradHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 100,
-    overflow: "hidden",
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 100, overflow: "hidden",
   },
   navLbl: {
     fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center",
