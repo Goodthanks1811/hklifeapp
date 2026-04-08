@@ -167,9 +167,10 @@ function SetLoggerSheet({
   }), [slideAnim]);
 
   // Refs for each set's reps input — lets us auto-focus after Add Set
-  const repsRefs  = useRef<Array<TextInput | null>>([]);
-  const scrollRef = useRef<ScrollView>(null);
-  const notesY    = useRef(0);
+  const repsRefs      = useRef<Array<TextInput | null>>([]);
+  const scrollRef     = useRef<ScrollView>(null);
+  const notesY        = useRef(0);
+  const notesFocused  = useRef(false);
 
   const addSet = () => {
     setSets(prev => {
@@ -310,12 +311,16 @@ function SetLoggerSheet({
                   textAlignVertical="top"
                   scrollEnabled={false}
                   onFocus={() => {
+                    notesFocused.current = true;
                     setTimeout(() => {
                       scrollRef.current?.scrollTo({ y: notesY.current, animated: true });
                     }, 320);
                   }}
+                  onBlur={() => { notesFocused.current = false; }}
                   onContentSizeChange={() => {
-                    scrollRef.current?.scrollToEnd({ animated: true });
+                    if (notesFocused.current) {
+                      scrollRef.current?.scrollToEnd({ animated: true });
+                    }
                   }}
                 />
               </View>
