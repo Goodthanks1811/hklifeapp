@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDrawer } from "@/context/DrawerContext";
+import { useMusicPlayer } from "@/context/MusicPlayerContext";
+import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -106,6 +108,12 @@ export default function MusicScreen() {
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
   const { openDrawer } = useDrawer();
+  const player = useMusicPlayer();
+  const am     = useAppleMusicPlayer();
+
+  const playerVisible = !!(player.track || am.nowPlaying);
+  // Mini bar height: ~145px content + safe area padding
+  const playerH = playerVisible ? (145 + Math.max(insets.bottom, 16)) : 0;
 
   const goHome = () => { openDrawer(); };
 
@@ -113,7 +121,7 @@ export default function MusicScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
 
-        <View style={s.body}>
+        <View style={[s.body, { paddingBottom: 36 + playerH }]}>
           <View style={s.headerArea}>
             <Pressable style={s.eqArea} onPress={goHome}>
               <View style={s.eqWrap}>
@@ -160,7 +168,7 @@ const s = StyleSheet.create({
 
   body: {
     flex: 1, justifyContent: "space-between",
-    paddingTop: 36, paddingBottom: 52,
+    paddingTop: 36,
   },
 
   headerArea: { position: "relative", alignItems: "center" },
