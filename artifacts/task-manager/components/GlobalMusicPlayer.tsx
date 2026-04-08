@@ -213,18 +213,26 @@ export function GlobalMusicPlayer() {
   const collapseRef = useRef(collapse);
   useEffect(() => { collapseRef.current = collapse; }, [collapse]);
 
+  // dy at the moment the pan responder was awarded — used to zero-base the movement
+  const grantDy = useRef(0);
+
   // Swipe-down pan responder — full-screen, only activates on clear downward drag
   const dismissPR = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder:  (_, g) => !dismissing.current && g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.8,
+    onMoveShouldSetPanResponder:  (_, g) => !dismissing.current && g.dy > 5 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+    onPanResponderGrant: (_, g) => {
+      // Capture the dy at award time so we can offset it to zero
+      grantDy.current = g.dy;
+    },
     onPanResponderMove: (_, g) => {
-      // Drive slideAnim directly — single value, no addition needed
-      if (g.dy > 0) slideAnim.setValue(g.dy);
+      // Subtract grantDy so movement starts from 0, eliminating the initial jump
+      const rel = Math.max(0, g.dy - grantDy.current);
+      slideAnim.setValue(rel);
     },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 80 || g.vy > 0.8) {
-        // slideAnim already at g.dy — collapse continues seamlessly from here
-        collapseRef.current();
+      const rel = Math.max(0, g.dy - grantDy.current);
+      if (rel > 80 || g.vy > 0.8) {
+        collapseRef.current(); // slideAnim is already at rel — animation continues from there
       } else {
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
       }
