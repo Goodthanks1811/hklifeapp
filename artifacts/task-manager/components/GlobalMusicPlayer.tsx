@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -169,10 +170,9 @@ export function GlobalMusicPlayer() {
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
 
-  const [expanded,   setExpanded]   = useState(false);
-  const [collapsing, setCollapsing] = useState(false); // true while dismiss animation plays
-  const [shuffle,    setShuffle]    = useState(false);
-  const [repeat,     setRepeat]     = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [shuffle,  setShuffle]  = useState(false);
+  const [repeat,   setRepeat]   = useState(false);
 
   // Hide mini player (but not full-screen) on music pages
   const isOnMusicPage = pathname === "/music"
@@ -180,32 +180,37 @@ export function GlobalMusicPlayer() {
     || pathname.startsWith("/music/");
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
-  const slideAnim  = useRef(new Animated.Value(Dimensions.get("window").height)).current;
-  const dragY      = useRef(new Animated.Value(0)).current;
-  const dismissing = useRef(false);
+  const slideAnim    = useRef(new Animated.Value(Dimensions.get("window").height)).current;
+  const dragY        = useRef(new Animated.Value(0)).current;
+  const miniBarAlpha = useRef(new Animated.Value(1)).current; // 1=visible,0=hidden — set synchronously
+  const dismissing   = useRef(false);
 
   const expand = useCallback(() => {
-    dismissing.current = false; // only place we reset — prevents double-fire
-    setCollapsing(false);
+    dismissing.current = false;          // only place we reset — prevents double-fire
+    miniBarAlpha.setValue(0);            // synchronously hide mini bar before full-screen appears
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
-  }, [slideAnim]);
+  }, [slideAnim, miniBarAlpha]);
 
   // fromOffset: how far the user already dragged — continue smoothly from there
   const collapse = useCallback((fromOffset = 0) => {
     if (dismissing.current) return;
     dismissing.current = true;
-    // Show mini bar immediately so it's visible underneath as the panel slides away
-    setCollapsing(true);
+    // Synchronously reveal mini bar (no React render delay — Animated.Value is immediate)
+    miniBarAlpha.setValue(1);
     // Absorb drag distance so there's no snap-back jump
     slideAnim.setValue(fromOffset);
     dragY.setValue(0);
-    // Slide fully off-screen — mini bar is already visible at the bottom underneath
+    // Slide fully off-screen with acceleration ("sucked in" feel)
     const screenH = Dimensions.get("window").height;
-    Animated.timing(slideAnim, { toValue: screenH, duration: 320, useNativeDriver: true })
-      .start(() => { setExpanded(false); setCollapsing(false); dragY.setValue(0); });
+    Animated.timing(slideAnim, {
+      toValue: screenH,
+      duration: 340,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => { setExpanded(false); dragY.setValue(0); });
     // dismissing.current is ONLY reset in expand() — guards against re-entry
-  }, [slideAnim, dragY]);
+  }, [slideAnim, dragY, miniBarAlpha]);
 
   // Stable ref so the once-created PanResponder always calls the live collapse
   const collapseRef = useRef(collapse);
@@ -267,29 +272,31 @@ export function GlobalMusicPlayer() {
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
-      {/* ── Mini bar — visible on music pages when not expanded, OR while collapsing so
-               the full-screen panel slides down over it (creating the "sucked in" effect) ── */}
-      {(!expanded || collapsing) && isOnMusicPage && (
-        <Pressable
-          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20) }]}
-          onPress={expand}
+      {/* ── Mini bar — always in tree when on music page; opacity controlled by
+               miniBarAlpha (Animated.Value) so it appears synchronously on collapse ── */}
+      {isOnMusicPage && (
+        <Animated.View
+          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20), opacity: miniBarAlpha }]}
+          pointerEvents={expanded ? "none" : "auto"}
         >
-          {/* Music note icon */}
-          <Ionicons name="musical-notes" size={20} color={RED} style={s.miniIcon} />
+          <Pressable style={s.miniBarPressable} onPress={expand}>
+            {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
+            <View style={s.miniIcon}>
+              <Feather name="music" size={16} color={RED} />
+            </View>
 
-          {/* Title + artist — centre-aligned with icon via alignItems on parent */}
-          <View style={s.miniLeft}>
-            <Text style={s.miniTitle} numberOfLines={1}>{title}</Text>
-            {artist ? <Text style={s.miniArtist} numberOfLines={1}>{artist}</Text> : null}
-          </View>
+            {/* Title + artist */}
+            <View style={s.miniLeft}>
+              <Text style={s.miniTitle} numberOfLines={1}>{title}</Text>
+              {artist ? <Text style={s.miniArtist} numberOfLines={1}>{artist}</Text> : null}
+            </View>
 
-          {/* Controls — play/pause only */}
-          <View style={s.miniControls}>
+            {/* Play/pause */}
             <Pressable style={s.miniPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
-          </View>
-        </Pressable>
+          </Pressable>
+        </Animated.View>
       )}
 
       {/* ── Full-screen now playing ── */}
@@ -394,25 +401,26 @@ const s = StyleSheet.create({
     backgroundColor: ROW,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 18, paddingTop: 12,
-    flexDirection: "row", alignItems: "center",
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
+  miniBarPressable: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 14, paddingTop: 12, gap: 12,
+  },
   miniIcon: {
-    marginRight: 12,
+    width: 36, height: 36, borderRadius: 9,
+    backgroundColor: ROW,
+    alignItems: "center", justifyContent: "center",
   },
   miniLeft: {
-    flex: 1, marginRight: 12,
+    flex: 1,
   },
   miniTitle: {
     fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff",
   },
   miniArtist: {
     fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
-  },
-  miniControls: {
-    flexDirection: "row", alignItems: "center", gap: 4,
   },
   miniPlayBtn: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: RED,
