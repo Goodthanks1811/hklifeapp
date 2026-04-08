@@ -28,7 +28,8 @@ let _VolumeManager: any = null;
 try { _VolumeManager = require("react-native-volume-manager").VolumeManager; } catch {}
 
 function useSystemVolume() {
-  const [sysVol, setSysVol] = useState<number>(1);
+  // null = native module not present (Expo Go / pre-build) — don't show slider
+  const [sysVol, setSysVol] = useState<number | null>(_VolumeManager ? 1 : null);
 
   useEffect(() => {
     if (!_VolumeManager) return;
@@ -37,7 +38,7 @@ function useSystemVolume() {
       const val = typeof v === "object" ? (v.volume ?? v) : v;
       setSysVol(Math.max(0, Math.min(1, Number(val))));
     }).catch(() => {});
-    // Listen for hardware button changes
+    // Keep in sync with hardware volume buttons
     const sub = _VolumeManager.addVolumeListener((v: any) => {
       const val = typeof v === "object" ? (v.volume ?? v) : v;
       setSysVol(Math.max(0, Math.min(1, Number(val))));
@@ -361,14 +362,16 @@ export function GlobalMusicPlayer() {
             </Pressable>
           </View>
 
-          {/* Volume slider */}
-          <View style={s.volRow}>
-            <Feather name="volume" size={14} color="rgba(255,255,255,0.5)" />
-            <View style={{ flex: 1 }}>
-              <SliderBar value={sysVol} onChange={doSetVolume} height={3} thumbSize={12} color="#fff" />
+          {/* Volume slider — only rendered when native module is present (EAS build) */}
+          {sysVol !== null && (
+            <View style={s.volRow}>
+              <Feather name="volume" size={14} color="rgba(255,255,255,0.5)" />
+              <View style={{ flex: 1 }}>
+                <SliderBar value={sysVol} onChange={doSetVolume} height={3} thumbSize={12} color="#fff" />
+              </View>
+              <Feather name="volume-2" size={14} color="rgba(255,255,255,0.5)" />
             </View>
-            <Feather name="volume-2" size={14} color="rgba(255,255,255,0.5)" />
-          </View>
+          )}
 
           <View style={{ height: insets.bottom + 24 }} />
         </Animated.View>
