@@ -204,7 +204,7 @@ export function GlobalMusicPlayer() {
       {/* ── Mini bar ── */}
       {!expanded && (
         <Pressable
-          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom * 3, 48) }]}
+          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 20, 34) }]}
           onPress={expand}
         >
           {/* Track info */}
@@ -214,7 +214,7 @@ export function GlobalMusicPlayer() {
           </View>
 
           {/* Scrub bar */}
-          <View style={s.scrubSection}>
+          <View style={[s.scrubSection, { marginTop: 10 }]}>
             <SliderBar value={progress} onChange={(r) => doSeek(r)} height={4} thumbSize={14} />
             <View style={s.timeRow}>
               <Text style={s.timeText}>{fmtMs(posMs)}</Text>
@@ -223,7 +223,7 @@ export function GlobalMusicPlayer() {
           </View>
 
           {/* Controls */}
-          <View style={s.ctrlRow}>
+          <View style={[s.ctrlRow, { marginTop: 16 }]}>
             <Pressable style={s.iconBtn} onPress={(e) => { e.stopPropagation(); setShuffle(v => !v); }}>
               <Ionicons name="shuffle" size={22} color={shuffle ? RED : "#3a3a3a"} />
             </Pressable>
@@ -242,7 +242,7 @@ export function GlobalMusicPlayer() {
           </View>
 
           {/* Volume slider */}
-          <View style={s.volRow}>
+          <View style={[s.volRow, { marginTop: 18 }]}>
             <Feather name="volume" size={14} color="#3a3a3a" />
             <View style={{ flex: 1 }}>
               <SliderBar value={vol} onChange={doSetVolume} height={3} thumbSize={12} />
@@ -354,7 +354,7 @@ const s = StyleSheet.create({
     backgroundColor: ROW,
     borderTopLeftRadius: 18, borderTopRightRadius: 18,
     borderTopWidth: 1, borderTopColor: BORDER,
-    paddingHorizontal: 20, paddingTop: 14,
+    paddingHorizontal: 20, paddingTop: 8,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },

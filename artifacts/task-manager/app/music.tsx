@@ -113,7 +113,7 @@ export default function MusicScreen() {
 
   const playerVisible = !!(player.track || am.nowPlaying);
   // Mini bar height: ~290px content + safe area padding
-  const playerH = playerVisible ? (290 + Math.max(insets.bottom * 3, 48)) : 0;
+  const playerH = playerVisible ? (240 + Math.max(insets.bottom + 20, 34)) : 0;
 
   const goHome = () => { openDrawer(); };
 
