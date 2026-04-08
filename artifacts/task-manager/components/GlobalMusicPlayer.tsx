@@ -247,23 +247,22 @@ export function GlobalMusicPlayer() {
             { transform: [{ translateY: Animated.add(slideAnim, dragY) }] },
           ]}
         >
-          {/* Drag handle */}
-          <View style={[s.dragZone, { paddingTop: insets.top + 10 }]} {...dismissPR.panHandlers}>
-            <View style={s.dragHandle} />
-          </View>
-
-          {/* Gradient header */}
-          <View style={s.gradHeader}>
+          {/* Gradient top — covers drag handle all the way down through the title */}
+          <View style={[s.gradHeader, { paddingTop: insets.top + 6 }]}>
             <LinearGradient
               colors={[
-                "rgba(224,49,49,0.90)", "rgba(215,42,42,0.74)",
-                "rgba(190,28,28,0.56)", "rgba(145,16,16,0.38)",
-                "rgba(90,8,8,0.20)",   "rgba(35,3,3,0.08)", "#0f0f0f",
+                "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
+                "rgba(190,28,28,0.58)", "rgba(145,16,16,0.38)",
+                "rgba(90,8,8,0.20)",   "rgba(35,3,3,0.08)", BG,
               ]}
-              locations={[0, 0.18, 0.36, 0.54, 0.70, 0.85, 1]}
+              locations={[0, 0.18, 0.36, 0.54, 0.70, 0.86, 1]}
               start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
               style={StyleSheet.absoluteFillObject}
             />
+            {/* Drag handle sits inside the gradient zone */}
+            <View style={s.dragZone} {...dismissPR.panHandlers}>
+              <View style={s.dragHandle} />
+            </View>
             <Text style={s.navLbl}>Now Playing</Text>
           </View>
 
@@ -375,11 +374,11 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, height: SCREEN_H,
     backgroundColor: BG, paddingHorizontal: 22,
   },
-  dragZone: { alignItems: "center", paddingBottom: 8 },
-  dragHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)" },
+  dragZone: { alignItems: "center", paddingBottom: 10 },
+  dragHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.25)" },
   gradHeader: {
     marginHorizontal: -22, paddingHorizontal: 20,
-    paddingTop: 0, paddingBottom: 28, overflow: "hidden", backgroundColor: "#0f0f0f",
+    paddingBottom: 30, overflow: "hidden",
   },
   navLbl: {
     fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center",
