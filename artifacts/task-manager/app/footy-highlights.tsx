@@ -277,7 +277,7 @@ const s = StyleSheet.create({
   teamCell: {
     width: "30%", flexGrow: 1,
     backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 10, paddingVertical: 4, paddingHorizontal: 2,
+    borderRadius: 10, paddingVertical: 4, paddingHorizontal: 1,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
   },
