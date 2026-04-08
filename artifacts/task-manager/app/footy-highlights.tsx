@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
+  Easing,
   Keyboard,
   Pressable,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Svg, { Path as SvgPath } from "react-native-svg";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -31,6 +33,17 @@ const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
   : "";
 
+const T_FADE_IN    = 200;
+const T_SPINNER_IN = 250;
+const T_MIN_SPIN   = 2000;
+const T_POP        = 420;
+const T_TICK       = 400;
+const T_HOLD       = 700;
+const T_FADE_OUT   = 450;
+const SPINNER_SIZE   = 72;
+const SPINNER_STROKE = 8;
+const CIRCLE_SIZE    = 74;
+
 const TEAMS = [
   { name: "Broncos",    logo: require("../assets/images/nrl/Broncos.webp") },
   { name: "Bulldogs",   logo: require("../assets/images/nrl/Bulldogs.webp") },
@@ -51,8 +64,6 @@ const TEAMS = [
   { name: "Warriors",   logo: require("../assets/images/nrl/Warriors.webp") },
 ];
 
-type SaveState = "idle" | "saving" | "ok" | "err";
-
 export default function FootyHighlightsScreen() {
   const insets      = useSafeAreaInsets();
   const { apiKey }  = useNotion();
@@ -62,12 +73,21 @@ export default function FootyHighlightsScreen() {
   const gridGap     = isIpad ? 14 : 7;
   const logoSize    = isIpad ? 96 : 66;
 
-  const [round,     setRound]     = useState("");
-  const [player,    setPlayer]    = useState("");
-  const [minute,    setMinute]    = useState("");
-  const [team,      setTeam]      = useState<string | null>(null);
-  const [errMsg,    setErrMsg]    = useState<string | null>(null);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [round,        setRound]        = useState("");
+  const [player,       setPlayer]       = useState("");
+  const [minute,       setMinute]       = useState("");
+  const [team,         setTeam]         = useState<string | null>(null);
+  const [errMsg,       setErrMsg]       = useState<string | null>(null);
+  const [saveDisabled, setSaveDisabled] = useState(false);
+  const [loaderVisible, setLoaderVisible] = useState(false);
+
+  const overlayOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerOpacity  = useRef(new Animated.Value(0)).current;
+  const spinnerRotation = useRef(new Animated.Value(0)).current;
+  const circleScale     = useRef(new Animated.Value(0)).current;
+  const circleOpacity   = useRef(new Animated.Value(0)).current;
+  const tickScale       = useRef(new Animated.Value(0)).current;
+  const spinLoopRef     = useRef<Animated.CompositeAnimation | null>(null);
 
   const scrollRef    = useRef<ScrollView>(null);
   const playerRef    = useRef<TextInput>(null);
@@ -102,6 +122,59 @@ export default function FootyHighlightsScreen() {
     return () => { show.remove(); hide.remove(); };
   }, []));
 
+  const resetLoaderValues = useCallback(() => {
+    overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
+    spinnerRotation.setValue(0); circleScale.setValue(0);
+    circleOpacity.setValue(0);   tickScale.setValue(0);
+  }, [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale]);
+
+  const runLoader = useCallback(
+    (apiPromise: Promise<void>): Promise<{ success: boolean; error?: string }> =>
+      new Promise((resolve) => {
+        resetLoaderValues();
+        setLoaderVisible(true);
+
+        let apiResult: { success: boolean; error?: string } | null = null;
+        const trackedApi = apiPromise
+          .then(() => { apiResult = { success: true }; })
+          .catch((e: Error) => { apiResult = { success: false, error: e.message || "Save failed." }; });
+
+        spinLoopRef.current = Animated.loop(
+          Animated.timing(spinnerRotation, { toValue: 1, duration: 600, easing: Easing.linear, useNativeDriver: true })
+        );
+        spinLoopRef.current.start();
+
+        Animated.timing(overlayOpacity, { toValue: 1, duration: T_FADE_IN, useNativeDriver: true }).start(() => {
+          Animated.timing(spinnerOpacity, { toValue: 1, duration: T_SPINNER_IN, useNativeDriver: true }).start(() => {
+            const minSpin = new Promise<void>((r) => setTimeout(r, T_MIN_SPIN));
+            Promise.all([trackedApi, minSpin]).then(() => {
+              spinLoopRef.current?.stop();
+              if (apiResult?.success) {
+                Animated.parallel([
+                  Animated.timing(spinnerOpacity, { toValue: 0, duration: T_POP, useNativeDriver: true }),
+                  Animated.timing(circleOpacity,  { toValue: 1, duration: T_POP * 0.4, useNativeDriver: true }),
+                  Animated.timing(circleScale, { toValue: 1, duration: T_POP, easing: Easing.out(Easing.back(1.7)), useNativeDriver: true }),
+                ]).start(() => {
+                  Animated.timing(tickScale, { toValue: 1, duration: T_TICK, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }).start(() => {
+                    setTimeout(() => {
+                      Animated.timing(overlayOpacity, { toValue: 0, duration: T_FADE_OUT, useNativeDriver: true }).start(() => {
+                        setLoaderVisible(false); resetLoaderValues(); resolve({ success: true });
+                      });
+                    }, T_HOLD);
+                  });
+                });
+              } else {
+                Animated.timing(overlayOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
+                  setLoaderVisible(false); resetLoaderValues(); resolve({ success: false, error: apiResult?.error });
+                });
+              }
+            });
+          });
+        });
+      }),
+    [overlayOpacity, spinnerOpacity, spinnerRotation, circleScale, circleOpacity, tickScale, resetLoaderValues]
+  );
+
   function toggleTeam(name: string) {
     setTeam(prev => prev === name ? null : name);
     setErrMsg(null);
@@ -117,10 +190,10 @@ export default function FootyHighlightsScreen() {
     if (!apiKey)        return setErrMsg("Notion key not configured.");
 
     Keyboard.dismiss();
-    setSaveState("saving");
+    setSaveDisabled(true);
 
-    try {
-      const res = await fetch(`${BASE_URL}/api/notion/footy-highlight`, {
+    const result = await runLoader(
+      fetch(`${BASE_URL}/api/notion/footy-highlight`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
         body: JSON.stringify({
@@ -131,21 +204,21 @@ export default function FootyHighlightsScreen() {
           minute:   minute.trim(),
           recorded: false,
         }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setSaveState("ok");
-      setTimeout(() => {
-        setSaveState("idle");
-        setRound(""); setPlayer(""); setMinute(""); setTeam(null);
-      }, 1800);
-    } catch (e: any) {
-      setSaveState("err");
-      setErrMsg(e?.message ?? "Save failed.");
-      setTimeout(() => setSaveState("idle"), 1500);
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+      })
+    );
+
+    setSaveDisabled(false);
+    if (result.success) {
+      setRound(""); setPlayer(""); setMinute(""); setTeam(null);
+    } else {
+      setErrMsg(result.error ?? "Save failed.");
     }
   }
 
   const hasSelection = !!team;
+  const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -235,20 +308,30 @@ export default function FootyHighlightsScreen() {
       <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(inputKbAnim, insets.bottom + 12) as any }]}>
         <View style={[s.saveInner, { paddingHorizontal: padH }]}>
           <Pressable
-            style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
+            style={[s.saveBtn, saveDisabled && s.saveBtnDisabled]}
             onPress={save}
-            disabled={saveState === "saving"}
+            disabled={saveDisabled}
           >
-            {saveState === "saving" ? (
-              <Text style={s.saveTx}>Saving…</Text>
-            ) : saveState === "ok" ? (
-              <Text style={s.saveTx}>✓ Saved</Text>
-            ) : (
-              <Text style={s.saveTx}>Save Highlight</Text>
-            )}
+            <Text style={s.saveTx}>Save Highlight</Text>
           </Pressable>
         </View>
       </Animated.View>
+
+      {/* Loader overlay */}
+      {loaderVisible && (
+        <Animated.View style={[s.loaderOverlay, { opacity: overlayOpacity }]} pointerEvents="auto">
+          <Animated.View style={[s.spinnerWrap, { opacity: spinnerOpacity, transform: [{ rotate: spinDeg }] }]}>
+            <View style={s.spinnerRing} />
+          </Animated.View>
+          <Animated.View style={[s.circleWrap, { opacity: circleOpacity, transform: [{ scale: circleScale }] }]}>
+            <Animated.View style={{ transform: [{ scale: tickScale }] }}>
+              <Svg width={68} height={68} viewBox="0 0 68 68">
+                <SvgPath fill="none" stroke="#000" strokeWidth={9.5} strokeLinecap="round" strokeLinejoin="round" d="M17 35.9 L26.4 47.2 L48.2 21.7" />
+              </Svg>
+            </Animated.View>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -309,10 +392,33 @@ const s = StyleSheet.create({
     backgroundColor: RED, borderRadius: 12,
     paddingVertical: 16, alignItems: "center",
   },
-  saveBusy: { opacity: 0.5 },
-  saveOk:   { backgroundColor: "#1a8a3a" },
+  saveBtnDisabled: { opacity: 0.42 },
   saveTx: {
     color: "#fff", fontSize: 17, fontWeight: "700",
     letterSpacing: 0.3, fontFamily: "Inter_700Bold",
+  },
+
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(10,10,10,0.78)",
+    alignItems: "center", justifyContent: "center", zIndex: 999,
+  },
+  spinnerWrap: {
+    width: SPINNER_SIZE, height: SPINNER_SIZE,
+    alignItems: "center", justifyContent: "center",
+    position: "absolute",
+  },
+  spinnerRing: {
+    width: SPINNER_SIZE, height: SPINNER_SIZE, borderRadius: SPINNER_SIZE / 2,
+    borderWidth: SPINNER_STROKE,
+    borderColor: "#ff1e1e",
+    borderTopColor: "rgba(255,30,30,0.15)",
+  },
+  circleWrap: {
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
+    backgroundColor: RED,
+    alignItems: "center", justifyContent: "center",
+    position: "absolute",
+    borderWidth: 1.5, borderColor: RED,
   },
 });
