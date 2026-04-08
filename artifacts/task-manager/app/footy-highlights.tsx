@@ -2,7 +2,9 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  InputAccessoryView,
   Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -285,6 +287,7 @@ export default function FootyHighlightsScreen() {
               value={minute}
               onChangeText={t => { setMinute(t); setErrMsg(null); }}
               keyboardType={isIpad ? "default" : "number-pad"}
+              inputAccessoryViewID={!isIpad && Platform.OS === "ios" ? "minuteHideBar" : undefined}
               placeholder="0"
               placeholderTextColor={MUTED}
               returnKeyType="done"
@@ -316,6 +319,11 @@ export default function FootyHighlightsScreen() {
           </Pressable>
         </View>
       </Animated.View>
+
+      {/* Empty accessory bar — hides the Done button above number-pad on iPhone */}
+      {Platform.OS === "ios" && !isIpad && (
+        <InputAccessoryView nativeID="minuteHideBar" />
+      )}
 
       {/* Loader overlay */}
       {loaderVisible && (
