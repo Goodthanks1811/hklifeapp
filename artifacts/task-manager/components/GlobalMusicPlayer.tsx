@@ -303,6 +303,9 @@ export function GlobalMusicPlayer() {
             </View>
           </View>
 
+          {/* Flex spacer — pushes title + controls down */}
+          <View style={{ flex: 1 }} />
+
           {/* Track info */}
           <View style={s.trackBlock}>
             <Text style={s.trackTitle} numberOfLines={1}>{title}</Text>
@@ -317,9 +320,6 @@ export function GlobalMusicPlayer() {
               <Text style={s.timeText}>{durMs > 0 ? fmtMs(durMs) : "--:--"}</Text>
             </View>
           </View>
-
-          {/* Flex spacer — pushes controls to bottom */}
-          <View style={{ flex: 1 }} />
 
           {/* Controls */}
           <View style={s.ctrlRow}>
@@ -397,11 +397,11 @@ const s = StyleSheet.create({
   },
   artZone: { marginTop: 8, alignItems: "center" },
   artBg: {
-    width: SCREEN_W - 80, height: SCREEN_W - 80, borderRadius: 16,
+    width: SCREEN_W - 56, height: SCREEN_W - 56, borderRadius: 16,
     backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#222",
     alignItems: "center", justifyContent: "center", overflow: "hidden",
   },
-  trackBlock: { marginTop: 20 },
+  trackBlock: { marginTop: 0 },
   trackTitle: {
     fontSize: 22, fontWeight: "700", color: "#fff",
     fontFamily: "Inter_700Bold", textAlign: "center",
@@ -410,12 +410,12 @@ const s = StyleSheet.create({
     fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 8,
     fontFamily: "Inter_400Regular", textAlign: "center",
   },
-  scrubSection: { marginTop: 24 },
+  scrubSection: { marginTop: 16 },
   timeRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   timeText: { fontSize: 10, color: "#fff", letterSpacing: 0.5, fontFamily: "Inter_600SemiBold" },
   ctrlRow: {
     flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginTop: 0,
+    justifyContent: "space-between", marginTop: 16,
   },
   iconBtn:    { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   bigPlayBtn: {
