@@ -180,37 +180,34 @@ export function GlobalMusicPlayer() {
     || pathname.startsWith("/music/");
 
   // ── Full-screen slide animation (hooks MUST be before early return) ──────
+  // Single Animated.Value drives everything — no Animated.add, no discontinuity on dismiss
   const slideAnim    = useRef(new Animated.Value(Dimensions.get("window").height)).current;
-  const dragY        = useRef(new Animated.Value(0)).current;
   const miniBarAlpha = useRef(new Animated.Value(1)).current; // 1=visible,0=hidden — set synchronously
   const dismissing   = useRef(false);
 
   const expand = useCallback(() => {
-    dismissing.current = false;          // only place we reset — prevents double-fire
-    miniBarAlpha.setValue(0);            // synchronously hide mini bar before full-screen appears
+    dismissing.current = false;
+    miniBarAlpha.setValue(0);   // hide mini bar synchronously before full-screen appears
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
   }, [slideAnim, miniBarAlpha]);
 
-  // fromOffset: how far the user already dragged — continue smoothly from there
-  const collapse = useCallback((fromOffset = 0) => {
+  const collapse = useCallback(() => {
     if (dismissing.current) return;
     dismissing.current = true;
-    // Synchronously reveal mini bar (no React render delay — Animated.Value is immediate)
+    // Reveal mini bar synchronously — Animated.Value has no render delay
     miniBarAlpha.setValue(1);
-    // Absorb drag distance so there's no snap-back jump
-    slideAnim.setValue(fromOffset);
-    dragY.setValue(0);
-    // Slide fully off-screen with acceleration ("sucked in" feel)
+    // slideAnim is already at the current drag position (set via setValue during move),
+    // so Animated.timing picks up exactly from there — zero discontinuity
     const screenH = Dimensions.get("window").height;
     Animated.timing(slideAnim, {
       toValue: screenH,
       duration: 340,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
-    }).start(() => { setExpanded(false); dragY.setValue(0); });
-    // dismissing.current is ONLY reset in expand() — guards against re-entry
-  }, [slideAnim, dragY, miniBarAlpha]);
+    }).start(() => { setExpanded(false); });
+    // dismissing.current is ONLY reset in expand()
+  }, [slideAnim, miniBarAlpha]);
 
   // Stable ref so the once-created PanResponder always calls the live collapse
   const collapseRef = useRef(collapse);
@@ -221,19 +218,20 @@ export function GlobalMusicPlayer() {
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder:  (_, g) => !dismissing.current && g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.8,
     onPanResponderMove: (_, g) => {
-      if (g.dy > 0) dragY.setValue(g.dy);
+      // Drive slideAnim directly — single value, no addition needed
+      if (g.dy > 0) slideAnim.setValue(g.dy);
     },
     onPanResponderRelease: (_, g) => {
       if (g.dy > 80 || g.vy > 0.8) {
-        // Pass current drag so animation continues from finger position, no jump
-        collapseRef.current(Math.max(0, g.dy));
+        // slideAnim already at g.dy — collapse continues seamlessly from here
+        collapseRef.current();
       } else {
-        Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
       }
     },
     onPanResponderTerminate: () => {
       if (!dismissing.current) {
-        Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
       }
     },
   })).current;
@@ -304,7 +302,7 @@ export function GlobalMusicPlayer() {
         <Animated.View
           style={[
             s.fullScreen,
-            { transform: [{ translateY: Animated.add(slideAnim, dragY) }] },
+            { transform: [{ translateY: slideAnim }] },
           ]}
           {...dismissPR.panHandlers}
         >
