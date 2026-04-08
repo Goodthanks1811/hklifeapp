@@ -156,6 +156,34 @@ public class AppleMusicKitModule: Module {
         promise.resolve(nil)
       }
     }
+
+    AsyncFunction("pause") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.pause()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("resumePlay") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.play()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("skipToNext") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.skipToNextItem()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("skipToPrevious") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.skipToPreviousItem()
+        promise.resolve(nil)
+      }
+    }
   }
 }
 `;

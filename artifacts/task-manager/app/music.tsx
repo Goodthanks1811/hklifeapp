@@ -16,6 +16,7 @@ import { useDrawer } from "@/context/DrawerContext";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
 import { useMusicPlayer } from "@/context/MusicPlayerContext";
+import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
 
 const RED    = "#E8230A";
 const BG     = "#111111";
@@ -114,12 +115,15 @@ export default function MusicScreen() {
   const isTablet = Dimensions.get("window").width >= 768;
   const { openDrawer } = useDrawer();
   const player  = useMusicPlayer();
+  const am      = useAppleMusicPlayer();
 
   const goHome = () => {
     openDrawer();
   };
 
   const hasTrack = player.track !== null;
+  // Apple Music is the active source when it's set and My Music isn't playing
+  const showApple = am.nowPlaying !== null && !hasTrack;
 
   // ── Smooth scrubber ─────────────────────────────────────────────────────────
   const barRef    = useRef<View>(null);
@@ -207,7 +211,7 @@ export default function MusicScreen() {
           </View>
         </View>
 
-        {/* Now playing panel — always visible, live data when playing */}
+        {/* Now playing panel — My Music or Apple Music, whichever is active */}
         <View style={[s.playerPanel, { paddingBottom: insets.bottom + 12 }]}>
           <View style={s.npTop}>
             <View style={s.npArt}>
@@ -215,45 +219,97 @@ export default function MusicScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.npTitle} numberOfLines={1}>
-                {hasTrack ? player.track!.name : "Nothing playing"}
+                {hasTrack
+                  ? player.track!.name
+                  : showApple
+                    ? am.nowPlaying!.title
+                    : "Nothing playing"}
               </Text>
-              {!hasTrack && (
-                <Text style={s.npArtist} numberOfLines={1}>Play a track in My Music</Text>
-              )}
+              <Text style={s.npArtist} numberOfLines={1}>
+                {hasTrack
+                  ? ""
+                  : showApple
+                    ? am.nowPlaying!.artist
+                    : "Play a track in My Music or Apple Music"}
+              </Text>
             </View>
           </View>
-          <View
-            ref={barRef}
-            style={s.progressHitArea}
-            onLayout={() => {
-              barRef.current?.measure((_fx, _fy, w, _h, px) => {
-                barLeft.current  = px;
-                barWidth.current = w;
-              });
-            }}
-            {...scrubber.panHandlers}
-          >
-            <View style={s.progressTrack}>
-              <Animated.View style={[s.progressFill, { width: fillWidth }]}>
-                <View style={s.progressThumb} />
-              </Animated.View>
-            </View>
-          </View>
+
+          {/* Progress bar — only for My Music (we have position data) */}
           {hasTrack && (
-            <View style={s.timeRow}>
-              <Text style={s.timeText}>{fmtMs(player.posMs)}</Text>
-              <Text style={s.timeText}>{player.durMs > 0 ? fmtMs(player.durMs) : "--:--"}</Text>
+            <>
+              <View
+                ref={barRef}
+                style={s.progressHitArea}
+                onLayout={() => {
+                  barRef.current?.measure((_fx, _fy, w, _h, px) => {
+                    barLeft.current  = px;
+                    barWidth.current = w;
+                  });
+                }}
+                {...scrubber.panHandlers}
+              >
+                <View style={s.progressTrack}>
+                  <Animated.View style={[s.progressFill, { width: fillWidth }]}>
+                    <View style={s.progressThumb} />
+                  </Animated.View>
+                </View>
+              </View>
+              <View style={s.timeRow}>
+                <Text style={s.timeText}>{fmtMs(player.posMs)}</Text>
+                <Text style={s.timeText}>{player.durMs > 0 ? fmtMs(player.durMs) : "--:--"}</Text>
+              </View>
+            </>
+          )}
+
+          {/* Thin static bar for Apple Music (no position data available) */}
+          {showApple && (
+            <View style={[s.progressHitArea, { pointerEvents: "none" }]}>
+              <View style={s.progressTrack}>
+                <View style={[s.progressFill, { width: "40%" }]} />
+              </View>
             </View>
           )}
+
           <View style={s.controls}>
-            <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipBack()}>
-              <Ionicons name="play-skip-back" size={30} color={hasTrack ? "#fff" : "rgba(255,255,255,0.2)"} />
+            <Pressable
+              style={s.ctrlBtn}
+              onPress={() => {
+                if (hasTrack) player.skipBack();
+                else if (showApple) am.skipToPrevious();
+              }}
+            >
+              <Ionicons
+                name="play-skip-back"
+                size={30}
+                color={(hasTrack || showApple) ? "#fff" : "rgba(255,255,255,0.2)"}
+              />
             </Pressable>
-            <Pressable style={s.playBtn} onPress={() => hasTrack && player.togglePlay()}>
-              <Ionicons name={player.isPlaying ? "pause" : "play"} size={30} color="#fff" />
+            <Pressable
+              style={s.playBtn}
+              onPress={() => {
+                if (hasTrack) player.togglePlay();
+                else if (showApple) am.isPlaying ? am.pause() : am.play();
+              }}
+            >
+              <Ionicons
+                name={(hasTrack ? player.isPlaying : am.isPlaying) ? "pause" : "play"}
+                size={30}
+                color="#fff"
+              />
             </Pressable>
-            <Pressable style={s.ctrlBtn} onPress={() => hasTrack && player.skipForward()}>
-              <Ionicons name="play-skip-forward" size={30} color={hasTrack ? "#fff" : "rgba(255,255,255,0.2)"} />
+            <Pressable
+              style={s.ctrlBtn}
+              onPress={() => {
+                if (hasTrack) player.skipForward();
+                else if (showApple) am.skipToNext();
+              }}
+            >
+              <Ionicons
+                name="play-skip-forward"
+                size={30}
+                color={(hasTrack || showApple) ? "#fff" : "rgba(255,255,255,0.2)"}
+              />
             </Pressable>
           </View>
         </View>

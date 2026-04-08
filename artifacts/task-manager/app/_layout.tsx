@@ -30,6 +30,7 @@ import { BiometricProvider, useBiometric } from "@/context/BiometricContext";
 import { HeaderImageProvider } from "@/context/HeaderImageContext";
 import { GoogleCalendarProvider } from "@/context/GoogleCalendarContext";
 import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
+import { AppleMusicPlayerProvider } from "@/context/AppleMusicPlayerContext";
 import { PlaybackService } from "@/service";
 
 // Guard RNTP registration — native module doesn't exist in Expo Go
@@ -158,10 +159,12 @@ export default function RootLayout() {
                 <DrawerConfigProvider>
                   <DrawerProvider>
                     <MusicPlayerProvider>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <RootLayoutNav />
-                        <StartupGate />
-                      </GestureHandlerRootView>
+                      <AppleMusicPlayerProvider>
+                        <GestureHandlerRootView style={{ flex: 1 }}>
+                          <RootLayoutNav />
+                          <StartupGate />
+                        </GestureHandlerRootView>
+                      </AppleMusicPlayerProvider>
                     </MusicPlayerProvider>
                   </DrawerProvider>
                 </DrawerConfigProvider>

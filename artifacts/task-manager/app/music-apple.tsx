@@ -12,9 +12,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -39,7 +40,6 @@ try {
 }
 
 // ── Fuzzy match ───────────────────────────────────────────────────────────────
-// Returns true if `filter` (the saved name) fuzzy-matches `playlistName`.
 function fuzzyMatch(playlistName: string, filter: string): boolean {
   const norm = (s: string) =>
     s.toLowerCase().trim().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
@@ -48,7 +48,6 @@ function fuzzyMatch(playlistName: string, filter: string): boolean {
   if (!f) return false;
   if (p === f) return true;
   if (p.includes(f) || f.includes(p)) return true;
-  // Word overlap — passes if ≥60% of the shorter name's words appear in the other
   const pWords = p.split(" ").filter(w => w.length > 1);
   const fWords = f.split(" ").filter(w => w.length > 1);
   if (!pWords.length || !fWords.length) return false;
@@ -78,8 +77,8 @@ function EqBar({ index }: { index: number }) {
 // ── Format duration ───────────────────────────────────────────────────────────
 function fmtDuration(secs: number): string {
   const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  const sec = Math.floor(secs % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
 // ── Playlist row with expandable songs ────────────────────────────────────────
@@ -92,10 +91,10 @@ function PlaylistRow({
   pl: ApplePlaylist;
   playingPlaylistId: string | null;
   playingSongIndex: number | null;
-  onPlaySong: (pl: ApplePlaylist, songIndex: number) => void;
+  onPlaySong: (pl: ApplePlaylist, songIndex: number, songs: AppleSong[]) => void;
 }) {
-  const [expanded, setExpanded]   = useState(false);
-  const [songs, setSongs]         = useState<AppleSong[]>([]);
+  const [expanded, setExpanded]         = useState(false);
+  const [songs, setSongs]               = useState<AppleSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(false);
   const isThisPlaying = playingPlaylistId === pl.id;
 
@@ -114,7 +113,7 @@ function PlaylistRow({
   };
 
   return (
-    <View style={[s.card, isThisPlaying && s.cardPlaying]}>
+    <View style={s.card}>
       {/* Playlist header row */}
       <Pressable
         style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
@@ -155,7 +154,7 @@ function PlaylistRow({
                 <Pressable
                   key={song.id}
                   style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }, isActiveSong && s.songRowActive]}
-                  onPress={() => onPlaySong(pl, idx)}
+                  onPress={() => onPlaySong(pl, idx, songs)}
                 >
                   <View style={s.songIndex}>
                     {isActiveSong
@@ -185,20 +184,57 @@ function PlaylistRow({
   );
 }
 
+// ── Mini player bar ───────────────────────────────────────────────────────────
+function MiniPlayer({ insetBottom }: { insetBottom: number }) {
+  const am = useAppleMusicPlayer();
+  if (!am.nowPlaying) return null;
+  return (
+    <View style={[s.miniPlayer, { paddingBottom: insetBottom + 10 }]}>
+      <View style={s.miniArt}>
+        <Feather name="music" size={16} color={RED} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={s.miniTitle} numberOfLines={1}>{am.nowPlaying.title}</Text>
+        <Text style={s.miniArtist} numberOfLines={1}>{am.nowPlaying.artist}</Text>
+      </View>
+      <Pressable style={s.miniBtn} onPress={() => am.skipToPrevious()}>
+        <Ionicons name="play-skip-back" size={20} color="#fff" />
+      </Pressable>
+      <Pressable
+        style={[s.miniBtn, s.miniPlayBtn]}
+        onPress={() => am.isPlaying ? am.pause() : am.play()}
+      >
+        <Ionicons name={am.isPlaying ? "pause" : "play"} size={20} color="#fff" />
+      </Pressable>
+      <Pressable style={s.miniBtn} onPress={() => am.skipToNext()}>
+        <Ionicons name="play-skip-forward" size={20} color="#fff" />
+      </Pressable>
+    </View>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicAppleScreen() {
   const goBack = () => router.back();
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
+  const am       = useAppleMusicPlayer();
 
   const [authStatus, setAuthStatus]   = useState<AuthStatus>("loading");
   const [playlists, setPlaylists]     = useState<ApplePlaylist[]>([]);
   const [errorMsg, setErrorMsg]       = useState<string | null>(null);
 
-  // Track which song is playing: {playlistId, songIndex} — null = not playing
   const [playingPlaylistId, setPlayingPlaylistId] = useState<string | null>(null);
   const [playingSongIndex, setPlayingSongIndex]   = useState<number | null>(null);
   const [loadingKey, setLoadingKey]               = useState<string | null>(null);
+
+  // Sync from context (e.g. if user navigated away and came back)
+  useEffect(() => {
+    if (am.nowPlaying) {
+      setPlayingPlaylistId(am.nowPlaying.playlistId);
+      setPlayingSongIndex(am.nowPlaying.songIndex);
+    }
+  }, []);
 
   const fetchPlaylists = useCallback(async () => {
     setErrorMsg(null);
@@ -212,7 +248,6 @@ export default function MusicAppleScreen() {
         if (namesRaw) {
           const names: string[] = JSON.parse(namesRaw);
           if (names.length > 0) {
-            // Fuzzy match — each playlist passes if ANY filter name matches it
             setPlaylists(all.filter(p => names.some(n => fuzzyMatch(p.name, n))));
             return;
           }
@@ -227,7 +262,7 @@ export default function MusicAppleScreen() {
 
   useFocusEffect(useCallback(() => { fetchPlaylists(); }, [fetchPlaylists]));
 
-  const handlePlaySong = async (pl: ApplePlaylist, songIndex: number) => {
+  const handlePlaySong = async (pl: ApplePlaylist, songIndex: number, songs: AppleSong[]) => {
     if (!AppleMusicKit || loadingKey) return;
     const key = `${pl.id}:${songIndex}`;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -236,6 +271,16 @@ export default function MusicAppleScreen() {
       await AppleMusicKit.playSongInPlaylist(pl.id, songIndex);
       setPlayingPlaylistId(pl.id);
       setPlayingSongIndex(songIndex);
+      const song = songs[songIndex];
+      // Update global Apple Music context so home screen player stays in sync
+      am.setNowPlaying({
+        playlistId: pl.id,
+        playlistName: pl.name,
+        songIndex,
+        songs: songs.map(s => ({ id: s.id, title: s.title, artist: s.artist, duration: s.duration })),
+        title: song?.title ?? "",
+        artist: song?.artist ?? "",
+      });
     } catch {
       // ignore
     } finally {
@@ -293,7 +338,7 @@ export default function MusicAppleScreen() {
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 32, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 16, paddingHorizontal: 16 }}
       >
         {playlists.map((pl) => (
           <PlaylistRow
@@ -320,6 +365,7 @@ export default function MusicAppleScreen() {
         </View>
         {renderBody()}
       </View>
+      <MiniPlayer insetBottom={insets.bottom} />
     </View>
   );
 }
@@ -375,16 +421,12 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  // Playlist card (wraps header row + expanded songs)
+  // Playlist card — no red tint on the whole card
   card: {
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, marginBottom: 8,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
-  },
-  cardPlaying: {
-    borderColor: "rgba(224,49,49,0.35)",
-    backgroundColor: "rgba(224,49,49,0.05)",
   },
 
   row: {
@@ -412,7 +454,7 @@ const s = StyleSheet.create({
   songList: { paddingBottom: 8 },
   songDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 14, marginBottom: 4 },
   songLoading: { paddingVertical: 16, alignItems: "center" },
-  songEmpty:   { color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", paddingVertical: 12, fontFamily: "Inter_400Regular" },
+  songEmpty: { color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", paddingVertical: 12, fontFamily: "Inter_400Regular" },
 
   songRow: {
     flexDirection: "row", alignItems: "center",
@@ -428,4 +470,26 @@ const s = StyleSheet.create({
   songTitleActive: { color: RED },
   songArtist: { fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular", marginTop: 1 },
   songDuration: { fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
+
+  // Mini player
+  miniPlayer: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: ROW,
+    borderTopWidth: 1, borderTopColor: BORDER,
+    paddingHorizontal: 16, paddingTop: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.4, shadowRadius: 10,
+  },
+  miniArt: {
+    width: 40, height: 40, borderRadius: 8,
+    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+    alignItems: "center", justifyContent: "center",
+  },
+  miniTitle: { fontSize: 13, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
+  miniArtist: { fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1 },
+  miniBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  miniPlayBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: RED, alignItems: "center", justifyContent: "center",
+  },
 });
