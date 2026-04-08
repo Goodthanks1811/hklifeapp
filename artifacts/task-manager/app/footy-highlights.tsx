@@ -62,8 +62,17 @@ export default function FootyHighlightsScreen() {
   const [errMsg,    setErrMsg]    = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
+  const scrollRef    = useRef<ScrollView>(null);
   const inputFocused = useRef(false);
   const inputKbAnim  = useRef(new Animated.Value(0)).current;
+
+  function focusInput() {
+    inputFocused.current = true;
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
+  }
+  function blurInput() {
+    inputFocused.current = false;
+  }
 
   useFocusEffect(useCallback(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
@@ -128,11 +137,11 @@ export default function FootyHighlightsScreen() {
       <ScreenHeader title="Footy Highlights" />
 
       <Animated.ScrollView
+        ref={scrollRef as any}
         style={s.scroll}
         contentContainerStyle={[s.content, { paddingBottom: 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        automaticallyAdjustKeyboardInsets={true}
       >
         {/* Round */}
         <Text style={s.label}>Round</Text>
@@ -176,8 +185,8 @@ export default function FootyHighlightsScreen() {
               placeholderTextColor={MUTED}
               autoCorrect={false}
               returnKeyType="done"
-              onFocus={() => { inputFocused.current = true; }}
-              onBlur={() => { inputFocused.current = false; }}
+              onFocus={focusInput}
+              onBlur={blurInput}
             />
           </View>
           <View style={s.minuteWrap}>
@@ -190,8 +199,8 @@ export default function FootyHighlightsScreen() {
               placeholder="0"
               placeholderTextColor={MUTED}
               returnKeyType="done"
-              onFocus={() => { inputFocused.current = true; }}
-              onBlur={() => { inputFocused.current = false; }}
+              onFocus={focusInput}
+              onBlur={blurInput}
             />
           </View>
         </View>
