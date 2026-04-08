@@ -167,7 +167,9 @@ function SetLoggerSheet({
   }), [slideAnim]);
 
   // Refs for each set's reps input — lets us auto-focus after Add Set
-  const repsRefs = useRef<Array<TextInput | null>>([]);
+  const repsRefs  = useRef<Array<TextInput | null>>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  const notesY    = useRef(0);
 
   const addSet = () => {
     setSets(prev => {
@@ -221,6 +223,7 @@ function SetLoggerSheet({
             {/* ALL content scrolls — header, sets, notes.
                 Using maxHeight (not flex:1) so the ScrollView has a known size. */}
             <ScrollView
+              ref={scrollRef}
               style={{ maxHeight: scrollMaxH }}
               bounces={false}
               showsVerticalScrollIndicator={false}
@@ -292,18 +295,25 @@ function SetLoggerSheet({
               <View style={sh.divider} />
 
               {/* ── Notes ────────────────────────── */}
-              <Text style={sh.notesLabel}>NOTES</Text>
-              <TextInput
-                style={sh.notesInput}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                placeholder="Anything from today…"
-                placeholderTextColor="#444"
-                selectionColor={Colors.primary}
-                keyboardAppearance="dark"
-                textAlignVertical="top"
-              />
+              <View onLayout={e => { notesY.current = e.nativeEvent.layout.y; }}>
+                <Text style={sh.notesLabel}>NOTES</Text>
+                <TextInput
+                  style={sh.notesInput}
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  placeholder="Anything from today…"
+                  placeholderTextColor="#444"
+                  selectionColor={Colors.primary}
+                  keyboardAppearance="dark"
+                  textAlignVertical="top"
+                  onFocus={() => {
+                    setTimeout(() => {
+                      scrollRef.current?.scrollTo({ y: notesY.current, animated: true });
+                    }, 320);
+                  }}
+                />
+              </View>
             </ScrollView>
 
             {/* Buttons — pinned BELOW ScrollView, always visible above keyboard */}
