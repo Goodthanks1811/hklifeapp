@@ -60,7 +60,7 @@ export default function FootyHighlightsScreen() {
   const isIpad      = screenW >= 768;
   const padH        = isIpad ? 56 : 18;
   const gridGap     = isIpad ? 14 : 7;
-  const logoSize    = isIpad ? 110 : 66;
+  const logoSize    = isIpad ? 90 : 66;
 
   const [round,     setRound]     = useState("");
   const [player,    setPlayer]    = useState("");
