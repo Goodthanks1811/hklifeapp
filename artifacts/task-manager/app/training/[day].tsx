@@ -312,6 +312,9 @@ function SetLoggerSheet({
                       scrollRef.current?.scrollTo({ y: notesY.current, animated: true });
                     }, 320);
                   }}
+                  onContentSizeChange={() => {
+                    scrollRef.current?.scrollToEnd({ animated: true });
+                  }}
                 />
               </View>
             </ScrollView>
