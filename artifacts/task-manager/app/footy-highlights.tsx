@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
   Image,
@@ -62,14 +62,17 @@ export default function FootyHighlightsScreen() {
   const [errMsg,    setErrMsg]    = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  const kbAnim = useRef(new Animated.Value(0)).current;
+  const playerFocused = useRef(false);
+  const playerKbAnim  = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(useCallback(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
-      Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
+      if (playerFocused.current) {
+        Animated.timing(playerKbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
+      }
     });
     const hide = Keyboard.addListener("keyboardWillHide", () => {
-      Animated.timing(kbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
+      Animated.timing(playerKbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
     });
     return () => { show.remove(); hide.remove(); };
   }, []));
@@ -126,7 +129,7 @@ export default function FootyHighlightsScreen() {
 
       <Animated.ScrollView
         style={s.scroll}
-        contentContainerStyle={[s.content, { paddingBottom: 16 }]}
+        contentContainerStyle={[s.content, { paddingBottom: 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -172,6 +175,8 @@ export default function FootyHighlightsScreen() {
               placeholderTextColor={MUTED}
               autoCorrect={false}
               returnKeyType="done"
+              onFocus={() => { playerFocused.current = true; }}
+              onBlur={() => { playerFocused.current = false; }}
             />
           </View>
           <View style={s.minuteWrap}>
@@ -199,7 +204,7 @@ export default function FootyHighlightsScreen() {
       </Animated.ScrollView>
 
       {/* Save button — floats above keyboard */}
-      <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(kbAnim, insets.bottom + 12) as any }]}>
+      <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(playerKbAnim, insets.bottom + 12) as any }]}>
         <Pressable
           style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
           onPress={save}
