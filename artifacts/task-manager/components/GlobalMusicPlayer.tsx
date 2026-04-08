@@ -270,16 +270,10 @@ export function GlobalMusicPlayer() {
             {artist ? <Text style={s.miniArtist} numberOfLines={1}>{artist}</Text> : null}
           </View>
 
-          {/* Controls — right side */}
+          {/* Controls — right side: play/pause only */}
           <View style={s.miniControls}>
-            <Pressable style={s.miniIconBtn} onPress={(e) => { e.stopPropagation(); doSkipBack(); }}>
-              <Ionicons name="play-skip-back" size={20} color="#fff" />
-            </Pressable>
             <Pressable style={s.miniPlayBtn} onPress={(e) => { e.stopPropagation(); doToggle(); }}>
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
-            </Pressable>
-            <Pressable style={s.miniIconBtn} onPress={(e) => { e.stopPropagation(); doSkipFwd(); }}>
-              <Ionicons name="play-skip-forward" size={20} color="#fff" />
             </Pressable>
           </View>
         </Pressable>
@@ -381,9 +375,9 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
+    position: "absolute", bottom: 10, left: 0, right: 0,
     backgroundColor: ROW,
-    borderTopLeftRadius: 14, borderTopRightRadius: 14,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderTopWidth: 1, borderTopColor: BORDER,
     paddingHorizontal: 18, paddingTop: 12,
     flexDirection: "row", alignItems: "center",
@@ -401,9 +395,6 @@ const s = StyleSheet.create({
   },
   miniControls: {
     flexDirection: "row", alignItems: "center", gap: 4,
-  },
-  miniIconBtn: {
-    width: 38, height: 38, alignItems: "center", justifyContent: "center",
   },
   miniPlayBtn: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: RED,
