@@ -240,12 +240,12 @@ const s = StyleSheet.create({
   },
 
   grid: {
-    flexDirection: "row", flexWrap: "wrap", gap: 10,
+    flexDirection: "row", flexWrap: "wrap", gap: 7,
   },
   teamCell: {
     width: "30%", flexGrow: 1,
     backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6,
+    borderRadius: 10, paddingVertical: 4, paddingHorizontal: 4,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
   },
