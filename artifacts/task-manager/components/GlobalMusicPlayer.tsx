@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -137,6 +137,37 @@ export function GlobalMusicPlayer() {
   const [shuffle,  setShuffle]  = useState(false);
   const [repeat,   setRepeat]   = useState(false);
 
+  // ── Full-screen slide animation (hooks MUST be before early return) ──────
+  const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
+  const dragY     = useRef(new Animated.Value(0)).current;
+  const dragRef   = useRef(0);
+
+  const expand = useCallback(() => {
+    setExpanded(true);
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
+  }, [slideAnim]);
+
+  const collapse = useCallback(() => {
+    Animated.timing(slideAnim, { toValue: SCREEN_H, duration: 280, useNativeDriver: true })
+      .start(() => { setExpanded(false); dragY.setValue(0); });
+  }, [slideAnim, dragY]);
+
+  const dismissPR = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder:  (_, g) => Math.abs(g.dy) > 8,
+    onPanResponderMove: (_, g) => { if (g.dy > 0) { dragRef.current = g.dy; dragY.setValue(g.dy); } },
+    onPanResponderRelease: (_, g) => {
+      if (g.dy > 100 || g.vy > 0.9) {
+        dragY.setValue(0);
+        Animated.timing(slideAnim, { toValue: SCREEN_H, duration: 280, useNativeDriver: true })
+          .start(() => { setExpanded(false); dragY.setValue(0); });
+      } else {
+        Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+      }
+      dragRef.current = 0;
+    },
+  })).current;
+
   // ── Determine active source ──────────────────────────────────────────────
   // Prefer whichever is actively playing; if both paused, prefer My Music if loaded
   const source: "mymusic" | "apple" | null =
@@ -149,7 +180,7 @@ export function GlobalMusicPlayer() {
   if (!source) return null;
 
   const title    = source === "mymusic" ? (player.track?.name ?? "") : (am.nowPlaying?.title ?? "");
-  const artist   = source === "mymusic" ? "" : (am.nowPlaying?.artist ?? "");
+  const artist   = "HK";
   const isPlay   = source === "mymusic" ? player.isPlaying : am.isPlaying;
   const posMs    = source === "mymusic" ? player.posMs : am.posMs;
   const durMs    = source === "mymusic" ? player.durMs : am.durMs;
@@ -166,34 +197,6 @@ export function GlobalMusicPlayer() {
     const s = Math.floor(ms / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
-
-  // ── Full-screen slide animation ──────────────────────────────────────────
-  const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
-  const dragY     = useRef(new Animated.Value(0)).current;
-  const dragRef   = useRef(0);
-
-  const expand = () => {
-    setExpanded(true);
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
-  };
-  const collapse = () => {
-    Animated.timing(slideAnim, { toValue: SCREEN_H, duration: 280, useNativeDriver: true })
-      .start(() => { setExpanded(false); dragY.setValue(0); });
-  };
-
-  const dismissPR = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder:  (_, g) => Math.abs(g.dy) > 8,
-    onPanResponderMove: (_, g) => { if (g.dy > 0) { dragRef.current = g.dy; dragY.setValue(g.dy); } },
-    onPanResponderRelease: (_, g) => {
-      if (g.dy > 100 || g.vy > 0.9) {
-        dragY.setValue(0); collapse();
-      } else {
-        Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
-      }
-      dragRef.current = 0;
-    },
-  })).current;
 
   // Mini bar floats above the tab bar (49px) + home-indicator safe area
   const miniBottom = 49 + insets.bottom;

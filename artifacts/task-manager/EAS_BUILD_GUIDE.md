@@ -456,3 +456,33 @@ if let scene = UIApplication.shared.connectedScenes
 }
 ```
 Creates an offscreen `MPVolumeView` (-2000, -2000), attaches it to the key window momentarily, finds the system volume `UISlider` subview, sets its value and fires `.valueChanged` to commit the change, then removes the view. This is the Apple-recommended pattern for programmatic volume control.
+
+---
+
+### 17. "Something went wrong" (ErrorBoundary) when music starts playing + GlobalMusicPlayer never visible
+
+**Symptom**: Tapping any song (My Music or Apple Music) causes the app to switch to a red "Something Went Wrong" error screen. The GlobalMusicPlayer mini bar never appears.
+
+**Cause**: React Rules of Hooks violation in `GlobalMusicPlayer.tsx`. The component had an early `return null` at line 149 (`if (!source) return null`) and three `useRef` hooks (`slideAnim`, `dragY`, `dismissPR`) placed AFTER that early return. On the first render, `source` is null so the early return fires and those hooks do not run. When music starts, `source` becomes non-null, React renders the full component, encounters more hooks than the previous render had, and throws: "Rendered more hooks than during the previous render." The ErrorBoundary catches this and shows the error screen.
+
+**Fix** (applied to `components/GlobalMusicPlayer.tsx`): Move ALL hook calls (`useState`, `useRef`, `useCallback`) to BEFORE the `if (!source) return null` line. The early return is still valid as a rendering gate — it just cannot come before any hook call.
+
+**Rule**: In any component with a conditional early `return null`, every `use*` hook call must be placed before that return statement, no exceptions.
+
+---
+
+### 18. My Music — nothing plays when tapping a song (silent failure)
+
+**Symptom**: Tapping a track in My Music triggers the haptic but no audio starts. The GlobalMusicPlayer mini bar doesn't appear.
+
+**Cause**: Two stacked bugs:
+
+1. `modules/apple-musickit/index.ts` exported only 5 methods (`requestAuthorization`, `getPlaylists`, `getSongsInPlaylist`, `playPlaylist`, `playSongInPlaylist`) and omitted the control methods (`pause`, `resumePlay`, `getCurrentTime`, `getDuration`, `seekTo`, `setVolume`, `skipToNext`, `skipToPrevious`). Code that called `require("apple-musickit").pause()` got `undefined()` — a synchronous throw.
+
+2. `MusicPlayerContext.tsx` called `MusicSourceBus.notifyMyMusicPlaying()` OUTSIDE the `try/catch` block. `notifyMyMusicPlaying()` calls the registered `_pauseAppleMusic` callback, which did `AppleMusicKit.pause().catch(...)` — but since `pause` was `undefined`, it threw before `.catch()` was reached. This unguarded throw propagated out of `playTrack`, rejecting its promise, and the entire playback call silently aborted before RNTP was ever touched.
+
+**Fix**:
+- Added all missing method exports to `modules/apple-musickit/index.ts`.
+- Wrapped `MusicSourceBus.notifyMyMusicPlaying()` in `try { } catch {}` in `MusicPlayerContext.tsx` so cross-source mute never aborts the playback call.
+
+**Rule**: Always export every method from `apple-musickit/index.ts` that any context or screen calls. Any MusicSourceBus notification call should be guarded with try/catch since it invokes external callbacks that may fail.

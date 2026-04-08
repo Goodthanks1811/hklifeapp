@@ -41,3 +41,35 @@ export function playPlaylist(id: string): Promise<void> {
 export function playSongInPlaylist(playlistId: string, songIndex: number): Promise<void> {
   return AM.playSongInPlaylist(playlistId, songIndex);
 }
+
+export function pause(): Promise<void> {
+  return AM.pause();
+}
+
+export function resumePlay(): Promise<void> {
+  return AM.resumePlay();
+}
+
+export function skipToNext(): Promise<void> {
+  return AM.skipToNext();
+}
+
+export function skipToPrevious(): Promise<void> {
+  return AM.skipToPrevious();
+}
+
+export function getCurrentTime(): Promise<number> {
+  return AM.getCurrentTime();
+}
+
+export function getDuration(): Promise<number> {
+  return AM.getDuration();
+}
+
+export function seekTo(time: number): Promise<void> {
+  return AM.seekTo(time);
+}
+
+export function setVolume(volume: number): Promise<void> {
+  return AM.setVolume(volume);
+}
