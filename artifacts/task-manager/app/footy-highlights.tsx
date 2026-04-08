@@ -55,20 +55,25 @@ export default function FootyHighlightsScreen() {
   const insets      = useSafeAreaInsets();
   const { apiKey }  = useNotion();
 
-  const [round,    setRound]    = useState("");
-  const [player,   setPlayer]   = useState("");
-  const [minute,   setMinute]   = useState("");
-  const [team,     setTeam]     = useState<string | null>(null);
-  const [errMsg,   setErrMsg]   = useState<string | null>(null);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [round,        setRound]        = useState("");
+  const [player,       setPlayer]       = useState("");
+  const [minute,       setMinute]       = useState("");
+  const [team,         setTeam]         = useState<string | null>(null);
+  const [errMsg,       setErrMsg]       = useState<string | null>(null);
+  const [saveState,    setSaveState]    = useState<SaveState>("idle");
+  const [playerFocused, setPlayerFocused] = useState(false);
+  const [kbHeight,     setKbHeight]     = useState(0);
 
   const kbAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(useCallback(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
+      setKbHeight(e.endCoordinates.height);
       Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: 260, useNativeDriver: false }).start();
     });
     const hide = Keyboard.addListener("keyboardWillHide", () => {
+      setKbHeight(0);
+      setPlayerFocused(false);
       Animated.timing(kbAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
     });
     return () => { show.remove(); hide.remove(); };
@@ -172,6 +177,8 @@ export default function FootyHighlightsScreen() {
               placeholderTextColor={MUTED}
               autoCorrect={false}
               returnKeyType="done"
+              onFocus={() => setPlayerFocused(true)}
+              onBlur={() => setPlayerFocused(false)}
             />
           </View>
           <View style={s.minuteWrap}>
@@ -211,6 +218,24 @@ export default function FootyHighlightsScreen() {
           )}
         </Pressable>
       </Animated.ScrollView>
+
+      {/* Floating toolbar above keyboard when player field is focused */}
+      {playerFocused && kbHeight > 0 && (
+        <Animated.View style={[s.kbToolbar, { bottom: kbAnim }]}>
+          <Pressable style={s.kbDone} onPress={() => Keyboard.dismiss()}>
+            <Text style={s.kbDoneTx}>Done</Text>
+          </Pressable>
+          <Pressable
+            style={[s.kbSave, saveState === "saving" && { opacity: 0.5 }]}
+            onPress={save}
+            disabled={saveState === "saving"}
+          >
+            <Text style={s.kbSaveTx}>
+              {saveState === "saving" ? "Saving…" : saveState === "ok" ? "✓ Saved" : "Save Highlight"}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Keyboard spacer */}
       <Animated.View style={{ height: kbAnim }} />
@@ -261,6 +286,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, marginTop: 16,
   },
   errTx: { fontSize: 13, color: "#ff6060", fontFamily: "Inter_400Regular", flex: 1 },
+
+  kbToolbar: {
+    position: "absolute", left: 0, right: 0,
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#1a1a1a", borderTopWidth: 1, borderTopColor: BORDER,
+    paddingHorizontal: 14, paddingVertical: 10, gap: 10,
+  },
+  kbDone: {
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 8, backgroundColor: "#2a2a2a",
+  },
+  kbDoneTx: { color: TEXT, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  kbSave: {
+    flex: 1, backgroundColor: RED, borderRadius: 10,
+    paddingVertical: 12, alignItems: "center",
+  },
+  kbSaveTx: { color: "#fff", fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
 
   saveBtn: {
     backgroundColor: RED, borderRadius: 12,
