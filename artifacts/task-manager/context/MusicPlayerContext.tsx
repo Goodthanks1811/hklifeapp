@@ -144,14 +144,27 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
     if (idx < 0 || idx >= list.length) return;
     try { MusicSourceBus.notifyMyMusicPlaying(); } catch {} // stop Apple Music before we start
     await ensureSetup();
+
+    // If the same queue is already loaded, just skip to the track — no reset needed.
+    // reset() introduces a stop+fade before the new track starts; skip() is instant.
+    const sameQueue =
+      tracksRef.current.length === list.length &&
+      tracksRef.current.every((t, i) => t.id === list[i].id);
+
     tracksRef.current   = list;
     trackIdxRef.current = idx;
-    const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork: DEFAULT_ARTWORK }));
+
     try {
-      await _TrackPlayer.reset();
-      await _TrackPlayer.add(rnTracks);
-      await _TrackPlayer.skip(idx);
-      await _TrackPlayer.play();
+      if (sameQueue) {
+        await _TrackPlayer.skip(idx);
+        await _TrackPlayer.play();
+      } else {
+        const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork: DEFAULT_ARTWORK }));
+        await _TrackPlayer.reset();
+        await _TrackPlayer.add(rnTracks);
+        await _TrackPlayer.skip(idx);
+        await _TrackPlayer.play();
+      }
     } catch (err) {
       console.error("[MusicPlayer] playTrack error:", err);
     }

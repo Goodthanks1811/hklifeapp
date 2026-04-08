@@ -32,18 +32,25 @@ try { _VolumeManager = require("react-native-volume-manager").VolumeManager; } c
 function useSystemVolume() {
   // null = native module not present (Expo Go / pre-build) — don't show slider
   const [sysVol, setSysVol] = useState<number | null>(_VolumeManager ? 1 : null);
+  // Drive the slider directly from the native listener — no React re-render lag
+  const volAnim = useRef(new Animated.Value(_VolumeManager ? 1 : 0)).current;
 
   useEffect(() => {
     if (!_VolumeManager) return;
     // Read current system volume
     _VolumeManager.getVolume().then((v: any) => {
       const val = typeof v === "object" ? (v.volume ?? v) : v;
-      setSysVol(Math.max(0, Math.min(1, Number(val))));
+      const clamped = Math.max(0, Math.min(1, Number(val)));
+      setSysVol(clamped);
+      volAnim.setValue(clamped);
     }).catch(() => {});
-    // Keep in sync with hardware volume buttons
+    // Keep in sync with hardware volume buttons — update Animated.Value directly
+    // so the slider moves immediately without waiting for a React render cycle
     const sub = _VolumeManager.addVolumeListener((v: any) => {
       const val = typeof v === "object" ? (v.volume ?? v) : v;
-      setSysVol(Math.max(0, Math.min(1, Number(val))));
+      const clamped = Math.max(0, Math.min(1, Number(val)));
+      setSysVol(clamped);
+      volAnim.setValue(clamped); // direct — no setState needed for the visual
     });
     return () => { try { sub?.remove?.(); } catch {} };
   }, []);
@@ -51,10 +58,11 @@ function useSystemVolume() {
   const setSystemVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
     setSysVol(clamped);
+    volAnim.setValue(clamped);
     try { _VolumeManager?.setVolume(clamped, { showUI: false }); } catch {}
   }, []);
 
-  return { sysVol, setSystemVolume };
+  return { sysVol, setSystemVolume, volAnim };
 }
 
 const RED    = "#E03131";
@@ -97,26 +105,36 @@ function SliderBar({
   height = 4,
   thumbSize = 12,
   color = RED,
+  externalAnim,
+  liveUpdate = false,
 }: {
   value: number;
   onChange: (ratio: number) => void;
   height?: number;
   thumbSize?: number;
   color?: string;
+  externalAnim?: Animated.Value; // when provided, drives the fill directly (e.g. volume)
+  liveUpdate?: boolean;           // call onChange on every move, not just release
 }) {
-  const barRef    = useRef<View>(null);
-  const barLeft   = useRef(0);
-  const barWidth  = useRef(0);
-  const anim      = useRef(new Animated.Value(value)).current;
+  const barRef     = useRef<View>(null);
+  const barLeft    = useRef(0);
+  const barWidth   = useRef(0);
+  const internalAnim = useRef(new Animated.Value(value)).current;
+  // Use external Animated.Value if provided (so hardware volume buttons drive it directly)
+  const anim       = externalAnim ?? internalAnim;
+  // Keep anim accessible in PanResponder callbacks without stale closure
+  const animRef    = useRef(anim);
+  animRef.current  = anim;
   const thumbScale = useRef(new Animated.Value(1)).current;
-  const dragging  = useRef(false);
+  const dragging   = useRef(false);
 
   const thumbIn  = () => Animated.spring(thumbScale, { toValue: 1.7, useNativeDriver: true, damping: 14, stiffness: 280 }).start();
   const thumbOut = () => Animated.spring(thumbScale, { toValue: 1,   useNativeDriver: true, damping: 14, stiffness: 280 }).start();
 
+  // Only sync from props when no external anim is driving the value
   useEffect(() => {
-    if (!dragging.current) anim.setValue(value);
-  }, [value]);
+    if (!externalAnim && !dragging.current) internalAnim.setValue(value);
+  }, [value, externalAnim]);
 
   const fillWidth = anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp" });
 
@@ -127,6 +145,12 @@ function SliderBar({
     });
   };
 
+  // Keep liveUpdate accessible inside PanResponder without recreating it
+  const liveUpdateRef = useRef(liveUpdate);
+  liveUpdateRef.current = liveUpdate;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const pr = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder:  () => true,
@@ -134,19 +158,24 @@ function SliderBar({
       dragging.current = true;
       thumbIn();
       if (!barWidth.current) return;
-      anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
+      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+      animRef.current.setValue(ratio);
+      if (liveUpdateRef.current) onChangeRef.current(ratio);
     },
     onPanResponderMove: (e) => {
       if (!barWidth.current) return;
-      anim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
+      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+      animRef.current.setValue(ratio);
+      // liveUpdate: apply the change in real time (used by volume slider)
+      if (liveUpdateRef.current) onChangeRef.current(ratio);
     },
     onPanResponderRelease: (e) => {
       dragging.current = false;
       thumbOut();
       if (!barWidth.current) return;
       const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-      anim.setValue(ratio);
-      onChange(ratio);
+      animRef.current.setValue(ratio);
+      onChangeRef.current(ratio);
     },
     onPanResponderTerminate: () => { dragging.current = false; thumbOut(); },
   })).current;
@@ -274,7 +303,7 @@ export function GlobalMusicPlayer() {
   }, [panDrag, slideAnim, miniBarAlpha, screenH]);
 
   // ── System volume (hardware scale) ──────────────────────────────────────
-  const { sysVol, setSystemVolume } = useSystemVolume();
+  const { sysVol, setSystemVolume, volAnim } = useSystemVolume();
 
   // ── Determine active source ──────────────────────────────────────────────
   const source: "mymusic" | "apple" | null =
@@ -436,7 +465,15 @@ export function GlobalMusicPlayer() {
             <View style={s.volRow}>
               <Feather name="volume" size={14} color="rgba(255,255,255,0.5)" />
               <View style={{ flex: 1 }}>
-                <SliderBar value={sysVol} onChange={doSetVolume} height={3} thumbSize={12} color="#fff" />
+                <SliderBar
+                  value={sysVol}
+                  onChange={doSetVolume}
+                  height={3}
+                  thumbSize={12}
+                  color="#fff"
+                  externalAnim={volAnim}
+                  liveUpdate
+                />
               </View>
               <Feather name="volume-2" size={14} color="rgba(255,255,255,0.5)" />
             </View>
