@@ -343,7 +343,8 @@ export default function IRQuickAdd() {
 
   const handleCancel = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (router.canGoBack()) router.back();
+    else router.replace("/life/life-admin" as any);
   };
 
   const shakeX = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });

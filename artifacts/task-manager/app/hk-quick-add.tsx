@@ -276,7 +276,11 @@ export default function HKQuickAdd() {
     setSaving(false);
   }, [title, notes, schema, apiKey, selCat, selEmoji, selEpic, isDev, shake, runLoader]);
 
-  const handleClose = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); };
+  const handleClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (router.canGoBack()) router.back();
+    else router.replace("/life/life-admin" as any);
+  };
 
   const shakeX  = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-8, 0, 8] });
   const spinDeg = spinnerRotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
