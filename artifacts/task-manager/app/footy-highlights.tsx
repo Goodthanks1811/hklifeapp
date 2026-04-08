@@ -1,7 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   Keyboard,
   Pressable,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -177,7 +177,7 @@ export default function FootyHighlightsScreen() {
                 style={[s.teamCell, chosen && s.teamChosen, dimmed && s.teamDimmed]}
                 onPress={() => toggleTeam(t.name)}
               >
-                <Image source={t.logo} style={s.teamLogo} resizeMode="contain" />
+                <Image source={t.logo} style={s.teamLogo} contentFit="contain" cachePolicy="memory-disk" transition={0} />
               </Pressable>
             );
           })}
