@@ -176,7 +176,10 @@ export default function FootyHighlightsScreen() {
               autoCorrect={false}
               returnKeyType="done"
               onFocus={() => { playerFocused.current = true; }}
-              onBlur={() => { playerFocused.current = false; }}
+              onBlur={() => {
+                playerFocused.current = false;
+                Animated.timing(playerKbAnim, { toValue: 0, duration: 180, useNativeDriver: false }).start();
+              }}
             />
           </View>
           <View style={s.minuteWrap}>
