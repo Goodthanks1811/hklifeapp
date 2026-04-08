@@ -213,7 +213,7 @@ export default function FootyHighlightsScreen() {
               style={s.input}
               value={minute}
               onChangeText={t => { setMinute(t); setErrMsg(null); }}
-              keyboardType="number-pad"
+              keyboardType="default"
               placeholder="0"
               placeholderTextColor={MUTED}
               returnKeyType="done"
