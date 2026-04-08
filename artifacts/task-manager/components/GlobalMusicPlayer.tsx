@@ -207,10 +207,13 @@ export function GlobalMusicPlayer() {
   const expand = useCallback(() => {
     dismissing.current = false;
     panDrag.setValue(0);
+    // Reset slideAnim to screenH BEFORE setExpanded so the native view mounts
+    // at the correct off-screen position and the spring has somewhere to animate from
+    slideAnim.setValue(screenH);
     miniBarAlpha.setValue(0);
     setExpanded(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
-  }, [slideAnim, panDrag, miniBarAlpha]);
+  }, [slideAnim, panDrag, miniBarAlpha, screenH]);
 
   // collapse() — called from non-gesture triggers only (panDrag is 0 here)
   const collapse = useCallback(() => {
@@ -238,9 +241,20 @@ export function GlobalMusicPlayer() {
 
   const onHandlerStateChange = useCallback((e: any) => {
     const { state, translationY, velocityY } = e.nativeEvent;
+
+    if (state === State.ACTIVE) {
+      // Gesture just crossed the activation threshold — translationY is already non-zero.
+      // Zero-base it so the view starts moving from exactly where it currently sits.
+      panDrag.setOffset(-translationY);
+      panDrag.setValue(translationY);
+      // From here: displayed = translationY + (-initialTranslationY) = 0, then grows smoothly
+      return;
+    }
+
     if (state === State.END || state === State.FAILED || state === State.CANCELLED) {
-      const pos = Math.max(0, translationY);
-      if (pos > 80 || velocityY > 800) {
+      panDrag.flattenOffset();
+      const delta = Math.max(0, (panDrag as any).__getValue() as number);
+      if (delta > 80 || velocityY > 800) {
         dismissing.current = true;
         miniBarAlpha.setValue(1);
         Animated.timing(panDrag, {
@@ -248,12 +262,16 @@ export function GlobalMusicPlayer() {
           duration: 340,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
-        }).start(() => { panDrag.setValue(0); setExpanded(false); });
+        }).start(() => {
+          panDrag.setValue(0);
+          slideAnim.setValue(screenH); // reset so next expand() has a valid start position
+          setExpanded(false);
+        });
       } else {
         Animated.spring(panDrag, { toValue: 0, useNativeDriver: true }).start();
       }
     }
-  }, [panDrag, miniBarAlpha, screenH]);
+  }, [panDrag, slideAnim, miniBarAlpha, screenH]);
 
   // ── System volume (hardware scale) ──────────────────────────────────────
   const { sysVol, setSystemVolume } = useSystemVolume();
