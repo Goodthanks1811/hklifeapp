@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Image } from "expo-image";
@@ -17,7 +18,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { useNotion } from "@/context/NotionContext";
 
 const DB_ID  = "2d0b7eba3523806d96f1e5c22ef094c1";
-const MAX_W  = 600;
+const MAX_W  = 800;
 const BG     = "#0a0a0a";
 const CARD   = "#111111";
 const BORDER = "#1f1f1f";
@@ -55,6 +56,11 @@ type SaveState = "idle" | "saving" | "ok" | "err";
 export default function FootyHighlightsScreen() {
   const insets      = useSafeAreaInsets();
   const { apiKey }  = useNotion();
+  const { width: screenW } = useWindowDimensions();
+  const isIpad      = screenW >= 768;
+  const padH        = isIpad ? 56 : 18;
+  const gridGap     = isIpad ? 14 : 7;
+  const tileW       = isIpad ? "17%" : "30%";
 
   const [round,     setRound]     = useState("");
   const [player,    setPlayer]    = useState("");
@@ -150,7 +156,7 @@ export default function FootyHighlightsScreen() {
       <Animated.ScrollView
         ref={scrollRef as any}
         style={s.scroll}
-        contentContainerStyle={[s.content, { paddingBottom: 32, maxWidth: MAX_W, alignSelf: "center" as const, width: "100%" }]}
+        contentContainerStyle={[s.content, { paddingBottom: 32, maxWidth: MAX_W, alignSelf: "center" as const, width: "100%", paddingHorizontal: padH }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -168,14 +174,14 @@ export default function FootyHighlightsScreen() {
 
         {/* Team grid */}
         <Text style={[s.label, { marginTop: 20 }]}>Team</Text>
-        <View style={s.grid}>
+        <View style={[s.grid, { gap: gridGap }]}>
           {TEAMS.map(t => {
             const chosen  = team === t.name;
             const dimmed  = hasSelection && !chosen;
             return (
               <Pressable
                 key={t.name}
-                style={[s.teamCell, chosen && s.teamChosen, dimmed && s.teamDimmed]}
+                style={[s.teamCell, { width: tileW }, chosen && s.teamChosen, dimmed && s.teamDimmed]}
                 onPress={() => toggleTeam(t.name)}
               >
                 <Image source={t.logo} style={s.teamLogo} contentFit="contain" cachePolicy="memory-disk" transition={0} />
@@ -229,7 +235,7 @@ export default function FootyHighlightsScreen() {
 
       {/* Save button — floats above keyboard */}
       <Animated.View style={[s.saveWrap, { paddingBottom: Animated.add(inputKbAnim, insets.bottom + 12) as any }]}>
-        <View style={s.saveInner}>
+        <View style={[s.saveInner, { paddingHorizontal: padH }]}>
           <Pressable
             style={[s.saveBtn, saveState === "saving" && s.saveBusy, saveState === "ok" && s.saveOk]}
             onPress={save}
@@ -252,7 +258,7 @@ export default function FootyHighlightsScreen() {
 const s = StyleSheet.create({
   root:    { flex: 1, backgroundColor: BG },
   scroll:  { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 8 },
+  content: { paddingTop: 8 },
 
   label: {
     fontSize: 11, fontWeight: "600", color: TEXT,
@@ -300,7 +306,6 @@ const s = StyleSheet.create({
   },
   saveInner: {
     maxWidth: MAX_W, alignSelf: "center", width: "100%",
-    paddingHorizontal: 18,
   },
   saveBtn: {
     backgroundColor: RED, borderRadius: 12,
