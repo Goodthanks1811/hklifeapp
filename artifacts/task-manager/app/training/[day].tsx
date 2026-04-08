@@ -1184,9 +1184,9 @@ const sc = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
   },
-  rowWrapDone: { opacity: 0.45 },
+  rowWrapDone: {},
   rowTitle: { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
-  rowTitleDone: { textDecorationLine: "line-through", color: Colors.textMuted },
+  rowTitleDone: { textDecorationLine: "line-through" },
 
   progressWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
