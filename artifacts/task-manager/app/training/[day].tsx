@@ -319,8 +319,8 @@ function SetLoggerSheet({
             </View>
           </Pressable>
 
-          {/* Background extension — covers the gap between sheet and keyboard edge */}
-          <View style={{ backgroundColor: "#111111", height: 60 }} />
+          {/* Background extension — covers home indicator gap when keyboard is hidden */}
+          <View style={{ backgroundColor: "#111111", height: kbH > 0 ? 0 : 60 }} />
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
