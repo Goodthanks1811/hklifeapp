@@ -277,10 +277,10 @@ export function GlobalMusicPlayer() {
         >
           {/* Large top drag zone — covers gradient header + some extra space */}
           <View
-            style={[s.dragZoneOuter, { paddingTop: insets.top }]}
+            style={s.dragZoneOuter}
             {...dismissPR.panHandlers}
           >
-            <View style={s.gradHeader}>
+            <View style={[s.gradHeader, { paddingTop: insets.top + 6 }]}>
               <LinearGradient
                 colors={[
                   "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
@@ -318,6 +318,9 @@ export function GlobalMusicPlayer() {
             </View>
           </View>
 
+          {/* Flex spacer — pushes controls to bottom */}
+          <View style={{ flex: 1 }} />
+
           {/* Controls */}
           <View style={s.ctrlRow}>
             <Pressable style={s.iconBtn} onPress={() => setShuffle(v => !v)}>
@@ -345,6 +348,8 @@ export function GlobalMusicPlayer() {
             </View>
             <Feather name="volume-2" size={14} color="#3a3a3a" />
           </View>
+
+          <View style={{ height: insets.bottom + 24 }} />
         </Animated.View>
       )}
     </View>
@@ -410,7 +415,7 @@ const s = StyleSheet.create({
   timeText: { fontSize: 10, color: "#fff", letterSpacing: 0.5, fontFamily: "Inter_600SemiBold" },
   ctrlRow: {
     flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginTop: 40,
+    justifyContent: "space-between", marginTop: 0,
   },
   iconBtn:    { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   bigPlayBtn: {
@@ -419,6 +424,6 @@ const s = StyleSheet.create({
     shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, shadowOpacity: 0.45,
   },
   volRow: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 52,
+    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 28,
   },
 });
