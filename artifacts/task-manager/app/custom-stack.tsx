@@ -51,9 +51,17 @@ export function asymmetricSlide({
   };
 }
 
-// Ease-out cubic: starts at full speed, decelerates smoothly to a stop.
-// No ease-in means no slow start — the screen moves at consistent perceived speed.
+// Push (open): ease-out cubic — starts at full speed, decelerates to a smooth stop.
+// The visible deceleration as the screen settles makes the full 380 ms feel complete.
 export const TRANSITION_SPEC = {
   animation: "timing" as const,
   config: { duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true },
+};
+
+// Pop (close): ease-in-out cubic — starts gently so the departure is visibly weighted,
+// then accelerates off-screen. Without a slow start, ease-out on departure only shows
+// the fast burst (the tail is already off-screen), making it feel twice as quick.
+export const TRANSITION_SPEC_CLOSE = {
+  animation: "timing" as const,
+  config: { duration: 380, easing: Easing.inOut(Easing.cubic), useNativeDriver: true },
 };

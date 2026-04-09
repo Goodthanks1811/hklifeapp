@@ -34,6 +34,9 @@ function useSystemVolume() {
   const [sysVol, setSysVol] = useState<number | null>(_VolumeManager ? 1 : null);
   // Drive the slider directly from the native listener — no React re-render lag
   const volAnim = useRef(new Animated.Value(_VolumeManager ? 1 : 0)).current;
+  // Throttle native setVolume to one call per animation frame — prevents JS-thread jank
+  const rafRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const pendingVol = useRef<number>(0);
 
   useEffect(() => {
     if (!_VolumeManager) return;
@@ -57,9 +60,16 @@ function useSystemVolume() {
 
   const setSystemVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
-    setSysVol(clamped);
+    // Visual update: direct Animated.Value write — zero re-renders, instant feedback
     volAnim.setValue(clamped);
-    try { _VolumeManager?.setVolume(clamped, { showUI: false }); } catch {}
+    // Native call: throttled to one per animation frame so the JS thread stays free
+    pendingVol.current = clamped;
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        try { _VolumeManager?.setVolume(pendingVol.current, { showUI: false }); } catch {}
+      });
+    }
   }, []);
 
   return { sysVol, setSystemVolume, volAnim };

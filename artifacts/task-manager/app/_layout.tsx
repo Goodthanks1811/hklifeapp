@@ -9,7 +9,7 @@ import { BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { CardStyleInterpolators } from "@react-navigation/stack";
-import { CustomStack, TRANSITION_SPEC, asymmetricSlide } from "./custom-stack";
+import { CustomStack, TRANSITION_SPEC, TRANSITION_SPEC_CLOSE, asymmetricSlide } from "./custom-stack";
 import * as SplashScreen from "expo-splash-screen";
 import * as Linking from "expo-linking";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -88,7 +88,7 @@ function RootLayoutNav() {
               gestureEnabled: false,
               cardStyle: { backgroundColor: "#000000" },
               cardStyleInterpolator: CardStyleInterpolators.forNoAnimation,
-              transitionSpec: { open: TRANSITION_SPEC, close: TRANSITION_SPEC },
+              transitionSpec: { open: TRANSITION_SPEC, close: TRANSITION_SPEC_CLOSE },
             }}
           >
             <CustomStack.Screen name="(tabs)" />
