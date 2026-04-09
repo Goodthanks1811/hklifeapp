@@ -1,14 +1,17 @@
 import { withLayoutContext } from "expo-router";
 import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
+import { Easing } from "react-native";
 
 const { Navigator } = createStackNavigator();
 
 // JS-based stack — gives full control over each screen's easing independently
 export const CustomStack = withLayoutContext(Navigator);
 
-// Asymmetric slide:
-//   Incoming screen  — fast ease-out (covers most of the distance in the first 55% of the animation)
-//   Outgoing screen  — slow, subtle left drift + slight fade (barely moves while new screen flies in)
+// Consistent slide:
+//   Incoming screen  — linear translateX from full-width to 0, driven by ease-out
+//                      so it starts at full speed and decelerates smoothly to rest.
+//                      No kinks, no compound curves — one smooth velocity profile.
+//   Outgoing screen  — subtle left drift + slight fade, same easing
 export function asymmetricSlide({
   current,
   next,
@@ -16,10 +19,11 @@ export function asymmetricSlide({
 }: Parameters<typeof CardStyleInterpolators.forHorizontalIOS>[0]) {
   const W = layouts.screen.width;
 
-  // Incoming: accelerated ease-out — 95 % of travel done by progress = 0.55
+  // Incoming: straight linear interpolation — easing is handled entirely by
+  // TRANSITION_SPEC so there's only one velocity curve, not two compounded.
   const translateIn = current.progress.interpolate({
-    inputRange:  [0,    0.55,          1],
-    outputRange: [W,    W * 0.05,      0],
+    inputRange:  [0, 1],
+    outputRange: [W, 0],
     extrapolate: "clamp",
   });
 
@@ -47,7 +51,9 @@ export function asymmetricSlide({
   };
 }
 
+// Ease-out cubic: starts at full speed, decelerates smoothly to a stop.
+// No ease-in means no slow start — the screen moves at consistent perceived speed.
 export const TRANSITION_SPEC = {
   animation: "timing" as const,
-  config: { duration: 400, useNativeDriver: true },
+  config: { duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true },
 };
