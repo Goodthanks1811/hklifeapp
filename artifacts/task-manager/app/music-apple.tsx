@@ -399,10 +399,10 @@ const s = StyleSheet.create({
   },
   iconCell: {
     width: 38, height: 38, borderRadius: 10,
-    backgroundColor: "#111",
+    backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
-  iconCellPlaying: { backgroundColor: "#111" },
+  iconCellPlaying: { backgroundColor: ROW },
   rowTextWrap: { flex: 1 },
   rowName: {
     fontSize: 15, fontWeight: "500", color: "#fff",

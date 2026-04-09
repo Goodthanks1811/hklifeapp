@@ -41,6 +41,9 @@ Only push to GitHub when the user explicitly asks to push, or when they confirm 
 **NEVER trigger an EAS build automatically.**
 Always stop after fixes are done and ask the user: "Ready to build?" — wait for their confirmation before pushing to GitHub or running `eas build`.
 
+**BUILDS COST MONEY. Triggering one without explicit user confirmation is unacceptable.**
+Even if the user says "let's kick off a build" — confirm the exact files being pushed and get a final "yes, go ahead" before running the build command. Never assume.
+
 ---
 
 ## Overview
