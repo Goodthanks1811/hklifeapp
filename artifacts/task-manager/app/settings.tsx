@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -1405,6 +1406,16 @@ export default function SettingsScreen() {
           </View>
         </Accordion>
 
+        {/* ── Build version footer ─────────────────────────────────────────── */}
+        <View style={styles.buildFooter}>
+          <Text style={styles.buildFooterText}>HK Life App</Text>
+          <Text style={styles.buildFooterText}>
+            Version {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? "1.0.0"}
+            {" · Build "}
+            {Constants.nativeBuildVersion ?? "–"}
+          </Text>
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -1715,5 +1726,13 @@ const styles = StyleSheet.create({
   mPLDeleteBtn: {
     width: 34, height: 34, borderRadius: 9,
     alignItems: "center", justifyContent: "center",
+  },
+
+  buildFooter: {
+    alignItems: "center", paddingTop: 32, paddingBottom: 8, gap: 4,
+  },
+  buildFooterText: {
+    fontSize: 12, color: "rgba(255,255,255,0.2)",
+    fontFamily: "Inter_400Regular",
   },
 });
