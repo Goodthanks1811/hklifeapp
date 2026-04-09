@@ -48,13 +48,13 @@ function useSystemVolume() {
       setSysVol(clamped);
       volAnim.setValue(clamped);
     }).catch(() => {});
-    // Keep in sync with hardware volume buttons — update Animated.Value directly
-    // so the slider moves immediately without waiting for a React render cycle
+    // Keep in sync with hardware volume buttons — animate smoothly so the
+    // slider movement matches native iOS Music's gradual feel
     const sub = _VolumeManager.addVolumeListener((v: any) => {
       const val = typeof v === "object" ? (v.volume ?? v) : v;
       const clamped = Math.max(0, Math.min(1, Number(val)));
       setSysVol(clamped);
-      volAnim.setValue(clamped); // direct — no setState needed for the visual
+      Animated.timing(volAnim, { toValue: clamped, duration: 120, useNativeDriver: false }).start();
     });
     return () => { try { sub?.remove?.(); } catch {} };
   }, []);
@@ -383,6 +383,9 @@ export function GlobalMusicPlayer() {
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
           </Pressable>
+          {/* Safe-zone fill — sits below the interactive content row so the bar
+              background covers the home indicator area without affecting centering */}
+          <View style={{ height: insets.bottom }} />
         </Animated.View>
       )}
 
@@ -514,11 +517,11 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 20, left: 12, right: 12,
+    position: "absolute", bottom: 0, left: 0, right: 0,
     backgroundColor: ROW,
-    borderRadius: 22,
-    borderWidth: 1, borderColor: BORDER,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderTopColor: BORDER,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
   miniBarPressable: {
@@ -556,7 +559,7 @@ const s = StyleSheet.create({
     alignSelf: "center", marginBottom: 10,
   },
   gradHeader: {
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 100, overflow: "hidden",
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 80, overflow: "hidden",
   },
   navLbl: {
     fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center",

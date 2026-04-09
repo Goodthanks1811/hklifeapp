@@ -124,23 +124,25 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
     if (!AppleMusicKit || !np) return;
     const nextIdx = np.songIndex + 1;
     if (nextIdx >= np.songs.length) return;
-    try {
-      await AppleMusicKit.playSongInPlaylist(np.playlistId, nextIdx);
-      const next = np.songs[nextIdx];
-      setNowPlaying({ ...np, songIndex: nextIdx, title: next.title, artist: next.artist });
-    } catch {}
-  }, [setNowPlaying]);
+    const next = np.songs[nextIdx];
+    // Update UI instantly — don't wait for the native call
+    setNowPlayingState({ ...np, songIndex: nextIdx, title: next.title, artist: next.artist });
+    setPosMs(0);
+    setDurMs(Math.round(next.duration * 1000));
+    try { await AppleMusicKit.playSongInPlaylist(np.playlistId, nextIdx); } catch {}
+  }, []);
 
   const skipToPrevious = useCallback(async () => {
     const np = nowPlayingRef.current;
     if (!AppleMusicKit || !np) return;
     const prevIdx = Math.max(0, np.songIndex - 1);
-    try {
-      await AppleMusicKit.playSongInPlaylist(np.playlistId, prevIdx);
-      const prev = np.songs[prevIdx];
-      setNowPlaying({ ...np, songIndex: prevIdx, title: prev.title, artist: prev.artist });
-    } catch {}
-  }, [setNowPlaying]);
+    const prev = np.songs[prevIdx];
+    // Update UI instantly — don't wait for the native call
+    setNowPlayingState({ ...np, songIndex: prevIdx, title: prev.title, artist: prev.artist });
+    setPosMs(0);
+    setDurMs(Math.round(prev.duration * 1000));
+    try { await AppleMusicKit.playSongInPlaylist(np.playlistId, prevIdx); } catch {}
+  }, []);
 
   return (
     <AppleMusicPlayerContext.Provider value={{
