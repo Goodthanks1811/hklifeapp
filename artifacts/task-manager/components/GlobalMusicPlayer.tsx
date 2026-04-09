@@ -524,8 +524,6 @@ const s = StyleSheet.create({
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
     paddingLeft: 26, paddingRight: 20, paddingTop: 14, paddingBottom: 14, gap: 14,
-    // Tablet: constrain and centre the content row so it doesn't span 1024px
-    maxWidth: 800, alignSelf: "center", width: "100%",
   },
   miniIcon: {
     width: 36, height: 36, borderRadius: 9,
