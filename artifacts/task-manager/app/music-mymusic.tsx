@@ -25,7 +25,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
-import MusicSourceBus from "@/utils/MusicSourceBus";
+import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 const RED    = "#E03131";
 const BG     = "#111111";

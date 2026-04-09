@@ -363,7 +363,13 @@ export function GlobalMusicPlayer() {
           style={[s.miniBar, { opacity: miniBarAlpha }]}
           pointerEvents={expanded ? "none" : "auto"}
         >
-          <Pressable style={s.miniBarPressable} onPress={expand}>
+          <Pressable
+            style={[s.miniBarPressable, {
+              paddingTop: 14 + insets.bottom / 2,
+              paddingBottom: 14 + insets.bottom / 2,
+            }]}
+            onPress={expand}
+          >
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
             <View style={s.miniIcon}>
               <Feather name="music" size={20} color={RED} />
@@ -383,9 +389,6 @@ export function GlobalMusicPlayer() {
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
           </Pressable>
-          {/* Safe-zone fill — sits below the interactive content row so the bar
-              background covers the home indicator area without affecting centering */}
-          <View style={{ height: insets.bottom }} />
         </Animated.View>
       )}
 

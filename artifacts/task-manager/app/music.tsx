@@ -141,7 +141,7 @@ export default function MusicScreen() {
               onPress={() => router.push("/music-mymusic" as any)}
             />
             <ProviderRow
-              icon={<MaterialCommunityIcons name="spotify" size={36} color="#1DB954" />}
+              icon={<MaterialCommunityIcons name="spotify" size={32} color="#1DB954" />}
               accentColor="#1DB954"
               label="Spotify"
               onPress={() => router.push("/music-spotify" as any)}
@@ -180,7 +180,7 @@ const s = StyleSheet.create({
   eqBar: { width: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
 
   cards:      { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
-  appleEmoji: { fontSize: 30, lineHeight: 34 },
+  appleEmoji: { fontSize: 32, lineHeight: 32 },
   row: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
