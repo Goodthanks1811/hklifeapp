@@ -208,6 +208,9 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
       } else {
         const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork: DEFAULT_ARTWORK }));
         await _TrackPlayer.reset();
+        // Re-apply Queue repeat after every reset() — reset() wipes it back to Off,
+        // which causes the queue to stop at the last track and close the audio session.
+        await _TrackPlayer.setRepeatMode(_RepeatMode.Queue);
         await _TrackPlayer.add(rnTracks);
         await _TrackPlayer.skip(idx);
         await _TrackPlayer.play();

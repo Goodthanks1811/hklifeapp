@@ -290,6 +290,23 @@ infoPlist: {
 
 ---
 
+### 12b. Background audio stops after playing through the queue (music stops after a while, not immediately)
+
+**Symptom**: Music plays fine in the background for a while, then stops. Happens when the phone is locked. Feels like iOS killed the app but it's actually the queue ending.
+
+**Cause**: `TrackPlayer.reset()` — called inside `playTrack()` whenever a new queue is loaded — silently resets `RepeatMode` back to `Off`. `RepeatMode.Queue` was only set in `ensureSetup()`, which runs once and never again (guarded by `playerSetup = true`). So after the first `reset()`, the queue plays through to the last track, finishes, the audio session closes, and iOS terminates the background process. This matches "played for a while then stopped."
+
+**Fix**: Re-apply `setRepeatMode(Queue)` immediately after every `reset()` call in `playTrack()`:
+```js
+await _TrackPlayer.reset();
+await _TrackPlayer.setRepeatMode(_RepeatMode.Queue); // ← must come after reset()
+await _TrackPlayer.add(rnTracks);
+```
+
+**Rule**: `reset()` wipes ALL player state including repeat mode. Always re-apply `RepeatMode.Queue` after every `reset()`.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
