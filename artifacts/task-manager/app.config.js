@@ -18,6 +18,7 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: IS_DEV ? 'com.hklife.app.dev' : 'com.hklife.app',
+      buildNumber: '1',
       deploymentTarget: '15.1',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
