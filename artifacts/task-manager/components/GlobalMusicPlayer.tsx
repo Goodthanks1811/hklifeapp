@@ -517,9 +517,9 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
+    position: "absolute", bottom: 0, left: 12, right: 12,
     backgroundColor: ROW,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
     borderTopWidth: 1, borderTopColor: BORDER,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
