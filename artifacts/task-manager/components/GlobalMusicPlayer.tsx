@@ -365,8 +365,8 @@ export function GlobalMusicPlayer() {
         >
           <Pressable
             style={[s.miniBarPressable, {
-              paddingTop: 14 + insets.bottom / 2,
-              paddingBottom: 14 + insets.bottom / 2,
+              paddingTop: 9 + insets.bottom / 2,
+              paddingBottom: 9 + insets.bottom / 2,
             }]}
             onPress={expand}
           >
