@@ -71,7 +71,13 @@ const BORDER = "#2A2A2A";
 const DIM    = "#1e1e1e";
 const BG     = "#0b0b0c";
 
-const SCREEN_W = Dimensions.get("window").width;
+const SCREEN_W   = Dimensions.get("window").width;
+const IS_TABLET  = SCREEN_W >= 768;
+// Full-screen player: constrain content to a 560px column centred on iPad
+const PLAYER_MAX = 560;
+const FULL_PAD   = IS_TABLET ? Math.round(Math.max(22, (SCREEN_W - PLAYER_MAX) / 2)) : 22;
+// Artwork: cap at 520px on tablet, otherwise fills near full width
+const ART_SIZE   = IS_TABLET ? Math.min(SCREEN_W - 56, 520) : SCREEN_W - 56;
 
 // ── Music note SVG ────────────────────────────────────────────────────────────
 function MusicNoteIcon() {
@@ -504,6 +510,8 @@ const s = StyleSheet.create({
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, gap: 14,
+    // Tablet: constrain and centre the content row so it doesn't span 1024px
+    maxWidth: 800, alignSelf: "center", width: "100%",
   },
   miniIcon: {
     width: 36, height: 36, borderRadius: 9,
@@ -527,9 +535,9 @@ const s = StyleSheet.create({
   // ── Full screen ───────────────────────────────────────────────────────────
   fullScreen: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: BG, paddingHorizontal: 22,
+    backgroundColor: BG, paddingHorizontal: FULL_PAD,
   },
-  dragZoneOuter: { marginHorizontal: -22 },
+  dragZoneOuter: { marginHorizontal: -FULL_PAD },
   dragHandle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.25)",
@@ -544,7 +552,7 @@ const s = StyleSheet.create({
   },
   artZone: { marginTop: 8, alignItems: "center" },
   artBg: {
-    width: SCREEN_W - 56, height: SCREEN_W - 56, borderRadius: 16,
+    width: ART_SIZE, height: ART_SIZE, borderRadius: 16,
     backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#222",
     alignItems: "center", justifyContent: "center", overflow: "hidden",
   },

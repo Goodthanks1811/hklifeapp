@@ -164,7 +164,7 @@ export default function MusicScreen() {
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: BG },
   inner:       { flex: 1 },
-  innerTablet: { maxWidth: 900, alignSelf: "center", width: "100%" },
+  innerTablet: { maxWidth: 800, alignSelf: "center", width: "100%" },
 
   body: {
     flex: 1, justifyContent: "space-between",
