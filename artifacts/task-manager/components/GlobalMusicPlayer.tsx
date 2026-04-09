@@ -346,7 +346,7 @@ export function GlobalMusicPlayer() {
           <Pressable style={s.miniBarPressable} onPress={expand}>
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
             <View style={s.miniIcon}>
-              <Feather name="music" size={16} color={RED} />
+              <Feather name="music" size={20} color={RED} />
             </View>
 
             {/* Title + artist */}
@@ -503,7 +503,7 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 14, paddingTop: 12, gap: 12,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, gap: 14,
   },
   miniIcon: {
     width: 36, height: 36, borderRadius: 9,
