@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Image } from 'react-native';
+import { AppState, Image } from 'react-native';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
@@ -131,6 +131,37 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
     MusicSourceBus.registerPauseMyMusic(() => { _TrackPlayer.pause().catch(() => {}); });
   }, []);
 
+  // Track whether RNTP was actively playing when the app went to background.
+  // When iOS 26 drops the audio session or the app is briefly suspended, RNTP
+  // can silently stop. On return to foreground we re-issue play() to recover.
+  const isPlayingRef      = useRef(false);
+  const wasPlayingBgRef   = useRef(false);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (next) => {
+      if (next === 'background' || next === 'inactive') {
+        // Snapshot playing state before going to background
+        wasPlayingBgRef.current = isPlayingRef.current;
+      } else if (next === 'active') {
+        // Returning to foreground: if we were playing, ensure RNTP is still rolling
+        if (wasPlayingBgRef.current) {
+          wasPlayingBgRef.current = false;
+          try {
+            const state = await _TrackPlayer.getPlaybackState();
+            const isActuallyPlaying =
+              state?.state === _State.Playing || state?.state === _State.Buffering;
+            if (!isActuallyPlaying) {
+              await _TrackPlayer.play();
+            }
+          } catch {
+            // RNTP not ready — ignore
+          }
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const [rtpState, setRtpState] = useState<RNTPState>({
     activeTrack: null,
     pbState:     { state: null },
@@ -139,6 +170,7 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
 
   const { activeTrack, pbState, progress } = rtpState;
   const isPlaying = pbState?.state === _State.Playing || pbState?.state === _State.Buffering;
+  isPlayingRef.current = isPlaying; // keep ref in sync for AppState callback
   const posMs     = Math.floor((progress?.position ?? 0) * 1000);
   const durMs     = Math.floor((progress?.duration  ?? 0) * 1000);
 
