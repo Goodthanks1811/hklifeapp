@@ -48,13 +48,13 @@ function useSystemVolume() {
       setSysVol(clamped);
       volAnim.setValue(clamped);
     }).catch(() => {});
-    // Keep in sync with hardware volume buttons — update Animated.Value directly
-    // so the slider moves immediately without waiting for a React render cycle
+    // Keep in sync with hardware volume buttons — animate smoothly so the
+    // slider movement matches native iOS Music's gradual feel
     const sub = _VolumeManager.addVolumeListener((v: any) => {
       const val = typeof v === "object" ? (v.volume ?? v) : v;
       const clamped = Math.max(0, Math.min(1, Number(val)));
       setSysVol(clamped);
-      volAnim.setValue(clamped); // direct — no setState needed for the visual
+      Animated.timing(volAnim, { toValue: clamped, duration: 120, useNativeDriver: false }).start();
     });
     return () => { try { sub?.remove?.(); } catch {} };
   }, []);
@@ -363,10 +363,16 @@ export function GlobalMusicPlayer() {
           style={[s.miniBar, { opacity: miniBarAlpha }]}
           pointerEvents={expanded ? "none" : "auto"}
         >
-          <Pressable style={s.miniBarPressable} onPress={expand}>
+          <Pressable
+            style={[s.miniBarPressable, {
+              paddingTop: 9 + insets.bottom / 2,
+              paddingBottom: 9 + insets.bottom / 2,
+            }]}
+            onPress={expand}
+          >
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
             <View style={s.miniIcon}>
-              <Feather name="music" size={20} color={RED} />
+              <Feather name="music" size={24} color={RED} />
             </View>
 
             {/* Title + artist */}
@@ -405,7 +411,7 @@ export function GlobalMusicPlayer() {
           <View
             style={s.dragZoneOuter}
           >
-            <View style={[s.gradHeader, { paddingTop: insets.top + 6 }]}>
+            <Pressable style={[s.gradHeader, { paddingTop: insets.top + 6 }]} onPress={collapse}>
               <LinearGradient
                 colors={[
                   "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
@@ -418,7 +424,7 @@ export function GlobalMusicPlayer() {
               />
               <View style={s.dragHandle} />
               <Text style={s.navLbl}>Now Playing</Text>
-            </View>
+            </Pressable>
           </View>
 
           {/* Artwork */}
@@ -514,19 +520,19 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 20, left: 12, right: 12,
+    position: "absolute", bottom: 0, left: 12, right: 12,
     backgroundColor: ROW,
-    borderRadius: 22,
-    borderWidth: 1, borderColor: BORDER,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    borderTopWidth: 1, borderTopColor: BORDER,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingLeft: 26, paddingRight: 20, paddingTop: 14, paddingBottom: 14, gap: 14,
+    paddingLeft: 22, paddingRight: 18, paddingTop: 14, paddingBottom: 14, gap: 14,
   },
   miniIcon: {
-    width: 36, height: 36, borderRadius: 9,
+    width: 44, height: 44, borderRadius: 11,
     backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
@@ -534,13 +540,13 @@ const s = StyleSheet.create({
     flex: 1,
   },
   miniTitle: {
-    fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff",
+    fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#fff",
   },
   miniArtist: {
-    fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
+    fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
   },
   miniPlayBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: RED,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
   },
 
@@ -556,7 +562,7 @@ const s = StyleSheet.create({
     alignSelf: "center", marginBottom: 10,
   },
   gradHeader: {
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 100, overflow: "hidden",
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 80, overflow: "hidden",
   },
   navLbl: {
     fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center",
