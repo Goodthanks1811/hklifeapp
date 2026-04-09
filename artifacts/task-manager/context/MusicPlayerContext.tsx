@@ -13,7 +13,7 @@ import { MusicSourceBus } from "@/utils/MusicSourceBus";
 // Resolve the bundled asset to a file:// URI that RNTP can load reliably.
 // Using require() alone (number type) can fail in production EAS builds;
 // resolveAssetSource returns the actual path Metro wrote to the bundle dir.
-const _hkIconAsset = require('../assets/images/icon.png');
+const _hkIconAsset = require('../assets/images/hk-artwork.png');
 const DEFAULT_ARTWORK: string | number = (() => {
   try { return Image.resolveAssetSource(_hkIconAsset).uri; } catch { return _hkIconAsset; }
 })();
