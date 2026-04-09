@@ -99,7 +99,6 @@ function ProviderRow({
       <View style={[s.accentBar, { backgroundColor: accentColor }]} />
       <View style={s.iconCell}>{icon}</View>
       <Text style={s.rowLabel}>{label}</Text>
-      <Feather name="chevron-right" size={16} color={BORDER} />
     </Pressable>
   );
 }
@@ -112,8 +111,8 @@ export default function MusicScreen() {
   const am     = useAppleMusicPlayer();
 
   const playerVisible = !!(player.track || am.nowPlaying);
-  // Mini bar: bottom:20 offset + paddingTop(14)+content(36)+paddingBottom(14) + safe-area spacer + breathing room
-  const playerH = playerVisible ? (84 + Math.max(insets.bottom - 8, 6) + 20) : 0;
+  // Mini bar: paddingTop(14) + content(36) + paddingBottom(14) + safe-area (insets.bottom) + breathing room
+  const playerH = playerVisible ? (64 + insets.bottom + 20) : 0;
 
   const goHome = () => { openDrawer(); };
 
@@ -142,7 +141,7 @@ export default function MusicScreen() {
               onPress={() => router.push("/music-mymusic" as any)}
             />
             <ProviderRow
-              icon={<MaterialCommunityIcons name="spotify" size={36} color="#1DB954" />}
+              icon={<MaterialCommunityIcons name="spotify" size={32} color="#1DB954" />}
               accentColor="#1DB954"
               label="Spotify"
               onPress={() => router.push("/music-spotify" as any)}
@@ -181,11 +180,11 @@ const s = StyleSheet.create({
   eqBar: { width: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
 
   cards:      { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
-  appleEmoji: { fontSize: 30, lineHeight: 34 },
+  appleEmoji: { fontSize: 32, lineHeight: 32 },
   row: {
-    flexDirection: "row", alignItems: "center", gap: 16,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 16, height: 84, paddingHorizontal: 20,
+    borderRadius: 16, height: 84, paddingLeft: 28, paddingRight: 12,
     position: "relative",
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
@@ -201,7 +200,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   rowLabel: {
-    flex: 1, fontSize: 17, fontWeight: "600", color: "#fff",
+    width: 132, fontSize: 17, fontWeight: "600", color: "#fff",
     fontFamily: "Inter_600SemiBold",
   },
 
