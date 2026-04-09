@@ -152,8 +152,10 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         // Snapshot playing state before going to background
         wasPlayingBgRef.current = isPlayingRef.current;
       } else if (next === 'active') {
-        // Returning to foreground: if we were playing, ensure RNTP is still rolling
-        if (wasPlayingBgRef.current) {
+        // Returning to foreground: if we were playing, ensure RNTP is still rolling.
+        // Guard: don't resume if Apple Music intentionally holds the session —
+        // the user switched sources and expects Apple Music to keep playing.
+        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl()) {
           wasPlayingBgRef.current = false;
           try {
             const state = await _TrackPlayer.getPlaybackState();
@@ -165,6 +167,8 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
           } catch {
             // RNTP not ready — ignore
           }
+        } else {
+          wasPlayingBgRef.current = false;
         }
       }
     });

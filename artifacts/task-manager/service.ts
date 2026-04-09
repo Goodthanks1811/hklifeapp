@@ -1,3 +1,5 @@
+import { MusicSourceBus } from "@/utils/MusicSourceBus";
+
 // Safe RNTP import — crashes in Expo Go if done via static ES import
 let TrackPlayer: any = null;
 let Event: any = {};
@@ -61,8 +63,11 @@ export async function PlaybackService() {
       if (e.paused) {
         await TrackPlayer.pause();
 
-        // Only auto-recover if the user hasn't deliberately paused.
-        if (!userPaused) {
+        // Only auto-recover if the user hasn't deliberately paused AND Apple Music
+        // hasn't intentionally taken the audio session (MusicSourceBus switch).
+        // Without this guard, switching to Apple Music triggers RemoteDuck and the
+        // 10-second timer fires — resuming RNTP and overriding Apple Music playback.
+        if (!userPaused && !MusicSourceBus.appleMusicHasControl()) {
           clearDuckTimer();
           duckResumeTimer = setTimeout(async () => {
             duckResumeTimer = null;
@@ -77,7 +82,9 @@ export async function PlaybackService() {
             }
           }, 10_000);
         }
-      } else if (!e.permanent) {
+      } else if (!e.permanent && !MusicSourceBus.appleMusicHasControl()) {
+        // Interruption ended (e.g. notification sound finished) — resume RNTP.
+        // Guard: if Apple Music intentionally holds the session, don't steal it back.
         clearDuckTimer();
         userPaused = false;
         await TrackPlayer.play();
