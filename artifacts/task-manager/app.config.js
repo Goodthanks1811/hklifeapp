@@ -85,6 +85,7 @@ module.exports = {
       eas: {
         projectId: 'a4b0c416-348f-4f50-914c-76e1b191ca72',
       },
+      easBuildId: process.env.EAS_BUILD_ID?.slice(0, 8) ?? null,
     },
     owner: 'hk1811',
   },
