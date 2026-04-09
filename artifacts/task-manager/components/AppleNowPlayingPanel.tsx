@@ -1,12 +1,12 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Dimensions,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -151,24 +151,31 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
     });
   };
 
-  // Drag-to-dismiss — direct shared value writes run on UI thread immediately
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder:  (_, g) => Math.abs(g.dy) > 5,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) dragOffset.value = g.dy;
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 90 || g.vy > 0.8) {
-          dragOffset.value = 0;
-          collapse();
-        } else {
-          dragOffset.value = withSpring(0, SNAP_SPRING);
-        }
-      },
-    })
-  ).current;
+  // Pan gesture runs entirely on the UI thread — no bridge, no stutter.
+  // useMemo keeps the gesture object stable across re-renders.
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onUpdate((e) => {
+          "worklet";
+          if (e.translationY > 0) dragOffset.value = e.translationY;
+        })
+        .onEnd((e) => {
+          "worklet";
+          if (e.translationY > 90 || e.velocityY > 500) {
+            // Dismiss: reset drag and spring the panel off screen
+            dragOffset.value = 0;
+            slideY.value = withSpring(SCREEN_H, CLOSE_SPRING, (finished) => {
+              if (finished) runOnJS(setExpanded)(false);
+            });
+          } else {
+            // Snap back
+            dragOffset.value = withSpring(0, SNAP_SPRING);
+          }
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   if (!am.nowPlaying) return null;
 
@@ -213,9 +220,10 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
 
       {/* ── Full-screen now playing — always rendered, slides in/out off-screen ── */}
       {expanded && (
-        <Reanimated.View style={[s.fullScreen, fsAnimStyle]}>
-          {/* Drag handle */}
-          <View style={[s.dragZone, { paddingTop: insets.top + 8 }]} {...panResponder.panHandlers}>
+        <GestureDetector gesture={panGesture}>
+          <Reanimated.View style={[s.fullScreen, fsAnimStyle]}>
+          {/* Drag handle (visual only — gesture covers the whole panel) */}
+          <View style={[s.dragZone, { paddingTop: insets.top + 8 }]}>
             <View style={s.dragHandle} />
           </View>
 
@@ -294,7 +302,8 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
           >
             <Text style={s.collapseTx}>Minimise</Text>
           </Pressable>
-        </Reanimated.View>
+          </Reanimated.View>
+        </GestureDetector>
       )}
     </>
   );
