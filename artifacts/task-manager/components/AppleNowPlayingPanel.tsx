@@ -1,6 +1,5 @@
 import React, { useRef, useState } from "react";
 import {
-  Animated,
   Dimensions,
   PanResponder,
   Pressable,
@@ -8,6 +7,12 @@ import {
   Text,
   View,
 } from "react-native";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
@@ -25,12 +30,17 @@ const BG     = "#0b0b0c";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const DIM    = "#1e1e1e";
-const MID    = "#2e2e2e";
 
 const SCREEN_H = Dimensions.get("window").height;
 const SCREEN_W = Dimensions.get("window").width;
 
-// ── SVG icons (from ui-kit/now-playing design) ────────────────────────────────
+// Spring configs — both directions use the same curve so open/close feel symmetrical.
+// overshootClamping on close so the panel doesn't bounce at the bottom.
+const OPEN_SPRING  = { damping: 44, stiffness: 380, mass: 1 } as const;
+const CLOSE_SPRING = { damping: 44, stiffness: 380, mass: 1, overshootClamping: true } as const;
+const SNAP_SPRING  = { damping: 30, stiffness: 300, mass: 1 } as const;
+
+// ── SVG icons ─────────────────────────────────────────────────────────────────
 function MusicNoteIcon() {
   return (
     <Svg width={110} height={120} viewBox="0 0 110 120">
@@ -121,40 +131,41 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
   const [shuffle,  setShuffle]  = useState(false);
   const [repeat,   setRepeat]   = useState(false);
 
-  const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
+  // UI-thread shared values — both directions use withSpring so the curve is identical
+  const slideY     = useSharedValue(SCREEN_H);
+  const dragOffset = useSharedValue(0);
+
+  const fsAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideY.value + dragOffset.value }],
+  }));
 
   const expand = () => {
     setExpanded(true);
-    Animated.spring(slideAnim, {
-      toValue: 0, useNativeDriver: true,
-      damping: 28, stiffness: 220,
-    }).start();
+    slideY.value = withSpring(0, OPEN_SPRING);
   };
 
   const collapse = () => {
-    Animated.timing(slideAnim, {
-      toValue: SCREEN_H, duration: 280, useNativeDriver: true,
-    }).start(() => setExpanded(false));
+    // runOnJS fires only after the spring fully completes, preventing any mid-animation flash
+    slideY.value = withSpring(SCREEN_H, CLOSE_SPRING, (finished) => {
+      if (finished) runOnJS(setExpanded)(false);
+    });
   };
 
-  // Drag-to-dismiss
-  const dragY   = useRef(new Animated.Value(0)).current;
-  const dragRef = useRef(0);
+  // Drag-to-dismiss — direct shared value writes run on UI thread immediately
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder:  (_, g) => Math.abs(g.dy) > 5,
       onPanResponderMove: (_, g) => {
-        if (g.dy > 0) { dragRef.current = g.dy; dragY.setValue(g.dy); }
+        if (g.dy > 0) dragOffset.value = g.dy;
       },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 90 || g.vy > 0.8) {
-          dragY.setValue(0);
+          dragOffset.value = 0;
           collapse();
         } else {
-          Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+          dragOffset.value = withSpring(0, SNAP_SPRING);
         }
-        dragRef.current = 0;
       },
     })
   ).current;
@@ -172,11 +183,9 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
           style={[s.miniBar, { paddingBottom: insetBottom + 12 }]}
           onPress={expand}
         >
-          {/* Song title centered above controls */}
           <Text style={s.miniTitle} numberOfLines={1}>{title}</Text>
           {artist ? <Text style={s.miniArtist} numberOfLines={1}>{artist}</Text> : null}
 
-          {/* Controls row */}
           <View style={s.miniControls}>
             <Pressable
               style={s.miniCtrlBtn}
@@ -202,15 +211,10 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
         </Pressable>
       )}
 
-      {/* ── Full-screen now playing (slides up) ── */}
+      {/* ── Full-screen now playing — always rendered, slides in/out off-screen ── */}
       {expanded && (
-        <Animated.View
-          style={[
-            s.fullScreen,
-            { transform: [{ translateY: Animated.add(slideAnim, dragY) }] },
-          ]}
-        >
-          {/* Drag handle area */}
+        <Reanimated.View style={[s.fullScreen, fsAnimStyle]}>
+          {/* Drag handle */}
           <View style={[s.dragZone, { paddingTop: insets.top + 8 }]} {...panResponder.panHandlers}>
             <View style={s.dragHandle} />
           </View>
@@ -248,7 +252,7 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
             <Text style={s.trackSub}   numberOfLines={1}>{artist}</Text>
           </View>
 
-          {/* Scrub bar (decorative — no position data from Apple Music native player) */}
+          {/* Scrub bar */}
           <View style={s.scrubBlock}>
             <View style={s.scrubTrack}>
               <View style={[s.scrubFill, { width: "0%" }]}>
@@ -290,14 +294,13 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
           >
             <Text style={s.collapseTx}>Minimise</Text>
           </Pressable>
-        </Animated.View>
+        </Reanimated.View>
       )}
     </>
   );
 }
 
 const s = StyleSheet.create({
-  // ── Mini bar ──
   miniBar: {
     backgroundColor: ROW,
     borderTopWidth: 1, borderTopColor: BORDER,
@@ -329,7 +332,6 @@ const s = StyleSheet.create({
     shadowRadius: 14, shadowOpacity: 0.4,
   },
 
-  // ── Full screen ──
   fullScreen: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: BG,
