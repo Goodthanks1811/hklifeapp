@@ -4,12 +4,14 @@ import { MusicSourceBus } from "@/utils/MusicSourceBus";
 let TrackPlayer: any = null;
 let Event: any = {};
 let State: any = {};
+let RepeatMode: any = {};
 
 try {
   const rntp = require("react-native-track-player");
   TrackPlayer  = rntp.default ?? rntp;
   Event        = rntp.Event ?? {};
   State        = rntp.State ?? {};
+  RepeatMode   = rntp.RepeatMode ?? {};
 } catch {
   // Expo Go — native module not present
 }
@@ -18,19 +20,8 @@ export async function PlaybackService() {
   if (!TrackPlayer) return;
 
   // Tracks whether the user deliberately paused from the Lock Screen /
-  // Control Centre. Used by the RemoteDuck safety-net to avoid auto-resuming
-  // after a system-ducking event when the user actually wanted silence.
+  // Control Centre. Prevents auto-resume after a permanent interruption ends.
   let userPaused = false;
-
-  // Safety-net timer for RemoteDuck: if the OS fires paused=true but never
-  // fires the matching paused=false resume event (an iOS 26 beta bug), music
-  // stays paused indefinitely. We wait 10 s then force-resume — unless the
-  // user explicitly paused via the Lock Screen button.
-  let duckResumeTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const clearDuckTimer = () => {
-    if (duckResumeTimer) { clearTimeout(duckResumeTimer); duckResumeTimer = null; }
-  };
 
   // ── Remote control events (Control Centre, Lock Screen, CarPlay) ─────────
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
@@ -40,66 +31,59 @@ export async function PlaybackService() {
 
   TrackPlayer.addEventListener(Event.RemotePause, () => {
     userPaused = true;
-    clearDuckTimer(); // user paused intentionally — cancel any pending auto-resume
     TrackPlayer.pause();
   });
 
   TrackPlayer.addEventListener(Event.RemoteNext,     () => TrackPlayer.skipToNext());
   TrackPlayer.addEventListener(Event.RemotePrevious, () => TrackPlayer.skipToPrevious());
   TrackPlayer.addEventListener(Event.RemoteSeek,     (e: any) => TrackPlayer.seekTo(e.position));
-  TrackPlayer.addEventListener(Event.RemoteStop,     () => { userPaused = true; clearDuckTimer(); TrackPlayer.reset(); });
+
+  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
+    userPaused = true;
+    await TrackPlayer.reset();
+    // reset() wipes RepeatMode back to Off — re-apply Queue so the next
+    // play() call keeps the audio session alive indefinitely.
+    try { await TrackPlayer.setRepeatMode(RepeatMode.Queue); } catch {}
+  });
 
   // ── Audio session interruption handling (autoHandleInterruptions: false) ──
-  // Fired when another app or system sound (notification, phone call, Siri)
-  // temporarily takes the audio session.
   //
-  // paused=true  → interruption began → pause + start 10 s safety timer
-  // paused=false → interruption ended → clear timer and resume (if non-permanent)
+  // Root cause of background audio dropout:
+  // When any notification/sound fires RemoteDuck with paused=true, the old code
+  // paused RNTP and waited 10 seconds to resume. During that 10-second window the
+  // audio session went idle, iOS removed the background-audio privilege, and killed
+  // the process — stopping music and forcing a fresh app launch (Face ID prompt).
   //
-  // The safety timer handles iOS 26's bug where the paused=false resume event
-  // is sometimes never fired, leaving music permanently paused in the background.
+  // Fix: only pause for events that truly require it:
+  //   • permanent=true  → phone call answered — pause (user expects silence)
+  //   • Apple Music taking control → pause RNTP (source switch)
+  //   • non-permanent (notifications, Siri brief) → do nothing.
+  //     With DoNotMix, notification sounds are already suppressed by iOS when
+  //     we hold the audio session. Keeping RNTP playing means the session never
+  //     goes idle and iOS never kills the background process.
   TrackPlayer.addEventListener(Event.RemoteDuck, async (e: { paused: boolean; permanent: boolean }) => {
     try {
       if (e.paused) {
-        await TrackPlayer.pause();
-
-        // Only auto-recover if the user hasn't deliberately paused AND Apple Music
-        // hasn't intentionally taken the audio session (MusicSourceBus switch).
-        // Without this guard, switching to Apple Music triggers RemoteDuck and the
-        // 10-second timer fires — resuming RNTP and overriding Apple Music playback.
-        if (!userPaused && !MusicSourceBus.appleMusicHasControl()) {
-          clearDuckTimer();
-          duckResumeTimer = setTimeout(async () => {
-            duckResumeTimer = null;
-            try {
-              // Verify we're still paused (not playing, not already recovered)
-              const s = await TrackPlayer.getPlaybackState();
-              if (s?.state !== State.Playing && s?.state !== State.Buffering) {
-                await TrackPlayer.play();
-              }
-            } catch {
-              // player gone — ignore
-            }
-          }, 10_000);
+        if (MusicSourceBus.appleMusicHasControl()) {
+          // Apple Music intentionally took the session — silence RNTP
+          await TrackPlayer.pause();
+        } else if (e.permanent) {
+          // Permanent interruption (e.g. answered phone call) — pause
+          // without marking userPaused so we resume when the call ends
+          await TrackPlayer.pause();
         }
-      } else if (!e.permanent && !MusicSourceBus.appleMusicHasControl()) {
-        // Interruption ended (e.g. notification sound finished) — resume RNTP.
-        // Guard: if Apple Music intentionally holds the session, don't steal it back.
-        clearDuckTimer();
-        userPaused = false;
+        // Non-permanent system interruption (notification, Siri, etc.):
+        // do nothing — audio session stays active, iOS cannot kill the process
+      } else if (!e.permanent && !userPaused && !MusicSourceBus.appleMusicHasControl()) {
+        // Interruption ended — resume if the user didn't deliberately pause
         await TrackPlayer.play();
-      } else {
-        // permanent=true means another app fully took over (e.g. phone call
-        // that the user answered). Clear the timer but don't auto-resume.
-        clearDuckTimer();
       }
     } catch {
-      // guard against stale state after interruption
+      // guard against stale state
     }
   });
 
   // ── Playback errors ───────────────────────────────────────────────────────
-  // Without this handler an unhandled native error can bubble up and crash.
   TrackPlayer.addEventListener(Event.PlaybackError, (e: any) => {
     console.warn("[PlaybackService] Playback error:", e?.message ?? e);
   });

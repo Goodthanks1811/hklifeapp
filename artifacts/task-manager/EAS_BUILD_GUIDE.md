@@ -307,6 +307,25 @@ await _TrackPlayer.add(rnTracks);
 
 ---
 
+### 12c. Background audio stops in under a minute — iOS kills the process after RemoteDuck pauses
+
+**Symptom**: Music plays for less than a minute when phone is locked, then stops completely. After opening the app, Face ID prompt appears (fresh app launch, not a resume). Happens consistently when notifications arrive.
+
+**Cause**: Every notification/sound fires a `RemoteDuck` event with `paused=true`. The old handler paused RNTP and started a 10-second timer to resume. During that 10-second window the audio session went idle (RNTP released it on pause). iOS detected the idle background audio session, removed the background-audio privilege, and killed the process — stopping music and forcing a full app restart, which triggers the biometric lock on next open.
+
+**Fix**: Changed the `RemoteDuck` handler in `service.ts` to only pause for events that truly require it:
+- `permanent=true` (phone call answered) → pause
+- Apple Music taking control → pause RNTP (source switch)
+- Non-permanent interruption (notifications, Siri, etc.) → **do nothing**
+
+With `DoNotMix`, notification sounds are already suppressed by iOS when the audio session is active. By keeping RNTP playing through non-permanent interruptions, the audio session never goes idle and iOS never kills the background process.
+
+Also fixed: `RemoteStop` now re-applies `RepeatMode.Queue` after `reset()` to match the rule in 12b.
+
+**Rule**: Never pause RNTP for non-permanent `RemoteDuck` events. The 10-second resume timer pattern is dangerous — it creates a window where the audio session can go idle and iOS kills the process.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
