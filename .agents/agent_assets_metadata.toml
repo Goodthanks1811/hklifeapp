@@ -11,3 +11,9 @@ id = "tFUB6h_Yp63m6sZI7k08e"
 uri = "file://replit.md"
 type = "text"
 title = "HK Life App — Project Notes"
+
+[[outputs]]
+id = "U1PhSWVwUofTnoO9bOncp"
+uri = "file://artifacts/task-manager/assets/images/icon.png"
+type = "image"
+title = "Current icon.png (the restored original)"
