@@ -11,7 +11,8 @@ import { router } from "expo-router";
 import { CardStyleInterpolators } from "@react-navigation/stack";
 import { CustomStack, TRANSITION_SPEC, asymmetricSlide } from "./custom-stack";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useCallback, useEffect, useState } from "react";
+import * as Linking from "expo-linking";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -111,19 +112,41 @@ function RootLayoutNav() {
 
 // Lives inside DrawerProvider so it can call openDrawer / skipNextAutoClose
 function StartupGate() {
-  const { slowOpen, skipNextAutoClose } = useDrawer();
+  const { slowOpen, skipNextAutoClose, instantClose } = useDrawer();
   const [show, setShow] = useState(!isTablet);
 
+  // Detect cold-launch deep links early — resolves well before the scan (~2.6 s) finishes.
+  // If a real path was provided (e.g. hk-life-app://music), we must NOT override the
+  // navigation Expo Router already queued up; we just close the drawer and step aside.
+  const hasDeepLinkRef = useRef(false);
+  useEffect(() => {
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        try {
+          const parsed = Linking.parse(url);
+          // A real deep link has a non-empty path beyond the bare scheme root
+          if (parsed.path && parsed.path !== '' && parsed.path !== '/') {
+            hasDeepLinkRef.current = true;
+          }
+        } catch {}
+      }
+    });
+  }, []);
+
   const handleDone = useCallback(() => {
-    // Prevent the upcoming route-change from auto-closing the drawer
-    skipNextAutoClose();
-    // Slide drawer in slowly — animates while scan fades out simultaneously
-    slowOpen();
-    // Land on Development screen so it shows in the background
-    router.replace("/life/automation" as any);
-    // Unmount scan after drawer + fade have both settled (~700ms)
+    if (hasDeepLinkRef.current) {
+      // Deep-link launch: close the drawer immediately and let Expo Router
+      // navigate to the linked screen (it already queued that navigation).
+      instantClose();
+    } else {
+      // Normal launch: slide drawer in and navigate to the default home screen.
+      skipNextAutoClose();
+      slowOpen();
+      router.replace("/life/automation" as any);
+    }
+    // Unmount scan after drawer animation + fade have both settled (~700ms)
     setTimeout(() => setShow(false), 700);
-  }, [slowOpen, skipNextAutoClose]);
+  }, [slowOpen, skipNextAutoClose, instantClose]);
 
   if (!show) return null;
   return <StartupScan onDone={handleDone} />;
