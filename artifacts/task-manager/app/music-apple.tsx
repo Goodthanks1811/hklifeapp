@@ -114,68 +114,67 @@ function PlaylistRow({
   };
 
   return (
-    <View style={s.card}>
-      {/* Playlist header row */}
+    <>
+      {/* Playlist header — its own standalone card */}
       <Pressable
-        style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
+        style={({ pressed }) => [s.card, pressed && { opacity: 0.7 }]}
         onPress={toggle}
       >
-        <View style={[s.iconCell, isThisPlaying && s.iconCellPlaying]}>
-          {isThisPlaying
-            ? <Feather name="volume-2" size={18} color={RED} />
-            : <Feather name="headphones" size={18} color={RED} />}
+        <View style={s.row}>
+          <View style={[s.iconCell, isThisPlaying && s.iconCellPlaying]}>
+            {isThisPlaying
+              ? <Feather name="volume-2" size={18} color={RED} />
+              : <Feather name="headphones" size={18} color={RED} />}
+          </View>
+          <View style={s.rowTextWrap}>
+            <Text style={s.rowName}>{pl.name}</Text>
+            {pl.count > 0 && (
+              <Text style={s.rowCount}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>
+            )}
+          </View>
+          <Feather
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={18}
+            color="rgba(255,255,255,0.3)"
+          />
         </View>
-        <View style={s.rowTextWrap}>
-          <Text style={[s.rowName, isThisPlaying && s.rowNamePlaying]}>{pl.name}</Text>
-          {pl.count > 0 && (
-            <Text style={s.rowCount}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>
-          )}
-        </View>
-        <Feather
-          name={expanded ? "chevron-up" : "chevron-down"}
-          size={18}
-          color="rgba(255,255,255,0.3)"
-        />
       </Pressable>
 
-      {/* Expanded song list */}
+      {/* Expanded songs — each is its own standalone card, same style as My Music rows */}
       {expanded && (
-        <View style={s.songList}>
-          <View style={s.songDivider} />
-          {loadingSongs ? (
-            <View style={s.songLoading}>
-              <ActivityIndicator color={RED} size="small" />
-            </View>
-          ) : songs.length === 0 ? (
-            <Text style={s.songEmpty}>No songs found</Text>
-          ) : (
-            songs.map((song, idx) => {
-              const isActiveSong = isThisPlaying && playingSongIndex === idx;
-              return (
-                <Pressable
-                  key={song.id}
-                  style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }]}
-                  onPress={() => onPlaySong(pl, idx, songs)}
-                >
-                  <View style={s.songIndex}>
-                    {isActiveSong
-                      ? <Feather name="volume-2" size={13} color={RED} />
-                      : <Text style={s.songIndexTx}>{idx + 1}</Text>}
-                  </View>
-                  <View style={s.songInfo}>
-                    <Text style={[s.songTitle, isActiveSong && s.songTitleActive]} numberOfLines={1}>{song.title}</Text>
-                    {song.artist ? (
-                      <Text style={s.songArtist} numberOfLines={1}>{song.artist}</Text>
-                    ) : null}
-                  </View>
-                  <Text style={s.songDuration}>{fmtDuration(song.duration)}</Text>
-                </Pressable>
-              );
-            })
-          )}
-        </View>
+        loadingSongs ? (
+          <View style={s.songLoading}>
+            <ActivityIndicator color={RED} size="small" />
+          </View>
+        ) : songs.length === 0 ? (
+          <Text style={s.songEmpty}>No songs found</Text>
+        ) : (
+          songs.map((song, idx) => {
+            const isActiveSong = isThisPlaying && playingSongIndex === idx;
+            return (
+              <Pressable
+                key={song.id}
+                style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }]}
+                onPress={() => onPlaySong(pl, idx, songs)}
+              >
+                <View style={s.songIndex}>
+                  {isActiveSong
+                    ? <Feather name="volume-2" size={14} color={RED} />
+                    : <Text style={s.songIndexTx}>{idx + 1}</Text>}
+                </View>
+                <View style={s.songInfo}>
+                  <Text style={[s.songTitle, isActiveSong && s.songTitleActive]} numberOfLines={1}>{song.title}</Text>
+                  {song.artist ? (
+                    <Text style={s.songArtist} numberOfLines={1}>{song.artist}</Text>
+                  ) : null}
+                </View>
+                <Text style={s.songDuration}>{fmtDuration(song.duration)}</Text>
+              </Pressable>
+            );
+          })
+        )
       )}
-    </View>
+    </>
   );
 }
 
@@ -387,14 +386,13 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  // Playlist card — no red tint on the whole card
+  // Playlist header card
   card: {
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, marginBottom: 8,
+    borderRadius: 14, marginBottom: 4,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
-
   row: {
     flexDirection: "row", alignItems: "center", gap: 14,
     paddingHorizontal: 14, paddingVertical: 13,
@@ -410,32 +408,28 @@ const s = StyleSheet.create({
     fontSize: 15, fontWeight: "500", color: "#fff",
     fontFamily: "Inter_500Medium",
   },
-  rowNamePlaying: { color: "#fff" },
   rowCount: {
     fontSize: 12, color: "rgba(255,255,255,0.35)",
     fontFamily: "Inter_400Regular", marginTop: 2,
   },
 
-  // Song list
-  songList: { paddingHorizontal: 8, paddingBottom: 10, gap: 4 },
-  songDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 6, marginBottom: 6 },
+  // Song rows — standalone cards matching My Music track rows exactly
+  songRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
+    borderRadius: 14, paddingHorizontal: 14, height: 62,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
+    marginBottom: 8,
+  },
   songLoading: { paddingVertical: 16, alignItems: "center" },
   songEmpty: { color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", paddingVertical: 12, fontFamily: "Inter_400Regular" },
-
-  // Each song is its own black card row — same glossy style as My Music track rows
-  songRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.40, shadowRadius: 7, elevation: 5,
-  },
 
   songIndex: { width: 22, alignItems: "center" },
   songIndexTx: { fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: "Inter_400Regular" },
 
   songInfo: { flex: 1, minWidth: 0 },
-  songTitle: { fontSize: 14, fontWeight: "500", color: "#ddd", fontFamily: "Inter_500Medium" },
+  songTitle: { fontSize: 14, fontWeight: "500", color: "#fff", fontFamily: "Inter_500Medium" },
   songTitleActive: { color: RED },
   songArtist: { fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular", marginTop: 1 },
   songDuration: { fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
