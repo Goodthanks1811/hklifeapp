@@ -283,6 +283,99 @@ Slot calculation: floor((relY - SLOT_H/2) / SLOT_H) clamped 0..(n-1)
 
 ---
 
+## CarPlay Integration — Implementation Plan
+
+### Status
+- User applied for `com.apple.developer.carplay-audio` entitlement from Apple (status unknown)
+- Basic "Now Playing" on CarPlay already works via `MPNowPlayingInfoCenter` + `MPRemoteCommandCenter` (no entitlement needed — automatic for any audio app)
+- Full CarPlay app (browse playlists, select songs) requires the entitlement approval + the code below
+
+### What the CarPlay UI will look like
+```
+CPTabBarTemplate (root)
+├── [Tab 0] "My Music"    CPListTemplate — flat track list
+│     tap track → RNTP plays it → CPNowPlayingTemplate pushed
+└── [Tab 1] "Apple Music" CPListTemplate — playlist list
+      tap playlist → CPListTemplate with songs
+      tap song → MPMusicPlayerController plays → CPNowPlayingTemplate pushed
+```
+
+### Files to create / modify
+
+| File | Change |
+|------|--------|
+| `plugins/withCarPlay.js` | NEW config plugin — writes `HKCarPlaySceneDelegate.swift`, patches Info.plist, adds entitlement, patches pbxproj |
+| `plugins/withAppleMusicKit.js` | Add `HKMyMusicTrack` struct, `HKSharedMusicState` class, `Events("onCarPlayPlayMyMusic")`, `OnCreate` callback registration, `updateMyMusicTracks` AsyncFunction to SWIFT_CONTENT |
+| `modules/apple-musickit/index.ts` | Export `updateMyMusicTracks(tracks)` and re-export the CarPlay event |
+| `app.config.js` | Add `'./plugins/withCarPlay'` to plugins array |
+| `app/music-mymusic.tsx` | Call `updateMyMusicTracks(tracks)` after every track list change (load, add, delete, reorder) |
+
+### Architecture details
+
+**Shared state bridge** (`HKSharedMusicState` in `AppleMusicKitModule.swift`):
+```swift
+struct HKMyMusicTrack { let name: String; let uri: String }
+class HKSharedMusicState {
+  private static var _tracks: [HKMyMusicTrack]? = nil
+  static var myMusicTracks: [HKMyMusicTrack] {
+    // Reads from in-memory cache, falls back to UserDefaults(key: "hk_mymusic_tracks")
+    // so tracks are available to CarPlay even if app is backgrounded/suspended
+  }
+  static func setTracks(_ tracks: [HKMyMusicTrack]) // writes cache + UserDefaults
+  static var onCarPlayPlayMyMusic: ((Int) -> Void)? = nil // set by module OnCreate
+}
+```
+
+**Event flow (My Music)**:
+1. CarPlay delegate taps track → calls `HKSharedMusicState.onCarPlayPlayMyMusic?(idx)`
+2. Module's `OnCreate` closure fires → `sendEvent("onCarPlayPlayMyMusic", ["trackIndex": idx])`
+3. JS listener in `music-mymusic.tsx` receives event → calls `playTrack(idx, tracks)` on RNTP
+
+**Event flow (Apple Music)**:
+- CarPlay delegate queries `MPMediaQuery.playlists()` directly — no JS needed
+- Tapping song calls `MPMusicPlayerController.applicationQueuePlayer` — same as in-app
+
+**Track persistence**: `HKSharedMusicState.setTracks()` writes to `UserDefaults(key: "hk_mymusic_tracks")` as `[[String:String]]`. CarPlay delegate lazy-loads from UserDefaults if in-memory cache is nil. Tracks available even when app is suspended.
+
+**CarPlay Scene Config** (added to Info.plist via `withInfoPlist`):
+```
+UIApplicationSceneManifest:
+  UIApplicationSupportsMultipleScenes: true  ← required for CarPlay
+  UISceneConfigurations:
+    CPTemplateApplicationSceneSessionRoleApplication:
+      - UISceneConfigurationName: "HKCarPlay-Configuration"
+        UISceneDelegateClassName: "HKCarPlaySceneDelegate"  ← @objc name
+```
+
+**Entitlement** added via `withEntitlementsPlist`:
+```
+com.apple.developer.carplay-audio = true
+```
+
+**CarPlay scene delegate class** (`HKCarPlaySceneDelegate.swift` — written by config plugin):
+```swift
+@objc(HKCarPlaySceneDelegate)
+class HKCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
+  var interfaceController: CPInterfaceController?
+  // ...tabs, list templates, push/pop, now playing push
+}
+```
+Imports needed: `CarPlay`, `MediaPlayer`, `AVFoundation`, `UIKit`
+
+**pbxproj UUIDs** (deterministic, stable across builds):
+- `HKCarPlaySceneDelegate.swift` FILE_UUID: `CC33DD44EE55FF661100AA22`
+- `HKCarPlaySceneDelegate.swift` BUILD_UUID: `CC33DD44EE55FF661100AA23`
+
+**Frameworks**: `CarPlay` is a system framework; Xcode auto-links it when `import CarPlay` is found in the main target Swift source.
+
+### Key constraints
+- Apple Music tab reads directly from `MPMediaQuery` — no Spotify support until Spotify OAuth is built
+- Spotify placeholder tab can be added later with a message "Open HK Life to play Spotify"
+- CPTemplates only (no custom SwiftUI/UIKit views) — this is an Apple restriction for CarPlay audio apps
+- `CPNowPlayingTemplate.shared` is a singleton — pushed automatically when audio starts
+
+---
+
 ## Mi Corazon — Photo/Video Gallery
 
 ### Screen: `app/mi-corazon.tsx`
