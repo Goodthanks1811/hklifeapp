@@ -1,4 +1,4 @@
-const { withDangerousMod } = require('@expo/config-plugins');
+const { withDangerousMod, withInfoPlist } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
@@ -288,6 +288,19 @@ public class AppleMusicKitModule: Module {
 `;
 
 const withAppleMusicKit = (config) => {
+  // ── Guarantee UIBackgroundModes: ['audio'] is in Info.plist ──────────────
+  // Using withInfoPlist (the canonical Expo plugin API) is more reliable than
+  // the infoPlist key in app.config.js, which can be silently dropped or
+  // mis-formatted in some Expo SDK versions. Without this key the process is
+  // suspended at the standard 30-second background task window — stopping all
+  // audio (RNTP and MPMusicPlayerController alike) regardless of what RNTP does.
+  config = withInfoPlist(config, (cfg) => {
+    const plist = cfg.modResults;
+    if (!Array.isArray(plist.UIBackgroundModes)) plist.UIBackgroundModes = [];
+    if (!plist.UIBackgroundModes.includes('audio')) plist.UIBackgroundModes.push('audio');
+    return cfg;
+  });
+
   return withDangerousMod(config, [
     'ios',
     async (config) => {

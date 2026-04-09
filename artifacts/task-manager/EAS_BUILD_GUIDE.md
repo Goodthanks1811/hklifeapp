@@ -326,6 +326,28 @@ Also fixed: `RemoteStop` now re-applies `RepeatMode.Queue` after `reset()` to ma
 
 ---
 
+### 12d. Background audio stops for ALL sources ~30 seconds after phone locks — UIBackgroundModes not taking effect
+
+**Symptom**: Music from both My Music (RNTP) and Apple Music (MPMusicPlayerController) stops ~30 seconds after the phone screen is locked. No notifications involved. App process is killed and a fresh launch (with Face ID prompt) is required.
+
+**Cause**: The 30-second timing is the standard iOS background task expiration window for apps WITHOUT a registered background mode. Both `MPMusicPlayerController.applicationQueuePlayer` and RNTP are in-process players — when the process is suspended, both stop.
+
+The root issue: `UIBackgroundModes: ['audio']` was set via `infoPlist` in `app.config.js`, but this approach can be silently dropped or mis-formatted by the Expo build system in some SDK versions. The key was not making it into Info.plist.
+
+**Fix**: Added a `withInfoPlist` call directly inside `plugins/withAppleMusicKit.js` — the canonical Expo plugin API that is guaranteed to write the key in the correct plist array format:
+```js
+config = withInfoPlist(config, (cfg) => {
+  const plist = cfg.modResults;
+  if (!Array.isArray(plist.UIBackgroundModes)) plist.UIBackgroundModes = [];
+  if (!plist.UIBackgroundModes.includes('audio')) plist.UIBackgroundModes.push('audio');
+  return cfg;
+});
+```
+
+**Rule**: Always set `UIBackgroundModes` via `withInfoPlist` in a config plugin, NOT via the `infoPlist` key in `app.config.js`. The plugin API guarantees the correct plist format. The `infoPlist` shorthand is unreliable for array-type keys.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
