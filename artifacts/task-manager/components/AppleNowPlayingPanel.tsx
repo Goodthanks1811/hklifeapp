@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Dimensions,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -250,7 +251,11 @@ export function AppleNowPlayingPanel({ insetBottom }: { insetBottom: number }) {
           {/* Album art */}
           <View style={s.artZone}>
             <View style={s.artBg}>
-              <MusicNoteIcon />
+              <Image
+                source={require("../assets/images/hk-artwork.png")}
+                style={s.artImage}
+                resizeMode="cover"
+              />
             </View>
           </View>
 
@@ -371,6 +376,9 @@ const s = StyleSheet.create({
     borderRadius: 16, backgroundColor: "#0a0a0a",
     borderWidth: 1, borderColor: "#222",
     alignItems: "center", justifyContent: "center", overflow: "hidden",
+  },
+  artImage: {
+    width: "100%", height: "100%",
   },
   trackBlock: { marginTop: 20 },
   trackTitle: {
