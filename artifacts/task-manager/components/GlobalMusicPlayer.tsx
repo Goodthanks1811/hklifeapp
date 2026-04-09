@@ -411,7 +411,7 @@ export function GlobalMusicPlayer() {
           <View
             style={s.dragZoneOuter}
           >
-            <View style={[s.gradHeader, { paddingTop: insets.top + 6 }]}>
+            <Pressable style={[s.gradHeader, { paddingTop: insets.top + 6 }]} onPress={collapse}>
               <LinearGradient
                 colors={[
                   "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
@@ -424,7 +424,7 @@ export function GlobalMusicPlayer() {
               />
               <View style={s.dragHandle} />
               <Text style={s.navLbl}>Now Playing</Text>
-            </View>
+            </Pressable>
           </View>
 
           {/* Artwork */}
