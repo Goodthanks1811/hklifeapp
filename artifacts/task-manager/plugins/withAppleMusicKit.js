@@ -27,6 +27,14 @@ import UIKit
 public class AppleMusicKitModule: Module {
 
   private static var remoteCommandsRegistered = false
+  // Notification tokens — retained so observers stay alive for the module's lifetime
+  private var nowPlayingObserver: NSObjectProtocol?
+  private var stateObserver: NSObjectProtocol?
+
+  deinit {
+    if let o = nowPlayingObserver { NotificationCenter.default.removeObserver(o) }
+    if let o = stateObserver      { NotificationCenter.default.removeObserver(o) }
+  }
 
   private func activateAudioSession() {
     do {
@@ -40,33 +48,73 @@ public class AppleMusicKitModule: Module {
     AppleMusicKitModule.remoteCommandsRegistered = true
     let cc = MPRemoteCommandCenter.shared()
     let player = MPMusicPlayerController.applicationQueuePlayer
-    cc.playCommand.isEnabled = true
+    cc.playCommand.isEnabled  = true
     cc.pauseCommand.isEnabled = true
-    cc.nextTrackCommand.isEnabled = true
+    cc.nextTrackCommand.isEnabled     = true
     cc.previousTrackCommand.isEnabled = true
-    cc.playCommand.addTarget  { _ in player.play();              return .success }
-    cc.pauseCommand.addTarget { _ in player.pause();             return .success }
+    cc.changePlaybackPositionCommand.isEnabled = true
+    cc.playCommand.addTarget  { _ in player.play();  return .success }
+    cc.pauseCommand.addTarget { _ in player.pause(); return .success }
     cc.nextTrackCommand.addTarget     { _ in player.skipToNextItem();     return .success }
     cc.previousTrackCommand.addTarget { _ in player.skipToPreviousItem(); return .success }
+    cc.changePlaybackPositionCommand.addTarget { event in
+      if let e = event as? MPChangePlaybackPositionCommandEvent {
+        player.currentPlaybackTime = e.positionTime
+      }
+      return .success
+    }
   }
 
-  // Always display the HK gradient icon as the Lock Screen / Dynamic Island artwork.
-  // We use UIImage(named:"AppIcon") which resolves to the app's icon asset —
-  // the same gradient that appears in the Dynamic Island pill.
+  // ── Now Playing observers ────────────────────────────────────────────────────
+  // applicationQueuePlayer auto-populates MPNowPlayingInfoCenter with the Apple
+  // Music catalog artwork immediately after play() is called, overwriting whatever
+  // we set. We observe track changes and playback state changes, then re-assert
+  // our own info 300 ms later (after the system's automatic update has landed).
+  private func registerNowPlayingObservers() {
+    guard nowPlayingObserver == nil else { return }
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    player.beginGeneratingPlaybackNotifications()
+
+    nowPlayingObserver = NotificationCenter.default.addObserver(
+      forName: .MPMusicPlayerControllerNowPlayingItemDidChange,
+      object: player,
+      queue: .main
+    ) { [weak self] _ in
+      // 300 ms delay: fires after applicationQueuePlayer's automatic MPNowPlayingInfoCenter update
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        guard let item = player.nowPlayingItem else { return }
+        self?.assertNowPlaying(item: item, player: player)
+      }
+    }
+
+    stateObserver = NotificationCenter.default.addObserver(
+      forName: .MPMusicPlayerControllerPlaybackStateDidChange,
+      object: player,
+      queue: .main
+    ) { [weak self] _ in
+      guard let item = player.nowPlayingItem else { return }
+      self?.assertNowPlaying(item: item, player: player)
+    }
+  }
+
+  // Always display the HK Life app icon as Lock Screen / Dynamic Island artwork.
   private func hkArtwork() -> MPMediaItemArtwork? {
     guard let image = UIImage(named: "AppIcon") else { return nil }
     let size = CGSize(width: 1024, height: 1024)
     return MPMediaItemArtwork(boundsSize: size) { _ in image }
   }
 
-  private func updateNowPlaying(for item: MPMediaItem) {
+  // Sets MPNowPlayingInfoCenter with HK icon + accurate elapsed time + playback rate.
+  // Called both immediately on play and from the observers to re-assert our info.
+  private func assertNowPlaying(item: MPMediaItem, player: MPMusicPlayerController) {
+    let isPlaying = player.playbackState == .playing
     var info: [String: Any] = [
-      MPMediaItemPropertyTitle:            item.title       ?? "",
-      MPMediaItemPropertyArtist:           item.artist      ?? "",
-      MPMediaItemPropertyAlbumTitle:       item.albumTitle  ?? "",
-      MPMediaItemPropertyPlaybackDuration: item.playbackDuration,
-      MPNowPlayingInfoPropertyElapsedPlaybackTime: 0.0,
-      MPNowPlayingInfoPropertyPlaybackRate: 1.0,
+      MPMediaItemPropertyTitle:                    item.title       ?? "",
+      MPMediaItemPropertyArtist:                   item.artist      ?? "",
+      MPMediaItemPropertyAlbumTitle:               item.albumTitle  ?? "",
+      MPMediaItemPropertyPlaybackDuration:         item.playbackDuration,
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: max(0, player.currentPlaybackTime),
+      MPNowPlayingInfoPropertyPlaybackRate:        isPlaying ? 1.0 : 0.0,
     ]
     if let art = hkArtwork() {
       info[MPMediaItemPropertyArtwork] = art
@@ -133,12 +181,15 @@ public class AppleMusicKitModule: Module {
       }
       self.activateAudioSession()
       self.registerRemoteCommands()
+      self.registerNowPlayingObservers()
       DispatchQueue.main.async {
         let player = MPMusicPlayerController.applicationQueuePlayer
         player.setQueue(with: col)
         player.shuffleMode = .off
+        player.repeatMode  = .all
         player.play()
-        if let first = col.items.first { self.updateNowPlaying(for: first) }
+        // Assert immediately; observer will re-assert 300 ms later after system update
+        if let first = col.items.first { self.assertNowPlaying(item: first, player: player) }
         promise.resolve(nil)
       }
     }
@@ -152,14 +203,16 @@ public class AppleMusicKitModule: Module {
       }
       self.activateAudioSession()
       self.registerRemoteCommands()
+      self.registerNowPlayingObservers()
       DispatchQueue.main.async {
         let player = MPMusicPlayerController.applicationQueuePlayer
         player.setQueue(with: col)
         player.shuffleMode = .off
+        player.repeatMode  = .all
         let idx = max(0, min(songIndex, col.items.count - 1))
         player.nowPlayingItem = col.items[idx]
         player.play()
-        self.updateNowPlaying(for: col.items[idx])
+        self.assertNowPlaying(item: col.items[idx], player: player)
         promise.resolve(nil)
       }
     }
