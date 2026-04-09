@@ -18,8 +18,12 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "HK Life uses Face ID to lock the app.",
-        "LSApplicationQueriesSchemes": ["spotify"],
-        "UIBackgroundModes": ["audio"],
+        "LSApplicationQueriesSchemes": [
+          "spotify"
+        ],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -27,7 +31,8 @@
             ]
           }
         ]
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.hklife.app",
