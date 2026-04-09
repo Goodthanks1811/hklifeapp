@@ -383,9 +383,6 @@ export function GlobalMusicPlayer() {
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
           </Pressable>
-          {/* Safe-area spacer sits BELOW the content row so equal top/bottom padding
-              keeps the icon + title + button vertically centred in the visible bar */}
-          <View style={{ height: Math.max(insets.bottom - 8, 6) }} />
         </Animated.View>
       )}
 
@@ -517,11 +514,11 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 20, left: 0, right: 0,
+    position: "absolute", bottom: 20, left: 12, right: 12,
     backgroundColor: ROW,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderTopWidth: 1, borderTopColor: BORDER,
-    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
+    borderRadius: 22,
+    borderWidth: 1, borderColor: BORDER,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.55, shadowRadius: 14, elevation: 20,
   },
   miniBarPressable: {
