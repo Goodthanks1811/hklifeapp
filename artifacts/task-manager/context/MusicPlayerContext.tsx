@@ -26,6 +26,7 @@ const DEFAULT_ARTWORK: string | number = (() => {
 let _TrackPlayer: any = null;
 let _Capability:  any = {};
 let _State:       any = {};
+let _RepeatMode:  any = {};
 let _useActiveTrack:   (() => any) | null = null;
 let _usePlaybackState: (() => any) | null = null;
 let _useProgress:      ((interval?: number) => any) | null = null;
@@ -36,6 +37,7 @@ try {
   _TrackPlayer      = rntp.default ?? rntp;
   _Capability       = rntp.Capability  ?? {};
   _State            = rntp.State       ?? {};
+  _RepeatMode       = rntp.RepeatMode  ?? {};
   _useActiveTrack   = rntp.useActiveTrack;
   _usePlaybackState = rntp.usePlaybackState;
   _useProgress      = rntp.useProgress;
@@ -82,6 +84,13 @@ async function ensureSetup() {
     // when the iOS audio session is interrupted (e.g. Messages send sound).
     // We handle RemoteDuck manually in PlaybackService instead.
     await _TrackPlayer.setupPlayer({ autoHandleInterruptions: false });
+
+    // RepeatMode.Queue — keeps the audio session alive indefinitely.
+    // Without this the queue ends after the last track, the audio session
+    // closes, and iOS terminates the background app. With Queue repeat the
+    // playlist loops forever so the session never goes idle.
+    await _TrackPlayer.setRepeatMode(_RepeatMode.Queue);
+
     await _TrackPlayer.updateOptions({
       capabilities: [
         _Capability.Play, _Capability.Pause,
