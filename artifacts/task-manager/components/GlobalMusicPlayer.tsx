@@ -549,7 +549,7 @@ const s = StyleSheet.create({
   // ── Full screen ───────────────────────────────────────────────────────────
   fullScreen: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: BG, paddingHorizontal: FULL_PAD,
+    backgroundColor: BG, paddingHorizontal: FULL_PAD, paddingBottom: 20,
   },
   dragZoneOuter: { marginHorizontal: -FULL_PAD },
   dragHandle: {
