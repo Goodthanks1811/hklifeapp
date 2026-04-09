@@ -96,6 +96,10 @@ Running `tsc` inside a single package fails if its dependencies haven't been bui
 
 Expo / React Native mobile app targeting **iPhone + iPad Pro 12.9"**.
 
+**Test device: iPhone 17 Pro Max** (Harry's physical device used for all ad-hoc builds).
+- Do NOT assume iPhone 15 dimensions or safe area values.
+- All safe area handling uses `useSafeAreaInsets()` from `react-native-safe-area-context` — values are read dynamically from the device at runtime, so layout adapts automatically regardless of model.
+
 - **Main app theme**: Bold red (`#E03131`) + black
 - **IR Quick Add theme**: Navy (`#0C1846`) / Gold (`#FE9A01`)
 
