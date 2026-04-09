@@ -184,7 +184,7 @@ const s = StyleSheet.create({
   row: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 16, height: 84, paddingHorizontal: 20,
+    borderRadius: 16, height: 84, paddingLeft: 28, paddingRight: 12,
     position: "relative",
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
