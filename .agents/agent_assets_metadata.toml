@@ -17,3 +17,9 @@ id = "U1PhSWVwUofTnoO9bOncp"
 uri = "file://artifacts/task-manager/assets/images/icon.png"
 type = "image"
 title = "Current icon.png (the restored original)"
+
+[[outputs]]
+id = "wBJh7cuEIqj4pd_4sKUOK"
+uri = "file://artifacts/task-manager/assets/images/icon_preview_ebbeed9.png"
+type = "image"
+title = "Icon from April 6 'Restore original' commit"
