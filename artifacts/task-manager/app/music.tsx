@@ -182,7 +182,7 @@ const s = StyleSheet.create({
   cards:      { paddingHorizontal: 16, gap: 10, paddingTop: 20 },
   appleEmoji: { fontSize: 32, lineHeight: 32 },
   row: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
     borderRadius: 16, height: 84, paddingHorizontal: 20,
     position: "relative",
@@ -200,7 +200,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   rowLabel: {
-    fontSize: 17, fontWeight: "600", color: "#fff",
+    width: 132, fontSize: 17, fontWeight: "600", color: "#fff",
     fontFamily: "Inter_600SemiBold",
   },
 
