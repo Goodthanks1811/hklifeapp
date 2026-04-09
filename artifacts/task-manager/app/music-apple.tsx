@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
+import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -153,7 +154,7 @@ function PlaylistRow({
               return (
                 <Pressable
                   key={song.id}
-                  style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }, isActiveSong && s.songRowActive]}
+                  style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }]}
                   onPress={() => onPlaySong(pl, idx, songs)}
                 >
                   <View style={s.songIndex}>
@@ -168,12 +169,6 @@ function PlaylistRow({
                     ) : null}
                   </View>
                   <Text style={s.songDuration}>{fmtDuration(song.duration)}</Text>
-                  <Feather
-                    name="play"
-                    size={14}
-                    color={isActiveSong ? RED : "rgba(255,255,255,0.18)"}
-                    style={{ marginLeft: 6 }}
-                  />
                 </Pressable>
               );
             })
@@ -243,7 +238,6 @@ export default function MusicAppleScreen() {
       setPlayingPlaylistId(pl.id);
       setPlayingSongIndex(songIndex);
       const song = songs[songIndex];
-      // Update global Apple Music context so home screen player stays in sync
       am.setNowPlaying({
         playlistId: pl.id,
         playlistName: pl.name,
@@ -252,6 +246,8 @@ export default function MusicAppleScreen() {
         title: song?.title ?? "",
         artist: song?.artist ?? "",
       });
+      // Open full-screen now-playing
+      MusicSourceBus.triggerExpand();
     } catch {
       // ignore
     } finally {
@@ -356,7 +352,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
   },
-  eqBar: { width: 5, borderRadius: 3, backgroundColor: RED },
+  eqBar: { width: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
 
   pageTitle: {
     textAlign: "center", color: "#fff",
@@ -408,29 +404,32 @@ const s = StyleSheet.create({
     backgroundColor: "#111",
     alignItems: "center", justifyContent: "center",
   },
-  iconCellPlaying: { backgroundColor: "rgba(224,49,49,0.1)" },
+  iconCellPlaying: { backgroundColor: "#111" },
   rowTextWrap: { flex: 1 },
   rowName: {
     fontSize: 15, fontWeight: "500", color: "#fff",
     fontFamily: "Inter_500Medium",
   },
-  rowNamePlaying: { color: RED },
+  rowNamePlaying: { color: "#fff" },
   rowCount: {
     fontSize: 12, color: "rgba(255,255,255,0.35)",
     fontFamily: "Inter_400Regular", marginTop: 2,
   },
 
   // Song list
-  songList: { paddingBottom: 8 },
-  songDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 14, marginBottom: 4 },
+  songList: { paddingHorizontal: 8, paddingBottom: 10, gap: 4 },
+  songDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 6, marginBottom: 6 },
   songLoading: { paddingVertical: 16, alignItems: "center" },
   songEmpty: { color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", paddingVertical: 12, fontFamily: "Inter_400Regular" },
 
+  // Each song is its own black card row — same glossy style as My Music track rows
   songRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 14, paddingVertical: 10, gap: 10,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.40, shadowRadius: 7, elevation: 5,
   },
-  songRowActive: { backgroundColor: "rgba(224,49,49,0.07)" },
 
   songIndex: { width: 22, alignItems: "center" },
   songIndexTx: { fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: "Inter_400Regular" },

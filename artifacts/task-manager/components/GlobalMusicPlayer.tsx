@@ -24,6 +24,7 @@ import Svg, {
 import { usePathname } from "expo-router";
 import { useMusicPlayer } from "@/context/MusicPlayerContext";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
+import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 // ── System volume hook — reads hardware volume and listens for button changes ─
 let _VolumeManager: any = null;
@@ -276,6 +277,9 @@ export function GlobalMusicPlayer() {
   const collapseRef = useRef(collapse);
   useEffect(() => { collapseRef.current = collapse; }, [collapse]);
 
+  // Register expand so any screen (Apple Music, My Music) can trigger it
+  useEffect(() => { MusicSourceBus.registerExpand(expand); }, [expand]);
+
   // RNGH PanGestureHandler: translationY is a true native event → useNativeDriver: true works
   const panGestureRef = useRef<any>(null);
 
@@ -356,7 +360,7 @@ export function GlobalMusicPlayer() {
                miniBarAlpha (Animated.Value) so it appears synchronously on collapse ── */}
       {isOnMusicPage && (
         <Animated.View
-          style={[s.miniBar, { paddingBottom: Math.max(insets.bottom + 10, 20), opacity: miniBarAlpha }]}
+          style={[s.miniBar, { opacity: miniBarAlpha }]}
           pointerEvents={expanded ? "none" : "auto"}
         >
           <Pressable style={s.miniBarPressable} onPress={expand}>
@@ -379,6 +383,9 @@ export function GlobalMusicPlayer() {
               <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
             </Pressable>
           </Pressable>
+          {/* Safe-area spacer sits BELOW the content row so equal top/bottom padding
+              keeps the icon + title + button vertically centred in the visible bar */}
+          <View style={{ height: Math.max(insets.bottom - 8, 6) }} />
         </Animated.View>
       )}
 
@@ -510,7 +517,7 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
+    position: "absolute", bottom: 20, left: 0, right: 0,
     backgroundColor: ROW,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderTopWidth: 1, borderTopColor: BORDER,
@@ -519,7 +526,7 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, gap: 14,
+    paddingLeft: 26, paddingRight: 20, paddingTop: 14, paddingBottom: 14, gap: 14,
     // Tablet: constrain and centre the content row so it doesn't span 1024px
     maxWidth: 800, alignSelf: "center", width: "100%",
   },
@@ -558,6 +565,7 @@ const s = StyleSheet.create({
   },
   navLbl: {
     fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center",
+    marginTop: 14,
     textShadowColor: "rgba(224,49,49,0.45)", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24,
   },
   artZone: { marginTop: 8, alignItems: "center" },
