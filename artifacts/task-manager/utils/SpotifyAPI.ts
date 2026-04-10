@@ -65,7 +65,7 @@ export async function getUserPlaylists(): Promise<SpotifyPlaylist[]> {
 
 export async function getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]> {
   const tracks: SpotifyTrack[] = [];
-  let url: string | null = `/playlists/${playlistId}/tracks?limit=100&fields=next,items(track(id,uri,name,duration_ms,artists))`;
+  let url: string | null = `/playlists/${playlistId}/tracks?limit=100&additional_types=track`;
 
   while (url) {
     const path = url.startsWith("/") ? url : url.replace("https://api.spotify.com/v1", "");

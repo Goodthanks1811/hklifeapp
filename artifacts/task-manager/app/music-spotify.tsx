@@ -129,11 +129,13 @@ export default function MusicSpotifyScreen() {
 
   const [selPlSongs, setSelPlSongs]       = useState<SpotifyTrack[]>([]);
   const [loadingTracks, setLoadingTracks] = useState(false);
+  const [trackError,   setTrackError]     = useState<string | null>(null);
   const songsCacheRef                     = useRef<Record<string, SpotifyTrack[]>>({});
 
   const openPlaylist = useCallback(async (pl: SpotifyPlaylist) => {
     selPlRef.current = pl;
     setSelPl(pl);
+    setTrackError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.spring(slideAnim, { toValue: 1, friction: 20, tension: 200, useNativeDriver: true }).start();
     if (songsCacheRef.current[pl.id]) {
@@ -146,7 +148,11 @@ export default function MusicSpotifyScreen() {
       const result = await getPlaylistTracks(pl.id);
       songsCacheRef.current[pl.id] = result;
       setSelPlSongs(result);
-    } catch { setSelPlSongs([]); }
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      setTrackError(msg);
+      setSelPlSongs([]);
+    }
     finally { setLoadingTracks(false); }
   }, [slideAnim]);
 
@@ -370,6 +376,7 @@ export default function MusicSpotifyScreen() {
               ) : selPlSongs.length === 0 ? (
                 <View style={s.centred}>
                   <Text style={s.stateBody}>No songs found</Text>
+                  {trackError ? <Text style={s.errorDetail}>{trackError}</Text> : null}
                 </View>
               ) : (
                 <ScrollView
