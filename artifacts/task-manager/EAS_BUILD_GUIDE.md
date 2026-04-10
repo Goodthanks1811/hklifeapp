@@ -326,6 +326,72 @@ Also fixed: `RemoteStop` now re-applies `RepeatMode.Queue` after `reset()` to ma
 
 ---
 
+### 12c-ii. RemoteDuck permanent interruption end never resumes audio (phone calls)
+
+**Symptom**: Music stops when a phone call starts. After the call ends, music never resumes automatically.
+
+**Cause**: The `RemoteDuck` handler only resumed on `!e.permanent` (non-permanent interruption end). When a phone call ends, RNTP fires `RemoteDuck` with `permanent=true, paused=false`. The `!e.permanent` guard blocked the resume.
+
+**Fix**: Removed the `!e.permanent` guard from the resume branch. Now any interruption end resumes if user didn't deliberately pause:
+```ts
+} else {
+  // Interruption ended (both permanent and non-permanent)
+  if (!userPaused && !appleMusicHasControl() && !spotifyHasControl()) {
+    await TrackPlayer.play();
+  }
+}
+```
+
+---
+
+### 12e. Background audio stops after ~30 seconds — RNTP deactivates session during track transitions
+
+**Symptom**: Music stops ~30 seconds after locking the phone. `UIBackgroundModes: ['audio']` IS confirmed in Info.plist (verified by extracting and reading the IPA). The app was being killed exactly 30 seconds after the audio session went idle — not because of missing UIBackgroundModes, but because RNTP deactivated the session during normal playback.
+
+**Root cause (confirmed from RNTP 4.1.2 source)**: `RNTrackPlayer.swift`'s `configureAudioSession()` contains:
+```swift
+if ((item != nil && lastItem == nil) || item == nil) {
+    configureAudioSession();
+}
+```
+And in `configureAudioSession()`:
+```swift
+if (player.currentItem == nil) {
+    try? audioSessionController.deactivateSession()  // ← KILLS THE SESSION
+    return
+}
+```
+Whenever `currentItem` transitions to `nil` — which happens during track transitions and `RepeatMode.Queue` wrap-around from last track back to first — the audio session is deactivated. iOS then starts the standard 30-second background task expiration timer. The app is killed 30 seconds after the first track transition.
+
+**How to confirm UIBackgroundModes is in the IPA**:
+```js
+// Extract IPA (ZIP), decompress Info.plist, search for UIBackgroundModes
+python3 -c "
+import zipfile, plistlib
+with zipfile.ZipFile('hklife.ipa') as z:
+    plists = [n for n in z.namelist() if n.endswith('.app/Info.plist')]
+    plist = plistlib.loads(z.read(plists[0]))
+    print('UIBackgroundModes:', plist.get('UIBackgroundModes'))
+"
+```
+
+**Fix**: Added a 15-second watchdog timer in `service.ts` that checks RNTP's playback state and calls `play()` if the session went idle unexpectedly. This re-activates the audio session well within the 30-second kill window:
+```ts
+const watchdog = setInterval(async () => {
+  if (userPaused || appleMusicHasControl() || spotifyHasControl()) return;
+  const state = await TrackPlayer.getPlaybackState();
+  const isIdle = [State.Paused, State.Stopped, State.Ready].includes(state?.state);
+  if (isIdle) {
+    const queue = await TrackPlayer.getQueue();
+    if (queue?.length > 0) await TrackPlayer.play();
+  }
+}, 15000);
+```
+
+**Rule**: RNTP 4.1.2's native `configureAudioSession()` deactivates the audio session on any `currentItem == nil` transition. The watchdog is the only reliable defense against this without patching RNTP's native code.
+
+---
+
 ### 12d. Background audio stops for ALL sources ~30 seconds after phone locks — UIBackgroundModes not taking effect
 
 **Symptom**: Music from both My Music (RNTP) and Apple Music (MPMusicPlayerController) stops ~30 seconds after the phone screen is locked. No notifications involved. App process is killed and a fresh launch (with Face ID prompt) is required.

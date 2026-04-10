@@ -48,35 +48,35 @@ export async function PlaybackService() {
 
   // ── Audio session interruption handling (autoHandleInterruptions: false) ──
   //
-  // Root cause of background audio dropout:
-  // When any notification/sound fires RemoteDuck with paused=true, the old code
-  // paused RNTP and waited 10 seconds to resume. During that 10-second window the
-  // audio session went idle, iOS removed the background-audio privilege, and killed
-  // the process — stopping music and forcing a fresh app launch (Face ID prompt).
+  // RNTP's native configureAudioSession() deactivates the AVAudioSession when
+  // currentItem == nil (track transitions, RepeatMode.Queue wrap-around).
+  // iOS then gives a 30-second grace period before killing the process.
+  // The watchdog below re-activates before that window closes.
   //
-  // Fix: only pause for events that truly require it:
-  //   • permanent=true  → phone call answered — pause (user expects silence)
-  //   • Apple Music taking control → pause RNTP (source switch)
-  //   • non-permanent (notifications, Siri brief) → do nothing.
-  //     With DoNotMix, notification sounds are already suppressed by iOS when
-  //     we hold the audio session. Keeping RNTP playing means the session never
-  //     goes idle and iOS never kills the background process.
+  // RemoteDuck rules:
+  //   • Apple Music / Spotify took control → pause RNTP (source switch)
+  //   • permanent=true, paused=true → phone call answered → pause
+  //   • non-permanent (notifications, Siri) → do nothing.
+  //     With DoNotMix the notification sound is suppressed; keeping RNTP
+  //     playing means the session never goes truly idle.
+  //   • paused=false (any interruption ended) → resume unless user paused
   TrackPlayer.addEventListener(Event.RemoteDuck, async (e: { paused: boolean; permanent: boolean }) => {
     try {
       if (e.paused) {
         if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) {
-          // Apple Music or Spotify intentionally took the session — silence RNTP
           await TrackPlayer.pause();
         } else if (e.permanent) {
-          // Permanent interruption (e.g. answered phone call) — pause
-          // without marking userPaused so we resume when the call ends
+          // Phone call — pause but don't mark as userPaused so watchdog / resume can recover
           await TrackPlayer.pause();
         }
-        // Non-permanent system interruption (notification, Siri, etc.):
-        // do nothing — audio session stays active, iOS cannot kill the process
-      } else if (!e.permanent && !userPaused && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
-        // Interruption ended — resume if the user didn't deliberately pause
-        await TrackPlayer.play();
+        // Non-permanent: do nothing — DoNotMix suppresses the sound,
+        // session stays active, iOS cannot kill the process
+      } else {
+        // Interruption ended (both permanent and non-permanent) — resume
+        // if the user didn't deliberately press pause and no other source is playing.
+        if (!userPaused && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
+          await TrackPlayer.play();
+        }
       }
     } catch {
       // guard against stale state
@@ -87,4 +87,36 @@ export async function PlaybackService() {
   TrackPlayer.addEventListener(Event.PlaybackError, (e: any) => {
     console.warn("[PlaybackService] Playback error:", e?.message ?? e);
   });
+
+  // ── Background audio watchdog ─────────────────────────────────────────────
+  //
+  // Root cause: RNTP's native configureAudioSession() calls
+  // audioSessionController.deactivateSession() whenever currentItem == nil.
+  // This happens during track transitions and RepeatMode.Queue wrap-around.
+  // Once deactivated, iOS starts a 30-second kill clock.
+  //
+  // Fix: every 15 seconds, if RNTP isn't playing (and the user didn't pause it
+  // and no other source holds the session), call play() to re-activate the
+  // audio session — well within the 30-second window.
+  const watchdog = setInterval(async () => {
+    if (userPaused) return;
+    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
+    try {
+      const state = await TrackPlayer.getPlaybackState();
+      const s = state?.state;
+      const isIdle = s === State.Paused || s === State.Stopped || s === State.Ready;
+      if (!isIdle) return;
+      // Only resume if there are tracks loaded — don't start from empty
+      const queue = await TrackPlayer.getQueue();
+      if (queue?.length > 0) {
+        await TrackPlayer.play();
+      }
+    } catch {
+      // RNTP not in a resumable state — do nothing
+    }
+  }, 15000);
+
+  // Silence the TypeScript "unused variable" warning — the interval runs
+  // forever in the background service and is cleaned up when the process dies.
+  void watchdog;
 }
