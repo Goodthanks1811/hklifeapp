@@ -798,6 +798,30 @@ export default function SettingsScreen() {
   const [editSpotifyName, setEditSpotifyName] = useState("");
   const [editSpotifyURL,  setEditSpotifyURL]  = useState("");
 
+  // Spotify Client ID
+  const [spClientId,      setSpClientId]      = useState("");
+  const [spClientIdSaved, setSpClientIdSaved] = useState(false);
+  const [spClientIdMasked, setSpClientIdMasked] = useState(true);
+  const spClientIdTickOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    AsyncStorage.getItem("spotify_client_id").then(v => { if (v) setSpClientId(v); });
+  }, []);
+
+  const handleSaveSpClientId = async () => {
+    const trimmed = spClientId.trim();
+    Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await AsyncStorage.setItem("spotify_client_id", trimmed);
+    setSpClientIdSaved(true);
+    spClientIdTickOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(spClientIdTickOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(spClientIdTickOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setSpClientIdSaved(false));
+  };
+
   // Apple Music playlist name filter
   const APPLE_DEFAULTS = [
     "Bone Greatest Hits", "2pac Greatest Hits", "Snoop Greatest Hits",
@@ -1251,6 +1275,57 @@ export default function SettingsScreen() {
         {/* ══ MUSIC ════════════════════════════════════════════════════════════ */}
         <Accordion title="Music" icon="music" defaultOpen={false}>
           <View style={styles.accordionBody}>
+
+            {/* ── Spotify Client ID ── */}
+            <SubAccordion title="Spotify" icon="music" defaultOpen={false}>
+              <View style={styles.statusRow}>
+                <View style={[styles.statusDot, { backgroundColor: spClientId ? Colors.success : Colors.textMuted }]} />
+                <Text style={[styles.statusText, { color: spClientId ? Colors.success : Colors.textMuted }]}>
+                  {spClientId ? "Client ID configured" : "Not configured"}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <Text style={styles.fieldLabel}>Spotify Client ID</Text>
+              <Text style={styles.sectionHint}>
+                Get this from developer.spotify.com → your app → Settings → Client ID.
+              </Text>
+              <View style={[styles.inputRow, { marginTop: 8 }]}>
+                <TextInput
+                  style={styles.input}
+                  value={spClientId}
+                  onChangeText={setSpClientId}
+                  placeholder="e.g. 4b6f3c2a1d…"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={spClientIdMasked}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveSpClientId}
+                />
+                <Pressable onPress={() => setSpClientIdMasked(m => !m)} style={styles.eyeBtn}>
+                  <Feather name={spClientIdMasked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.saveBtn, !spClientId.trim() && styles.saveBtnDisabled]}
+                onPress={handleSaveSpClientId}
+                disabled={!spClientId.trim()}
+              >
+                {spClientIdSaved ? (
+                  <Animated.View style={[styles.savedRow, { opacity: spClientIdTickOpacity }]}>
+                    <Feather name="check" size={16} color="#fff" />
+                    <Text style={styles.saveBtnText}>Saved</Text>
+                  </Animated.View>
+                ) : (
+                  <Text style={styles.saveBtnText}>Save Client ID</Text>
+                )}
+              </TouchableOpacity>
+            </SubAccordion>
 
             {/* ── Spotify Playlists ── */}
             <SubAccordion title="Spotify Playlists" icon="headphones" defaultOpen={false}>

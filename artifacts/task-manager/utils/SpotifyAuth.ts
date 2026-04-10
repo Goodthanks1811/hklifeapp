@@ -4,7 +4,6 @@ import * as WebBrowser from "expo-web-browser";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const CLIENT_ID    = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? "";
 const APP_SCHEME   = process.env.APP_VARIANT === "development" ? "hk-life-app-dev" : "hk-life-app";
 const REDIRECT_URI = AuthSession.makeRedirectUri({ scheme: APP_SCHEME, path: "spotify-callback" });
 const SCOPES       = [
@@ -24,6 +23,16 @@ const DISCOVERY: AuthSession.DiscoveryDocument = {
 const STORAGE_ACCESS_TOKEN  = "spotify_access_token";
 const STORAGE_REFRESH_TOKEN = "spotify_refresh_token";
 const STORAGE_EXPIRES_AT    = "spotify_expires_at";
+export const STORAGE_CLIENT_ID       = "spotify_client_id";
+
+// ── Client ID (read from Settings at runtime, env var as fallback) ─────────────
+export async function getSpotifyClientId(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_CLIENT_ID);
+    if (stored?.trim()) return stored.trim();
+  } catch {}
+  return process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? "";
+}
 
 // ── Token storage ─────────────────────────────────────────────────────────────
 
@@ -69,10 +78,11 @@ export async function refreshAccessToken(
   refreshToken: string,
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   try {
+    const clientId = await getSpotifyClientId();
     const body = new URLSearchParams({
       grant_type:    "refresh_token",
       refresh_token: refreshToken,
-      client_id:     CLIENT_ID,
+      client_id:     clientId,
     });
     const res = await fetch(DISCOVERY.tokenEndpoint!, {
       method:  "POST",
@@ -97,12 +107,13 @@ export type SpotifyAuthResult =
   | { type: "dismiss" };
 
 export async function authenticateSpotify(): Promise<SpotifyAuthResult> {
-  if (!CLIENT_ID) {
-    return { type: "error", error: "Spotify Client ID not configured. Set EXPO_PUBLIC_SPOTIFY_CLIENT_ID." };
+  const clientId = await getSpotifyClientId();
+  if (!clientId) {
+    return { type: "error", error: "Spotify Client ID not set. Add it in Settings → Music → Spotify." };
   }
 
   const request = new AuthSession.AuthRequest({
-    clientId:    CLIENT_ID,
+    clientId,
     scopes:      SCOPES,
     redirectUri: REDIRECT_URI,
     usePKCE:     true,
@@ -124,16 +135,16 @@ export async function authenticateSpotify(): Promise<SpotifyAuthResult> {
     return { type: "error", error: "No authorization code returned" };
   }
 
-  return exchangeCode(result.params.code, request.codeVerifier ?? "");
+  return exchangeCode(result.params.code, request.codeVerifier ?? "", clientId);
 }
 
-async function exchangeCode(code: string, verifier: string): Promise<SpotifyAuthResult> {
+async function exchangeCode(code: string, verifier: string, clientId: string): Promise<SpotifyAuthResult> {
   try {
     const body = new URLSearchParams({
       grant_type:    "authorization_code",
       code,
       redirect_uri:  REDIRECT_URI,
-      client_id:     CLIENT_ID,
+      client_id:     clientId,
       code_verifier: verifier,
     });
     const res = await fetch(DISCOVERY.tokenEndpoint!, {
