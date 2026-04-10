@@ -102,18 +102,16 @@ public class AppleMusicKitModule: Module {
   // logo fills the Lock Screen / Dynamic Island artwork frame properly).
   private let hkArtworkBase64 = "HK_ARTWORK_BASE64_PLACEHOLDER"
 
-  private func hkArtwork() -> MPMediaItemArtwork? {
+  // Renders the HK logo onto a pure-black 1024×1024 opaque UIImage.
+  // Shared by hkArtwork() (MPNowPlayingInfoCenter) and getHKArtworkFileURI() (RNTP).
+  private func renderedHKImage() -> UIImage? {
     guard let data = Data(base64Encoded: hkArtworkBase64, options: .ignoreUnknownCharacters),
-          let logoImage = UIImage(data: data) else {
-      // Fallback to app icon if base64 decode fails
-      guard let fallback = UIImage(named: "AppIcon") else { return nil }
-      let size = CGSize(width: 1024, height: 1024)
-      return MPMediaItemArtwork(boundsSize: size) { _ in fallback }
-    }
+          let logoImage = UIImage(data: data) else { return nil }
     let size = CGSize(width: 1024, height: 1024)
     let format = UIGraphicsImageRendererFormat()
-    format.scale = 1.0
-    let rendered = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+    format.scale  = 1.0
+    format.opaque = true   // no alpha channel → iOS cannot show a grey background through it
+    return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
       UIColor.black.setFill()
       ctx.fill(CGRect(origin: .zero, size: size))
       // 1.4× scale crops the transparent border, enlarging the visible logo
@@ -124,7 +122,12 @@ public class AppleMusicKitModule: Module {
                                 y: (size.height - dh) / 2,
                                 width: dw, height: dh))
     }
-    return MPMediaItemArtwork(boundsSize: size) { _ in rendered }
+  }
+
+  private func hkArtwork() -> MPMediaItemArtwork? {
+    guard let image = renderedHKImage() else { return nil }
+    let size = CGSize(width: 1024, height: 1024)
+    return MPMediaItemArtwork(boundsSize: size) { _ in image }
   }
 
   // Sets MPNowPlayingInfoCenter with HK icon + accurate elapsed time + playback rate.
@@ -304,6 +307,25 @@ public class AppleMusicKitModule: Module {
           vv.removeFromSuperview()
         }
         promise.resolve(nil)
+      }
+    }
+
+    // Returns a file:// URI pointing to the rendered HK artwork (pure black background).
+    // RNTP uses this so the Lock Screen / Dynamic Island / CarPlay artwork is identical
+    // to what MPNowPlayingInfoCenter shows for Apple Music tracks.
+    AsyncFunction("getHKArtworkFileURI") { (promise: Promise) in
+      guard let image = self.renderedHKImage(),
+            let data  = image.pngData() else {
+        promise.reject("NO_ARTWORK", "Failed to render HK artwork")
+        return
+      }
+      let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+      let fileURL  = cacheDir.appendingPathComponent("hk-artwork-black.png")
+      do {
+        try data.write(to: fileURL, options: .atomic)
+        promise.resolve(fileURL.absoluteString)
+      } catch {
+        promise.reject("WRITE_ERROR", "Failed to write HK artwork: \\(error.localizedDescription)")
       }
     }
   }

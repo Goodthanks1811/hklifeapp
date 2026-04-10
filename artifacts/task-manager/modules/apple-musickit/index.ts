@@ -73,3 +73,7 @@ export function seekTo(time: number): Promise<void> {
 export function setVolume(volume: number): Promise<void> {
   return AM.setVolume(volume);
 }
+
+export function getHKArtworkFileURI(): Promise<string> {
+  return AM.getHKArtworkFileURI();
+}

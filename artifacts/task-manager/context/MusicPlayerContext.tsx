@@ -11,12 +11,23 @@ import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 // Resolve the bundled asset to a file:// URI that RNTP can load reliably.
-// Using require() alone (number type) can fail in production EAS builds;
-// resolveAssetSource returns the actual path Metro wrote to the bundle dir.
+// Used as a fallback (Expo Go / first play before native URI is ready).
 const _hkIconAsset = require('../assets/images/hk-artwork.png');
 const DEFAULT_ARTWORK: string | number = (() => {
   try { return Image.resolveAssetSource(_hkIconAsset).uri; } catch { return _hkIconAsset; }
 })();
+
+// Native module produces the same pure-black rendered artwork that Apple Music uses.
+// Populated on first RNTP playTrack() call; null until then (Expo Go or pre-render).
+let _hkArtworkFileURI: string | null = null;
+let _getHKArtworkFileURI: (() => Promise<string>) | null = null;
+try {
+  const { requireNativeModule } = require('expo-modules-core');
+  const AM = requireNativeModule('AppleMusicKit');
+  _getHKArtworkFileURI = () => AM.getHKArtworkFileURI();
+} catch {
+  // Expo Go or native module not compiled — keep null
+}
 
 // ── Conditional RNTP load ─────────────────────────────────────────────────────
 // react-native-track-player requires a native module only present in EAS builds.
@@ -210,7 +221,12 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         await _TrackPlayer.skip(idx);
         await _TrackPlayer.play();
       } else {
-        const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork: DEFAULT_ARTWORK }));
+        // Fetch the native pure-black artwork URI on first call; fall back to bundled asset.
+        if (_getHKArtworkFileURI && !_hkArtworkFileURI) {
+          try { _hkArtworkFileURI = await _getHKArtworkFileURI(); } catch {}
+        }
+        const artwork = _hkArtworkFileURI ?? DEFAULT_ARTWORK;
+        const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork }));
         await _TrackPlayer.reset();
         // Re-apply Queue repeat after every reset() — reset() wipes it back to Off,
         // which causes the queue to stop at the last track and close the audio session.
