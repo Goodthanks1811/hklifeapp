@@ -174,7 +174,7 @@ function TrackRow({
           delayLongPress={200}
         >
           <View style={[st.rowIcon, isActive && st.rowIconActive]}>
-            <Feather name={isActive && isPlaying ? "volume-2" : "volume"} size={16} color={RED} />
+            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
           </View>
           <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
             {track.name}
@@ -235,7 +235,7 @@ function PlTrackRow({ track, isActive, isPlaying, onPlay, onDelete }: {
           onPress={() => revealedRef.current ? swipeRef.current?.close() : onPlay()}
         >
           <View style={[st.rowIcon, isActive && st.rowIconActive]}>
-            <Feather name={isActive && isPlaying ? "volume-2" : "volume"} size={16} color={RED} />
+            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
           </View>
           <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
             {track.name}

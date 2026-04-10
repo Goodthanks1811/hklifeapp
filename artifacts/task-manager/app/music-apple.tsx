@@ -117,7 +117,7 @@ function SongRow({ song, idx, plId, isActive, loadingKey, onPlay }: {
         {loading
           ? <ActivityIndicator size="small" color={SILVER} />
           : <Feather
-              name={isActive ? "volume-2" : "volume"}
+              name={isActive ? "volume-2" : "music"}
               size={16}
               color={isActive ? SILVER : "rgba(255,255,255,0.25)"}
             />}
