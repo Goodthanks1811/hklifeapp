@@ -121,12 +121,16 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
   const [durMs,           setDurMs]           = useState(0);
   const [remoteConnected, setRemoteConnected] = useState(false);
 
-  const nowPlayingRef = useRef(nowPlaying);
+  const nowPlayingRef  = useRef(nowPlaying);
   nowPlayingRef.current = nowPlaying;
+
+  // Track explicit user pause intent so stale polls can't override it
+  const userPausedRef = useRef(false);
 
   useEffect(() => {
     MusicSourceBus.registerPauseSpotify(async () => {
       if (!REMOTE_AVAILABLE) return;
+      userPausedRef.current = true;
       try { await SpotifyRemote?.pause?.(); } catch {}
       setIsPlaying(false);
     });
@@ -134,6 +138,7 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
 
   const setNowPlaying = useCallback((np: SpotifyNowPlaying | null) => {
     if (np) MusicSourceBus.notifySpotifyPlaying();
+    userPausedRef.current = false;
     setNowPlayingState(np);
     setIsPlaying(np !== null);
     setPosMs(0);
@@ -144,49 +149,59 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     }
   }, []);
 
+  // Poll Spotify player state whenever a track is loaded (not just when playing).
+  // Depends on nowPlaying so the interval is stable across pause/resume cycles.
+  // A cancellation flag prevents stale async results from firing after cleanup.
   useEffect(() => {
-    if (!isPlaying || !REMOTE_AVAILABLE) return;
+    if (!nowPlaying || !REMOTE_AVAILABLE) return;
+    let cancelled = false;
     const id = setInterval(async () => {
       try {
         const ok = await ensureRemoteConnected();
-        if (!ok) return;
+        if (!ok || cancelled) return;
         const state = await SpotifyRemote?.getPlayerState?.();
-        if (state) {
+        if (state && !cancelled) {
           setPosMs(state.playbackPosition ?? 0);
           const dur = state.track?.duration ?? 0;
           if (dur > 0) setDurMs(dur);
-          setIsPlaying(!state.isPaused);
+          // Only sync play/pause from Spotify if the user hasn't explicitly paused.
+          // This prevents a stale or delayed poll result from re-starting playback.
+          if (!userPausedRef.current) {
+            setIsPlaying(!state.isPaused);
+          }
           setRemoteConnected(true);
         }
       } catch (err) {
         console.warn("[SpotifyRemote] getPlayerState:", err);
       }
-    }, 500);
-    return () => clearInterval(id);
-  }, [isPlaying]);
+    }, 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [nowPlaying]);
 
   const pause = useCallback(async () => {
     if (!REMOTE_AVAILABLE) return;
+    userPausedRef.current = true;
+    setIsPlaying(false);
     try {
       const ok = await ensureRemoteConnected();
-      if (!ok) { setIsPlaying(false); return; }
+      if (!ok) return;
       await SpotifyRemote?.pause?.();
-      setIsPlaying(false);
     } catch (err) {
       console.warn("[SpotifyRemote] pause:", err);
-      setIsPlaying(false);
     }
   }, []);
 
   const play = useCallback(async () => {
     if (!REMOTE_AVAILABLE) return;
+    userPausedRef.current = false;
+    setIsPlaying(true);
     try {
       const ok = await ensureRemoteConnected();
-      if (!ok) return;
+      if (!ok) { setIsPlaying(false); return; }
       await SpotifyRemote?.resume?.();
-      setIsPlaying(true);
     } catch (err) {
       console.warn("[SpotifyRemote] resume:", err);
+      setIsPlaying(false);
     }
   }, []);
 
@@ -208,7 +223,9 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     const nextIdx = np.songIndex + 1;
     if (nextIdx >= np.songs.length) return;
     const next = np.songs[nextIdx];
+    userPausedRef.current = false;
     setNowPlayingState({ ...np, songIndex: nextIdx, title: next.title, artist: next.artist });
+    setIsPlaying(true);
     setPosMs(0);
     setDurMs(next.durationMs);
     if (REMOTE_AVAILABLE && next.uri) {
@@ -224,7 +241,9 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     if (!np) return;
     const prevIdx = Math.max(0, np.songIndex - 1);
     const prev    = np.songs[prevIdx];
+    userPausedRef.current = false;
     setNowPlayingState({ ...np, songIndex: prevIdx, title: prev.title, artist: prev.artist });
+    setIsPlaying(true);
     setPosMs(0);
     setDurMs(prev.durationMs);
     if (REMOTE_AVAILABLE && prev.uri) {
