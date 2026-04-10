@@ -93,20 +93,21 @@ function BottomSheet({
   title: string;
 }) {
   const translateY = useRef(new Animated.Value(400)).current;
+  const [rendered, setRendered] = useState(visible);
 
   useEffect(() => {
-    Animated.spring(translateY, {
-      toValue: visible ? 0 : 400,
-      useNativeDriver: true,
-      damping: 20,
-      stiffness: 200,
-    }).start();
+    if (visible) {
+      setRendered(true);
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 200 }).start();
+    } else {
+      Animated.timing(translateY, { toValue: 400, duration: 280, useNativeDriver: true, easing: Easing.in(Easing.quad) }).start(() => setRendered(false));
+    }
   }, [visible]);
 
-  if (!visible) return null;
+  if (!rendered) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={rendered} transparent animationType="none" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <View style={styles.sheetHandle} />

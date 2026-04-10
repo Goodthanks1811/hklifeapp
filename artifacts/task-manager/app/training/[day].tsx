@@ -93,6 +93,7 @@ function SetLoggerSheet({
   const [notes, setNotes] = useState("");
   const [setup, setSetup] = useState("");
   const visible    = !!exercise;
+  const [rendered, setRendered] = useState(visible);
   const swipingOut = useRef(false);
   const dismissRef = useRef<() => void>(() => {});
   // Track keyboard height so ScrollView shrinks and buttons stay pinned
@@ -118,17 +119,18 @@ function SetLoggerSheet({
 
   useEffect(() => {
     if (visible) {
+      setRendered(true);
       swipingOut.current = false;
       slideAnim.setValue(800);   // reset off-screen before springing in
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 85, friction: 14 }).start();
       Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }).start();
     } else if (!swipingOut.current) {
-      // Normal close (Done button etc.) — slide out
-      Animated.timing(slideAnim, { toValue: 800, duration: 240, useNativeDriver: true, easing: Easing.in(Easing.quad) }).start();
+      // Normal close (Done button etc.) — slide out then unmount
+      Animated.timing(slideAnim, { toValue: 800, duration: 240, useNativeDriver: true, easing: Easing.in(Easing.quad) }).start(() => setRendered(false));
       Animated.timing(bgAnim,    { toValue: 0,   duration: 190, useNativeDriver: false }).start();
     } else {
-      // Closed via swipe — sheet already off-screen, just fade overlay
-      Animated.timing(bgAnim, { toValue: 0, duration: 190, useNativeDriver: false }).start();
+      // Closed via swipe — sheet already off-screen, just fade overlay then unmount
+      Animated.timing(bgAnim, { toValue: 0, duration: 190, useNativeDriver: false }).start(() => setRendered(false));
     }
   }, [visible]);
 
@@ -200,7 +202,7 @@ function SetLoggerSheet({
   const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.88)"] });
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
+    <Modal visible={rendered} transparent animationType="none" onRequestClose={dismiss}>
       {/* Dim overlay — no pointer events so touches fall through to sheet or dismiss */}
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]} pointerEvents="none" />
 

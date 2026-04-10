@@ -579,8 +579,16 @@ function DetailSheet({ task, catEmojis, catEmojiMap, body, bodyLoading, onClose,
 
   const dismiss = useCallback(() => {
     Keyboard.dismiss();
-    onClose();
-  }, [onClose]);
+    if (isTablet) {
+      Animated.parallel([
+        Animated.timing(scaleAnim, { toValue: 0.92, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+        Animated.timing(bgAnim,    { toValue: 0,    duration: 160, useNativeDriver: false }),
+      ]).start(onClose);
+    } else {
+      Animated.timing(slideAnim, { toValue: 600, duration: 240, useNativeDriver: true, easing: Easing.in(Easing.quad) }).start(onClose);
+      Animated.timing(bgAnim,    { toValue: 0,   duration: 180, useNativeDriver: false }).start();
+    }
+  }, [isTablet, onClose, scaleAnim, bgAnim, slideAnim]);
 
   const resetLoader = useCallback(() => {
     overlayOpacity.setValue(0);  spinnerOpacity.setValue(0);
@@ -843,6 +851,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   const kbAnim    = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const [kbVisible, setKbVisible] = useState(false);
+  const [rendered, setRendered]   = useState(visible);
   const insets    = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const [title,        setTitle]       = useState("");
@@ -904,6 +913,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
 
   useEffect(() => {
     if (visible) {
+      setRendered(true);
       setTitle(""); setSelEmoji(null); setLocalCat(catValue); setSelEpic(null); setLoaderVisible(false);
       setTimeout(() => titleInputRef.current?.focus(), 50);
       scaleAnim.setValue(0.93);
@@ -922,9 +932,9 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
         Animated.parallel([
           Animated.timing(scaleAnim, { toValue: 0.93, duration: 180, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
           Animated.timing(bgAnim,    { toValue: 0,    duration: 190, useNativeDriver: false }),
-        ]).start();
+        ]).start(() => setRendered(false));
       } else {
-        Animated.timing(slideAnim, { toValue: 500, duration: 240, useNativeDriver: true,  easing: Easing.in(Easing.quad) }).start();
+        Animated.timing(slideAnim, { toValue: 500, duration: 240, useNativeDriver: true,  easing: Easing.in(Easing.quad) }).start(() => setRendered(false));
         Animated.timing(bgAnim,    { toValue: 0,   duration: 190, useNativeDriver: false }).start();
       }
     }
@@ -1125,7 +1135,7 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
   );
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
+    <Modal visible={rendered} transparent animationType="none" onRequestClose={dismiss}>
       <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
 
