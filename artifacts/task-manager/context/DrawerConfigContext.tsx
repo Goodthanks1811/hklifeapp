@@ -108,6 +108,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Gradient Header",icon: "sunset",  route: "/ui-kit/gradient-header",   description: "Section top accent"       },
     { label: "Spotlight Hdr", icon: "sun",     route: "/ui-kit/gradient-spotlight", description: "Three-beam spotlight style" },
     { label: "Now Playing",   icon: "music",   route: "/ui-kit/now-playing",        description: "Full-screen player design"  },
+    { label: "Life List",     icon: "list",    route: "/ui-kit/life-list",           description: "Swipe · drag · emoji · modal" },
   ],
 };
 
