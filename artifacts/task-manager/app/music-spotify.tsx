@@ -375,8 +375,54 @@ export default function MusicSpotifyScreen() {
                 </View>
               ) : selPlSongs.length === 0 ? (
                 <View style={s.centred}>
-                  <Text style={s.stateBody}>No songs found</Text>
-                  {trackError ? <Text style={s.errorDetail}>{trackError}</Text> : null}
+                  {trackError === "not_authenticated" ? (
+                    <>
+                      <Feather name="alert-circle" size={36} color={GREEN} style={{ marginBottom: 16 }} />
+                      <Text style={s.fourOhThreeTitle}>Session Expired</Text>
+                      <Text style={s.stateBody}>Your Spotify session has expired.{"\n"}Tap below to reconnect.</Text>
+                      <Pressable
+                        style={({ pressed }) => [s.connectBtn, { marginTop: 24 }, pressed && { opacity: 0.8 }]}
+                        onPress={() => { closePlaylist(); setTimeout(handleConnect, 400); }}
+                      >
+                        <Feather name="log-in" size={18} color="#fff" />
+                        <Text style={s.connectBtnText}>Reconnect Spotify</Text>
+                      </Pressable>
+                    </>
+                  ) : trackError?.includes("403") ? (
+                    <>
+                      <Text style={s.fourOhThreeTitle}>Access Restricted</Text>
+                      <Text style={s.fourOhThreeBody}>
+                        This playlist returned a <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>403 Forbidden</Text> error.{"\n\n"}
+                        If your Spotify app is in Development Mode, open the Dashboard and add your account under <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Users and Access</Text>.
+                      </Text>
+                      <Pressable
+                        style={({ pressed }) => [s.dashboardBtn, pressed && { opacity: 0.75 }]}
+                        onPress={() => Linking.openURL("https://developer.spotify.com/dashboard")}
+                      >
+                        <Feather name="external-link" size={14} color="#fff" />
+                        <Text style={s.dashboardBtnText}>Open Spotify Developer Dashboard</Text>
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [s.retryBtn, pressed && { opacity: 0.75 }]}
+                        onPress={() => selPl && openPlaylist(selPl)}
+                      >
+                        <Feather name="refresh-cw" size={13} color={GREEN} />
+                        <Text style={s.retryBtnText}>Retry</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={s.stateBody}>No songs found</Text>
+                      {trackError ? <Text style={s.errorDetail}>{trackError}</Text> : null}
+                      <Pressable
+                        style={({ pressed }) => [s.retryBtn, { marginTop: 16 }, pressed && { opacity: 0.75 }]}
+                        onPress={() => selPl && openPlaylist(selPl)}
+                      >
+                        <Feather name="refresh-cw" size={13} color={GREEN} />
+                        <Text style={s.retryBtnText}>Retry</Text>
+                      </Pressable>
+                    </>
+                  )}
                 </View>
               ) : (
                 <ScrollView

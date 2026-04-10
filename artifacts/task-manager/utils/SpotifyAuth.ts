@@ -74,6 +74,19 @@ export async function clearStoredTokens() {
 
 // ── Token refresh ─────────────────────────────────────────────────────────────
 
+// Forces a token refresh regardless of the stored expiry timestamp.
+// Use this when the server returns 403/401 but the token appears valid locally —
+// Spotify can revoke or invalidate tokens without changing the expiry claim.
+export async function forceRefreshTokens(): Promise<{ accessToken: string; refreshToken: string } | null> {
+  try {
+    const rt = await AsyncStorage.getItem(STORAGE_REFRESH_TOKEN);
+    if (!rt) return null;
+    return refreshAccessToken(rt);
+  } catch {
+    return null;
+  }
+}
+
 export async function refreshAccessToken(
   refreshToken: string,
 ): Promise<{ accessToken: string; refreshToken: string } | null> {

@@ -1,4 +1,4 @@
-import { getStoredTokens, refreshAccessToken, clearStoredTokens } from "./SpotifyAuth";
+import { getStoredTokens, refreshAccessToken, clearStoredTokens, forceRefreshTokens } from "./SpotifyAuth";
 
 export type SpotifyPlaylist = {
   id:         string;
@@ -28,10 +28,20 @@ async function apiFetch(path: string, retried = false): Promise<any> {
     headers: { Authorization: `Bearer ${token}` },
   });
 
+  // 401 — token expired: standard refresh + retry
   if (res.status === 401 && !retried) {
     const { refreshToken } = (await getStoredTokens()) ?? {};
     if (!refreshToken) { await clearStoredTokens(); throw new Error("not_authenticated"); }
     const refreshed = await refreshAccessToken(refreshToken);
+    if (!refreshed) { await clearStoredTokens(); throw new Error("not_authenticated"); }
+    return apiFetch(path, true);
+  }
+
+  // 403 — Spotify can return this for revoked/stale tokens that haven't expired
+  // by timestamp yet (e.g. user revoked app access, password change, etc.).
+  // Force a refresh regardless of expiry, retry once, then clear and re-auth.
+  if (res.status === 403 && !retried) {
+    const refreshed = await forceRefreshTokens();
     if (!refreshed) { await clearStoredTokens(); throw new Error("not_authenticated"); }
     return apiFetch(path, true);
   }
