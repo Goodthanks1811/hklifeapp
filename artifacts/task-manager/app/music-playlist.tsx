@@ -7,7 +7,6 @@ import React, {
 import {
   Animated,
   Easing,
-  InteractionManager,
   Modal,
   Pressable,
   ScrollView,
@@ -161,7 +160,7 @@ export default function MusicPlaylistScreen() {
   const [tracks, setTracks]         = useState<MusicTrack[]>([]);
   const [showMenu, setShowMenu]     = useState(false);
   const playlistRef                 = useRef<Playlist | null>(null);
-  const isPickingRef                = useRef(false);
+
 
   const activeId = player.track?.id
     ? toRel(player.track.id)
@@ -208,8 +207,6 @@ export default function MusicPlaylistScreen() {
   };
 
   const pickFiles = async () => {
-    if (isPickingRef.current) return;
-    isPickingRef.current = true;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
@@ -240,13 +237,6 @@ export default function MusicPlaylistScreen() {
         await savePlaylists({ ...pl, tracks: updated });
       }
     } catch (err) { console.warn("picker error:", err); }
-    finally { isPickingRef.current = false; }
-  };
-
-  const schedulePick = () => {
-    InteractionManager.runAfterInteractions(() => {
-      pickFiles();
-    });
   };
 
   if (!playlist) return <View style={styles.root} />;
@@ -276,7 +266,7 @@ export default function MusicPlaylistScreen() {
         <View style={styles.emptyWrap}>
           <Feather name="music" size={40} color={GREY} />
           <Text style={styles.emptyText}>No songs yet</Text>
-          <Pressable style={styles.emptyBtn} onPress={schedulePick}>
+          <Pressable style={styles.emptyBtn} onPress={pickFiles}>
             <Text style={styles.emptyBtnText}>Add Songs</Text>
           </Pressable>
         </View>
@@ -307,7 +297,7 @@ export default function MusicPlaylistScreen() {
       <Modal
         visible={showMenu}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setShowMenu(false)}
       >
         <Pressable style={styles.popupOverlay} onPress={() => setShowMenu(false)}>
@@ -332,7 +322,7 @@ export default function MusicPlaylistScreen() {
 
             <Pressable
               style={styles.popupRow}
-              onPress={() => { setShowMenu(false); schedulePick(); }}
+              onPress={async () => { setShowMenu(false); await pickFiles(); }}
             >
               <Feather name="plus" size={18} color="#fff" />
               <Text style={styles.popupRowText}>Add Songs</Text>

@@ -8,7 +8,6 @@ import React, {
 import {
   Animated,
   Easing,
-  InteractionManager,
   Keyboard,
   Modal,
   PanResponder,
@@ -212,7 +211,7 @@ export default function MusicMyMusicScreen() {
   const [plMenuId, setPlMenuId]           = useState<string | null>(null);
   const newPLInputRef                     = useRef<TextInput>(null);
   const keyboardOffset                    = useRef(new Animated.Value(0)).current;
-  const isPickingRef                      = useRef(false);
+  const shakeAnim                         = useRef(new Animated.Value(0)).current;
 
   // Keyboard shift for new playlist popup (shift card up so input stays visible)
   useEffect(() => {
@@ -305,9 +304,21 @@ export default function MusicMyMusicScreen() {
   };
 
   // ── Playlist actions ──────────────────────────────────────────────────────
+  const shakeCard = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8,   duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8,  duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,   duration: 40, useNativeDriver: true }),
+    ]).start();
+  };
+
   const createPlaylist = async () => {
     const name = newPLName.trim();
-    if (!name) return;
+    if (!name) { shakeCard(); return; }
     Keyboard.dismiss();
     const pl: Playlist = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), tracks: [] };
     await savePlaylists([...playlistsRef.current, pl]);
@@ -333,8 +344,6 @@ export default function MusicMyMusicScreen() {
 
   // ── File picker (library + optional playlist target) ───────────────────────
   const pickFiles = async (targetPlaylistId?: string) => {
-    if (isPickingRef.current) return;
-    isPickingRef.current = true;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
@@ -372,14 +381,7 @@ export default function MusicMyMusicScreen() {
           await saveTracks(merged);
         }
       }
-    } catch (err) { console.warn("picker dismissed or error:", err); }
-    finally { isPickingRef.current = false; }
-  };
-
-  const schedulePick = (targetPlaylistId?: string) => {
-    InteractionManager.runAfterInteractions(() => {
-      pickFiles(targetPlaylistId);
-    });
+    } catch (err) { console.warn("picker error:", err); }
   };
 
   const handleDelete = async (idx: number) => {
@@ -584,7 +586,7 @@ export default function MusicMyMusicScreen() {
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
             <Text style={st.emptySubtitle}>Long press the equaliser above to add music or create a playlist</Text>
-            <Pressable style={st.emptyBtn} onPress={() => schedulePick()}>
+            <Pressable style={st.emptyBtn} onPress={() => pickFiles()}>
               <Feather name="plus" size={15} color="#fff" />
               <Text style={st.emptyBtnText}>Add Music</Text>
             </Pressable>
@@ -675,7 +677,7 @@ export default function MusicMyMusicScreen() {
       <Modal
         visible={showEQMenu}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setShowEQMenu(false)}
       >
         <Pressable style={st.popupOverlay} onPress={() => setShowEQMenu(false)}>
@@ -683,7 +685,7 @@ export default function MusicMyMusicScreen() {
             <View style={st.popupCard}>
               <Pressable
                 style={st.menuRow}
-                onPress={() => { setShowEQMenu(false); schedulePick(); }}
+                onPress={async () => { setShowEQMenu(false); await pickFiles(); }}
               >
                 <Feather name="music" size={18} color={RED} />
                 <Text style={st.menuRowText}>Add Songs</Text>
@@ -713,7 +715,7 @@ export default function MusicMyMusicScreen() {
       <Modal
         visible={plMenuId !== null}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setPlMenuId(null)}
       >
         <Pressable style={st.popupOverlay} onPress={() => setPlMenuId(null)}>
@@ -725,10 +727,10 @@ export default function MusicMyMusicScreen() {
 
               <Pressable
                 style={st.menuRow}
-                onPress={() => {
+                onPress={async () => {
                   const id = plMenuId;
                   setPlMenuId(null);
-                  schedulePick(id ?? undefined);
+                  await pickFiles(id ?? undefined);
                 }}
               >
                 <Feather name="plus-circle" size={18} color={RED} />
@@ -771,7 +773,7 @@ export default function MusicMyMusicScreen() {
           onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
         >
           <Animated.View
-            style={[st.popupCard, { transform: [{ translateY: keyboardOffset }] }]}
+            style={[st.popupCard, { transform: [{ translateY: keyboardOffset }, { translateX: shakeAnim }] }]}
           >
             <Pressable onPress={() => {}}>
               <Text style={st.popupTitle}>New Playlist</Text>
@@ -797,9 +799,8 @@ export default function MusicMyMusicScreen() {
                   <Text style={st.popupCancelText}>Cancel</Text>
                 </Pressable>
                 <Pressable
-                  style={[st.popupCreate, !newPLName.trim() && { opacity: 0.4 }]}
+                  style={st.popupCreate}
                   onPress={createPlaylist}
-                  disabled={!newPLName.trim()}
                 >
                   <Text style={st.popupCreateText}>Create  →</Text>
                 </Pressable>
