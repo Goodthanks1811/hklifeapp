@@ -373,7 +373,7 @@ export function GlobalMusicPlayer() {
           >
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
             <View style={s.miniIcon}>
-              <Feather name="music" size={24} color={RED} />
+              <Feather name="music" size={28} color={RED} />
             </View>
 
             {/* Title + artist */}
@@ -545,10 +545,10 @@ const s = StyleSheet.create({
     flex: 1,
   },
   miniTitle: {
-    fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#fff",
+    fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff",
   },
   miniArtist: {
-    fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
+    fontSize: 14, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
   },
   miniPlayBtn: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: RED,
