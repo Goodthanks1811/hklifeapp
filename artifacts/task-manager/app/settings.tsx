@@ -950,9 +950,7 @@ export default function SettingsScreen() {
         <Accordion title="Menu Settings" icon="menu" defaultOpen={false}>
           <View style={styles.accordionBody}>
             <Text style={styles.sectionHint}>
-              Reorder sections and items with ↑↓. Tap{" "}
-              <Feather name="log-in" size={11} color={Colors.textMuted} /> to move an item to a different section.
-              Tap the eye to show or hide.
+              Reorder sections and items with ↑↓. Tap the arrow icon to move an item to a different section. Tap the eye to show or hide.
             </Text>
 
             {orderedSections.map((key, idx) => (
