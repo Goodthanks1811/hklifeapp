@@ -1,5 +1,13 @@
+/**
+ * UI Kit — Life List Demo
+ * Exact visual replica of the Development section (life/[slug].tsx).
+ * All interactions work (swipe, hold-to-drag, emoji picker, epic picker,
+ * detail sheet). No Notion writes — state resets on every focus.
+ */
+
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
 import React, {
   useCallback,
@@ -25,15 +33,17 @@ import {
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { useDrawer } from "@/context/DrawerContext";
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// ── Constants (match life/[slug].tsx exactly) ─────────────────────────────────
 const ITEM_H   = 52;
 const ITEM_GAP = 8;
 const SLOT_H   = ITEM_H + ITEM_GAP;
 
-const EMOJIS  = ["🔥", "🚆", "🏡", "👀", "💡"];
-const EPICS   = ["HK Life", "Enhancement", "IR App", "New App", "General"];
+const HIDDEN_EMOJI  = "👎";
+const DEFAULT_EMOJI = "-";
+
+const EMOJIS = ["🔥", "🚆", "🏡", "👀", "💡", "👎"];
 
 const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string }> = {
   "Enhancement": { bg: "rgba(64,192,87,0.14)",   border: "rgba(64,192,87,0.40)",   text: "#40C057" },
@@ -43,49 +53,64 @@ const EPIC_COLOUR_MAP: Record<string, { bg: string; border: string; text: string
   "New App":     { bg: "rgba(250,176,5,0.14)",   border: "rgba(250,176,5,0.40)",   text: "#FAB005" },
 };
 const EPIC_FALLBACK = { bg: "rgba(134,142,150,0.12)", border: "rgba(134,142,150,0.30)", text: "#868E96" };
-function epicColor(epic: string) { return EPIC_COLOUR_MAP[epic] ?? EPIC_FALLBACK; }
+const EPIC_OPTIONS  = ["HK Life", "Enhancement", "IR App", "New App", "General"];
 
+function epicColor(epic: string | null | undefined) {
+  return epic ? (EPIC_COLOUR_MAP[epic] ?? EPIC_FALLBACK) : EPIC_FALLBACK;
+}
+
+const norm  = (e: string) => e.replace(/[\uFE00-\uFE0F\u200D\u20E3]/g, "").trim();
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
 const ZERO_ANIM = new Animated.Value(0);
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-interface Task { id: string; title: string; emoji: string; epic: string; notes: string; }
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface Task {
+  id:    string;
+  title: string;
+  emoji: string;
+  epic:  string;
+  notes: string;
+}
 
+// ── Stub data (matches the screenshot exactly) ────────────────────────────────
 const SEED: Task[] = [
-  { id: "1",  emoji: "🔥", title: "Mock life admin section",                                                    epic: "HK Life",     notes: "Create a mock version of the life admin section for UI testing." },
-  { id: "2",  emoji: "🔥", title: "Thumbs down in all life sections should optimistically disappear the row",   epic: "HK Life",     notes: "When a user taps thumbs down the row should vanish immediately without waiting for the API." },
-  { id: "3",  emoji: "🔥", title: "Concept of Ad hoc training session where all movements appear",              epic: "HK Life",     notes: "" },
-  { id: "4",  emoji: "🔥", title: "Calories burned at the bottom of training session",                          epic: "HK Life",     notes: "Show a summary footer with total kcal after the last movement." },
-  { id: "5",  emoji: "🔥", title: "New Chisme Section",                                                         epic: "HK Life",     notes: "" },
-  { id: "6",  emoji: "🔥", title: "Expense report",                                                             epic: "HK Life",     notes: "Monthly PDF export of tagged expense items." },
-  { id: "7",  emoji: "🔥", title: "Combined calendar, psychology and philosophy push notification",              epic: "HK Life",     notes: "Daily digest notification that pulls from all three sources." },
-  { id: "8",  emoji: "🔥", title: "Publish now to deploy to permanent server",                                   epic: "HK Life",     notes: "" },
-  { id: "9",  emoji: "🔥", title: "Change NRL so not green dot, but warning for tips",                          epic: "HK Life",     notes: "Replace the green presence dot with an amber warning indicator for unpaid tips." },
-  { id: "10", emoji: "🔥", title: "Dev options Amazon",                                                          epic: "Enhancement", notes: "Add Amazon-specific settings to the dev options panel." },
-  { id: "11", emoji: "🔥", title: "Fast forwards",                                                              epic: "HK Life",     notes: "" },
-  { id: "12", emoji: "🚆", title: "Footy icons in ladder",                                                       epic: "HK Life",     notes: "Show team badge icons next to each team in the ladder view." },
-  { id: "13", emoji: "🚆", title: "Move Reminder To App",                                                        epic: "HK Life",     notes: "" },
-  { id: "14", emoji: "🚆", title: "Trains",                                                                      epic: "HK Life",     notes: "Departure board widget on the home screen." },
+  { id: "1",  emoji: "🔥", title: "Mock life admin section",                                                  epic: "HK Life",     notes: "" },
+  { id: "2",  emoji: "🔥", title: "Thumbs down in all life sections should optimistically disappear the row", epic: "HK Life",     notes: "When a user taps thumbs down the row should vanish immediately without waiting for the API." },
+  { id: "3",  emoji: "🔥", title: "Concept of Ad hoc training session where all movements appear",            epic: "HK Life",     notes: "" },
+  { id: "4",  emoji: "🔥", title: "Calories burned at the bottom of training session",                        epic: "HK Life",     notes: "Show a summary footer with total kcal after the last movement." },
+  { id: "5",  emoji: "🔥", title: "New Chisme Section",                                                       epic: "HK Life",     notes: "" },
+  { id: "6",  emoji: "🔥", title: "Expense report",                                                           epic: "HK Life",     notes: "Monthly PDF export of tagged expense items." },
+  { id: "7",  emoji: "🔥", title: "Combined calendar, psychology and philosophy push notification",            epic: "HK Life",     notes: "" },
+  { id: "8",  emoji: "🔥", title: "Publish now to deploy to permanent server",                                 epic: "HK Life",     notes: "" },
+  { id: "9",  emoji: "🔥", title: "Change NRL so not green dot, but warning for tips",                        epic: "HK Life",     notes: "" },
+  { id: "10", emoji: "🔥", title: "Dev options Amazon",                                                        epic: "Enhancement", notes: "Add Amazon-specific settings to the dev options panel." },
+  { id: "11", emoji: "🔥", title: "Fast forwards",                                                            epic: "HK Life",     notes: "" },
+  { id: "12", emoji: "🚆", title: "Footy icons in ladder",                                                     epic: "HK Life",     notes: "Show team badge icons next to each team in the ladder view." },
+  { id: "13", emoji: "🚆", title: "Move Reminder To App",                                                      epic: "HK Life",     notes: "" },
+  { id: "14", emoji: "🚆", title: "Trains",                                                                    epic: "HK Life",     notes: "Departure board widget on the home screen." },
 ];
 
-// ── Inline emoji picker ────────────────────────────────────────────────────────
+// ── Inline emoji picker ───────────────────────────────────────────────────────
 type Anchor = { taskId: string; x: number; y: number; w: number; h: number };
 
-function InlineEmojiPicker({ anchor, currentEmoji, onSelect, onClose }: {
+function InlineEmojiPicker({ anchor, emojis, currentEmoji, onSelect, onClose }: {
   anchor:       Anchor | null;
-  currentEmoji: string;
+  emojis:       string[];
+  currentEmoji: string | null;
   onSelect:     (taskId: string, emoji: string) => void;
   onClose:      () => void;
 }) {
   const { width: sw, height: sh } = useWindowDimensions();
   if (!anchor) return null;
 
-  const options = EMOJIS.filter(e => e !== currentEmoji);
+  const options = currentEmoji
+    ? emojis.filter(e => norm(e) !== norm(currentEmoji))
+    : emojis;
   if (!options.length) return null;
 
   const cellSize = 40;
-  const gap      = 6;
-  const pad      = 8;
+  const gap      = 8;
+  const pad      = 10;
   const popW     = options.length * cellSize + (options.length - 1) * gap + pad * 2;
   const popH     = cellSize + pad * 2;
 
@@ -96,18 +121,18 @@ function InlineEmojiPicker({ anchor, currentEmoji, onSelect, onClose }: {
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <View style={[ls.emojiPopover, { top: topY, left: leftX, width: popW }]}>
+      <View style={[s.emojiPopover, { top: topY, left: leftX, width: popW }]}>
         {options.map(e => (
           <Pressable
             key={e}
-            style={({ pressed }) => [ls.emojiPopCell, pressed && ls.emojiPopCellPressed]}
+            style={({ pressed }) => [s.emojiPopCell, pressed && s.emojiPopCellPressed]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onSelect(anchor.taskId, e);
               onClose();
             }}
           >
-            <Text style={ls.emojiPopText}>{e}</Text>
+            <Text style={s.emojiPopText}>{e}</Text>
           </Pressable>
         ))}
       </View>
@@ -115,10 +140,10 @@ function InlineEmojiPicker({ anchor, currentEmoji, onSelect, onClose }: {
   );
 }
 
-// ── Inline epic picker ─────────────────────────────────────────────────────────
+// ── Inline epic picker ────────────────────────────────────────────────────────
 function InlineEpicPicker({ anchor, currentEpic, onSelect, onClose }: {
   anchor:      Anchor | null;
-  currentEpic: string;
+  currentEpic: string | null;
   onSelect:    (taskId: string, epic: string) => void;
   onClose:     () => void;
 }) {
@@ -127,9 +152,9 @@ function InlineEpicPicker({ anchor, currentEpic, onSelect, onClose }: {
 
   const rowH = 34;
   const pad  = 6;
-  const gap  = 5;
+  const gap  = 4;
   const popW = 170;
-  const popH = EPICS.length * rowH + (EPICS.length - 1) * gap + pad * 2;
+  const popH = EPIC_OPTIONS.length * rowH + (EPIC_OPTIONS.length - 1) * gap + pad * 2;
 
   const leftX = Math.max(4, anchor.x - popW - 6);
   const topY  = Math.min(anchor.y - 4, sh - popH - 20);
@@ -137,10 +162,9 @@ function InlineEpicPicker({ anchor, currentEpic, onSelect, onClose }: {
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <View style={[ls.epicPopover, { top: topY, left: leftX, width: popW }]}>
-        {EPICS.map(ep => {
-          const ec       = epicColor(ep);
-          const selected = ep === currentEpic;
+      <View style={[s.epicPopover, { top: topY, left: leftX, width: popW }]}>
+        {EPIC_OPTIONS.map(ep => {
+          const ec = epicColor(ep);
           return (
             <Pressable
               key={ep}
@@ -149,9 +173,9 @@ function InlineEpicPicker({ anchor, currentEpic, onSelect, onClose }: {
                 onSelect(anchor.taskId, ep);
                 onClose();
               }}
-              style={[ls.epicPopRow, { backgroundColor: ec.bg, borderColor: ec.border, opacity: selected ? 0.5 : 1 }]}
+              style={[s.epicPopRow, { backgroundColor: ec.bg, borderColor: ec.border }]}
             >
-              <Text style={[ls.epicPopText, { color: ec.text }]}>{ep}</Text>
+              <Text style={[s.epicPopText, { color: ec.text }]}>{ep}</Text>
             </Pressable>
           );
         })}
@@ -160,7 +184,11 @@ function InlineEpicPicker({ anchor, currentEpic, onSelect, onClose }: {
   );
 }
 
-// ── Detail sheet ───────────────────────────────────────────────────────────────
+// ── Detail sheet (visual copy of the real one, no Notion calls) ───────────────
+const DS_SPINNER_SIZE   = 72;
+const DS_SPINNER_STROKE = 8;
+const DS_CIRCLE_SIZE    = 74;
+
 function DetailSheet({ task, onClose, onEmojiChange, onEpicChange }: {
   task:          Task | null;
   onClose:       () => void;
@@ -171,14 +199,13 @@ function DetailSheet({ task, onClose, onEmojiChange, onEpicChange }: {
   const { width: screenW, height: screenH } = useWindowDimensions();
   const isTablet = screenW >= 768;
 
-  const slideAnim = useRef(new Animated.Value(600)).current;
   const scaleAnim = useRef(new Animated.Value(0.93)).current;
+  const slideAnim = useRef(new Animated.Value(600)).current;
   const bgAnim    = useRef(new Animated.Value(0)).current;
   const kbAnim    = useRef(new Animated.Value(0)).current;
 
   const visible = !!task;
 
-  // Keyboard avoidance
   useEffect(() => {
     const onShow = (e: any) => Animated.timing(kbAnim, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
     const onHide = (e: any) => Animated.timing(kbAnim, { toValue: 0, duration: e.duration || 200, useNativeDriver: false }).start();
@@ -189,18 +216,18 @@ function DetailSheet({ task, onClose, onEmojiChange, onEpicChange }: {
     return () => { s1.remove(); s2.remove(); s3.remove(); s4.remove(); };
   }, [kbAnim]);
 
-  // Open / close animation
   useEffect(() => {
     if (visible) {
       slideAnim.setValue(500);
       if (isTablet) {
+        scaleAnim.setValue(0.93);
         Animated.parallel([
           Animated.timing(scaleAnim, { toValue: 1,   duration: 220, useNativeDriver: false, easing: Easing.out(Easing.back(1.2)) }),
           Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false }),
         ]).start();
       } else {
-        Animated.timing(slideAnim, { toValue: 0,   duration: 280, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }).start();
-        Animated.timing(bgAnim,    { toValue: 1,   duration: 200, useNativeDriver: false }).start();
+        Animated.timing(slideAnim, { toValue: 0, duration: 280, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }).start();
+        Animated.timing(bgAnim,    { toValue: 1, duration: 200, useNativeDriver: false }).start();
       }
     }
   }, [visible]);
@@ -218,44 +245,31 @@ function DetailSheet({ task, onClose, onEmojiChange, onEpicChange }: {
     }
   }, [isTablet, onClose]);
 
-  if (!task && !visible) return null;
+  if (!task) return null;
 
-  const bg = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"] });
-
+  const bg      = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", "rgba(0,0,0,0.72)"] });
+  const cardW   = Math.min(560, screenW * 0.92);
   const maxCardH = screenH * 0.88;
-  const cardW    = Math.min(560, screenW * 0.92);
-
-  const ec = epicColor(task?.epic ?? "");
+  const emojisForPicker = EMOJIS.filter(e => norm(e) !== norm(HIDDEN_EMOJI));
 
   return (
-    <Modal transparent visible={!!task} animationType="none" onRequestClose={handleClose}>
-      <Animated.View style={[ls.overlay, isTablet && ls.overlayCenter, { backgroundColor: bg }]}>
+    <Modal transparent visible animationType="none" onRequestClose={handleClose}>
+      <Animated.View style={[s.overlay, isTablet && s.overlayCenter, { backgroundColor: bg }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+
         {isTablet ? (
-          <Animated.View style={[ls.dsCard, { width: cardW, maxHeight: maxCardH, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
-            <SheetBody
-              task={task}
-              onClose={handleClose}
-              onEmojiChange={onEmojiChange}
-              onEpicChange={onEpicChange}
-              insetBottom={insets.bottom}
-              isTablet
-            />
+          // ── iPad: centered card
+          <Animated.View style={[s.dsCard, { width: cardW, maxHeight: maxCardH, marginBottom: kbAnim, transform: [{ scale: scaleAnim }], opacity: bgAnim }]}>
+            <DSBody task={task} onClose={handleClose} onEmojiChange={onEmojiChange} onEpicChange={onEpicChange} emojis={emojisForPicker} insetBottom={insets.bottom} isTablet />
           </Animated.View>
         ) : (
+          // ── Phone: slide-up sheet
           <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }} pointerEvents="box-none">
-            <Animated.View style={[ls.sheet, {
+            <Animated.View style={[s.sheet, {
               paddingBottom: Math.max(insets.bottom + 16, 28),
               maxHeight: Animated.subtract(screenH - insets.top - 16, kbAnim),
             }]}>
-              <SheetBody
-                task={task}
-                onClose={handleClose}
-                onEmojiChange={onEmojiChange}
-                onEpicChange={onEpicChange}
-                insetBottom={0}
-                isTablet={false}
-              />
+              <DSBody task={task} onClose={handleClose} onEmojiChange={onEmojiChange} onEpicChange={onEpicChange} emojis={emojisForPicker} insetBottom={0} isTablet={false} />
             </Animated.View>
           </Animated.View>
         )}
@@ -264,121 +278,107 @@ function DetailSheet({ task, onClose, onEmojiChange, onEpicChange }: {
   );
 }
 
-function SheetBody({ task, onClose, onEmojiChange, onEpicChange, insetBottom, isTablet }: {
-  task: Task | null;
-  onClose: () => void;
+function DSBody({ task, onClose, onEmojiChange, onEpicChange, emojis, insetBottom, isTablet }: {
+  task: Task; onClose: () => void;
   onEmojiChange: (id: string, emoji: string) => void;
   onEpicChange:  (id: string, epic: string) => void;
-  insetBottom: number;
-  isTablet: boolean;
+  emojis: string[]; insetBottom: number; isTablet: boolean;
 }) {
-  if (!task) return null;
   const ec = epicColor(task.epic);
 
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 20, paddingBottom: insetBottom + 20, gap: 20 }}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      {!isTablet && <View style={ls.modalHandle} />}
+    <>
+      {/* Handle (phone) */}
+      {!isTablet && <View style={s.handle} />}
 
-      {/* Header */}
-      <View style={ls.dsHeader}>
-        <Pressable
-          onPress={() => {
-            const next = EMOJIS[(EMOJIS.indexOf(task.emoji) + 1) % EMOJIS.length];
-            onEmojiChange(task.id, next);
-          }}
-          style={ls.dsEmojiBtn}
-          hitSlop={6}
-        >
-          <Text style={{ fontSize: 26 }}>{task.emoji}</Text>
-        </Pressable>
-        <Text style={ls.dsTitle} numberOfLines={3}>{task.title}</Text>
-        <Pressable onPress={onClose} style={ls.dsCloseBtn}>
-          <Feather name="x" size={16} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+      {/* Title row */}
+      <View style={[s.dsCardTop, isTablet && { paddingTop: 24 }]}>
+        <Text style={s.dsTitleInput}>{task.title}</Text>
 
-      {/* Epic pill row */}
-      <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-        <Text style={ls.dsLabel}>EPIC</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {EPICS.map(ep => {
-            const ec2  = epicColor(ep);
-            const isSel = ep === task.epic;
+        {/* Meta row: emoji chips + epic chips */}
+        <View style={s.dsMetaRow}>
+          {emojis.map(e => (
+            <Pressable
+              key={e}
+              onPress={() => onEmojiChange(task.id, e)}
+              style={[s.dsEmojiChip, norm(e) === norm(task.emoji) && s.dsEmojiChipActive]}
+            >
+              <Text style={s.dsEmojiText}>{e}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={[s.dsMetaRow, { marginTop: 10 }]}>
+          {EPIC_OPTIONS.map(ep => {
+            const ec2    = epicColor(ep);
+            const active = ep === task.epic;
             return (
               <Pressable
                 key={ep}
                 onPress={() => onEpicChange(task.id, ep)}
-                style={[ls.epicChip, { backgroundColor: ec2.bg, borderColor: isSel ? ec2.border : "transparent", borderWidth: 1.5 }]}
+                style={[s.dsEpicChip, active && { backgroundColor: ec2.bg, borderColor: ec2.border }]}
               >
-                <Text style={[ls.epicChipText, { color: ec2.text }]}>{ep}</Text>
+                <Text style={[s.dsEpicText, { color: active ? ec2.text : Colors.textMuted }]}>{ep}</Text>
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
 
-      {/* Stubbed notes */}
-      <View style={{ gap: 6 }}>
-        <Text style={ls.dsLabel}>NOTES</Text>
-        <View style={ls.dsNotesBox}>
-          <Text style={ls.dsNotesText}>
-            {task.notes || "No notes yet. Tap to add…"}
+      <View style={s.dsDivider} />
+
+      {/* Body / notes */}
+      <ScrollView style={s.dsBodyScroll} showsVerticalScrollIndicator={false}>
+        <View style={s.dsBodyInner}>
+          <Text style={s.dsSectionLabel}>NOTES</Text>
+          <Text style={task.notes ? s.dsBodyText : s.dsBodyPlaceholder}>
+            {task.notes || "No notes yet. This is a stub — nothing is saved."}
           </Text>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Emoji picker row */}
-      <View style={{ gap: 6 }}>
-        <Text style={ls.dsLabel}>EMOJI</Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {EMOJIS.map(e => (
-            <Pressable
-              key={e}
-              onPress={() => onEmojiChange(task.id, e)}
-              style={[ls.dsEmojiOption, task.emoji === e && ls.dsEmojiOptionActive]}
-            >
-              <Text style={{ fontSize: 20 }}>{e}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      <View style={s.dsDivider} />
 
-      {/* Close button */}
-      <Pressable onPress={onClose} style={ls.dsDoneBtn}>
-        <Text style={ls.dsDoneBtnText}>Done</Text>
-      </Pressable>
-    </ScrollView>
+      {/* Actions */}
+      <View style={s.dsActions}>
+        <Pressable style={s.dsCancelBtn} onPress={handleClose}>
+          <Text style={s.dsCancelTx}>Close</Text>
+        </Pressable>
+        <Pressable style={s.dsUpdateBtn} onPress={handleClose}>
+          <Feather name="check" size={16} color="#fff" />
+          <Text style={s.dsUpdateTx}>Done</Text>
+        </Pressable>
+      </View>
+    </>
   );
+
+  function handleClose() { onClose(); }
 }
 
-// ── Task row ───────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onDelete, onStartDelete, onSwipeOpen, onSwipeClose }: {
+// ── Task row (exact copy of TaskRow in life/[slug].tsx) ───────────────────────
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onStartDelete, onSwipeOpen, onSwipeClose }: {
   task:           Task;
   isDragging:     boolean;
   dimValue:       Animated.Value;
-  onEmojiPress:   (pageX: number, pageY: number, w: number, h: number) => void;
-  onEpicPress:    (pageX: number, pageY: number, w: number, h: number) => void;
+  onEmojiPress:   (px: number, py: number, w: number, h: number) => void;
+  onEpicPress:    (px: number, py: number, w: number, h: number) => void;
   onPress:        () => void;
   onLongPress:    () => void;
+  onChecked:      () => void;
   onDelete:       () => void;
   onStartDelete?: (dur: number) => void;
   onSwipeOpen?:   (close: () => void) => void;
   onSwipeClose?:  () => void;
 }) {
-  const swipeableRef  = useRef<Swipeable>(null);
-  const emojiBtnRef   = useRef<View>(null);
-  const epicPillRef   = useRef<View>(null);
-  const opacityAnim   = useRef(new Animated.Value(1)).current;
-  const rowHeight     = useRef(new Animated.Value(ITEM_H)).current;
-  const pressOverlay  = useRef(new Animated.Value(0)).current;
+  const swipeableRef = useRef<Swipeable>(null);
+  const emojiBtnRef  = useRef<View>(null);
+  const epicPillRef  = useRef<View>(null);
+  const checkScale   = useRef(new Animated.Value(0)).current;
+  const opacityAnim  = useRef(new Animated.Value(1)).current;
+  const rowHeight    = useRef(new Animated.Value(ITEM_H)).current;
+  const pressOverlay = useRef(new Animated.Value(0)).current;
   const deletingRef   = useRef(false);
   const isRevealedRef = useRef(false);
-  const checkScale    = useRef(new Animated.Value(0)).current;
   const [checked, setChecked] = useState(false);
 
   const onPressIn  = useCallback(() => Animated.timing(pressOverlay, { toValue: 0.28, duration: 60,  useNativeDriver: true }).start(), [pressOverlay]);
@@ -406,9 +406,9 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
       Animated.parallel([
         Animated.timing(opacityAnim, { toValue: 0, duration: 380, useNativeDriver: false }),
         Animated.timing(rowHeight,   { toValue: 0, duration: 340, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
-      ]).start(() => onDelete());
+      ]).start(() => onChecked());
     }, 320);
-  }, [checked, onDelete, onStartDelete]);
+  }, [checked, onChecked, onStartDelete]);
 
   const handleRowTap = (action: () => void) => {
     if (isRevealedRef.current) { swipeableRef.current?.close(); }
@@ -421,7 +421,6 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   );
 
   const ec = epicColor(task.epic);
-  const checkTick = checkScale.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
 
   const renderRightActions = useCallback(() => (
     <View style={sc.deleteZone}>
@@ -447,11 +446,11 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
           onSwipeOpen?.(() => swipeableRef.current?.close());
         }}
         onSwipeableClose={() => { isRevealedRef.current = false; onSwipeClose?.(); }}
-        containerStyle={{ borderRadius: 14, overflow: "hidden" }}
+        containerStyle={{ borderRadius: 10, overflow: "hidden" }}
       >
         <Animated.View style={[sc.rowWrap, isDragging && sc.rowDragging]}>
 
-          {/* Emoji button */}
+          {/* Emoji */}
           <Pressable
             ref={emojiBtnRef as any}
             onPress={() => handleRowTap(() => {
@@ -462,10 +461,10 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
             hitSlop={6}
             style={sc.emojiBtn}
           >
-            <Text style={sc.rowEmoji}>{task.emoji}</Text>
+            <Text style={sc.rowEmoji}>{task.emoji === DEFAULT_EMOJI ? "—" : task.emoji}</Text>
           </Pressable>
 
-          {/* Title — fills full row height */}
+          {/* Title */}
           <Pressable
             style={{ flex: 1, alignSelf: "stretch", justifyContent: "center" }}
             onPress={() => { onPressOut(); handleRowTap(onPress); }}
@@ -473,27 +472,30 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
             delayLongPress={200}
             onPressIn={onPressIn}
             onPressOut={onPressOut}
+            hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
           >
-            <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: 14, backgroundColor: Colors.cardBgElevated, opacity: pressOverlay }]} pointerEvents="none" />
+            <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: 10, backgroundColor: "#fff", opacity: pressOverlay }]} pointerEvents="none" />
             <Text style={sc.rowTitle} numberOfLines={2}>{task.title}</Text>
           </Pressable>
 
           {/* Epic pill */}
-          <Pressable
-            ref={epicPillRef as any}
-            onPress={() => handleRowTap(() => {
-              (epicPillRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
-                onEpicPress(px, py, w, h);
-              });
-            })}
-            style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}
-          >
-            <Text style={[sc.epicText, { color: ec.text }]}>{task.epic}</Text>
-          </Pressable>
+          {task.epic ? (
+            <Pressable
+              ref={epicPillRef as any}
+              onPress={() => handleRowTap(() => {
+                (epicPillRef.current as any)?.measure((_fx: number, _fy: number, w: number, h: number, px: number, py: number) => {
+                  onEpicPress(px, py, w, h);
+                });
+              })}
+              style={[sc.epicPill, { backgroundColor: ec.bg, borderColor: ec.border }]}
+            >
+              <Text style={[sc.epicPillText, { color: ec.text }]}>{task.epic}</Text>
+            </Pressable>
+          ) : null}
 
           {/* Checkbox */}
-          <Pressable onPress={handleCheck} style={sc.checkBtn} hitSlop={8}>
-            <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone, { transform: [{ scale: checkTick }] }]}>
+          <Pressable onPress={() => handleRowTap(handleCheck)} hitSlop={8} style={sc.checkBtn}>
+            <Animated.View style={[sc.checkBox, checked && sc.checkBoxDone]}>
               {checked && <Feather name="check" size={13} color="#fff" />}
             </Animated.View>
           </Pressable>
@@ -503,99 +505,96 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   );
 }
 
-// ── Main screen ────────────────────────────────────────────────────────────────
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function LifeListScreen() {
-  const insets = useSafeAreaInsets();
+  const insets   = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
+  const { openDrawerToSection, drawerOpen, closeDrawer } = useDrawer();
 
   const [tasks, setTasks] = useState<Task[]>(() => SEED.map(t => ({ ...t })));
 
-  // Reset to initial data every time the screen is focused
+  // Reset everything on focus
   useFocusEffect(useCallback(() => {
     setTasks(SEED.map(t => ({ ...t })));
-    setSelectedTask(null);
+    setDetailTask(null);
     setEmojiAnchor(null);
     setEpicAnchor(null);
+    Object.keys(posAnims.current).forEach(k => delete posAnims.current[k]);
   }, []));
 
-  // ── Popovers ────────────────────────────────────────────────────────────────
+  // ── Popovers & detail
   const [emojiAnchor, setEmojiAnchor] = useState<Anchor | null>(null);
   const [epicAnchor,  setEpicAnchor]  = useState<Anchor | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [detailTask,  setDetailTask]  = useState<Task | null>(null);
 
-  const closeAllPopovers = useCallback(() => {
-    setEmojiAnchor(null);
-    setEpicAnchor(null);
-  }, []);
-
-  // ── Mutations ────────────────────────────────────────────────────────────────
+  // ── Mutations
   const handleEmojiChange = useCallback((taskId: string, emoji: string) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, emoji } : t));
-    setSelectedTask(prev => prev?.id === taskId ? { ...prev, emoji } : prev);
+    setDetailTask(prev => prev?.id === taskId ? { ...prev, emoji } : prev);
   }, []);
 
   const handleEpicChange = useCallback((taskId: string, epic: string) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, epic } : t));
-    setSelectedTask(prev => prev?.id === taskId ? { ...prev, epic } : prev);
+    setDetailTask(prev => prev?.id === taskId ? { ...prev, epic } : prev);
+  }, []);
+
+  const handleChecked = useCallback((taskId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
   }, []);
 
   const handleDelete = useCallback((taskId: string) => {
-    setTasks(prev => {
-      const next = prev.filter(t => t.id !== taskId);
-      posAnims.current = Object.fromEntries(
-        next.map((t, i) => [t.id, posAnims.current[t.id] ?? new Animated.Value(i * SLOT_H)])
-      );
-      return next;
-    });
+    setTasks(prev => prev.filter(t => t.id !== taskId));
   }, []);
 
-  // ── Drag/reorder ─────────────────────────────────────────────────────────────
-  const posAnims     = useRef<Record<string, Animated.Value>>({});
-  const tasksRef     = useRef<Task[]>(tasks);
-  tasksRef.current   = tasks;
+  // ── Drag / reorder (exact same pattern as [slug].tsx) ──────────────────────
+  const posAnims      = useRef<Record<string, Animated.Value>>({});
+  const addedAnims    = useRef<Record<string, Animated.Value>>({});
+  const panY          = useRef(new Animated.Value(0)).current;
+  const tasksRef      = useRef<Task[]>(tasks);
+  tasksRef.current    = tasks;
 
-  const isDraggingRef   = useRef(false);
-  const dragIndexRef    = useRef(-1);
-  const hoverIndexRef   = useRef(-1);
-  const dragYRef        = useRef(0);
-  const dragStartRef    = useRef(0);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const openSwipeRef    = useRef<(() => void) | null>(null);
+  const dragActiveIdx  = useRef(-1);
+  const hoverIdxRef    = useRef(-1);
+  const dragStartY     = useRef(0);
+  const scrollOffRef   = useRef(0);
+  const containerRef   = useRef<View>(null);
+  const openSwipeRef   = useRef<(() => void) | null>(null);
+  const [dragIdx, setDragIdx] = useState(-1);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
-  // Init posAnims for any new task
-  useFocusEffect(useCallback(() => {
-    tasks.forEach((t, i) => {
-      if (!posAnims.current[t.id]) posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
-      else posAnims.current[t.id].setValue(i * SLOT_H);
-    });
-  }, []));
-
-  // Also init posAnims when tasks change (e.g. delete)
+  // Init anims for current tasks list
   useEffect(() => {
     tasks.forEach((t, i) => {
-      if (!posAnims.current[t.id]) posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+      if (!posAnims.current[t.id]) {
+        posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
+        addedAnims.current[t.id] = Animated.add(posAnims.current[t.id], panY);
+      } else {
+        posAnims.current[t.id].setValue(i * SLOT_H);
+      }
     });
-  }, [tasks]);
+  }, [tasks.length]);
 
-  const shiftOthers = useCallback((fromIdx: number, hoverIdx: number) => {
-    const current = tasksRef.current;
-    current.forEach((t, i) => {
+  const shiftOthers = useCallback((fromIdx: number, toIdx: number) => {
+    tasksRef.current.forEach((t, i) => {
       if (i === fromIdx) return;
       let target = i;
-      if (fromIdx < hoverIdx && i > fromIdx && i <= hoverIdx) target = i - 1;
-      if (fromIdx > hoverIdx && i >= hoverIdx && i < fromIdx) target = i + 1;
+      if (fromIdx < toIdx && i > fromIdx && i <= toIdx) target = i - 1;
+      if (fromIdx > toIdx && i >= toIdx && i < fromIdx) target = i + 1;
       const anim = posAnims.current[t.id];
       if (anim) Animated.timing(anim, { toValue: target * SLOT_H, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
     });
   }, []);
 
   const endDrag = useCallback(() => {
-    if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
-    const from  = dragIndexRef.current;
-    const hover = hoverIndexRef.current;
-    dragIndexRef.current  = -1;
-    hoverIndexRef.current = -1;
-    setDraggingId(null);
+    if (dragActiveIdx.current === -1) return;
+    const from  = dragActiveIdx.current;
+    const hover = hoverIdxRef.current;
+    dragActiveIdx.current = -1;
+    hoverIdxRef.current   = -1;
+    setDragIdx(-1);
+    setScrollEnabled(true);
+    panY.setValue(0);
 
     setTasks(prev => {
       const next = [...prev];
@@ -608,113 +607,139 @@ export default function LifeListScreen() {
       return next;
     });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
+  }, [panY]);
 
-  const startDrag = useCallback((index: number) => {
-    if (isDraggingRef.current) return;
+  const startDrag = useCallback((idx: number) => {
+    if (dragActiveIdx.current !== -1) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     openSwipeRef.current?.();
     openSwipeRef.current = null;
 
-    isDraggingRef.current = true;
-    dragIndexRef.current  = index;
-    hoverIndexRef.current = index;
-    dragStartRef.current  = index * SLOT_H;
-    dragYRef.current      = index * SLOT_H;
-    setDraggingId(tasksRef.current[index]?.id ?? null);
-  }, []);
+    dragActiveIdx.current = idx;
+    hoverIdxRef.current   = idx;
+    dragStartY.current    = idx * SLOT_H;
+    panY.setValue(0);
+    setDragIdx(idx);
+    setScrollEnabled(false);
+  }, [panY]);
 
   const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: () => isDraggingRef.current,
+    onMoveShouldSetPanResponderCapture: () => dragActiveIdx.current !== -1,
     onPanResponderMove: (_, gs) => {
-      if (!isDraggingRef.current) return;
-      const rawY   = dragStartRef.current + gs.dy;
+      if (dragActiveIdx.current === -1) return;
+      panY.setValue(gs.dy);
+      const rawY   = dragStartY.current + gs.dy;
       const len    = tasksRef.current.length;
-      dragYRef.current = clamp(0, rawY, (len - 1) * SLOT_H);
-
-      const anim = posAnims.current[tasksRef.current[dragIndexRef.current]?.id];
-      if (anim) anim.setValue(dragYRef.current);
-
-      const newHover = clamp(0, len - 1, Math.floor((dragYRef.current + SLOT_H / 2) / SLOT_H));
-      if (newHover !== hoverIndexRef.current) {
-        const prev = hoverIndexRef.current;
-        hoverIndexRef.current = newHover;
+      const capped = clamp(0, rawY, (len - 1) * SLOT_H);
+      const newHover = clamp(0, len - 1, Math.floor((capped + SLOT_H / 2) / SLOT_H));
+      if (newHover !== hoverIdxRef.current) {
+        const prev = dragActiveIdx.current;
         Haptics.selectionAsync();
-        shiftOthers(dragIndexRef.current, newHover);
+        shiftOthers(prev, newHover);
+        // update drag start so position tracks naturally
+        dragStartY.current = newHover * SLOT_H;
+        panY.setValue(rawY - dragStartY.current);
+        dragActiveIdx.current = newHover;
+        hoverIdxRef.current   = newHover;
+        setDragIdx(newHover);
       }
     },
     onPanResponderEnd:       () => endDrag(),
     onPanResponderTerminate: () => endDrag(),
-  }), [endDrag, shiftOthers]);
+  }), [endDrag, shiftOthers, panY]);
 
-  const totalH = tasks.length * SLOT_H;
+  const handleStartDelete = useCallback((taskId: string, dur: number) => {
+    const idx = tasksRef.current.findIndex(t => t.id === taskId);
+    if (idx === -1) return;
+    tasksRef.current.forEach((t, i) => {
+      if (i <= idx) return;
+      const a = posAnims.current[t.id];
+      if (a) Animated.timing(a, { toValue: (i - 1) * SLOT_H, duration: dur, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
+    });
+  }, []);
+
+  const pickerTask = emojiAnchor ? tasks.find(t => t.id === emojiAnchor.taskId) ?? null : null;
+  const totalH     = tasks.length * SLOT_H;
+
+  const topPad = Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top;
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.darkBg }}>
-      <ScreenHeader title="Life List Demo" subtitle="Swipe · Hold · Drag · Emoji · Modal" />
+    <View style={sc.root}>
 
-      {/* Demo hint banner */}
-      <View style={ls.hintBanner}>
-        <View style={ls.hintItem}><Text style={ls.hintIcon}>👈</Text><Text style={ls.hintText}>Swipe left</Text></View>
-        <View style={ls.hintItem}><Text style={ls.hintIcon}>⏱</Text><Text style={ls.hintText}>Hold to drag</Text></View>
-        <View style={ls.hintItem}><Text style={ls.hintIcon}>😀</Text><Text style={ls.hintText}>Tap emoji</Text></View>
-        <View style={ls.hintItem}><Text style={ls.hintIcon}>📄</Text><Text style={ls.hintText}>Tap row</Text></View>
-        <View style={ls.hintItem}><Text style={ls.hintIcon}>☑️</Text><Text style={ls.hintText}>Checkmark</Text></View>
+      {/* ── Gradient header (exact copy) ──────────────────────────────────── */}
+      <View style={[sc.gradHeader, { paddingTop: topPad + 8, paddingBottom: isTablet ? 58 : 36 }]}>
+        <LinearGradient
+          colors={[
+            "rgba(224,49,49,0.90)",
+            "rgba(215,42,42,0.74)",
+            "rgba(190,28,28,0.56)",
+            "rgba(145,16,16,0.38)",
+            "rgba(90,8,8,0.20)",
+            "rgba(35,3,3,0.08)",
+            "#0f0f0f",
+          ]}
+          locations={[0, 0.18, 0.36, 0.54, 0.70, 0.85, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={sc.gradNav}>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); drawerOpen ? closeDrawer() : openDrawerToSection("life"); }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={sc.gradIconGhost}
+          >
+            <Feather name="menu" size={26} color="rgba(255,255,255,0.92)" />
+          </Pressable>
+          <View style={{ flex: 1 }} />
+        </View>
+        <Text style={sc.gradTitle}>Development</Text>
+        <Text style={sc.gradSub}>UI Kit · stubbed data · resets on navigate</Text>
       </View>
 
+      {/* ── List ──────────────────────────────────────────────────────────── */}
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
-        scrollEnabled={!draggingId}
+        style={{ marginTop: -8 }}
+        scrollEnabled={scrollEnabled}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 100, paddingTop: 12 }}
       >
-        <View style={{ height: totalH + 16, marginHorizontal: 16, marginTop: 8 }} {...panResponder.panHandlers}>
+        <View
+          ref={containerRef}
+          {...panResponder.panHandlers}
+          style={{ height: Math.max(tasks.length, 1) * SLOT_H + 16, marginHorizontal: 16, marginTop: 8 }}
+        >
+          {dragIdx !== -1 && (
+            <Pressable
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+              onPress={() => endDrag()}
+            />
+          )}
           {tasks.map((task, idx) => {
-            const posAnim   = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
-            const isDragging = task.id === draggingId;
-            const dimValue  = isDragging ? ZERO_ANIM : (draggingId ? new Animated.Value(1) : ZERO_ANIM);
-
+            const isDragging = dragIdx === idx;
+            const posAnim    = posAnims.current[task.id] ?? new Animated.Value(idx * SLOT_H);
+            const translateY = isDragging
+              ? (addedAnims.current[task.id] ?? posAnim)
+              : posAnim;
             return (
               <Animated.View
                 key={task.id}
-                style={[
-                  sc.absRow,
-                  { transform: [{ translateY: posAnim }], zIndex: isDragging ? 99 : 1 },
-                ]}
+                style={[sc.absItem, { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] }]}
               >
                 <TaskRow
                   task={task}
                   isDragging={isDragging}
-                  dimValue={dimValue}
-                  onPress={() => {
-                    closeAllPopovers();
-                    setSelectedTask(task);
-                  }}
+                  dimValue={isDragging ? ZERO_ANIM : (dragIdx !== -1 ? new Animated.Value(1) : ZERO_ANIM)}
+                  onPress={() => { setEmojiAnchor(null); setEpicAnchor(null); setDetailTask(task); }}
                   onLongPress={() => startDrag(idx)}
-                  onEmojiPress={(px, py, w, h) => {
-                    setEpicAnchor(null);
-                    setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h });
-                  }}
-                  onEpicPress={(px, py, w, h) => {
-                    setEmojiAnchor(null);
-                    setEpicAnchor({ taskId: task.id, x: px, y: py, w, h });
-                  }}
+                  onEmojiPress={(px, py, w, h) => { setEpicAnchor(null); setEmojiAnchor({ taskId: task.id, x: px, y: py, w, h }); }}
+                  onEpicPress={(px, py, w, h)  => { setEmojiAnchor(null); setEpicAnchor({ taskId: task.id, x: px, y: py, w, h }); }}
+                  onChecked={() => handleChecked(task.id)}
                   onDelete={() => handleDelete(task.id)}
-                  onStartDelete={(dur) => {
-                    const dragIdx = tasksRef.current.findIndex(t => t.id === task.id);
-                    if (dragIdx === -1) return;
-                    tasksRef.current.forEach((t, i) => {
-                      if (i <= dragIdx) return;
-                      const a = posAnims.current[t.id];
-                      if (a) Animated.timing(a, { toValue: (i - 1) * SLOT_H, duration: dur, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
-                    });
-                  }}
-                  onSwipeOpen={(close) => {
-                    openSwipeRef.current?.();
-                    openSwipeRef.current = close;
-                  }}
-                  onSwipeClose={() => { if (openSwipeRef.current) openSwipeRef.current = null; }}
+                  onStartDelete={(dur) => handleStartDelete(task.id, dur)}
+                  onSwipeOpen={(close) => { openSwipeRef.current?.(); openSwipeRef.current = close; }}
+                  onSwipeClose={() => { openSwipeRef.current = null; }}
                 />
               </Animated.View>
             );
@@ -722,33 +747,32 @@ export default function LifeListScreen() {
         </View>
 
         {tasks.length === 0 && (
-          <View style={ls.emptyState}>
-            <Text style={{ fontSize: 36 }}>🎉</Text>
-            <Text style={ls.emptyText}>All tasks complete! Navigate away and back to reset.</Text>
+          <View style={sc.center}>
+            <Text style={{ fontSize: 32 }}>🎉</Text>
+            <Text style={sc.mutedText}>All done — navigate away and back to reset</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Emoji picker popover */}
+      {/* ── Popovers & detail sheet ───────────────────────────────────────── */}
       <InlineEmojiPicker
         anchor={emojiAnchor}
-        currentEmoji={emojiAnchor ? (tasks.find(t => t.id === emojiAnchor.taskId)?.emoji ?? "") : ""}
+        emojis={EMOJIS.filter(e => norm(e) !== norm(HIDDEN_EMOJI))}
+        currentEmoji={pickerTask?.emoji ?? null}
         onSelect={handleEmojiChange}
         onClose={() => setEmojiAnchor(null)}
       />
 
-      {/* Epic picker popover */}
       <InlineEpicPicker
         anchor={epicAnchor}
-        currentEpic={epicAnchor ? (tasks.find(t => t.id === epicAnchor.taskId)?.epic ?? "") : ""}
+        currentEpic={epicAnchor ? (tasks.find(t => t.id === epicAnchor.taskId)?.epic ?? null) : null}
         onSelect={handleEpicChange}
         onClose={() => setEpicAnchor(null)}
       />
 
-      {/* Detail sheet */}
       <DetailSheet
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
+        task={detailTask}
+        onClose={() => setDetailTask(null)}
         onEmojiChange={handleEmojiChange}
         onEpicChange={handleEpicChange}
       />
@@ -756,309 +780,142 @@ export default function LifeListScreen() {
   );
 }
 
-// ── Row styles ─────────────────────────────────────────────────────────────────
-const sc = StyleSheet.create({
-  absRow: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: ITEM_H,
-  },
-  rowOuter: {
-    overflow: "hidden",
-    marginBottom: ITEM_GAP,
-    borderRadius: 14,
-  },
-  rowWrap: {
-    height: ITEM_H,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.cardBg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  rowDragging: {
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-    backgroundColor: Colors.cardBgElevated,
-  },
-  emojiBtn: {
-    width: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowEmoji: {
-    fontSize: 18,
-  },
-  rowTitle: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 18,
-  },
-  epicPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  epicText: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-  },
-  checkBtn: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkBoxDone: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  deleteZone: {
-    width: 72,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  deleteAction: {
-    width: 64,
-    height: ITEM_H,
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+// ── Styles — exact copies from life/[slug].tsx ────────────────────────────────
 
-// ── Screen / sheet styles ──────────────────────────────────────────────────────
-const ls = StyleSheet.create({
-  hintBanner: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: "rgba(255,255,255,0.025)",
+// Sheet / popover styles (from `s` in [slug].tsx)
+const s = StyleSheet.create({
+  overlay:       { flex: 1 },
+  overlayCenter: { justifyContent: "center", alignItems: "center" },
+
+  sheet: {
+    backgroundColor: "#0b0b0c", borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 0, paddingTop: 0,
+    position: "absolute", left: 0, right: 0, bottom: 0,
   },
-  hintItem: {
-    alignItems: "center",
-    gap: 2,
-  },
-  hintIcon: {
-    fontSize: 16,
-  },
-  hintText: {
-    color: Colors.textMuted,
-    fontSize: 9,
-    fontFamily: "Inter_500Medium",
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 48,
-    paddingHorizontal: 32,
-    gap: 12,
-  },
-  emptyText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  // ── Emoji popover
+  handle: { width: 38, height: 5, borderRadius: 3, backgroundColor: Colors.border, alignSelf: "center", marginTop: 10, marginBottom: 18 },
+
   emojiPopover: {
     position: "absolute",
-    flexDirection: "row",
     backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 8,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    borderRadius: 16, borderWidth: 1, borderColor: Colors.border,
+    padding: 10, flexDirection: "row", flexWrap: "nowrap", gap: 8,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
-  emojiPopCell: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.cardBgElevated,
-  },
-  emojiPopCellPressed: {
-    backgroundColor: Colors.border,
-  },
-  emojiPopText: {
-    fontSize: 20,
-  },
-  // ── Epic popover
   epicPopover: {
     position: "absolute",
-    backgroundColor: Colors.cardBg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 6,
-    gap: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    backgroundColor: "#0b0b0c",
+    borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    padding: 6, gap: 4,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
-  epicPopRow: {
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
+  epicPopRow:  { paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8, borderWidth: 1 },
+  epicPopText: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, textAlign: "center" },
+  emojiPopCell: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: Colors.cardBgElevated,
+    borderWidth: 1, borderColor: Colors.border,
+    alignItems: "center", justifyContent: "center",
   },
-  epicPopText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-  },
-  // ── Detail sheet
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  overlayCenter: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sheet: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: Colors.border,
-  },
+  emojiPopCellPressed: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
+  emojiPopText: { fontSize: 24 },
+
   dsCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: "#0b0b0c",
+    borderRadius: 22, borderWidth: 1, borderColor: Colors.border,
     overflow: "hidden",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.55, shadowRadius: 44, elevation: 24,
   },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: "center",
-    marginBottom: 4,
+  dsCardTop:  { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
+  dsTitleInput: {
+    color: Colors.textPrimary, fontSize: 15, fontFamily: "Inter_600SemiBold",
+    paddingTop: 10, paddingBottom: 13, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
   },
-  dsHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+  dsMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
+  dsEmojiChip: {
+    width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.cardBgElevated,
+    alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.border,
   },
-  dsEmojiBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: Colors.cardBgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
+  dsEmojiChipActive: { borderColor: Colors.primary, backgroundColor: "rgba(224,49,49,0.15)" },
+  dsEmojiText:  { fontSize: 20 },
+  dsEpicChip:   { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
+  dsEpicText:   { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  dsDivider:    { height: 1, backgroundColor: Colors.border },
+  dsBodyScroll: { flexShrink: 1 },
+  dsBodyInner:  { paddingHorizontal: 20, paddingVertical: 18 },
+  dsSectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1, marginBottom: 10 },
+  dsBodyText:       { color: Colors.textSecondary, fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  dsBodyPlaceholder: { color: Colors.textMuted,    fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  dsActions:    { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  dsCancelBtn:  { flex: 1, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.cardBgElevated, alignItems: "center" },
+  dsCancelTx:   { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  dsUpdateBtn:  { flex: 2, paddingVertical: 15, borderRadius: 13, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
+  dsUpdateTx:   { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+});
+
+// Screen styles (from `sc` in [slug].tsx — pixel-perfect copy)
+const sc = StyleSheet.create({
+  root:      { flex: 1, backgroundColor: "#0b0b0c" },
+  center:    { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 40 },
+  mutedText: { color: Colors.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center", paddingHorizontal: 32 },
+
+  gradHeader: {
+    paddingHorizontal: 20, paddingBottom: 56,
+    backgroundColor: "#0f0f0f",
   },
-  dsTitle: {
+  gradNav:      { flexDirection: "row", alignItems: "center", marginBottom: 14 },
+  gradIconGhost: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  gradTitle: {
+    fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff",
+    textAlign: "center", marginBottom: 4,
+    textShadowColor: "rgba(224,49,49,0.45)",
+    textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24,
+  },
+  gradSub: { fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: "Inter_400Regular", textAlign: "center" },
+
+  absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
+
+  rowOuter: { height: ITEM_H },
+  deleteZone: {
+    width: 88, height: ITEM_H,
+    paddingVertical: 10, paddingHorizontal: 8,
+    justifyContent: "center", alignItems: "stretch",
+  },
+  deleteAction: {
     flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-    lineHeight: 22,
-    paddingTop: 4,
-  },
-  dsCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.cardBgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  dsLabel: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1,
-  },
-  epicChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  epicChipText: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-  },
-  dsNotesBox: {
-    backgroundColor: Colors.darkBg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 80,
-  },
-  dsNotesText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 22,
-  },
-  dsEmojiOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.cardBgElevated,
-    borderWidth: 1,
-    borderColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dsEmojiOptionActive: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(224,49,49,0.12)",
-  },
-  dsDoneBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
     backgroundColor: Colors.primary,
-    marginTop: 4,
+    borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
   },
-  dsDoneBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+  rowWrap: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#0f0f0f", borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14, height: ITEM_H,
+  },
+  rowDragging: {
+    backgroundColor: Colors.cardBgElevated,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
+  },
+  emojiBtn:  { minWidth: 36, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
+  rowEmoji:  { fontSize: 24 },
+  rowTitle:  { color: "#FFFFFF", fontSize: 15, fontFamily: "Inter_600SemiBold", lineHeight: 21, paddingBottom: 4 },
+  checkBtn:  { padding: 10, margin: -6 },
+  checkBox: {
+    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: "#5a5a5a",
+    alignItems: "center", justifyContent: "center", backgroundColor: "transparent",
+  },
+  checkBoxDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  epicPill:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  epicPillText: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2, textAlign: "center" },
+
+  fab: {
+    position: "absolute", bottom: 32, right: 20,
+    width: 48, height: 48, borderRadius: 14,
+    backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center",
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 8,
   },
 });
