@@ -1182,7 +1182,7 @@ function ListLoader() {
 }
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onStartDelete, onSwipeOpen, onSwipeClose, showEpic, epicOptions }: {
+function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPress, onLongPress, onChecked, onDelete, onStartDelete, onSwipeOpen, onSwipeClose, showEpic, epicOptions, onRegisterCollapse }: {
   task:            LifeTask;
   isDragging:      boolean;
   dimValue:        Animated.Value;
@@ -1192,6 +1192,7 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
   onChecked:       () => void;
   onDelete:        () => void;
   onStartDelete?:  (collapseDuration: number) => void;
+  onRegisterCollapse?: (fn: () => void) => void;
   onSwipeOpen?:    (close: () => void) => void;
   onSwipeClose?:   () => void;
   showEpic?:       boolean;
@@ -1229,6 +1230,9 @@ function TaskRow({ task, isDragging, dimValue, onEmojiPress, onEpicPress, onPres
       Animated.timing(rowHeight,   { toValue: 0, duration: 260, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
     ]).start(() => onDelete());
   }, [onDelete, onStartDelete, rowHeight]);
+
+  // Register collapse trigger with parent (used for thumbs-down optimistic removal)
+  useEffect(() => { onRegisterCollapse?.(triggerDelete); }, []);
 
   const handleCheck = () => {
     if (checked) return;
@@ -1460,6 +1464,9 @@ export default function LifeTaskScreen() {
     await fetchTasks(true);
     setRefreshing(false);
   }, [fetchTasks]);
+
+  // ── Collapse callbacks — keyed by task id, used for thumbs-down animation ───
+  const collapseCallbacks = useRef<Record<string, () => void>>({});
 
   // ── Active swipe tracking — only one row open at a time ─────────────────────
   const activeSwipeClose = useRef<(() => void) | null>(null);
@@ -1726,16 +1733,10 @@ export default function LifeTaskScreen() {
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
     if (!apiKey) return;
     if (norm(emoji) === norm(HIDDEN_EMOJI)) {
-      // Thumbs down — optimistically remove the item immediately
-      setTasks(prev => {
-        const next = prev.filter(t => t.id !== id);
-        next.forEach((t, i) => {
-          posAnims.current[t.id]?.stopAnimation();
-          posAnims.current[t.id]?.setValue(i * SLOT_H);
-        });
-        return next;
-      });
+      // Thumbs down — animate row away (same collapse as delete/check), then remove
       setDetailTask(null);
+      setEmojiAnchor(null);
+      collapseCallbacks.current[id]?.();
     } else {
       setTasks(prev => resortAndAnimate(prev.map(t => t.id === id ? { ...t, emoji } : t)));
       setDetailTask(prev => prev?.id === id ? { ...prev, emoji } : prev);
@@ -1985,6 +1986,7 @@ export default function LifeTaskScreen() {
                       onStartDelete={(d) => handleStartDelete(task.id, d)}
                       onSwipeOpen={(close) => handleSwipeOpen(task.id, close)}
                       onSwipeClose={handleSwipeClose}
+                      onRegisterCollapse={(fn) => { collapseCallbacks.current[task.id] = fn; }}
                       showEpic={config?.showEpic}
                       epicOptions={config?.showEpic ? filterEpics(schema?.epicOptions) : null}
                     />

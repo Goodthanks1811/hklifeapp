@@ -633,7 +633,7 @@ export default function LifeListScreen() {
           </Pressable>
           <View style={{ flex: 1 }} />
         </View>
-        <Text style={sc.gradTitle}>Development</Text>
+        <Text style={sc.gradTitle}>Mock Up</Text>
       </View>
 
       {/* ── List — exact copy from [slug].tsx line 1932–1995 ──────────────── */}
