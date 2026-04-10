@@ -346,6 +346,8 @@ config = withInfoPlist(config, (cfg) => {
 
 **Rule**: Always set `UIBackgroundModes` via `withInfoPlist` in a config plugin, NOT via the `infoPlist` key in `app.config.js`. The plugin API guarantees the correct plist format. The `infoPlist` shorthand is unreliable for array-type keys.
 
+**Additional fix (belt-and-suspenders)**: Even `withInfoPlist` can be overwritten by Expo's built-in infoPlist processing if it runs in the wrong order. The definitive fix is a second `withDangerousMod` in `withAppleMusicKit.js` that directly patches the generated `ios/HKLifeApp/Info.plist` XML file on disk — dangerous mods run LAST (after all info-plist mods), so nothing can overwrite it afterwards. This is now in place.
+
 ---
 
 ## Dependency Version Reference

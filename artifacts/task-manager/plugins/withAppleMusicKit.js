@@ -289,11 +289,9 @@ public class AppleMusicKitModule: Module {
 
 const withAppleMusicKit = (config) => {
   // ── Guarantee UIBackgroundModes: ['audio'] is in Info.plist ──────────────
-  // Using withInfoPlist (the canonical Expo plugin API) is more reliable than
-  // the infoPlist key in app.config.js, which can be silently dropped or
-  // mis-formatted in some Expo SDK versions. Without this key the process is
-  // suspended at the standard 30-second background task window — stopping all
-  // audio (RNTP and MPMusicPlayerController alike) regardless of what RNTP does.
+  // Belt-and-suspenders: withInfoPlist fires during the info-plist phase;
+  // the second withDangerousMod below fires LAST (after everything) and
+  // directly patches the XML file on disk — nothing can overwrite it after.
   config = withInfoPlist(config, (cfg) => {
     const plist = cfg.modResults;
     if (!Array.isArray(plist.UIBackgroundModes)) plist.UIBackgroundModes = [];
@@ -301,7 +299,8 @@ const withAppleMusicKit = (config) => {
     return cfg;
   });
 
-  return withDangerousMod(config, [
+  // ── 1. Swift file + pbxproj patching ──────────────────────────────────────
+  config = withDangerousMod(config, [
     'ios',
     async (config) => {
       const { platformProjectRoot } = config.modRequest;
@@ -353,6 +352,45 @@ const withAppleMusicKit = (config) => {
       fs.writeFileSync(pbxprojPath, pbx, 'utf8');
       console.log(`[withAppleMusicKit] Patched project.pbxproj with ${SWIFT_FILENAME}`);
 
+      return config;
+    },
+  ]);
+
+  // ── 2. Direct Info.plist XML patch — runs LAST, after all Expo mods ───────
+  // Dangerous mods execute after info-plist mods, so the file already exists.
+  // Directly injecting UIBackgroundModes as XML is the only approach guaranteed
+  // to survive Expo's built-in infoPlist processing overwriting our changes.
+  return withDangerousMod(config, [
+    'ios',
+    async (config) => {
+      const { platformProjectRoot } = config.modRequest;
+      const infoPlistPath = path.join(platformProjectRoot, 'HKLifeApp', 'Info.plist');
+      if (!fs.existsSync(infoPlistPath)) {
+        console.warn('[withAppleMusicKit] Info.plist not found — skipping direct patch');
+        return config;
+      }
+      let plist = fs.readFileSync(infoPlistPath, 'utf8');
+      if (plist.includes('<key>UIBackgroundModes</key>')) {
+        if (!plist.includes('<string>audio</string>')) {
+          // Key exists but audio string missing — inject it into the array
+          plist = plist.replace(
+            /(<key>UIBackgroundModes<\/key>\s*<array>)/,
+            '$1\n\t\t<string>audio</string>'
+          );
+          fs.writeFileSync(infoPlistPath, plist, 'utf8');
+          console.log('[withAppleMusicKit] Injected audio into existing UIBackgroundModes array');
+        } else {
+          console.log('[withAppleMusicKit] UIBackgroundModes:audio already present ✓');
+        }
+      } else {
+        // Key missing entirely — inject the full block before </dict></plist>
+        plist = plist.replace(
+          /\t<\/dict>\n<\/plist>/,
+          '\t<key>UIBackgroundModes</key>\n\t<array>\n\t\t<string>audio</string>\n\t</array>\n\t</dict>\n</plist>'
+        );
+        fs.writeFileSync(infoPlistPath, plist, 'utf8');
+        console.log('[withAppleMusicKit] Injected UIBackgroundModes:audio into Info.plist ✓');
+      }
       return config;
     },
   ]);
