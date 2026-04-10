@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -189,9 +190,10 @@ function fmtMs(ms: number): string {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicMyMusicScreen() {
-  const goBack   = () => router.back();
-  const insets   = useSafeAreaInsets();
-  const isTablet = SCREEN_W >= 768;
+  const goBack            = () => router.back();
+  const insets            = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
+  const isTablet          = screenW >= 768;
   const player   = useMusicPlayer();
 
   // ── Tracks ────────────────────────────────────────────────────────────────
