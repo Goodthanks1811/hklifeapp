@@ -664,6 +664,7 @@ export default function MusicMyMusicScreen() {
               setShowEQMenu(true);
             }}
             delayLongPress={400}
+            hitSlop={{ top: 20, bottom: 20, left: 40, right: 40 }}
           >
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
