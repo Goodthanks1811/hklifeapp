@@ -205,18 +205,19 @@ export function Drawer() {
     });
   }, [slideAnim]);
 
-  // Reset to root panel when drawer closes
+  // Reset to root panel when drawer closes.
+  // NOTE: setIsOpen(false) is already deferred until the close animation finishes
+  // (500 ms), so the drawer is fully off-screen the moment isOpen flips false.
+  // Resetting immediately here prevents the 820 ms (500 + 320) race window where
+  // a fast re-open found slideAnim still at 1 and rendered a blank panel.
   const scrollRootRef    = useRef<ScrollView>(null);
   useEffect(() => {
     if (isOpen) {
       scrollRootRef.current?.scrollTo({ y: 0, animated: false });
     } else {
-      const t = setTimeout(() => {
-        slideAnim.setValue(0);
-        setActiveSectionKey(null);
-        setRenderSectionKey(null);
-      }, 320);
-      return () => clearTimeout(t);
+      slideAnim.setValue(0);
+      setActiveSectionKey(null);
+      setRenderSectionKey(null);
     }
   }, [isOpen, slideAnim]);
 
