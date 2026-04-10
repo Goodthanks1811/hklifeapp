@@ -54,7 +54,8 @@ type Playlist = {
   id: string;
   name: string;
   createdAt: number;
-  trackIds: string[];
+  tracks: MusicTrack[];
+  trackIds?: string[];
 };
 
 function toRel(uri: string): string {
@@ -262,8 +263,30 @@ export default function MusicMyMusicScreen() {
 
       if (rawPlaylists) {
         const parsed = JSON.parse(rawPlaylists) as Playlist[];
-        setPlaylists(parsed);
-        playlistsRef.current = parsed;
+        let globalTracks = tracksRef.current;
+        let needsSave = false;
+        const migrated: Playlist[] = parsed.map(pl => {
+          if (!pl.tracks && pl.trackIds?.length) {
+            const resolved = pl.trackIds
+              .map(id => globalTracks.find(t => t.id === id))
+              .filter(Boolean) as MusicTrack[];
+            if (resolved.length) {
+              const migratedIds = new Set(resolved.map(t => t.id));
+              globalTracks = globalTracks.filter(t => !migratedIds.has(t.id));
+              needsSave = true;
+            }
+            return { ...pl, tracks: resolved, trackIds: undefined };
+          }
+          return { ...pl, tracks: pl.tracks ?? [] };
+        });
+        if (needsSave) {
+          tracksRef.current = globalTracks;
+          setTracks(globalTracks);
+          await AsyncStorage.setItem(TRACKS_KEY, JSON.stringify(globalTracks));
+        }
+        playlistsRef.current = migrated;
+        setPlaylists(migrated);
+        await AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(migrated));
       }
     })();
   }, []);
@@ -286,7 +309,7 @@ export default function MusicMyMusicScreen() {
     const name = newPLName.trim();
     if (!name) return;
     Keyboard.dismiss();
-    const pl: Playlist = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), trackIds: [] };
+    const pl: Playlist = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), tracks: [] };
     await savePlaylists([...playlistsRef.current, pl]);
     setShowNewPL(false);
     setNewPLName("");
@@ -299,9 +322,7 @@ export default function MusicMyMusicScreen() {
   };
 
   const playPlaylist = (playlist: Playlist) => {
-    const pts = playlist.trackIds
-      .map(id => tracksRef.current.find(t => t.id === id))
-      .filter(Boolean) as MusicTrack[];
+    const pts = (playlist.tracks ?? []).filter(Boolean);
     if (!pts.length) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       return;
@@ -324,7 +345,6 @@ export default function MusicMyMusicScreen() {
       await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
 
       const newTracks: MusicTrack[] = [];
-      const newIds: string[] = [];
       for (const asset of result.assets) {
         const fileName = asset.name ?? `track_${Date.now()}.mp3`;
         const destUri  = MUSIC_DIR + fileName;
@@ -334,22 +354,22 @@ export default function MusicMyMusicScreen() {
           const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
           const relUri = toRel(destUri);
           newTracks.push({ id: relUri, name: displayName, uri: relUri });
-          newIds.push(relUri);
         } catch (err) { console.warn("copy failed:", fileName, err); }
       }
 
       if (newTracks.length) {
-        const cur    = tracksRef.current;
-        const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
-        await saveTracks(merged);
-
         if (targetPlaylistId) {
           const pls = playlistsRef.current;
           const pl  = pls.find(p => p.id === targetPlaylistId);
           if (pl) {
-            const updatedIds = [...pl.trackIds, ...newIds.filter(id => !pl.trackIds.includes(id))];
-            await savePlaylists(pls.map(p => p.id === targetPlaylistId ? { ...p, trackIds: updatedIds } : p));
+            const existing = pl.tracks ?? [];
+            const updated  = [...existing, ...newTracks.filter(t => !existing.find(x => x.id === t.id))];
+            await savePlaylists(pls.map(p => p.id === targetPlaylistId ? { ...p, tracks: updated } : p));
           }
+        } else {
+          const cur    = tracksRef.current;
+          const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
+          await saveTracks(merged);
         }
       }
     } catch (err) { console.warn("picker dismissed or error:", err); }
@@ -583,13 +603,16 @@ export default function MusicMyMusicScreen() {
                 <Text style={st.sectionHeader}>Playlists</Text>
                 <View style={{ marginHorizontal: 16, gap: ITEM_GAP }}>
                   {playlists.map(pl => {
-                    const count = pl.trackIds.filter(id => tracksRef.current.find(t => t.id === id)).length;
+                    const count = (pl.tracks ?? []).length;
                     return (
                       <PlaylistRow
                         key={pl.id}
                         playlist={pl}
                         trackCount={count}
-                        onPress={() => playPlaylist(pl)}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push({ pathname: "/music-playlist", params: { id: pl.id } });
+                        }}
                         onLongPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                           setPlMenuId(pl.id);
