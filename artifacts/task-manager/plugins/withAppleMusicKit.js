@@ -97,11 +97,34 @@ public class AppleMusicKitModule: Module {
     }
   }
 
-  // Always display the HK Life app icon as Lock Screen / Dynamic Island artwork.
+  // HK logo PNG embedded as base64 — injected at build time by withAppleMusicKit.js.
+  // Renders on a black background scaled 1.4× (crops transparent border so the
+  // logo fills the Lock Screen / Dynamic Island artwork frame properly).
+  private let hkArtworkBase64 = "HK_ARTWORK_BASE64_PLACEHOLDER"
+
   private func hkArtwork() -> MPMediaItemArtwork? {
-    guard let image = UIImage(named: "AppIcon") else { return nil }
+    guard let data = Data(base64Encoded: hkArtworkBase64, options: .ignoreUnknownCharacters),
+          let logoImage = UIImage(data: data) else {
+      // Fallback to app icon if base64 decode fails
+      guard let fallback = UIImage(named: "AppIcon") else { return nil }
+      let size = CGSize(width: 1024, height: 1024)
+      return MPMediaItemArtwork(boundsSize: size) { _ in fallback }
+    }
     let size = CGSize(width: 1024, height: 1024)
-    return MPMediaItemArtwork(boundsSize: size) { _ in image }
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1.0
+    let rendered = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+      UIColor.black.setFill()
+      ctx.fill(CGRect(origin: .zero, size: size))
+      // 1.4× scale crops the transparent border, enlarging the visible logo
+      let s: CGFloat = 1.4
+      let dw = size.width * s
+      let dh = size.height * s
+      logoImage.draw(in: CGRect(x: (size.width - dw) / 2,
+                                y: (size.height - dh) / 2,
+                                width: dw, height: dh))
+    }
+    return MPMediaItemArtwork(boundsSize: size) { _ in rendered }
   }
 
   // Sets MPNowPlayingInfoCenter with HK icon + accurate elapsed time + playback rate.
@@ -310,7 +333,21 @@ const withAppleMusicKit = (config) => {
       // which resolves relative to the Xcode project root (ios/).
       // Writing to ios/HKLifeApp/ would need a group entry to resolve correctly;
       // ios/ root matches the bare path entry we inject into the pbxproj.
-      fs.writeFileSync(path.join(platformProjectRoot, SWIFT_FILENAME), SWIFT_CONTENT, 'utf8');
+
+      // Inject HK artwork as base64 so the lock screen / Dynamic Island can
+      // display it without any Xcode asset catalog changes.
+      const { projectRoot } = config.modRequest;
+      const pngPath = path.join(projectRoot, 'assets', 'images', 'hk-artwork-transparent.png');
+      let swiftContent = SWIFT_CONTENT;
+      if (fs.existsSync(pngPath)) {
+        const pngBase64 = fs.readFileSync(pngPath).toString('base64');
+        swiftContent = swiftContent.replace('HK_ARTWORK_BASE64_PLACEHOLDER', pngBase64);
+        console.log(`[withAppleMusicKit] Injected HK artwork base64 (${pngBase64.length} chars) into Swift`);
+      } else {
+        console.warn('[withAppleMusicKit] hk-artwork-transparent.png not found — artwork will fall back to AppIcon');
+      }
+
+      fs.writeFileSync(path.join(platformProjectRoot, SWIFT_FILENAME), swiftContent, 'utf8');
       console.log(`[withAppleMusicKit] Wrote ${SWIFT_FILENAME} → ios/`);
 
       // ── 2. Register it in project.pbxproj via string manipulation ─────────
