@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   Easing,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,16 +17,16 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSpotifyPlayer, ensureRemoteConnected, disconnectRemote } from "@/context/SpotifyPlayerContext";
 import { getUserPlaylists, getPlaylistTracks, SpotifyPlaylist, SpotifyTrack } from "@/utils/SpotifyAPI";
-import {
-  getStoredTokens,
-  clearStoredTokens,
-  authenticateSpotify,
-} from "@/utils/SpotifyAuth";
+import { getStoredTokens, clearStoredTokens, authenticateSpotify } from "@/utils/SpotifyAuth";
 
 const GREEN  = "#1DB954";
 const BG     = "#111111";
 const ROW    = "#0f0f0f";
 const BORDER = "#2A2A2A";
+const GREY   = "#888";
+
+const ITEM_H   = 52;
+const ITEM_GAP = 8;
 
 const BAR_COUNT   = 7;
 const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
@@ -38,7 +38,7 @@ let SpotifyRemote: any = null;
 try { SpotifyRemote = require("react-native-spotify-remote").SpotifyRemote; } catch {}
 
 // ── EQ bar ────────────────────────────────────────────────────────────────────
-function EqBar({ index, color }: { index: number; color: string }) {
+function EqBar({ index }: { index: number }) {
   const height = useRef(new Animated.Value(MIN_H)).current;
   useEffect(() => {
     const dur  = 900 + index * 120;
@@ -51,128 +51,126 @@ function EqBar({ index, color }: { index: number; color: string }) {
     const tid = setTimeout(() => anim.start(), BAR_DELAYS[index]);
     return () => { clearTimeout(tid); anim.stop(); };
   }, []);
-  return <Animated.View style={[s.eqBar, { height, backgroundColor: color }]} />;
+  return <Animated.View style={[s.eqBar, { height }]} />;
 }
 
-// ── Format duration ───────────────────────────────────────────────────────────
-function fmtDurationMs(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const m        = Math.floor(totalSec / 60);
-  const sec      = totalSec % 60;
-  return `${m}:${sec.toString().padStart(2, "0")}`;
+function fmtMs(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
 // ── Playlist row ──────────────────────────────────────────────────────────────
-function PlaylistRow({
-  pl,
-  playingPlaylistId,
-  playingSongIndex,
-  onPlaySong,
-}: {
-  pl:                SpotifyPlaylist;
-  playingPlaylistId: string | null;
-  playingSongIndex:  number | null;
-  onPlaySong:        (pl: SpotifyPlaylist, songIndex: number, songs: SpotifyTrack[]) => void;
+function PlaylistRow({ pl, isPlaying, onPress }: {
+  pl: SpotifyPlaylist; isPlaying: boolean; onPress: () => void;
 }) {
-  const [expanded,     setExpanded]     = useState(false);
-  const [songs,        setSongs]        = useState<SpotifyTrack[]>([]);
-  const [loadingSongs, setLoadingSongs] = useState(false);
-  const isThisPlaying = playingPlaylistId === pl.id;
-
-  const toggle = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (expanded) { setExpanded(false); return; }
-    setExpanded(true);
-    if (songs.length === 0) {
-      setLoadingSongs(true);
-      try {
-        const result = await getPlaylistTracks(pl.id);
-        setSongs(result);
-      } catch { setSongs([]); }
-      finally { setLoadingSongs(false); }
-    }
-  };
-
   return (
-    <>
-      <Pressable
-        style={({ pressed }) => [s.card, pressed && { opacity: 0.7 }]}
-        onPress={toggle}
-      >
-        <View style={s.row}>
-          <View style={[s.iconCell, isThisPlaying && s.iconCellPlaying]}>
-            {isThisPlaying
-              ? <Feather name="volume-2"   size={18} color={GREEN} />
-              : <Feather name="headphones" size={18} color={GREEN} />}
-          </View>
-          <View style={s.rowTextWrap}>
-            <Text style={s.rowName}>{pl.name}</Text>
-            {pl.trackCount > 0 && (
-              <Text style={s.rowCount}>{pl.trackCount} song{pl.trackCount !== 1 ? "s" : ""}</Text>
-            )}
-          </View>
-          <Feather
-            name={expanded ? "chevron-up" : "chevron-down"}
-            size={18}
-            color="rgba(255,255,255,0.3)"
-          />
-        </View>
-      </Pressable>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.plRow, pressed && { opacity: 0.75 }]}
+    >
+      <View style={s.plRowIcon}>
+        <Feather name={isPlaying ? "volume-2" : "headphones"} size={16} color={GREEN} />
+      </View>
+      <View style={s.plRowMid}>
+        <Text style={s.plRowName} numberOfLines={1}>{pl.name}</Text>
+        {pl.trackCount > 0 && (
+          <Text style={s.plRowCount}>{pl.trackCount} song{pl.trackCount !== 1 ? "s" : ""}</Text>
+        )}
+      </View>
+      <Feather name="chevron-right" size={16} color="#444" />
+    </Pressable>
+  );
+}
 
-      {expanded && (
-        loadingSongs ? (
-          <View style={s.songLoading}>
-            <ActivityIndicator color={GREEN} size="small" />
-          </View>
-        ) : songs.length === 0 ? (
-          <Text style={s.songEmpty}>No songs found</Text>
-        ) : (
-          songs.map((song, idx) => {
-            const isActiveSong = isThisPlaying && playingSongIndex === idx;
-            return (
-              <Pressable
-                key={song.id}
-                style={({ pressed }) => [s.songRow, pressed && { opacity: 0.6 }]}
-                onPress={() => onPlaySong(pl, idx, songs)}
-              >
-                <View style={s.songIndex}>
-                  {isActiveSong
-                    ? <Feather name="volume-2" size={14} color={GREEN} />
-                    : <Text style={s.songIndexTx}>{idx + 1}</Text>}
-                </View>
-                <View style={s.songInfo}>
-                  <Text style={[s.songTitle, isActiveSong && s.songTitleActive]} numberOfLines={1}>{song.title}</Text>
-                  {song.artist ? (
-                    <Text style={s.songArtist} numberOfLines={1}>{song.artist}</Text>
-                  ) : null}
-                </View>
-                <Text style={s.songDuration}>{fmtDurationMs(song.durationMs)}</Text>
-              </Pressable>
-            );
-          })
-        )
-      )}
-    </>
+// ── Song row ──────────────────────────────────────────────────────────────────
+function SongRow({ song, idx, plId, isActive, loadingKey, onPlay }: {
+  song: SpotifyTrack; idx: number; plId: string;
+  isActive: boolean; loadingKey: string | null;
+  onPlay: () => void;
+}) {
+  const loading = loadingKey === `${plId}:${idx}`;
+  return (
+    <Pressable
+      onPress={onPlay}
+      style={({ pressed }) => [s.songRow, pressed && { opacity: 0.75 }]}
+    >
+      <View style={s.songIcon}>
+        {loading
+          ? <ActivityIndicator size="small" color={GREEN} />
+          : <Feather
+              name={isActive ? "volume-2" : "volume"}
+              size={16}
+              color={isActive ? GREEN : "rgba(255,255,255,0.25)"}
+            />}
+      </View>
+      <View style={s.songInfo}>
+        <Text style={[s.songTitle, isActive && s.songTitleActive]} numberOfLines={1}>{song.title}</Text>
+        {song.artist ? <Text style={s.songArtist} numberOfLines={1}>{song.artist}</Text> : null}
+      </View>
+      {song.durationMs > 0 && <Text style={s.songDuration}>{fmtMs(song.durationMs)}</Text>}
+    </Pressable>
   );
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicSpotifyScreen() {
-  const goBack   = () => router.back();
-  const insets   = useSafeAreaInsets();
-  const isTablet = Dimensions.get("window").width >= 768;
-  const sp       = useSpotifyPlayer();
+  const insets              = useSafeAreaInsets();
+  const { width: screenW }  = useWindowDimensions();
+  const isTablet            = screenW >= 768;
+  const sp                  = useSpotifyPlayer();
 
-  const [authStatus,  setAuthStatus]  = useState<"loading" | "connected" | "disconnected">("loading");
-  const [connecting,  setConnecting]  = useState(false);
-  const [playlists,   setPlaylists]   = useState<SpotifyPlaylist[]>([]);
-  const [errorMsg,    setErrorMsg]    = useState<string | null>(null);
-  const [loadingKey,  setLoadingKey]  = useState<string | null>(null);
+  // ── In-screen playlist navigation ─────────────────────────────────────────
+  const [selPl, setSelPl]       = useState<SpotifyPlaylist | null>(null);
+  const selPlRef                = useRef<SpotifyPlaylist | null>(null);
+  const slideAnim               = useRef(new Animated.Value(0)).current;
+  const mainSlide               = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -screenW] });
+  const plSlide                 = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [screenW, 0] });
 
+  const [selPlSongs, setSelPlSongs]       = useState<SpotifyTrack[]>([]);
+  const [loadingTracks, setLoadingTracks] = useState(false);
+  const songsCacheRef                     = useRef<Record<string, SpotifyTrack[]>>({});
+
+  const openPlaylist = useCallback(async (pl: SpotifyPlaylist) => {
+    selPlRef.current = pl;
+    setSelPl(pl);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.spring(slideAnim, { toValue: 1, friction: 20, tension: 200, useNativeDriver: true }).start();
+    if (songsCacheRef.current[pl.id]) {
+      setSelPlSongs(songsCacheRef.current[pl.id]);
+      return;
+    }
+    setLoadingTracks(true);
+    setSelPlSongs([]);
+    try {
+      const result = await getPlaylistTracks(pl.id);
+      songsCacheRef.current[pl.id] = result;
+      setSelPlSongs(result);
+    } catch { setSelPlSongs([]); }
+    finally { setLoadingTracks(false); }
+  }, [slideAnim]);
+
+  const closePlaylist = useCallback(() => {
+    Animated.spring(slideAnim, { toValue: 0, friction: 20, tension: 200, useNativeDriver: true }).start(() => {
+      selPlRef.current = null;
+      setSelPl(null);
+      setSelPlSongs([]);
+    });
+  }, [slideAnim]);
+
+  const goBack = () => {
+    if (selPlRef.current) { closePlaylist(); return; }
+    router.back();
+  };
+
+  // ── Auth & playlists ───────────────────────────────────────────────────────
+  const [authStatus,        setAuthStatus]        = useState<"loading" | "connected" | "disconnected">("loading");
+  const [connecting,        setConnecting]        = useState(false);
+  const [playlists,         setPlaylists]         = useState<SpotifyPlaylist[]>([]);
+  const [errorMsg,          setErrorMsg]          = useState<string | null>(null);
+  const [loadingKey,        setLoadingKey]        = useState<string | null>(null);
   const [playingPlaylistId, setPlayingPlaylistId] = useState<string | null>(null);
   const [playingSongIndex,  setPlayingSongIndex]  = useState<number | null>(null);
 
-  // Sync from context when screen mounts
   useEffect(() => {
     if (sp.nowPlaying) {
       setPlayingPlaylistId(sp.nowPlaying.playlistId);
@@ -185,80 +183,49 @@ export default function MusicSpotifyScreen() {
     try {
       const tokens = await getStoredTokens();
       if (!tokens) { setAuthStatus("disconnected"); return; }
-
       setAuthStatus("connected");
       const all = await getUserPlaylists();
-
-      // Read the user's saved playlist list from settings.
-      // Stored as { name: string, url: string }[] under "music_spotify_playlists".
-      // URLs are in the form: spotify://playlist/PLAYLIST_ID?si=...
       const savedRaw = await AsyncStorage.getItem("music_spotify_playlists");
       if (savedRaw) {
         const saved: { name: string; url: string }[] = JSON.parse(savedRaw);
-        // Extract Spotify playlist IDs from the spotify:// deep-link URLs
         const savedIds: string[] = saved
-          .map(pl => {
-            const match = pl.url.match(/spotify:\/\/playlist\/([A-Za-z0-9]+)/);
-            return match ? match[1] : null;
-          })
+          .map(pl => { const m = pl.url.match(/spotify:\/\/playlist\/([A-Za-z0-9]+)/); return m ? m[1] : null; })
           .filter(Boolean) as string[];
-
         if (savedIds.length > 0) {
-          // Build a map for O(1) lookup and preserve the order from settings
           const byId = new Map(all.map(p => [p.id, p]));
-          const filtered = savedIds
-            .map(id => byId.get(id))
-            .filter(Boolean) as typeof all;
-          setPlaylists(filtered);
+          setPlaylists(savedIds.map(id => byId.get(id)).filter(Boolean) as typeof all);
           return;
         }
       }
-
-      // No saved list — show everything from the API
       setPlaylists(all);
     } catch (e: any) {
       const msg = e?.message ?? String(e);
-      if (msg === "not_authenticated") {
-        setAuthStatus("disconnected");
-      } else {
-        setErrorMsg(msg);
-      }
+      if (msg === "not_authenticated") setAuthStatus("disconnected");
+      else setErrorMsg(msg);
     }
   }, []);
 
   useFocusEffect(useCallback(() => { loadPlaylists(); }, [loadPlaylists]));
 
-  // ── OAuth connect flow ────────────────────────────────────────────────────
   const handleConnect = useCallback(async () => {
     if (connecting) return;
-    setConnecting(true);
-    setErrorMsg(null);
+    setConnecting(true); setErrorMsg(null);
     try {
       const result = await authenticateSpotify();
-      if (result.type === "success") {
-        await loadPlaylists();
-      } else if (result.type === "error") {
-        setErrorMsg(result.error);
-      }
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? String(e));
-    } finally {
-      setConnecting(false);
-    }
+      if (result.type === "success") await loadPlaylists();
+      else if (result.type === "error") setErrorMsg(result.error);
+    } catch (e: any) { setErrorMsg(e?.message ?? String(e)); }
+    finally { setConnecting(false); }
   }, [connecting, loadPlaylists]);
 
-  // ── Disconnect ────────────────────────────────────────────────────────────
   const handleDisconnect = useCallback(async () => {
     await disconnectRemote();
     await clearStoredTokens();
     sp.setNowPlaying(null);
-    setPlaylists([]);
-    setPlayingPlaylistId(null);
-    setPlayingSongIndex(null);
+    setPlaylists([]); setPlayingPlaylistId(null); setPlayingSongIndex(null);
     setAuthStatus("disconnected");
   }, [sp]);
 
-  // ── Play a song ───────────────────────────────────────────────────────────
   const handlePlaySong = useCallback(async (pl: SpotifyPlaylist, songIndex: number, songs: SpotifyTrack[]) => {
     if (loadingKey) return;
     const key  = `${pl.id}:${songIndex}`;
@@ -268,87 +235,55 @@ export default function MusicSpotifyScreen() {
     setLoadingKey(key);
     setPlayingPlaylistId(pl.id);
     setPlayingSongIndex(songIndex);
-    sp.setNowPlaying({
-      playlistId:   pl.id,
-      playlistName: pl.name,
-      songIndex,
-      songs,
-      title:  song.title,
-      artist: song.artist,
-    });
+    sp.setNowPlaying({ playlistId: pl.id, playlistName: pl.name, songIndex, songs, title: song.title, artist: song.artist });
     if (SpotifyRemote && song.uri) {
       try {
         const connected = await ensureRemoteConnected();
-        if (connected) {
-          await SpotifyRemote.playUri(song.uri);
-        } else {
-          console.warn("[Spotify] App Remote not connected — playback unavailable");
-        }
-      } catch (err) {
-        console.warn("[SpotifyRemote] playUri:", err);
-      }
+        if (connected) await SpotifyRemote.playUri(song.uri);
+      } catch (err) { console.warn("[SpotifyRemote] playUri:", err); }
     }
     setLoadingKey(null);
   }, [loadingKey, sp]);
 
-  // ── Render states ─────────────────────────────────────────────────────────
+  // ── Auth state body (shown in main panel) ─────────────────────────────────
   const renderBody = () => {
     if (authStatus === "loading") {
-      return (
-        <View style={s.centred}>
-          <ActivityIndicator color={GREEN} size="large" />
-        </View>
-      );
+      return <View style={s.centred}><ActivityIndicator color={GREEN} size="large" /></View>;
     }
-
     if (authStatus === "disconnected") {
       return (
         <View style={s.centred}>
           <Feather name="music" size={52} color={GREEN} style={{ marginBottom: 24 }} />
           <Text style={s.stateTitle}>Connect Spotify</Text>
-          <Text style={s.stateBody}>
-            Sign in with your Spotify account to access{"\n"}your playlists and control playback.
-          </Text>
+          <Text style={s.stateBody}>Sign in with your Spotify account to access{"\n"}your playlists and control playback.</Text>
           {errorMsg ? <Text style={s.errorDetail}>{errorMsg}</Text> : null}
-          <Pressable
-            style={({ pressed }) => [s.connectBtn, pressed && { opacity: 0.8 }]}
-            onPress={handleConnect}
-            disabled={connecting}
-          >
+          <Pressable style={({ pressed }) => [s.connectBtn, pressed && { opacity: 0.8 }]} onPress={handleConnect} disabled={connecting}>
             {connecting
               ? <ActivityIndicator color="#fff" size="small" />
-              : <>
-                  <Feather name="log-in" size={18} color="#fff" />
-                  <Text style={s.connectBtnText}>Connect Spotify</Text>
-                </>}
+              : <><Feather name="log-in" size={18} color="#fff" /><Text style={s.connectBtnText}>Connect Spotify</Text></>}
           </Pressable>
         </View>
       );
     }
-
     if (playlists.length === 0) {
       return (
         <View style={s.centred}>
-          <Text style={s.stateBody}>
-            No playlists found.{"\n"}Check Settings → Music → Spotify Playlists.
-          </Text>
+          <Text style={s.stateBody}>No playlists found.{"\n"}Check Settings → Music → Spotify Playlists.</Text>
           {errorMsg ? <Text style={s.errorDetail}>{errorMsg}</Text> : null}
         </View>
       );
     }
-
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: sp.nowPlaying ? 330 : 16, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: sp.nowPlaying ? 330 : 40, gap: ITEM_GAP, paddingHorizontal: 16 }}
       >
-        {playlists.map((pl) => (
+        {playlists.map(pl => (
           <PlaylistRow
             key={pl.id}
             pl={pl}
-            playingPlaylistId={playingPlaylistId}
-            playingSongIndex={playingSongIndex}
-            onPlaySong={handlePlaySong}
+            isPlaying={playingPlaylistId === pl.id}
+            onPress={() => openPlaylist(pl)}
           />
         ))}
       </ScrollView>
@@ -358,13 +293,20 @@ export default function MusicSpotifyScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
+
+        {/* Header */}
         <View style={s.headerArea}>
-          <Pressable style={s.eqWrap} onPress={goBack}>
-            {Array.from({ length: BAR_COUNT }).map((_, i) => (
-              <EqBar key={i} index={i} color={GREEN} />
-            ))}
+          <Pressable
+            style={s.eqWrap}
+            onPress={goBack}
+            hitSlop={{ top: 20, bottom: 20, left: 40, right: 40 }}
+          >
+            {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={s.pageTitle}>Spotify</Text>
+          <Animated.Text style={[s.plSubtitle, { opacity: slideAnim }]} numberOfLines={1}>
+            {selPl?.name ?? ""}
+          </Animated.Text>
           <Pressable style={s.backZone} onPress={goBack} />
           {authStatus === "connected" && (
             <Pressable style={s.disconnectBtn} onPress={handleDisconnect}>
@@ -372,7 +314,48 @@ export default function MusicSpotifyScreen() {
             </Pressable>
           )}
         </View>
-        {renderBody()}
+
+        {/* Sliding content */}
+        <View style={{ flex: 1, overflow: "hidden" }}>
+
+          {/* Main playlist list */}
+          <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: mainSlide }] }]}>
+            {renderBody()}
+          </Animated.View>
+
+          {/* Playlist detail */}
+          <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: plSlide }] }]}>
+            {selPl && (
+              loadingTracks ? (
+                <View style={s.centred}>
+                  <ActivityIndicator color={GREEN} size="large" />
+                </View>
+              ) : selPlSongs.length === 0 ? (
+                <View style={s.centred}>
+                  <Text style={s.stateBody}>No songs found</Text>
+                </View>
+              ) : (
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingTop: 8, paddingBottom: sp.nowPlaying ? 330 : 40, gap: ITEM_GAP, paddingHorizontal: 16 }}
+                >
+                  {selPlSongs.map((song, idx) => (
+                    <SongRow
+                      key={song.id}
+                      song={song}
+                      idx={idx}
+                      plId={selPl.id}
+                      isActive={playingPlaylistId === selPl.id && playingSongIndex === idx}
+                      loadingKey={loadingKey}
+                      onPlay={() => handlePlaySong(selPl, idx, selPlSongs)}
+                    />
+                  ))}
+                </ScrollView>
+              )
+            )}
+          </Animated.View>
+
+        </View>
       </View>
     </View>
   );
@@ -384,9 +367,8 @@ const s = StyleSheet.create({
   innerTablet: { maxWidth: 800, alignSelf: "center", width: "100%" },
 
   headerArea: {
-    backgroundColor: BG,
-    paddingTop: 28, paddingBottom: 10,
-    position: "relative",
+    backgroundColor: BG, paddingTop: 28, paddingBottom: 4,
+    alignItems: "center", position: "relative",
   },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
 
@@ -394,90 +376,66 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
     gap: 5, height: 62, paddingBottom: 4,
   },
-  eqBar: { width: 5, borderRadius: 3 },
+  eqBar: { width: 5, borderRadius: 3, backgroundColor: GREEN },
 
   pageTitle: {
     textAlign: "center", color: "#fff",
-    fontSize: 17, fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-    paddingTop: 8,
+    fontSize: 17, fontFamily: "Inter_600SemiBold",
+    paddingTop: 8, paddingBottom: 2,
+  },
+  plSubtitle: {
+    color: GREEN, fontSize: 11, fontFamily: "Inter_500Medium",
+    textAlign: "center", marginTop: 1, paddingBottom: 6,
   },
 
-  disconnectBtn: {
-    position: "absolute", right: 16, bottom: 16,
-    padding: 8,
-  },
+  disconnectBtn: { position: "absolute", right: 16, bottom: 8, padding: 8 },
 
-  centred: {
-    flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
-  },
+  centred: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+
   stateTitle: {
-    color: "#fff", fontSize: 17, fontWeight: "600",
-    fontFamily: "Inter_600SemiBold", marginBottom: 10, textAlign: "center",
+    color: "#fff", fontSize: 17, fontFamily: "Inter_600SemiBold",
+    marginBottom: 10, textAlign: "center",
   },
   stateBody: {
     color: "rgba(255,255,255,0.45)", fontSize: 14,
-    fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22,
-    marginBottom: 24,
+    fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, marginBottom: 24,
   },
   errorDetail: {
     color: GREEN, fontSize: 11, fontFamily: "Inter_400Regular",
     textAlign: "center", marginTop: 12, paddingHorizontal: 16,
   },
-
   connectBtn: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: GREEN, borderRadius: 14,
     paddingVertical: 14, paddingHorizontal: 28,
   },
-  connectBtnText: {
-    color: "#fff", fontSize: 15, fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
+  connectBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  card: {
+  // Playlist rows
+  plRow: {
+    height: 62, flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, marginBottom: 4,
+    borderRadius: 14, paddingHorizontal: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
-  row: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 14, paddingVertical: 13,
-  },
-  iconCell: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: ROW,
-    alignItems: "center", justifyContent: "center",
-  },
-  iconCellPlaying: { backgroundColor: ROW },
-  rowTextWrap: { flex: 1 },
-  rowName: {
-    fontSize: 15, fontWeight: "500", color: "#fff",
-    fontFamily: "Inter_500Medium",
-  },
-  rowCount: {
-    fontSize: 12, color: "rgba(255,255,255,0.35)",
-    fontFamily: "Inter_400Regular", marginTop: 2,
-  },
+  plRowIcon:  { width: 32, alignItems: "center" },
+  plRowMid:   { flex: 1 },
+  plRowName:  { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
+  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2 },
 
+  // Song rows
   songRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    height: ITEM_H, flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: ROW, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, paddingHorizontal: 14, height: 62,
+    borderRadius: 14, paddingHorizontal: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
-    marginBottom: 8,
   },
-  songLoading: { paddingVertical: 16, alignItems: "center" },
-  songEmpty:   { color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", paddingVertical: 12, fontFamily: "Inter_400Regular" },
-
-  songIndex:   { width: 22, alignItems: "center" },
-  songIndexTx: { fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: "Inter_400Regular" },
-
+  songIcon:        { width: 28, alignItems: "center" },
   songInfo:        { flex: 1, minWidth: 0 },
-  songTitle:       { fontSize: 14, fontWeight: "500", color: "#fff", fontFamily: "Inter_500Medium" },
+  songTitle:       { fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium" },
   songTitleActive: { color: GREEN },
-  songArtist:      { fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "Inter_400Regular", marginTop: 1 },
+  songArtist:      { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 1 },
   songDuration:    { fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
 });

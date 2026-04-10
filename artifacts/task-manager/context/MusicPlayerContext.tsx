@@ -58,7 +58,7 @@ try {
 }
 
 // ── Shared types ─────────────────────────────────────────────────────────────
-export type MusicTrack = { id: string; name: string; uri: string };
+export type MusicTrack = { id: string; name: string; uri: string; duration?: number };
 
 type PlayerState = {
   track:      MusicTrack | null;

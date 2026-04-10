@@ -27,6 +27,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
 
 const RED    = "#E03131";
@@ -173,11 +174,14 @@ function TrackRow({
           delayLongPress={200}
         >
           <View style={[st.rowIcon, isActive && st.rowIconActive]}>
-            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
+            <Feather name={isActive && isPlaying ? "volume-2" : "volume"} size={16} color={RED} />
           </View>
           <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
             {track.name}
           </Text>
+          {track.duration != null && (
+            <Text style={st.rowDuration}>{fmtMs(track.duration)}</Text>
+          )}
         </Pressable>
       </Swipeable>
     </Animated.View>
@@ -231,11 +235,14 @@ function PlTrackRow({ track, isActive, isPlaying, onPlay, onDelete }: {
           onPress={() => revealedRef.current ? swipeRef.current?.close() : onPlay()}
         >
           <View style={[st.rowIcon, isActive && st.rowIconActive]}>
-            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
+            <Feather name={isActive && isPlaying ? "volume-2" : "volume"} size={16} color={RED} />
           </View>
           <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
             {track.name}
           </Text>
+          {track.duration != null && (
+            <Text style={st.rowDuration}>{fmtMs(track.duration)}</Text>
+          )}
         </Pressable>
       </Swipeable>
     </Animated.View>
@@ -453,7 +460,13 @@ export default function MusicMyMusicScreen() {
           if (!info.exists) await FileSystem.copyAsync({ from: asset.uri, to: destUri });
           const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
           const relUri = toRel(destUri);
-          newTracks.push({ id: relUri, name: displayName, uri: relUri });
+          let durMs: number | undefined;
+          try {
+            const { sound, status } = await Audio.Sound.createAsync({ uri: toAbs(relUri) }, undefined, null, false);
+            if (status.isLoaded) durMs = status.durationMillis ?? undefined;
+            await sound.unloadAsync();
+          } catch {}
+          newTracks.push({ id: relUri, name: displayName, uri: relUri, duration: durMs });
         } catch (err) { console.warn("copy failed:", fileName, err); }
       }
 
@@ -1023,6 +1036,7 @@ const st = StyleSheet.create({
   rowIconActive:  {},
   rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium" },
   rowNamePlaying: { color: RED },
+  rowDuration:    { fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
 
   // Delete
   deleteZone:   { width: 88, height: ITEM_H, paddingVertical: 10, paddingHorizontal: 8, justifyContent: "center", alignItems: "stretch" },
