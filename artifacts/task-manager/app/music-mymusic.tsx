@@ -112,8 +112,7 @@ function PlaylistTile({
         style={st.tile}
       >
         <View style={st.tileArtwork}>
-          <View style={st.tileGlow} />
-          <Feather name="music" size={30} color={RED} style={{ opacity: 0.9 }} />
+          <Feather name="music" size={28} color={RED} />
           {trackCount > 0 && (
             <View style={st.tileBadge}>
               <Text style={st.tileBadgeText}>{trackCount}</Text>
@@ -224,20 +223,20 @@ export default function MusicMyMusicScreen() {
   const newPLInputRef                     = useRef<TextInput>(null);
   const keyboardOffset                    = useRef(new Animated.Value(0)).current;
 
-  // Keyboard shift for new playlist modal (project rule: never KeyboardAvoidingView)
+  // Keyboard shift for new playlist bottom sheet (project rule: never KeyboardAvoidingView)
   useEffect(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
       Animated.timing(keyboardOffset, {
-        toValue: e.endCoordinates.height * 0.45,
+        toValue: e.endCoordinates.height,
         duration: e.duration || 250,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     });
     const hide = Keyboard.addListener("keyboardWillHide", e => {
       Animated.timing(keyboardOffset, {
         toValue: 0,
         duration: e.duration || 200,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     });
     return () => { show.remove(); hide.remove(); };
@@ -755,7 +754,7 @@ export default function MusicMyMusicScreen() {
         </Pressable>
       </Modal>
 
-      {/* ── New Playlist modal ────────────────────────────────────────────── */}
+      {/* ── New Playlist bottom sheet ─────────────────────────────────────── */}
       <Modal
         visible={showNewPL}
         transparent
@@ -763,18 +762,17 @@ export default function MusicMyMusicScreen() {
         onRequestClose={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
       >
         <Pressable
-          style={st.centeredOverlay}
+          style={st.modalOverlay}
           onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
         >
-          <Animated.View
-            style={[st.newPLCard, { transform: [{ translateY: Animated.multiply(keyboardOffset, -1) }] }]}
-          >
-            <Pressable onPress={() => {}} /* Absorb taps inside card */>
-              <Text style={st.newPLTitle}>New Playlist</Text>
+          <Animated.View style={[st.newPLSheet, { bottom: keyboardOffset }]}>
+            <Pressable onPress={() => {}} /* Absorb taps inside sheet */>
+              <View style={st.sheetHandle} />
+              <Text style={st.newPLLabel}>Playlist Name</Text>
               <TextInput
                 ref={newPLInputRef}
                 style={st.newPLInput}
-                placeholder="Playlist name"
+                placeholder="My Playlist"
                 placeholderTextColor={GREY}
                 value={newPLName}
                 onChangeText={setNewPLName}
@@ -782,20 +780,24 @@ export default function MusicMyMusicScreen() {
                 returnKeyType="done"
                 onSubmitEditing={createPlaylist}
                 maxLength={60}
+                keyboardAppearance="dark"
+                selectionColor={RED}
+                autoFocus
               />
-              <View style={st.newPLButtons}>
+              <View style={st.newPLFooter}>
                 <Pressable
                   style={st.newPLCancel}
                   onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
                 >
-                  <Text style={st.newPLCancelText}>Cancel</Text>
+                  <Text style={st.newPLCancelText}>Close</Text>
                 </Pressable>
                 <Pressable
-                  style={[st.newPLCreate, !newPLName.trim() && { opacity: 0.4 }]}
+                  style={[st.newPLCreate, !newPLName.trim() && { opacity: 0.42 }]}
                   onPress={createPlaylist}
                   disabled={!newPLName.trim()}
                 >
-                  <Text style={st.newPLCreateText}>Create</Text>
+                  <Feather name="plus" size={15} color="#fff" />
+                  <Text style={st.newPLCreateText}>Create Playlist</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -847,17 +849,12 @@ const st = StyleSheet.create({
   tile: { width: TILE_W },
   tileArtwork: {
     width: TILE_W, height: TILE_W,
-    borderRadius: 14, backgroundColor: "#1a0a0a",
-    borderWidth: 1, borderColor: "#2a0a0a",
+    borderRadius: 14, backgroundColor: "#1A1A1A",
+    borderWidth: 1, borderColor: BORDER,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
-    shadowColor: RED, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
-  },
-  tileGlow: {
-    position: "absolute", width: TILE_W * 0.7, height: TILE_W * 0.7,
-    borderRadius: TILE_W * 0.35, backgroundColor: RED,
-    opacity: 0.08,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   tileBadge: {
     position: "absolute", top: 8, right: 8,
@@ -914,17 +911,16 @@ const st = StyleSheet.create({
     flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-end",
   },
-  centeredOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "center", alignItems: "center",
-  },
   actionSheet: {
-    backgroundColor: "#1c1c1e", borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingBottom: 36, paddingTop: 12, paddingHorizontal: 0,
+    backgroundColor: "#222222",
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderColor: BORDER,
+    paddingBottom: 34,
   },
   sheetHandle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: "#444", alignSelf: "center", marginBottom: 16,
+    backgroundColor: BORDER, alignSelf: "center",
+    marginTop: 10, marginBottom: 16,
   },
   sheetTitle: {
     color: GREY, fontSize: 13, fontFamily: "Inter_400Regular",
@@ -936,47 +932,54 @@ const st = StyleSheet.create({
   },
   sheetIconWrap: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "rgba(224,49,49,0.1)",
+    backgroundColor: "rgba(224,49,49,0.10)",
     alignItems: "center", justifyContent: "center",
   },
-  sheetOptionTitle: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  sheetOptionTitle: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   sheetOptionSub:   { color: GREY, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  sheetDivider:     { height: 1, backgroundColor: "#2a2a2a", marginHorizontal: 20 },
+  sheetDivider:     { height: 1, backgroundColor: BORDER, marginHorizontal: 20 },
   sheetCancel: {
     marginTop: 8, marginHorizontal: 16,
-    backgroundColor: "#2a2a2a", borderRadius: 14,
-    paddingVertical: 16, alignItems: "center",
+    backgroundColor: "#1A1A1A",
+    borderWidth: 1, borderColor: BORDER,
+    borderRadius: 13, paddingVertical: 15, alignItems: "center",
   },
-  sheetCancelText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  sheetCancelText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  // New playlist modal
-  newPLCard: {
-    backgroundColor: "#1c1c1e", borderRadius: 20,
-    padding: 24, width: SCREEN_W - 48,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.4, shadowRadius: 30,
+  // New playlist bottom sheet
+  newPLSheet: {
+    position: "absolute", left: 0, right: 0,
+    backgroundColor: "#222222",
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderColor: BORDER,
+    paddingBottom: 34,
   },
-  newPLTitle: {
-    color: "#fff", fontSize: 18, fontFamily: "Inter_700Bold",
-    textAlign: "center", marginBottom: 20,
+  newPLLabel: {
+    color: "#ffffff", fontSize: 10, fontFamily: "Inter_700Bold",
+    letterSpacing: 1, textTransform: "uppercase",
+    marginBottom: 8, paddingHorizontal: 20,
   },
   newPLInput: {
-    backgroundColor: "#2a2a2a", borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    color: "#fff", fontSize: 16, fontFamily: "Inter_400Regular",
-    borderWidth: 1, borderColor: "#3a3a3a",
+    color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold",
+    paddingTop: 10, paddingBottom: 13, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
+    marginHorizontal: 20, marginBottom: 20,
   },
-  newPLButtons: { flexDirection: "row", gap: 12, marginTop: 16 },
+  newPLFooter: {
+    flexDirection: "row", gap: 10,
+    paddingHorizontal: 16, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: BORDER,
+  },
   newPLCancel: {
-    flex: 1, backgroundColor: "#2a2a2a", borderRadius: 12,
-    paddingVertical: 14, alignItems: "center",
+    flex: 1, paddingVertical: 15, borderRadius: 13,
+    backgroundColor: "#1A1A1A", alignItems: "center",
   },
-  newPLCancelText: { color: GREY, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  newPLCancelText: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   newPLCreate: {
-    flex: 1, backgroundColor: RED, borderRadius: 12,
-    paddingVertical: 14, alignItems: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 8,
+    flex: 2, paddingVertical: 15, borderRadius: 13,
+    backgroundColor: RED,
+    alignItems: "center", justifyContent: "center",
+    flexDirection: "row", gap: 6,
   },
-  newPLCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  newPLCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
