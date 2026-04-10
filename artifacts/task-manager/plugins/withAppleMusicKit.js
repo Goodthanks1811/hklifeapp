@@ -367,19 +367,31 @@ const withAppleMusicKit = (config) => {
         projectRoot, 'node_modules', 'react-native-spotify-remote',
         'ios', 'external', 'SpotifySDK',
       );
-      const srcBin  = path.join(spotifyBase, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework', 'SpotifyiOS');
-      const destBin = path.join(spotifyBase, 'SpotifyiOS.framework', 'SpotifyiOS');
+      const srcFramework  = path.join(spotifyBase, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework');
+      const destFramework = path.join(spotifyBase, 'SpotifyiOS.framework');
 
-      // Layer 1: direct binary swap before pod install
-      if (fs.existsSync(srcBin) && fs.existsSync(destBin)) {
+      // Layer 1: copy the ENTIRE arm64 xcframework slice into SpotifyiOS.framework
+      // before pod install.  Copies binary + Info.plist + Modules + Headers so
+      // Xcode's "did not contain an Info.plist" error is prevented.
+      if (fs.existsSync(srcFramework) && fs.existsSync(destFramework)) {
         try {
-          fs.copyFileSync(srcBin, destBin);
-          console.log('[withAppleMusicKit] Layer 1: replaced SpotifyiOS.framework binary with arm64 xcframework binary ✓');
+          const entries = fs.readdirSync(srcFramework);
+          for (const entry of entries) {
+            const src  = path.join(srcFramework, entry);
+            const dest = path.join(destFramework, entry);
+            const stat = fs.statSync(src);
+            if (stat.isDirectory()) {
+              fs.cpSync(src, dest, { recursive: true, force: true });
+            } else {
+              fs.copyFileSync(src, dest);
+            }
+          }
+          console.log('[withAppleMusicKit] Layer 1: copied full arm64 xcframework slice into SpotifyiOS.framework ✓ (' + entries.join(', ') + ')');
         } catch (e) {
-          console.warn('[withAppleMusicKit] Layer 1 binary swap failed:', e.message);
+          console.warn('[withAppleMusicKit] Layer 1 framework copy failed:', e.message);
         }
       } else {
-        console.warn('[withAppleMusicKit] Layer 1: SpotifyiOS binaries not found — skipping direct swap');
+        console.warn('[withAppleMusicKit] Layer 1: SpotifyiOS framework paths not found — skipping');
       }
 
       // ── Patch react-native-worklets/scripts/worklets_utils.rb ────────────────
@@ -458,12 +470,14 @@ end
           const spotifyCode = `
     ${spotifyMarker}
     require 'fileutils'
-    _spotify_base = File.join(__dir__, '..', 'node_modules', 'react-native-spotify-remote', 'ios', 'external', 'SpotifySDK')
-    _spotify_src  = File.join(_spotify_base, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework', 'SpotifyiOS')
-    _spotify_dest = File.join(_spotify_base, 'SpotifyiOS.framework', 'SpotifyiOS')
-    if File.exist?(_spotify_src) && File.exist?(_spotify_dest)
-      FileUtils.cp(_spotify_src, _spotify_dest)
-      puts '[HKLifeApp] Layer 2b: replaced SpotifyiOS.framework binary with arm64 xcframework binary \u2713'
+    _spotify_base     = File.join(__dir__, '..', 'node_modules', 'react-native-spotify-remote', 'ios', 'external', 'SpotifySDK')
+    _spotify_src_fw   = File.join(_spotify_base, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework')
+    _spotify_dest_fw  = File.join(_spotify_base, 'SpotifyiOS.framework')
+    if File.exist?(_spotify_src_fw) && File.exist?(_spotify_dest_fw)
+      Dir.glob("#{_spotify_src_fw}/*").each do |src_entry|
+        FileUtils.cp_r(src_entry, _spotify_dest_fw)
+      end
+      puts '[HKLifeApp] Layer 2b: copied full arm64 xcframework slice into SpotifyiOS.framework \u2713'
     end`;
           // Expo always generates this exact closing pattern for the post_install block:
           //   "    )\n  end\nend\n"  (react_native_post_install close → post_install end → target end)

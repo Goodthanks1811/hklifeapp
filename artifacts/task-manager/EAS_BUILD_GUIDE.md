@@ -539,6 +539,32 @@ curl https://api.expo.dev/graphql \
 
 ---
 
+### 18. Xcode archive fails — `SpotifyiOS.framework did not contain an Info.plist`
+
+**Symptom**: Pod install passes, JavaScript bundles successfully, but fastlane/Xcode archive fails (~5 min in) with:
+```
+Framework .../HKLifeApp.app/Frameworks/SpotifyiOS.framework did not contain an Info.plist
+(in target 'HKLifeApp' from project 'HKLifeApp')
+```
+
+**Root cause**: The flat `SpotifyiOS.framework` that ships with `react-native-spotify-remote` only contains the binary and headers — it is missing `Info.plist` and `Modules/`. Xcode requires both to embed a framework into an app. The xcframework (`SpotifyiOS.xcframework/ios-arm64_armv7/SpotifyiOS.framework/`) has all four files: `SpotifyiOS` (binary), `Info.plist`, `Headers/`, `Modules/`. The previous fix only swapped the binary, not the other files.
+
+**Fix**: Updated `plugins/withAppleMusicKit.js` to copy the **entire** arm64 xcframework slice into the flat `SpotifyiOS.framework/`:
+- **Layer 1** (JS, `withDangerousMod` before pod install): uses `fs.readdirSync` + `fs.cpSync` / `fs.copyFileSync` to copy all entries (`SpotifyiOS`, `Info.plist`, `Headers/`, `Modules/`)
+- **Layer 2b** (Ruby, inside `post_install`): uses `Dir.glob + FileUtils.cp_r` to copy all entries
+
+```
+xcframework/ios-arm64_armv7/SpotifyiOS.framework/
+  ├── SpotifyiOS       (arm64 binary)
+  ├── Info.plist       ← WAS MISSING in flat framework
+  ├── Headers/
+  └── Modules/         ← WAS MISSING in flat framework
+```
+
+**Rule**: When updating `react-native-spotify-remote`, verify the flat `SpotifyiOS.framework/` has all four files (`SpotifyiOS`, `Info.plist`, `Headers/`, `Modules/`). If any are missing, the xcframework copy in `withAppleMusicKit.js` will restore them at build time.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
