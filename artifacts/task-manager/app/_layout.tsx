@@ -172,8 +172,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       {/* Preload assets used by screens so they are cached before first navigation */}
-      <Image source={require("../assets/images/shazam-icon.png")}  style={{ width: 0, height: 0, position: "absolute" }} />
-      <Image source={require("../assets/images/spotify-icon.png")} style={{ width: 0, height: 0, position: "absolute" }} />
+      <Image source={require("../assets/images/shazam-icon.png")}           style={{ width: 0, height: 0, position: "absolute" }} />
+      <Image source={require("../assets/images/spotify-icon.png")}          style={{ width: 0, height: 0, position: "absolute" }} />
+      <Image source={require("../assets/images/hk-artwork-transparent.png")} style={{ width: 0, height: 0, position: "absolute" }} />
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GoogleCalendarProvider>
