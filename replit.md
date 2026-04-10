@@ -830,3 +830,15 @@ OpenAPI spec + Orval codegen. Output goes to `lib/api-client-react` and `lib/api
 ```bash
 pnpm --filter @workspace/api-spec run codegen
 ```
+
+---
+
+## HK Logo — Golden Standard
+
+**Canonical file:** `artifacts/task-manager/assets/images/hk-artwork-transparent.png`
+
+- Transparent background (background removed) — the HK letters float with their red gradient/glow intact
+- Use this file any time the user refers to "the HK logo" or asks to place the HK anywhere in the app
+- Do NOT regenerate or replace this image unless the user explicitly provides a new one and says to replace it
+- When referencing in React Native: `require("../assets/images/hk-artwork-transparent.png")` (adjust relative path as needed)
+- Use `resizeMode="contain"` so it scales cleanly
