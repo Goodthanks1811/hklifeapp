@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import {
   Animated,
-  Dimensions,
   Easing,
   Keyboard,
   Modal,
@@ -45,9 +44,6 @@ const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
 const MAX_H       = 42;
 const MIN_H       = 5;
 
-const SCREEN_W    = Dimensions.get("window").width;
-const TILE_GAP    = 12;
-const TILE_W      = (SCREEN_W - 32 - TILE_GAP) / 2;
 
 const TRACKS_KEY   = "mymusic_tracks_v2";
 const PLAYLISTS_KEY = "mymusic_playlists_v1";
@@ -90,41 +86,29 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
-// ── Playlist tile ─────────────────────────────────────────────────────────────
-function PlaylistTile({
+// ── Playlist row ──────────────────────────────────────────────────────────────
+function PlaylistRow({
   playlist, trackCount, onPress, onLongPress,
 }: {
   playlist: Playlist; trackCount: number;
   onPress: () => void; onLongPress: () => void;
 }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pressIn  = () => Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true, tension: 300, friction: 20 }).start();
-  const pressOut = () => Animated.spring(scaleAnim, { toValue: 1,    useNativeDriver: true, tension: 300, friction: 20 }).start();
-
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Pressable
-        onPress={onPress}
-        onLongPress={onLongPress}
-        onPressIn={pressIn}
-        onPressOut={pressOut}
-        delayLongPress={350}
-        style={st.tile}
-      >
-        <View style={st.tileArtwork}>
-          <View style={st.tileIconBox}>
-            <Feather name="music" size={26} color={RED} />
-          </View>
-          {trackCount > 0 && (
-            <View style={st.tileBadge}>
-              <Text style={st.tileBadgeText}>{trackCount}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={st.tileName} numberOfLines={2}>{playlist.name}</Text>
-        <Text style={st.tileCount}>{trackCount === 0 ? "No songs" : `${trackCount} song${trackCount === 1 ? "" : "s"}`}</Text>
-      </Pressable>
-    </Animated.View>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      style={({ pressed }) => [st.plRow, pressed && { opacity: 0.75 }]}
+    >
+      <View style={st.plRowIcon}>
+        <Feather name="headphones" size={16} color={RED} />
+      </View>
+      <View style={st.plRowMid}>
+        <Text style={st.plRowName} numberOfLines={1}>{playlist.name}</Text>
+        <Text style={st.plRowCount}>{trackCount === 0 ? "No songs" : `${trackCount} song${trackCount === 1 ? "" : "s"}`}</Text>
+      </View>
+      <Feather name="chevron-right" size={16} color="#444" />
+    </Pressable>
   );
 }
 
@@ -595,22 +579,20 @@ export default function MusicMyMusicScreen() {
             {playlists.length > 0 && (
               <View style={st.section}>
                 <Text style={st.sectionHeader}>Playlists</Text>
-                <View style={st.playlistGrid}>
-                  {playlists.map((pl, idx) => {
+                <View style={{ marginHorizontal: 16, gap: ITEM_GAP }}>
+                  {playlists.map(pl => {
                     const count = pl.trackIds.filter(id => tracksRef.current.find(t => t.id === id)).length;
-                    const isLastOdd = playlists.length % 2 === 1 && idx === playlists.length - 1;
                     return (
-                      <View key={pl.id} style={[st.tileWrapper, isLastOdd && { marginRight: "auto" }]}>
-                        <PlaylistTile
-                          playlist={pl}
-                          trackCount={count}
-                          onPress={() => playPlaylist(pl)}
-                          onLongPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            setPlMenuId(pl.id);
-                          }}
-                        />
-                      </View>
+                      <PlaylistRow
+                        key={pl.id}
+                        playlist={pl}
+                        trackCount={count}
+                        onPress={() => playPlaylist(pl)}
+                        onLongPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          setPlMenuId(pl.id);
+                        }}
+                      />
                     );
                   })}
                 </View>
@@ -678,13 +660,8 @@ export default function MusicMyMusicScreen() {
               style={st.sheetOption}
               onPress={() => { setShowEQMenu(false); schedulePick(); }}
             >
-              <View style={st.sheetIconWrap}>
-                <Feather name="music" size={20} color={RED} />
-              </View>
-              <View>
-                <Text style={st.sheetOptionTitle}>Add Songs</Text>
-                <Text style={st.sheetOptionSub}>Import audio files from your phone</Text>
-              </View>
+              <Feather name="music" size={18} color={RED} />
+              <Text style={st.sheetOptionTitle}>Add Songs</Text>
             </Pressable>
 
             <View style={st.sheetDivider} />
@@ -693,13 +670,8 @@ export default function MusicMyMusicScreen() {
               style={st.sheetOption}
               onPress={() => { setShowEQMenu(false); setTimeout(() => { setShowNewPL(true); setTimeout(() => newPLInputRef.current?.focus(), 100); }, 300); }}
             >
-              <View style={st.sheetIconWrap}>
-                <Feather name="folder-plus" size={20} color={RED} />
-              </View>
-              <View>
-                <Text style={st.sheetOptionTitle}>New Playlist</Text>
-                <Text style={st.sheetOptionSub}>Create a playlist and add songs to it</Text>
-              </View>
+              <Feather name="folder-plus" size={18} color={RED} />
+              <Text style={st.sheetOptionTitle}>New Playlist</Text>
             </Pressable>
 
             <Pressable style={st.sheetCancel} onPress={() => setShowEQMenu(false)}>
@@ -731,13 +703,8 @@ export default function MusicMyMusicScreen() {
                 schedulePick(id ?? undefined);
               }}
             >
-              <View style={st.sheetIconWrap}>
-                <Feather name="plus-circle" size={20} color={RED} />
-              </View>
-              <View>
-                <Text style={st.sheetOptionTitle}>Add Songs</Text>
-                <Text style={st.sheetOptionSub}>Add audio files to this playlist</Text>
-              </View>
+              <Feather name="plus-circle" size={18} color={RED} />
+              <Text style={st.sheetOptionTitle}>Add Songs</Text>
             </Pressable>
 
             <View style={st.sheetDivider} />
@@ -750,13 +717,8 @@ export default function MusicMyMusicScreen() {
                 if (id) deletePlaylist(id);
               }}
             >
-              <View style={[st.sheetIconWrap, { backgroundColor: "rgba(224,49,49,0.12)" }]}>
-                <Feather name="trash-2" size={20} color={RED} />
-              </View>
-              <View>
-                <Text style={[st.sheetOptionTitle, { color: RED }]}>Delete Playlist</Text>
-                <Text style={st.sheetOptionSub}>Songs remain in your library</Text>
-              </View>
+              <Feather name="trash-2" size={18} color={RED} />
+              <Text style={[st.sheetOptionTitle, { color: RED }]}>Delete Playlist</Text>
             </Pressable>
 
             <Pressable style={st.sheetCancel} onPress={() => setPlMenuId(null)}>
@@ -849,42 +811,18 @@ const st = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 12, marginTop: 4,
   },
 
-  // Playlist grid
-  playlistGrid: {
-    flexDirection: "row", flexWrap: "wrap",
-    paddingHorizontal: 16, gap: TILE_GAP,
-  },
-  tileWrapper: { width: TILE_W },
-
-  // Playlist tile
-  tile: { width: TILE_W },
-  tileArtwork: {
-    width: TILE_W, height: TILE_W,
-    borderRadius: 14, backgroundColor: ROW_BG,
-    borderWidth: 1, borderColor: BORDER,
-    alignItems: "center", justifyContent: "center",
-    overflow: "hidden",
+  // Playlist rows
+  plRow: {
+    height: 62, flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
+    borderRadius: 14, paddingHorizontal: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
-  tileIconBox: {
-    width: 56, height: 56, borderRadius: 14,
-    backgroundColor: "rgba(227,28,28,0.08)",
-    borderWidth: 1, borderColor: "rgba(227,28,28,0.18)",
-    alignItems: "center", justifyContent: "center",
-  },
-  tileBadge: {
-    position: "absolute", top: 8, right: 8,
-    backgroundColor: RED, borderRadius: 10,
-    minWidth: 20, height: 20, alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 5,
-  },
-  tileBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  tileName:  {
-    color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold",
-    marginTop: 8, lineHeight: 18,
-  },
-  tileCount: { color: GREY, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  plRowIcon: { width: 32, alignItems: "center" },
+  plRowMid:  { flex: 1 },
+  plRowName: { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
+  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2 },
 
   // Track list — exact original
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
@@ -952,13 +890,7 @@ const st = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 14,
     paddingHorizontal: 20, paddingVertical: 16,
   },
-  sheetIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "rgba(224,49,49,0.10)",
-    alignItems: "center", justifyContent: "center",
-  },
   sheetOptionTitle: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  sheetOptionSub:   { color: GREY, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   sheetDivider:     { height: 1, backgroundColor: BORDER, marginHorizontal: 20 },
   sheetCancel: {
     marginTop: 8, marginHorizontal: 16,
