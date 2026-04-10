@@ -19,7 +19,13 @@ config.resolver.nodeModulesPaths = [
 
 // Block expo-keep-awake — withDevTools.ios.tsx wraps its require() in
 // try/catch and falls back to a no-op, so blocking is safe.
-config.resolver.blockList = /.*\/expo-keep-awake\/.*/;
+// Also block Replit's ephemeral skill temp dirs — Metro's FallbackWatcher
+// crashes with ENOENT if it tries to watch one of those dirs mid-deletion.
+config.resolver.blockList = [
+  /.*\/expo-keep-awake\/.*/,
+  /.*\/\.local\/skills\/.*/,
+  /.*\/\.local\/skills$/,
+];
 
 // Build a map of singleton packages → their canonical real-file entry point.
 // These packages must resolve to a single JS object across the whole bundle.
