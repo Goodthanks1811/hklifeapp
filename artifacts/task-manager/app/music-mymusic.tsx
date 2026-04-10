@@ -696,15 +696,22 @@ export default function MusicMyMusicScreen() {
           {/* ── Main list — slides left when playlist opens ── */}
           <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: mainSlide }] }]}>
             {isEmpty ? (
-              <View style={st.emptyState}>
+              <Pressable
+                style={st.emptyState}
+                onLongPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowEQMenu(true);
+                }}
+                delayLongPress={400}
+              >
                 <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
                 <Text style={st.emptyTitle}>No tracks yet</Text>
-                <Text style={st.emptySubtitle}>Long press the equaliser above to add music or create a playlist</Text>
+                <Text style={st.emptySubtitle}>Long press anywhere here to add music or create a playlist</Text>
                 <Pressable style={st.emptyBtn} onPress={() => pickFiles()}>
                   <Feather name="plus" size={15} color="#fff" />
                   <Text style={st.emptyBtnText}>Add Music</Text>
                 </Pressable>
-              </View>
+              </Pressable>
             ) : (
               <ScrollView
                 style={st.list}
@@ -971,12 +978,13 @@ const st = StyleSheet.create({
   innerTablet: { maxWidth: 800, alignSelf: "center", width: "100%" },
 
   headerArea: {
-    backgroundColor: BG, paddingTop: 28, paddingBottom: 4,
+    backgroundColor: BG, paddingTop: 48, paddingBottom: 4,
     alignItems: "center", position: "relative",
   },
   headerLongPressZone: {
     alignItems: "center",
     paddingHorizontal: 40,
+    paddingBottom: 24,
   },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
   eqWrap: {

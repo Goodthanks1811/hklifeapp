@@ -167,7 +167,7 @@ const s = StyleSheet.create({
 
   body: {
     flex: 1, justifyContent: "space-between",
-    paddingTop: 36,
+    paddingTop: 64,
   },
 
   headerArea: { position: "relative", alignItems: "center" },

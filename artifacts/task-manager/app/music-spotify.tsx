@@ -463,7 +463,7 @@ const s = StyleSheet.create({
   innerTablet: { maxWidth: 800, alignSelf: "center", width: "100%" },
 
   headerArea: {
-    backgroundColor: BG, paddingTop: 28, paddingBottom: 4,
+    backgroundColor: BG, paddingTop: 48, paddingBottom: 4,
     alignItems: "center", position: "relative",
   },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
