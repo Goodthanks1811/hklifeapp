@@ -965,7 +965,8 @@ export default function SettingsScreen() {
       <ScreenHeader title="Settings" />
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 24 }]}
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -1479,17 +1480,17 @@ export default function SettingsScreen() {
           </View>
         </Accordion>
 
-        {/* ── Build version footer ─────────────────────────────────────────── */}
-        <View style={styles.buildFooter}>
-          <Text style={styles.buildFooterText}>HK Life App</Text>
-          <Text style={styles.buildFooterText}>
-            Version {Constants.expoConfig?.version ?? "1.0.0"}
-            {" · "}
-            {Constants.expoConfig?.extra?.easBuildId ?? "dev"}
-          </Text>
-        </View>
-
       </ScrollView>
+
+      {/* ── Build version footer — anchored to bottom of screen ───────────── */}
+      <View style={[styles.buildFooter, { paddingBottom: Math.max(bottomPad, 16) }]}>
+        <Text style={styles.buildFooterText}>HK Life App</Text>
+        <Text style={styles.buildFooterText}>
+          Version {Constants.expoConfig?.version ?? "1.0.0"}
+          {" · "}
+          {Constants.expoConfig?.extra?.easBuildId ?? "dev"}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -1802,10 +1803,10 @@ const styles = StyleSheet.create({
   },
 
   buildFooter: {
-    alignItems: "center", paddingTop: 32, paddingBottom: 8, gap: 4,
+    alignItems: "center", paddingTop: 12, gap: 4,
   },
   buildFooterText: {
-    fontSize: 12, color: "rgba(255,255,255,0.2)",
+    fontSize: 12, color: "#fff",
     fontFamily: "Inter_400Regular",
   },
 });
