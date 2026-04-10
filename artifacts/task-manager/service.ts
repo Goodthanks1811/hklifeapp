@@ -90,16 +90,40 @@ export async function PlaybackService() {
     console.warn("[PlaybackService] Playback error:", e?.message ?? e);
   });
 
+  // ── Track-transition guard ────────────────────────────────────────────────
+  //
+  // RNTP's native configureAudioSession() deactivates the AVAudioSession
+  // whenever currentItem == nil.  This happens at every track change and at
+  // RepeatMode.Queue wrap-around (last → first track).  The moment the session
+  // deactivates iOS starts a 30-second kill clock.
+  //
+  // Calling play() immediately at the PlaybackActiveTrackChanged event keeps
+  // the session alive through the transition.  PlaybackQueueEnded is the
+  // fallback for any edge-case where RepeatMode.Queue fails to wrap.
+  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async () => {
+    if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
+    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
+    try {
+      await TrackPlayer.play();
+    } catch {}
+  });
+
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
+    if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
+    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
+    // Queue ended (RepeatMode.Queue failed to wrap or queue was empty).
+    // Skip to track 0 and restart so the audio session never goes idle.
+    try {
+      await TrackPlayer.skip(0);
+      await TrackPlayer.play();
+    } catch {}
+  });
+
   // ── Background audio watchdog ─────────────────────────────────────────────
   //
-  // Root cause: RNTP's native configureAudioSession() calls
-  // audioSessionController.deactivateSession() whenever currentItem == nil.
-  // This happens during track transitions and RepeatMode.Queue wrap-around.
-  // Once deactivated, iOS starts a 30-second kill clock.
-  //
-  // Fix: every 15 seconds, if RNTP isn't playing (and the user didn't pause it
-  // and no other source holds the session), call play() to re-activate the
-  // audio session — well within the 30-second window.
+  // Belt-and-suspenders: fires every 5 seconds (well within iOS's 30-second
+  // kill window) and re-activates the session if RNTP ended up idle.  Covers
+  // any gap that PlaybackActiveTrackChanged doesn't catch.
   const watchdog = setInterval(async () => {
     if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
     if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) {
@@ -129,7 +153,7 @@ export async function PlaybackService() {
     } catch {
       // RNTP not in a resumable state — do nothing
     }
-  }, 15000);
+  }, 5000);
 
   // Silence the TypeScript "unused variable" warning — the interval runs
   // forever in the background service and is cleaned up when the process dies.
