@@ -232,7 +232,7 @@ export default function MusicAppleScreen() {
     const key = `${pl.id}:${songIndex}`;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoadingKey(key);
-    // Open the full-screen player immediately — don't wait for the native play call
+    // Set now playing — mini player appears; user taps it to open full screen
     const song = songs[songIndex];
     setPlayingPlaylistId(pl.id);
     setPlayingSongIndex(songIndex);
@@ -244,7 +244,6 @@ export default function MusicAppleScreen() {
       title: song?.title ?? "",
       artist: song?.artist ?? "",
     });
-    MusicSourceBus.triggerExpand();
     try {
       await AppleMusicKit.playSongInPlaylist(pl.id, songIndex);
     } catch {
