@@ -50,7 +50,7 @@ NODE_PATH=/home/runner/workspace/artifacts/task-manager/node_modules
 
 ---
 
-### 3. pnpm frozen lockfile mismatch
+### 3. pnpm frozen lockfile mismatch — also triggered by running `expo prebuild` locally
 
 **Error message**:
 ```
@@ -59,19 +59,18 @@ pnpm-lock.yaml is not up to date with artifacts/task-manager/package.json
 specifiers in the lockfile don't match specifiers in package.json
 ```
 
-**Cause**: EAS detects the root `pnpm-workspace.yaml` and runs `pnpm install --frozen-lockfile`. If `package.json` was changed (e.g. a version pinned) but `pnpm-lock.yaml` wasn't updated, they go out of sync.
+**Cause**: EAS detects the root `pnpm-workspace.yaml` and runs `pnpm install --frozen-lockfile`. If `package.json` was changed but `pnpm-lock.yaml` wasn't updated, they go out of sync. **This is also triggered by running `expo prebuild` locally** — prebuild always prints "Updating package.json ✔" which modifies `package.json`, which then diverges from the lockfile.
 
-**Fix**: After any version change in `artifacts/task-manager/package.json`, run from the repo root:
+**Fix**: After any `package.json` change (including after running `expo prebuild` locally), run from the repo root:
 ```bash
 pnpm install --no-frozen-lockfile
 ```
-Then verify with:
+Then update the npm lockfile too (EAS uses both):
 ```bash
-grep -A2 "react-native-keyboard-controller:" pnpm-lock.yaml | head -4
+cd artifacts/task-manager && npm install --package-lock-only
 ```
-Commit both `package.json` and `pnpm-lock.yaml`.
 
-**Important**: Running `pnpm install` wipes `node_modules`. If workflows break afterwards, restart them and they will reinstall automatically.
+**Rule**: Never run `expo prebuild` locally without immediately syncing both lockfiles afterwards. Or avoid running it locally at all — EAS runs its own prebuild on the build server.
 
 ---
 
