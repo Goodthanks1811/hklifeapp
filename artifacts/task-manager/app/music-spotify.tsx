@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -167,6 +168,7 @@ export default function MusicSpotifyScreen() {
   const [connecting,        setConnecting]        = useState(false);
   const [playlists,         setPlaylists]         = useState<SpotifyPlaylist[]>([]);
   const [errorMsg,          setErrorMsg]          = useState<string | null>(null);
+  const [is403,             setIs403]             = useState(false);
   const [loadingKey,        setLoadingKey]        = useState<string | null>(null);
   const [playingPlaylistId, setPlayingPlaylistId] = useState<string | null>(null);
   const [playingSongIndex,  setPlayingSongIndex]  = useState<number | null>(null);
@@ -180,6 +182,7 @@ export default function MusicSpotifyScreen() {
 
   const loadPlaylists = useCallback(async () => {
     setErrorMsg(null);
+    setIs403(false);
     try {
       const tokens = await getStoredTokens();
       if (!tokens) { setAuthStatus("disconnected"); return; }
@@ -201,6 +204,7 @@ export default function MusicSpotifyScreen() {
     } catch (e: any) {
       const msg = e?.message ?? String(e);
       if (msg === "not_authenticated") setAuthStatus("disconnected");
+      else if (msg.includes("403")) { setIs403(true); setErrorMsg(msg); }
       else setErrorMsg(msg);
     }
   }, []);
@@ -266,10 +270,43 @@ export default function MusicSpotifyScreen() {
       );
     }
     if (playlists.length === 0) {
+      if (is403) {
+        return (
+          <View style={s.centred}>
+            <Text style={s.fourOhThreeTitle}>Developer Mode Restriction</Text>
+            <Text style={s.fourOhThreeBody}>
+              Your Spotify app is in <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Development Mode</Text>, which means only accounts you explicitly allow can use it.{"\n\n"}
+              To fix this, open your Spotify Developer Dashboard, go to your app → <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Users and Access</Text>, and add your Spotify account email.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [s.dashboardBtn, pressed && { opacity: 0.75 }]}
+              onPress={() => Linking.openURL("https://developer.spotify.com/dashboard")}
+            >
+              <Feather name="external-link" size={14} color="#fff" />
+              <Text style={s.dashboardBtnText}>Open Spotify Developer Dashboard</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [s.retryBtn, pressed && { opacity: 0.75 }]}
+              onPress={loadPlaylists}
+            >
+              <Feather name="refresh-cw" size={13} color={GREEN} />
+              <Text style={s.retryBtnText}>Retry</Text>
+            </Pressable>
+            <Text style={s.errorDetail}>{errorMsg}</Text>
+          </View>
+        );
+      }
       return (
         <View style={s.centred}>
           <Text style={s.stateBody}>No playlists found.{"\n"}Check Settings → Music → Spotify Playlists.</Text>
           {errorMsg ? <Text style={s.errorDetail}>{errorMsg}</Text> : null}
+          <Pressable
+            style={({ pressed }) => [s.retryBtn, pressed && { opacity: 0.75 }]}
+            onPress={loadPlaylists}
+          >
+            <Feather name="refresh-cw" size={13} color={GREEN} />
+            <Text style={s.retryBtnText}>Retry</Text>
+          </Pressable>
         </View>
       );
     }
@@ -410,6 +447,27 @@ const s = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 28,
   },
   connectBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  fourOhThreeTitle: {
+    color: "#fff", fontSize: 17, fontFamily: "Inter_600SemiBold",
+    marginBottom: 14, textAlign: "center",
+  },
+  fourOhThreeBody: {
+    color: "rgba(255,255,255,0.55)", fontSize: 14,
+    fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, marginBottom: 20,
+  },
+  dashboardBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: GREEN, borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 20, marginBottom: 12,
+  },
+  dashboardBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  retryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderWidth: 1, borderColor: GREEN, borderRadius: 10,
+    paddingVertical: 9, paddingHorizontal: 18,
+  },
+  retryBtnText: { color: GREEN, fontSize: 13, fontFamily: "Inter_500Medium" },
 
   // Playlist rows
   plRow: {
