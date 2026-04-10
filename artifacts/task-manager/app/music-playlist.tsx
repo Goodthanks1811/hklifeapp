@@ -7,6 +7,7 @@ import React, {
 import {
   Animated,
   Easing,
+  InteractionManager,
   Modal,
   Pressable,
   ScrollView,
@@ -161,7 +162,6 @@ export default function MusicPlaylistScreen() {
   const [showMenu, setShowMenu]     = useState(false);
   const playlistRef                 = useRef<Playlist | null>(null);
   const isPickingRef                = useRef(false);
-  const pickTimerRef                = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeId = player.track?.id
     ? toRel(player.track.id)
@@ -244,8 +244,9 @@ export default function MusicPlaylistScreen() {
   };
 
   const schedulePick = () => {
-    if (pickTimerRef.current) clearTimeout(pickTimerRef.current);
-    pickTimerRef.current = setTimeout(pickFiles, 600);
+    InteractionManager.runAfterInteractions(() => {
+      pickFiles();
+    });
   };
 
   if (!playlist) return <View style={styles.root} />;
@@ -467,6 +468,7 @@ const styles = StyleSheet.create({
   popupRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -475,5 +477,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "500",
+    textAlign: "center",
   },
 });

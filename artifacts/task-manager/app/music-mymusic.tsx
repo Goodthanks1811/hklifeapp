@@ -8,6 +8,7 @@ import React, {
 import {
   Animated,
   Easing,
+  InteractionManager,
   Keyboard,
   Modal,
   PanResponder,
@@ -212,7 +213,6 @@ export default function MusicMyMusicScreen() {
   const newPLInputRef                     = useRef<TextInput>(null);
   const keyboardOffset                    = useRef(new Animated.Value(0)).current;
   const isPickingRef                      = useRef(false);
-  const pickTimerRef                      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keyboard shift for new playlist popup (shift card up so input stays visible)
   useEffect(() => {
@@ -377,8 +377,9 @@ export default function MusicMyMusicScreen() {
   };
 
   const schedulePick = (targetPlaylistId?: string) => {
-    if (pickTimerRef.current) clearTimeout(pickTimerRef.current);
-    pickTimerRef.current = setTimeout(() => pickFiles(targetPlaylistId), 600);
+    InteractionManager.runAfterInteractions(() => {
+      pickFiles(targetPlaylistId);
+    });
   };
 
   const handleDelete = async (idx: number) => {
@@ -898,10 +899,10 @@ const st = StyleSheet.create({
 
   // Popup menu rows (shared by EQ menu + playlist menu)
   menuRow: {
-    flexDirection: "row", alignItems: "center", gap: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14,
     paddingVertical: 15,
   },
-  menuRowText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  menuRowText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   menuDivider: { height: 1, backgroundColor: BORDER, marginVertical: 4 },
   menuCancel: {
     paddingVertical: 15, alignItems: "center",
