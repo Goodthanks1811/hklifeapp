@@ -213,20 +213,20 @@ export default function MusicMyMusicScreen() {
   const isPickingRef                      = useRef(false);
   const pickTimerRef                      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keyboard shift for new playlist bottom sheet (project rule: never KeyboardAvoidingView)
+  // Keyboard shift for new playlist popup (shift card up so input stays visible)
   useEffect(() => {
     const show = Keyboard.addListener("keyboardWillShow", e => {
       Animated.timing(keyboardOffset, {
-        toValue: e.endCoordinates.height,
+        toValue: -(e.endCoordinates.height / 2),
         duration: e.duration || 250,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
     });
     const hide = Keyboard.addListener("keyboardWillHide", e => {
       Animated.timing(keyboardOffset, {
         toValue: 0,
         duration: e.duration || 200,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
     });
     return () => { show.remove(); hide.remove(); };
@@ -730,7 +730,7 @@ export default function MusicMyMusicScreen() {
         </Pressable>
       </Modal>
 
-      {/* ── New Playlist bottom sheet ─────────────────────────────────────── */}
+      {/* ── New Playlist centered popup ───────────────────────────────────── */}
       <Modal
         visible={showNewPL}
         transparent
@@ -738,18 +738,19 @@ export default function MusicMyMusicScreen() {
         onRequestClose={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
       >
         <Pressable
-          style={st.modalOverlay}
+          style={st.popupOverlay}
           onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
         >
-          <Animated.View style={[st.newPLSheet, { bottom: keyboardOffset }]}>
-            <Pressable onPress={() => {}} /* Absorb taps inside sheet */>
-              <View style={st.sheetHandle} />
-              <Text style={st.newPLLabel}>Playlist Name</Text>
+          <Animated.View
+            style={[st.popupCard, { transform: [{ translateY: keyboardOffset }] }]}
+          >
+            <Pressable onPress={() => {}}>
+              <Text style={st.popupTitle}>New Playlist</Text>
               <TextInput
                 ref={newPLInputRef}
-                style={st.newPLInput}
-                placeholder="My Playlist"
-                placeholderTextColor={GREY}
+                style={st.popupInput}
+                placeholder="Playlist name"
+                placeholderTextColor="#555"
                 value={newPLName}
                 onChangeText={setNewPLName}
                 autoCorrect={false}
@@ -759,20 +760,19 @@ export default function MusicMyMusicScreen() {
                 keyboardAppearance="dark"
                 selectionColor={RED}
               />
-              <View style={st.newPLFooter}>
+              <View style={st.popupFooter}>
                 <Pressable
-                  style={st.newPLCancel}
+                  style={st.popupCancel}
                   onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
                 >
-                  <Text style={st.newPLCancelText}>Close</Text>
+                  <Text style={st.popupCancelText}>Cancel</Text>
                 </Pressable>
                 <Pressable
-                  style={[st.newPLCreate, !newPLName.trim() && { opacity: 0.42 }]}
+                  style={[st.popupCreate, !newPLName.trim() && { opacity: 0.4 }]}
                   onPress={createPlaylist}
                   disabled={!newPLName.trim()}
                 >
-                  <Feather name="plus" size={15} color="#fff" />
-                  <Text style={st.newPLCreateText}>Create Playlist</Text>
+                  <Text style={st.popupCreateText}>Create  →</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -902,40 +902,40 @@ const st = StyleSheet.create({
   },
   sheetCancelText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  // New playlist bottom sheet
-  newPLSheet: {
-    position: "absolute", left: 0, right: 0,
-    backgroundColor: "#222222",
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderTopWidth: 1, borderColor: BORDER,
-    paddingBottom: 34,
+  // New playlist centered popup
+  popupOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.72)",
+    justifyContent: "center", paddingHorizontal: 24,
   },
-  newPLLabel: {
-    color: "#ffffff", fontSize: 10, fontFamily: "Inter_700Bold",
-    letterSpacing: 1, textTransform: "uppercase",
-    marginBottom: 8, paddingHorizontal: 20,
+  popupCard: {
+    backgroundColor: "#000",
+    borderRadius: 20,
+    borderWidth: 1, borderColor: BORDER,
+    paddingTop: 24, paddingHorizontal: 20, paddingBottom: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6, shadowRadius: 24, elevation: 24,
   },
-  newPLInput: {
-    color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold",
-    paddingTop: 10, paddingBottom: 13, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10,
-    marginHorizontal: 20, marginBottom: 20,
+  popupTitle: {
+    color: "#fff", fontSize: 17, fontFamily: "Inter_700Bold",
+    textAlign: "center", marginBottom: 18,
   },
-  newPLFooter: {
-    flexDirection: "row", gap: 10,
-    paddingHorizontal: 16, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: BORDER,
+  popupInput: {
+    color: "#fff", fontSize: 15, fontFamily: "Inter_500Medium",
+    paddingVertical: 13, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: BORDER, borderRadius: 12,
+    marginBottom: 20,
   },
-  newPLCancel: {
-    flex: 1, paddingVertical: 15, borderRadius: 13,
-    backgroundColor: "#1A1A1A", alignItems: "center",
+  popupFooter: { flexDirection: "row", gap: 10 },
+  popupCancel: {
+    flex: 1, paddingVertical: 14, borderRadius: 13,
+    backgroundColor: "#141414",
+    borderWidth: 1, borderColor: BORDER,
+    alignItems: "center",
   },
-  newPLCancelText: { color: "#ffffff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  newPLCreate: {
-    flex: 2, paddingVertical: 15, borderRadius: 13,
-    backgroundColor: RED,
-    alignItems: "center", justifyContent: "center",
-    flexDirection: "row", gap: 6,
+  popupCancelText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  popupCreate: {
+    flex: 2, paddingVertical: 14, borderRadius: 13,
+    backgroundColor: RED, alignItems: "center",
   },
-  newPLCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  popupCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
