@@ -318,7 +318,7 @@ export default function MusicMyMusicScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
         multiple: true,
-        copyToCacheDirectory: false,
+        copyToCacheDirectory: true,
       });
       if (result.canceled || !result.assets?.length) return;
       await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
@@ -358,7 +358,7 @@ export default function MusicMyMusicScreen() {
 
   const schedulePick = (targetPlaylistId?: string) => {
     if (pickTimerRef.current) clearTimeout(pickTimerRef.current);
-    pickTimerRef.current = setTimeout(() => pickFiles(targetPlaylistId), 350);
+    pickTimerRef.current = setTimeout(() => pickFiles(targetPlaylistId), 600);
   };
 
   const handleDelete = async (idx: number) => {
