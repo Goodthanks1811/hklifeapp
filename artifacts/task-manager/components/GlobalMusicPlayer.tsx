@@ -366,8 +366,8 @@ export function GlobalMusicPlayer() {
         >
           <Pressable
             style={[s.miniBarPressable, {
-              paddingTop: 9 + insets.bottom / 2,
-              paddingBottom: 9 + insets.bottom / 2,
+              paddingTop: 5 + insets.bottom / 2,
+              paddingBottom: 5 + insets.bottom / 2,
             }]}
             onPress={expand}
           >
@@ -534,7 +534,7 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingLeft: 22, paddingRight: 18, paddingTop: 14, paddingBottom: 14, gap: 14,
+    paddingLeft: 22, paddingRight: 30, paddingTop: 14, paddingBottom: 14, gap: 14,
   },
   miniIcon: {
     width: 44, height: 44, borderRadius: 11,
