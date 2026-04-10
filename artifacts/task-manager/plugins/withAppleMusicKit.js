@@ -322,48 +322,75 @@ const withAppleMusicKit = (config) => {
     return cfg;
   });
 
-  // ── 0. Patch react-native-spotify-remote to use xcframework ───────────────
-  // SpotifyiOS.framework ships only i386/armv7/x86_64 — no arm64 → linker
-  // fails on every device build. The package also ships SpotifyiOS.xcframework
-  // (ios-arm64_armv7 slice) which has full arm64 support. Patch the podspec
-  // here (before pod install) to point at the xcframework instead.
+  // ── 0. Fix react-native-spotify-remote arm64 linker failure ──────────────
+  //
+  // SpotifyiOS.framework ships ONLY i386/armv7/x86_64 (no arm64). Every iOS
+  // device since iPhone 5s is arm64 → linker fails with "fat file missing
+  // arch 'arm64'". The package also ships SpotifyiOS.xcframework whose
+  // ios-arm64_armv7 slice IS a valid fat binary containing arm64 + armv7.
+  //
+  // Strategy: overwrite the broken binary inside SpotifyiOS.framework with
+  // the arm64-capable binary from the xcframework slice. This keeps the
+  // podspec path unchanged (no CocoaPods xcframework handling needed) while
+  // giving the linker the arm64 symbols it needs.
+  //
+  // TWO layers to survive any pnpm reinstall that may happen during Prebuild:
+  //   Layer 1 — withDangerousMod (runs during expo prebuild, before pod install)
+  //   Layer 2 — Podfile post_install hook (runs after pod install, before Xcode)
   config = withDangerousMod(config, [
     'ios',
     async (config) => {
-      const { projectRoot } = config.modRequest;
-      const podspecPath = path.join(
-        projectRoot,
-        'node_modules',
-        'react-native-spotify-remote',
-        'RNSpotifyRemote.podspec',
+      const { projectRoot, platformProjectRoot } = config.modRequest;
+      const spotifyBase = path.join(
+        projectRoot, 'node_modules', 'react-native-spotify-remote',
+        'ios', 'external', 'SpotifySDK',
       );
-      if (fs.existsSync(podspecPath)) {
-        let podspec = fs.readFileSync(podspecPath, 'utf8');
-        const before = podspec;
-        // Switch vendored framework from .framework (no arm64) to .xcframework (has arm64)
-        podspec = podspec.replace(
-          /s\.vendored_frameworks\s*=\s*["']ios\/external\/SpotifySDK\/SpotifyiOS\.framework["']/,
-          's.vendored_frameworks = "ios/external/SpotifySDK/SpotifyiOS.xcframework"',
-        );
-        // Switch preserve_path to xcframework
-        podspec = podspec.replace(
-          /s\.preserve_path\s*=\s*["']ios\/external\/SpotifySDK\/SpotifyiOS\.framework["']/,
-          's.preserve_path = "ios/external/SpotifySDK/SpotifyiOS.xcframework"',
-        );
-        // Fix source_files: point headers inside the arm64 slice of the xcframework
-        podspec = podspec.replace(
-          /["']ios\/external\/SpotifySDK\/SpotifyiOS\.framework\/\*\*\/Headers\/\*\.\{h,m\}["']/,
-          '"ios/external/SpotifySDK/SpotifyiOS.xcframework/ios-arm64_armv7/SpotifyiOS.framework/Headers/*.{h,m}"',
-        );
-        if (podspec !== before) {
-          fs.writeFileSync(podspecPath, podspec, 'utf8');
-          console.log('[withAppleMusicKit] Patched RNSpotifyRemote.podspec → xcframework ✓');
-        } else {
-          console.log('[withAppleMusicKit] RNSpotifyRemote.podspec already patched or pattern not found');
+      const srcBin  = path.join(spotifyBase, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework', 'SpotifyiOS');
+      const destBin = path.join(spotifyBase, 'SpotifyiOS.framework', 'SpotifyiOS');
+
+      // Layer 1: direct binary swap before pod install
+      if (fs.existsSync(srcBin) && fs.existsSync(destBin)) {
+        try {
+          fs.copyFileSync(srcBin, destBin);
+          console.log('[withAppleMusicKit] Layer 1: replaced SpotifyiOS.framework binary with arm64 xcframework binary ✓');
+        } catch (e) {
+          console.warn('[withAppleMusicKit] Layer 1 binary swap failed:', e.message);
         }
       } else {
-        console.warn('[withAppleMusicKit] RNSpotifyRemote.podspec not found — skipping Spotify xcframework patch');
+        console.warn('[withAppleMusicKit] Layer 1: SpotifyiOS binaries not found — skipping direct swap');
       }
+
+      // Layer 2: append a Podfile post_install hook that re-applies the swap
+      // after pod install (in case pnpm reinstalled and restored the original).
+      const podfilePath = path.join(platformProjectRoot, 'Podfile');
+      if (fs.existsSync(podfilePath)) {
+        const marker = '# [HKLifeApp] SpotifyiOS arm64 fix';
+        let podfile = fs.readFileSync(podfilePath, 'utf8');
+        if (!podfile.includes(marker)) {
+          const hook = `
+${marker}
+post_install do |installer|
+  require 'fileutils'
+  spotify_base = File.join(__dir__, '..', 'node_modules', 'react-native-spotify-remote', 'ios', 'external', 'SpotifySDK')
+  src  = File.join(spotify_base, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework', 'SpotifyiOS')
+  dest = File.join(spotify_base, 'SpotifyiOS.framework', 'SpotifyiOS')
+  if File.exist?(src) && File.exist?(dest)
+    FileUtils.cp(src, dest)
+    puts '[HKLifeApp] Layer 2: replaced SpotifyiOS.framework binary with arm64 xcframework binary ✓'
+  else
+    puts '[HKLifeApp] Layer 2: SpotifyiOS binaries not found — skipping'
+  end
+end
+`;
+          fs.appendFileSync(podfilePath, hook, 'utf8');
+          console.log('[withAppleMusicKit] Layer 2: appended SpotifyiOS arm64 fix to Podfile ✓');
+        } else {
+          console.log('[withAppleMusicKit] Layer 2: Podfile already has SpotifyiOS fix');
+        }
+      } else {
+        console.warn('[withAppleMusicKit] Layer 2: Podfile not found — cannot append hook');
+      }
+
       return config;
     },
   ]);
