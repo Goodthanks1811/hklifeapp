@@ -874,14 +874,14 @@ const st = StyleSheet.create({
     justifyContent: "flex-end",
   },
   actionSheet: {
-    backgroundColor: "#222222",
+    backgroundColor: "#000",
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderTopWidth: 1, borderColor: BORDER,
     paddingBottom: 34,
   },
   sheetHandle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: BORDER, alignSelf: "center",
+    backgroundColor: "#444", alignSelf: "center",
     marginTop: 10, marginBottom: 16,
   },
   sheetTitle: {
@@ -896,7 +896,7 @@ const st = StyleSheet.create({
   sheetDivider:     { height: 1, backgroundColor: BORDER, marginHorizontal: 20 },
   sheetCancel: {
     marginTop: 8, marginHorizontal: 16,
-    backgroundColor: "#1A1A1A",
+    backgroundColor: "#000",
     borderWidth: 1, borderColor: BORDER,
     borderRadius: 13, paddingVertical: 15, alignItems: "center",
   },
