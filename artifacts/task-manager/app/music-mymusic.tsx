@@ -184,6 +184,64 @@ function TrackRow({
   );
 }
 
+function PlTrackRow({ track, isActive, isPlaying, onPlay, onDelete }: {
+  track: MusicTrack; isActive: boolean; isPlaying: boolean;
+  onPlay: () => void; onDelete: () => void;
+}) {
+  const swipeRef    = useRef<Swipeable>(null);
+  const revealedRef = useRef(false);
+  const deletingRef = useRef(false);
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+  const rowHeight   = useRef(new Animated.Value(ITEM_H)).current;
+
+  const triggerDelete = useCallback(() => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    swipeRef.current?.close();
+    Animated.parallel([
+      Animated.timing(opacityAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
+      Animated.timing(rowHeight,   { toValue: 0, duration: 260, delay: 40, useNativeDriver: false, easing: Easing.in(Easing.quad) }),
+    ]).start(() => onDelete());
+  }, [onDelete]);
+
+  const renderRight = useCallback(() => (
+    <View style={st.deleteZone}>
+      <Pressable style={st.deleteAction} onPress={triggerDelete}>
+        <Feather name="trash-2" size={20} color="#fff" />
+      </Pressable>
+    </View>
+  ), [triggerDelete]);
+
+  return (
+    <Animated.View style={{ height: rowHeight, opacity: opacityAnim }}>
+      <Swipeable
+        ref={swipeRef}
+        renderRightActions={renderRight}
+        overshootLeft={false}
+        overshootRight={false}
+        rightThreshold={28}
+        friction={1.5}
+        onSwipeableOpen={() => { revealedRef.current = true; }}
+        onSwipeableClose={() => { revealedRef.current = false; }}
+        containerStyle={{ borderRadius: 14, overflow: "hidden" }}
+      >
+        <Pressable
+          style={[st.row, isActive && st.rowActive]}
+          onPress={() => revealedRef.current ? swipeRef.current?.close() : onPlay()}
+        >
+          <View style={[st.rowIcon, isActive && st.rowIconActive]}>
+            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
+          </View>
+          <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
+            {track.name}
+          </Text>
+        </Pressable>
+      </Swipeable>
+    </Animated.View>
+  );
+}
+
 function fmtMs(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -191,11 +249,36 @@ function fmtMs(ms: number): string {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicMyMusicScreen() {
-  const goBack            = () => router.back();
   const insets            = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const isTablet          = screenW >= 768;
   const player   = useMusicPlayer();
+
+  // ── In-screen playlist navigation ────────────────────────────────────────
+  const [selPlId, setSelPlId]   = useState<string | null>(null);
+  const selPlIdRef              = useRef<string | null>(null);
+  const slideAnim               = useRef(new Animated.Value(0)).current;
+  const mainSlide               = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -screenW] });
+  const plSlide                 = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [screenW, 0] });
+
+  const openPlaylist = (id: string) => {
+    selPlIdRef.current = id;
+    setSelPlId(id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.spring(slideAnim, { toValue: 1, friction: 20, tension: 200, useNativeDriver: true }).start();
+  };
+
+  const closePlaylist = () => {
+    Animated.spring(slideAnim, { toValue: 0, friction: 20, tension: 200, useNativeDriver: true }).start(() => {
+      selPlIdRef.current = null;
+      setSelPlId(null);
+    });
+  };
+
+  const goBack = () => {
+    if (selPlIdRef.current) { closePlaylist(); return; }
+    router.back();
+  };
 
   // ── Tracks ────────────────────────────────────────────────────────────────
   const [isLoaded, setIsLoaded] = useState(false);
@@ -334,6 +417,12 @@ export default function MusicMyMusicScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const removeFromPlaylist = async (plId: string, trackId: string) => {
+    await savePlaylists(playlistsRef.current.map(p =>
+      p.id === plId ? { ...p, tracks: (p.tracks ?? []).filter(t => t.id !== trackId) } : p
+    ));
+  };
+
   const playPlaylist = (playlist: Playlist) => {
     const pts = (playlist.tracks ?? []).filter(Boolean);
     if (!pts.length) {
@@ -392,7 +481,7 @@ export default function MusicMyMusicScreen() {
     try { await FileSystem.deleteAsync(toAbs(track.uri), { idempotent: true }); } catch {}
     // Also remove from all playlists
     const updatedPls = playlistsRef.current.map(p => ({
-      ...p, trackIds: p.trackIds.filter(id => id !== track.id),
+      ...p, trackIds: p.trackIds?.filter(id => id !== track.id),
     }));
     await savePlaylists(updatedPls);
     await saveTracks(list.filter((_, i) => i !== idx));
@@ -559,6 +648,7 @@ export default function MusicMyMusicScreen() {
   }), [animatePositions, endDrag]);
 
   const isEmpty = isLoaded && tracks.length === 0 && playlists.length === 0;
+  const selPl   = selPlId ? (playlists.find(p => p.id === selPlId) ?? null) : null;
 
   return (
     <View style={[st.root, { paddingTop: insets.top }]}>
@@ -581,98 +671,150 @@ export default function MusicMyMusicScreen() {
           <Pressable style={st.backZone} onPress={goBack} />
         </View>
 
-        {/* Content */}
-        {isEmpty ? (
-          /* Empty state */
-          <View style={st.emptyState}>
-            <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
-            <Text style={st.emptyTitle}>No tracks yet</Text>
-            <Text style={st.emptySubtitle}>Long press the equaliser above to add music or create a playlist</Text>
-            <Pressable style={st.emptyBtn} onPress={() => pickFiles()}>
-              <Feather name="plus" size={15} color="#fff" />
-              <Text style={st.emptyBtnText}>Add Music</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <ScrollView
-            style={st.list}
-            scrollEnabled={listScrollEnabled}
-            showsVerticalScrollIndicator={false}
-            onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
-            scrollEventThrottle={16}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: player.track ? 330 : 40 }}
-          >
-            {/* ── Playlists section ──────────────────────────────────── */}
-            {playlists.length > 0 && (
-              <View style={st.section}>
-                <Text style={st.sectionHeader}>Playlists</Text>
-                <View style={{ marginHorizontal: 16, gap: ITEM_GAP }}>
-                  {playlists.map(pl => {
-                    const count = (pl.tracks ?? []).length;
-                    return (
-                      <PlaylistRow
-                        key={pl.id}
-                        playlist={pl}
-                        trackCount={count}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          router.push({ pathname: "/music-playlist", params: { id: pl.id } });
-                        }}
-                        onLongPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          setPlMenuId(pl.id);
-                        }}
-                      />
-                    );
-                  })}
-                </View>
-              </View>
-            )}
+        {/* Sliding content container */}
+        <View style={{ flex: 1, overflow: "hidden" }}>
 
-            {/* ── Songs section ──────────────────────────────────────── */}
-            {tracks.length > 0 && (
-              <View style={st.section}>
-                <Text style={st.sectionHeader}>Songs</Text>
-                <View
-                  ref={containerRef}
-                  {...dragResponder.panHandlers}
-                  style={{ height: Math.max(tracks.length, 1) * SLOT_H, marginHorizontal: 16 }}
-                >
-                  {dragActiveIdx !== -1 && (
-                    <Pressable
-                      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
-                      onPress={() => endDrag()}
-                    />
-                  )}
-                  {tracks.map((track, idx) => {
-                    const isDragging = dragActiveIdx === idx;
-                    const posAnim    = posAnims.current[track.id] ?? new Animated.Value(idx * SLOT_H);
-                    const translateY = isDragging
-                      ? (addedAnims.current[track.id] ?? posAnim)
-                      : posAnim;
-                    return (
-                      <Animated.View
-                        key={track.id}
-                        style={[st.absItem, { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] }]}
-                      >
-                        <TrackRow
-                          track={track}
-                          isActive={player.track?.id === track.id}
-                          isPlaying={player.isPlaying}
-                          isDragging={isDragging}
-                          dimValue={isDragging ? ZERO_ANIM : dimAnim}
-                          onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); }}
-                          onDelete={() => handleDelete(idx)}
-                          onLongPress={() => startDrag(idx)}
-                        />
-                      </Animated.View>
-                    );
-                  })}
-                </View>
+          {/* ── Main list — slides left when playlist opens ── */}
+          <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: mainSlide }] }]}>
+            {isEmpty ? (
+              <View style={st.emptyState}>
+                <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
+                <Text style={st.emptyTitle}>No tracks yet</Text>
+                <Text style={st.emptySubtitle}>Long press the equaliser above to add music or create a playlist</Text>
+                <Pressable style={st.emptyBtn} onPress={() => pickFiles()}>
+                  <Feather name="plus" size={15} color="#fff" />
+                  <Text style={st.emptyBtnText}>Add Music</Text>
+                </Pressable>
               </View>
+            ) : (
+              <ScrollView
+                style={st.list}
+                scrollEnabled={listScrollEnabled}
+                showsVerticalScrollIndicator={false}
+                onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+                scrollEventThrottle={16}
+                contentContainerStyle={{ paddingTop: 16, paddingBottom: player.track ? 330 : 40 }}
+              >
+                {/* ── Playlists section ─────────────────────────────── */}
+                {playlists.length > 0 && (
+                  <View style={st.section}>
+                    <Text style={st.sectionHeader}>Playlists</Text>
+                    <View style={{ marginHorizontal: 16, gap: ITEM_GAP }}>
+                      {playlists.map(pl => {
+                        const count = (pl.tracks ?? []).length;
+                        return (
+                          <PlaylistRow
+                            key={pl.id}
+                            playlist={pl}
+                            trackCount={count}
+                            onPress={() => openPlaylist(pl.id)}
+                            onLongPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                              setPlMenuId(pl.id);
+                            }}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* ── Songs section ─────────────────────────────────── */}
+                {tracks.length > 0 && (
+                  <View style={st.section}>
+                    <Text style={st.sectionHeader}>Songs</Text>
+                    <View
+                      ref={containerRef}
+                      {...dragResponder.panHandlers}
+                      style={{ height: Math.max(tracks.length, 1) * SLOT_H, marginHorizontal: 16 }}
+                    >
+                      {dragActiveIdx !== -1 && (
+                        <Pressable
+                          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+                          onPress={() => endDrag()}
+                        />
+                      )}
+                      {tracks.map((track, idx) => {
+                        const isDragging = dragActiveIdx === idx;
+                        const posAnim    = posAnims.current[track.id] ?? new Animated.Value(idx * SLOT_H);
+                        const translateY = isDragging
+                          ? (addedAnims.current[track.id] ?? posAnim)
+                          : posAnim;
+                        return (
+                          <Animated.View
+                            key={track.id}
+                            style={[st.absItem, { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] }]}
+                          >
+                            <TrackRow
+                              track={track}
+                              isActive={player.track?.id === track.id}
+                              isPlaying={player.isPlaying}
+                              isDragging={isDragging}
+                              dimValue={isDragging ? ZERO_ANIM : dimAnim}
+                              onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); }}
+                              onDelete={() => handleDelete(idx)}
+                              onLongPress={() => startDrag(idx)}
+                            />
+                          </Animated.View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
             )}
-          </ScrollView>
-        )}
+          </Animated.View>
+
+          {/* ── Playlist detail — slides in from right ── */}
+          <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: plSlide }] }]}>
+            {selPl && (
+              <>
+                {/* Sub-header: back + name + add */}
+                <View style={st.plDetailHeader}>
+                  <Pressable onPress={closePlaylist} hitSlop={12} style={st.plDetailBack}>
+                    <Feather name="chevron-left" size={26} color="#fff" />
+                  </Pressable>
+                  <Text style={st.plDetailTitle} numberOfLines={1}>{selPl.name}</Text>
+                  <Pressable onPress={() => pickFiles(selPl.id)} hitSlop={12} style={st.plDetailAdd}>
+                    <Feather name="plus" size={22} color="#fff" />
+                  </Pressable>
+                </View>
+
+                {(selPl.tracks ?? []).length === 0 ? (
+                  <View style={st.emptyState}>
+                    <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
+                    <Text style={st.emptyTitle}>No tracks yet</Text>
+                    <Pressable style={st.emptyBtn} onPress={() => pickFiles(selPl.id)}>
+                      <Feather name="plus" size={15} color="#fff" />
+                      <Text style={st.emptyBtnText}>Add Songs</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <ScrollView
+                    style={st.list}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingTop: 8, paddingBottom: player.track ? 330 : 40, gap: ITEM_GAP, paddingHorizontal: 16 }}
+                  >
+                    {(selPl.tracks ?? []).map((track, idx) => (
+                      <PlTrackRow
+                        key={track.id}
+                        track={track}
+                        isActive={player.track?.id === track.id}
+                        isPlaying={player.isPlaying}
+                        onPlay={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          player.playTrack(idx, (selPl.tracks ?? []).map(t => ({ ...t, uri: toAbs(t.uri) })));
+                        }}
+                        onDelete={() => removeFromPlaylist(selPl.id, track.id)}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+              </>
+            )}
+          </Animated.View>
+
+        </View>
       </View>
 
       {/* ── EQ long-press menu ────────────────────────────────────────────── */}
@@ -844,6 +986,15 @@ const st = StyleSheet.create({
     color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold",
     marginHorizontal: 16, marginBottom: 12, marginTop: 4,
   },
+
+  // Playlist detail sub-header
+  plDetailHeader: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, gap: 8,
+  },
+  plDetailBack: { padding: 4 },
+  plDetailTitle: { flex: 1, color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  plDetailAdd:  { padding: 4 },
 
   // Playlist rows
   plRow: {
