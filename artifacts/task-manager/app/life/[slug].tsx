@@ -1725,8 +1725,21 @@ export default function LifeTaskScreen() {
 
   const handleEmojiChange = useCallback((id: string, emoji: string) => {
     if (!apiKey) return;
-    setTasks(prev => resortAndAnimate(prev.map(t => t.id === id ? { ...t, emoji } : t)));
-    setDetailTask(prev => prev?.id === id ? { ...prev, emoji } : prev);
+    if (norm(emoji) === norm(HIDDEN_EMOJI)) {
+      // Thumbs down — optimistically remove the item immediately
+      setTasks(prev => {
+        const next = prev.filter(t => t.id !== id);
+        next.forEach((t, i) => {
+          posAnims.current[t.id]?.stopAnimation();
+          posAnims.current[t.id]?.setValue(i * SLOT_H);
+        });
+        return next;
+      });
+      setDetailTask(null);
+    } else {
+      setTasks(prev => resortAndAnimate(prev.map(t => t.id === id ? { ...t, emoji } : t)));
+      setDetailTask(prev => prev?.id === id ? { ...prev, emoji } : prev);
+    }
     fetch(`${BASE_URL}/api/notion/life-tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-notion-key": apiKey },
