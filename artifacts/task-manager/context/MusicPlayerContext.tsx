@@ -180,6 +180,20 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           wasPlayingBgRef.current = false;
+          // Defensive: if another source holds the audio session but RNTP somehow
+          // resumed (e.g. iOS 26 delivers an interruption-ended signal that triggers
+          // a native auto-resume despite autoHandleInterruptions:false), immediately
+          // re-pause RNTP so its DoNotMix session doesn't cut off Apple Music/Spotify.
+          if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) {
+            try {
+              const state = await _TrackPlayer.getPlaybackState();
+              const isActuallyPlaying =
+                state?.state === _State.Playing || state?.state === _State.Buffering;
+              if (isActuallyPlaying) {
+                await _TrackPlayer.pause();
+              }
+            } catch {}
+          }
         }
       }
     });

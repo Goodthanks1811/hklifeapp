@@ -102,7 +102,20 @@ export async function PlaybackService() {
   // audio session — well within the 30-second window.
   const watchdog = setInterval(async () => {
     if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
-    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
+    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) {
+      // Another source holds the audio session. Defensive: if RNTP somehow
+      // auto-resumed (iOS delivering an interruption-ended signal despite
+      // autoHandleInterruptions:false), re-pause it before its DoNotMix session
+      // can cut off Apple Music or Spotify.
+      try {
+        const state = await TrackPlayer.getPlaybackState();
+        const s = state?.state;
+        if (s === State.Playing || s === State.Buffering) {
+          await TrackPlayer.pause();
+        }
+      } catch {}
+      return;
+    }
     try {
       const state = await TrackPlayer.getPlaybackState();
       const s = state?.state;
