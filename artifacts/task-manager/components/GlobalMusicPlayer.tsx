@@ -357,6 +357,12 @@ export function GlobalMusicPlayer() {
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
+      {/* Pre-decode HK artwork so it's in GPU memory before first expand */}
+      <Image
+        source={require("../assets/images/hk-artwork-transparent.png")}
+        style={{ width: 0, height: 0, position: "absolute" }}
+      />
+
       {/* ── Mini bar — always in tree when on music page; opacity controlled by
                miniBarAlpha (Animated.Value) so it appears synchronously on collapse ── */}
       {isOnMusicPage && (
