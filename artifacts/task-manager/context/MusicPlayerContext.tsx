@@ -155,7 +155,7 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         // Returning to foreground: if we were playing, ensure RNTP is still rolling.
         // Guard: don't resume if Apple Music intentionally holds the session —
         // the user switched sources and expects Apple Music to keep playing.
-        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl()) {
+        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
           wasPlayingBgRef.current = false;
           try {
             const state = await _TrackPlayer.getPlaybackState();

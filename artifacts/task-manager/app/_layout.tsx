@@ -32,6 +32,7 @@ import { HeaderImageProvider } from "@/context/HeaderImageContext";
 import { GoogleCalendarProvider } from "@/context/GoogleCalendarContext";
 import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
 import { AppleMusicPlayerProvider } from "@/context/AppleMusicPlayerContext";
+import { SpotifyPlayerProvider } from "@/context/SpotifyPlayerContext";
 import { GlobalMusicPlayer } from "@/components/GlobalMusicPlayer";
 import { PlaybackService } from "@/service";
 
@@ -185,11 +186,13 @@ export default function RootLayout() {
                   <DrawerProvider>
                     <MusicPlayerProvider>
                       <AppleMusicPlayerProvider>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          <RootLayoutNav />
-                          <StartupGate />
-                          <GlobalMusicPlayer />
-                        </GestureHandlerRootView>
+                        <SpotifyPlayerProvider>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            <RootLayoutNav />
+                            <StartupGate />
+                            <GlobalMusicPlayer />
+                          </GestureHandlerRootView>
+                        </SpotifyPlayerProvider>
                       </AppleMusicPlayerProvider>
                     </MusicPlayerProvider>
                   </DrawerProvider>

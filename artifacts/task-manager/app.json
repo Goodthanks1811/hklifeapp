@@ -29,6 +29,11 @@
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.282558278089-o57471aniechfolmfsvhbfghiljct4d6"
             ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "hk-life-app"
+            ]
           }
         ]
       },

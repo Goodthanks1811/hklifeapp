@@ -1,4 +1,5 @@
 const IS_DEV = process.env.APP_VARIANT === 'development';
+const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
 
 module.exports = {
   expo: {
@@ -25,6 +26,12 @@ module.exports = {
         NSFaceIDUsageDescription: 'HK Life uses Face ID to lock the app.',
         NSAppleMusicUsageDescription: 'HK Life needs access to your Apple Music library to show and play your playlists.',
         UIBackgroundModes: ['audio'],
+        LSApplicationQueriesSchemes: ['spotify'],
+        CFBundleURLTypes: [
+          {
+            CFBundleURLSchemes: [IS_DEV ? 'hk-life-app-dev' : 'hk-life-app'],
+          },
+        ],
       },
     },
     android: {
@@ -77,6 +84,15 @@ module.exports = {
       ],
       'expo-screen-orientation',
       './plugins/withAppleMusicKit',
+      ...(SPOTIFY_CLIENT_ID ? [
+        [
+          'react-native-spotify-remote',
+          {
+            spotifyClientID: SPOTIFY_CLIENT_ID,
+            spotifyRedirectURL: IS_DEV ? 'hk-life-app-dev://spotify-callback' : 'hk-life-app://spotify-callback',
+          },
+        ],
+      ] : []),
     ],
     experiments: {
       typedRoutes: true,

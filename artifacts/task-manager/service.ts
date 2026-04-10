@@ -64,8 +64,8 @@ export async function PlaybackService() {
   TrackPlayer.addEventListener(Event.RemoteDuck, async (e: { paused: boolean; permanent: boolean }) => {
     try {
       if (e.paused) {
-        if (MusicSourceBus.appleMusicHasControl()) {
-          // Apple Music intentionally took the session — silence RNTP
+        if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) {
+          // Apple Music or Spotify intentionally took the session — silence RNTP
           await TrackPlayer.pause();
         } else if (e.permanent) {
           // Permanent interruption (e.g. answered phone call) — pause
@@ -74,7 +74,7 @@ export async function PlaybackService() {
         }
         // Non-permanent system interruption (notification, Siri, etc.):
         // do nothing — audio session stays active, iOS cannot kill the process
-      } else if (!e.permanent && !userPaused && !MusicSourceBus.appleMusicHasControl()) {
+      } else if (!e.permanent && !userPaused && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
         // Interruption ended — resume if the user didn't deliberately pause
         await TrackPlayer.play();
       }
