@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 let AppleMusicKit: any = null;
@@ -55,17 +56,54 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
   const nowPlayingRef = useRef(nowPlaying);
   nowPlayingRef.current = nowPlaying;
 
+  // Track whether the user explicitly paused, so foreground sync doesn't
+  // auto-resume when they intentionally stopped.
+  const userPausedRef = useRef(false);
+
   // Register our pause fn so My Music can silence us when it starts
   useEffect(() => {
     MusicSourceBus.registerPauseAppleMusic(() => {
       if (!AppleMusicKit) return;
       AppleMusicKit.pause().catch(() => {});
       setIsPlaying(false);
+      userPausedRef.current = true;
     });
+  }, []);
+
+  // ── AppState — re-sync playback state when returning from background ───────
+  // applicationQueuePlayer keeps playing when the phone is locked (it holds an
+  // active AVAudioSession + UIBackgroundModes: audio).  But if the session was
+  // interrupted (phone call, Siri, etc.) or our app was killed and relaunched,
+  // the player may have stopped while our JS isPlaying flag stayed true.
+  // On foreground: ask the native player for its actual state and reconcile.
+  // If the player stopped unexpectedly and the user hadn't paused, resume.
+  useEffect(() => {
+    const appStateRef = { current: AppState.currentState };
+    const sub = AppState.addEventListener("change", async (next: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (prev !== "active" && next === "active") {
+        if (!AppleMusicKit || !nowPlayingRef.current) return;
+        try {
+          const actuallyPlaying: boolean = await AppleMusicKit.isPlayingNative();
+          if (!actuallyPlaying && !userPausedRef.current) {
+            // Player stopped while we were backgrounded but the user didn't pause —
+            // resume (handles interruption-ended or brief session conflicts).
+            await AppleMusicKit.resumePlay();
+            setIsPlaying(true);
+          } else {
+            // Sync our UI to the real native state.
+            setIsPlaying(actuallyPlaying);
+          }
+        } catch {}
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const setNowPlaying = useCallback((np: AppleNowPlaying | null) => {
     if (np) MusicSourceBus.notifyAppleMusicPlaying(); // stop My Music before we start
+    userPausedRef.current = false; // new song = fresh start
     setNowPlayingState(np);
     setIsPlaying(np !== null);
     setPosMs(0);
@@ -96,11 +134,13 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
   // ── Controls ──────────────────────────────────────────────────────────────
   const pause = useCallback(async () => {
     if (!AppleMusicKit) return;
+    userPausedRef.current = true;
     try { await AppleMusicKit.pause(); setIsPlaying(false); } catch {}
   }, []);
 
   const play = useCallback(async () => {
     if (!AppleMusicKit) return;
+    userPausedRef.current = false;
     try { await AppleMusicKit.resumePlay(); setIsPlaying(true); } catch {}
   }, []);
 

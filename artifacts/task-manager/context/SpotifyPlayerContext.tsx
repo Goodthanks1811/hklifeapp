@@ -6,8 +6,12 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 import { getStoredTokens, clearStoredTokens } from "@/utils/SpotifyAuth";
+
+let AppleMusicKit: any = null;
+try { AppleMusicKit = require("apple-musickit"); } catch {}
 
 let SpotifyRemote: any     = null;
 let SpotifySession: any    = null;
@@ -134,6 +138,42 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
       try { await SpotifyRemote?.pause?.(); } catch {}
       setIsPlaying(false);
     });
+  }, []);
+
+  // ── Silent background keepalive ────────────────────────────────────────────
+  // When Spotify is the active source our process has no AVAudioSession (the
+  // Spotify app owns the audio).  Register start/stop callbacks with MusicSourceBus
+  // so the session is maintained via a 0-amplitude PCM loop (MixWithOthers) in
+  // the native AppleMusicKitModule, preventing iOS from killing us under memory
+  // pressure when the phone is locked.
+  useEffect(() => {
+    MusicSourceBus.registerStartKeepalive(() => {
+      AppleMusicKit?.startSilentKeepAlive?.().catch(() => {});
+    });
+    MusicSourceBus.registerStopKeepalive(() => {
+      AppleMusicKit?.stopSilentKeepAlive?.().catch(() => {});
+    });
+  }, []);
+
+  // ── AppState — reconnect Spotify remote when returning to foreground ───────
+  // The Spotify remote connection can drop while our app is backgrounded.
+  // Re-running ensureRemoteConnected() on 'active' restores it silently so the
+  // next user interaction (play/pause/seek) works without a manual reconnect.
+  useEffect(() => {
+    const appStateRef = { current: AppState.currentState };
+    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (prev !== "active" && next === "active") {
+        // Re-establish remote connection in the background; don't block UI.
+        if (REMOTE_AVAILABLE && nowPlayingRef.current) {
+          _remoteConnected  = false; // force reconnect attempt
+          _connectingRemote = false;
+          ensureRemoteConnected().catch(() => {});
+        }
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const setNowPlaying = useCallback((np: SpotifyNowPlaying | null) => {
