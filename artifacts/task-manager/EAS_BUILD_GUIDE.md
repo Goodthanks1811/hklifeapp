@@ -761,3 +761,56 @@ Creates an offscreen `MPVolumeView` (-2000, -2000), attaches it to the key windo
 - Wrapped `MusicSourceBus.notifyMyMusicPlaying()` in `try { } catch {}` in `MusicPlayerContext.tsx` so cross-source mute never aborts the playback call.
 
 **Rule**: Always export every method from `apple-musickit/index.ts` that any context or screen calls. Any MusicSourceBus notification call should be guarded with try/catch since it invokes external callbacks that may fail.
+
+---
+
+### 19. App force-quits while music is playing (My Music & Apple Music) on iOS 26
+
+**Symptom**: Music stops mid-song and the app requires Face ID to reopen (cold-launch kill, not a crash). Happens with both My Music (RNTP) and Apple Music (applicationQueuePlayer). Happens even with RepeatMode.Queue set and the 5-second JS watchdog in service.ts running.
+
+**Root cause**: RNTP's native `configureAudioSession()` calls `deactivateSession()` whenever `currentItem == nil`. This window occurs during every track transition and RepeatMode.Queue wrap-around (last→first track). In previous iOS versions, the app was given ~30 seconds of grace after session deactivation to reactivate before being killed. On **iOS 26 Apple significantly tightened this grace period**: the JS thread can be suspended within seconds of the session dropping, meaning the JS watchdog (service.ts `setInterval` at 5 s) and even the `PlaybackActiveTrackChanged` event handler may never fire.
+
+**Fix** (`ios/AppleMusicKitModule.swift`): Added a **native Swift Timer (`Timer.scheduledTimer`, 2 s interval)** that calls `AVAudioSession.sharedInstance().setActive(true)` at the native level, completely independently of the JS thread. This timer runs on the main run loop and is unaffected by JS thread suspension.
+
+New private members:
+```swift
+private var nativeWatchdog: Timer?
+```
+
+New private methods:
+- `startNativeWatchdog()` — invalidates any existing timer, immediately calls `reactivateSession()`, then schedules a 2-second repeating `Timer`.
+- `stopNativeWatchdog()` — invalidates and nils the timer.
+- `reactivateSession()` — calls `AVAudioSession.sharedInstance().setActive(true)` only (no category change, so it doesn't stomp MixWithOthers set by the Spotify keepalive).
+
+New `AsyncFunction` exports: `startNativeWatchdog`, `stopNativeWatchdog`.
+
+**Wiring** (`utils/MusicSourceBus.ts`):
+- Added `_startWatchdog` / `_stopWatchdog` callbacks and `registerStartWatchdog` / `registerStopWatchdog`.
+- `notifyMyMusicPlaying()` → `_stopKeepalive?.()` then `_startWatchdog?.()`.
+- `notifyAppleMusicPlaying()` → `_stopKeepalive?.()` then `_startWatchdog?.()`.
+- `notifySpotifyPlaying()` → `_stopWatchdog?.()` first (prevent category conflict), then `_startKeepalive?.()`.
+
+**Wiring** (`context/SpotifyPlayerContext.tsx`): Extended the existing keepalive `useEffect` to also register the watchdog callbacks pointing at `AppleMusicKit.startNativeWatchdog()` / `stopNativeWatchdog()`.
+
+**Result**: Whenever My Music or Apple Music starts playing, a native Swift timer fires every 2 seconds calling `setActive(true)`. Even if RNTP deactivates the session during a track transition and iOS immediately suspends the JS thread, the native timer fires within 2 seconds and repairs the session — well within any grace period on any iOS version.
+
+**Rule**: Do not rely solely on JS watchdogs for background audio session management on iOS 26+. Always pair them with a native-level timer in the Swift module that runs independently of the JS thread.
+
+---
+
+### 20. CRITICAL: Background keepalive, isPlayingNative, and native watchdog all silently no-ops
+
+**Symptom**: App continues to be killed during background audio (both My Music and Spotify), foreground state recovery after backgrounding doesn't work, and all new watchdog calls have no effect.
+
+**Root cause**: `modules/apple-musickit/index.ts` was only updated with a subset of the functions added to `AppleMusicKitModule.swift`. Every time a new `AsyncFunction` is added to the native Swift module, it MUST also be exported from `index.ts`. Any context that imports via `require("apple-musickit")` (typed as `any`) and uses optional chaining (`?.`) will silently no-op if the export is missing — no error, no warning, nothing.
+
+The following functions were added to the Swift module but **not** exported from `index.ts`:
+- `startSilentKeepAlive` — Spotify background keepalive (plays silent PCM buffer with MixWithOthers)
+- `stopSilentKeepAlive` — stops the above
+- `isPlayingNative` — queries `applicationQueuePlayer.playbackState` (used for Apple Music foreground sync)
+- `startNativeWatchdog` — 2-second native Swift Timer that calls `setActive(true)` independently of JS
+- `stopNativeWatchdog` — stops the above
+
+**Fix**: Added all five missing exports to `modules/apple-musickit/index.ts`.
+
+**Rule**: Every `AsyncFunction` added to `AppleMusicKitModule.swift` MUST have a corresponding export in `modules/apple-musickit/index.ts`. After adding any native function, ALWAYS verify index.ts contains it. The `?.` optional chaining used in every call site (`AppleMusicKit?.someNewFn?.()`) will silently no-op if the export is missing — this is extremely easy to miss.

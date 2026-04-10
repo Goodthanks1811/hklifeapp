@@ -13,6 +13,14 @@ let _expandPlayer:    ExpandFn    | null = null;
 let _startKeepalive: KeepaliveFn | null = null;
 let _stopKeepalive:  KeepaliveFn | null = null;
 
+// Native-level audio-session watchdog for My Music & Apple Music.
+// Registered by SpotifyPlayerContext (which has AppleMusicKit imported).
+// startNativeWatchdog() fires a Swift Timer every 2 s that calls setActive(true)
+// independently of the JS thread — survives iOS 26's tightened background grace period.
+// stopNativeWatchdog() is called when Spotify takes over (keepalive handles it instead).
+let _startWatchdog: KeepaliveFn | null = null;
+let _stopWatchdog:  KeepaliveFn | null = null;
+
 let _appleMusicHasControl = false;
 let _spotifyHasControl    = false;
 
@@ -33,6 +41,15 @@ export const MusicSourceBus = {
   registerStartKeepalive:  (fn: KeepaliveFn) => { _startKeepalive = fn; },
   registerStopKeepalive:   (fn: KeepaliveFn) => { _stopKeepalive  = fn; },
 
+  // Registered by SpotifyPlayerContext on mount.
+  registerStartWatchdog:   (fn: KeepaliveFn) => { _startWatchdog  = fn; },
+  registerStopWatchdog:    (fn: KeepaliveFn) => { _stopWatchdog   = fn; },
+
+  // Direct trigger — called from MusicPlayerContext / AppleMusicPlayerContext
+  // when play/pause happens within the same source (no source switch involved).
+  startWatchdog: () => { _startWatchdog?.(); },
+  stopWatchdog:  () => { _stopWatchdog?.();  },
+
   appleMusicHasControl: () => _appleMusicHasControl,
   spotifyHasControl:    () => _spotifyHasControl,
 
@@ -49,6 +66,8 @@ export const MusicSourceBus = {
     _pauseSpotify?.();
     // RNTP will own the audio session — keepalive not needed.
     _stopKeepalive?.();
+    // Start native watchdog so the session survives RNTP's nil-window deactivations.
+    _startWatchdog?.();
   },
 
   notifyAppleMusicPlaying: () => {
@@ -58,6 +77,8 @@ export const MusicSourceBus = {
     _pauseSpotify?.();
     // applicationQueuePlayer creates its own active session — keepalive not needed.
     _stopKeepalive?.();
+    // Start native watchdog to keep the session alive in background.
+    _startWatchdog?.();
   },
 
   notifySpotifyPlaying: () => {
@@ -65,6 +86,10 @@ export const MusicSourceBus = {
     _spotifyHasControl    = true;
     _pauseMyMusic?.();
     _pauseAppleMusic?.();
+    // Stop the native watchdog before starting the keepalive — the keepalive
+    // sets MixWithOthers; the watchdog must not call setActive after that to
+    // avoid overriding Spotify's session configuration.
+    _stopWatchdog?.();
     // Spotify audio lives in the Spotify app process (IPC only from our side).
     // Start silent keepalive so our process holds an AVAudioSession and survives
     // background / lock-screen without being killed by iOS memory pressure.

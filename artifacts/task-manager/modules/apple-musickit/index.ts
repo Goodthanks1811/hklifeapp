@@ -77,3 +77,23 @@ export function setVolume(volume: number): Promise<void> {
 export function getHKArtworkFileURI(): Promise<string> {
   return AM.getHKArtworkFileURI();
 }
+
+export function startSilentKeepAlive(): Promise<void> {
+  return AM.startSilentKeepAlive();
+}
+
+export function stopSilentKeepAlive(): Promise<void> {
+  return AM.stopSilentKeepAlive();
+}
+
+export function isPlayingNative(): Promise<boolean> {
+  return AM.isPlayingNative();
+}
+
+export function startNativeWatchdog(): Promise<void> {
+  return AM.startNativeWatchdog();
+}
+
+export function stopNativeWatchdog(): Promise<void> {
+  return AM.stopNativeWatchdog();
+}

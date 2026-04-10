@@ -153,6 +153,15 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     MusicSourceBus.registerStopKeepalive(() => {
       AppleMusicKit?.stopSilentKeepAlive?.().catch(() => {});
     });
+    // Native watchdog: a Swift Timer (2 s) that calls setActive(true) at the
+    // native level — independent of the JS thread.  Keeps the AVAudioSession
+    // alive through RNTP's nil-window deactivations on iOS 26.
+    MusicSourceBus.registerStartWatchdog(() => {
+      AppleMusicKit?.startNativeWatchdog?.().catch?.(() => {});
+    });
+    MusicSourceBus.registerStopWatchdog(() => {
+      AppleMusicKit?.stopNativeWatchdog?.().catch?.(() => {});
+    });
   }, []);
 
   // ── AppState — reconnect Spotify remote when returning to foreground ───────
