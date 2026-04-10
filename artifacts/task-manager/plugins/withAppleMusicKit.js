@@ -449,27 +449,34 @@ end
         // Re-read in case we just modified it
         podfile = fs.readFileSync(podfilePath, 'utf8');
 
-        // Layer 2b: append a Podfile post_install hook that re-applies the SpotifyiOS binary swap
-        // after pod install (in case pnpm reinstalled and restored the original).
+        // Layer 2b: inject SpotifyiOS binary swap INTO the existing post_install block.
+        // CocoaPods 1.16.2 made multiple post_install hooks an error. We must merge
+        // into the single existing post_install block that react_native_post_install uses.
+        // Anchor: the closing ')' + '  end' + 'end' that closes post_install + target.
         const spotifyMarker = '# [HKLifeApp] SpotifyiOS arm64 fix';
         if (!podfile.includes(spotifyMarker)) {
-          const hook = `
-${spotifyMarker}
-post_install do |installer|
-  require 'fileutils'
-  spotify_base = File.join(__dir__, '..', 'node_modules', 'react-native-spotify-remote', 'ios', 'external', 'SpotifySDK')
-  src  = File.join(spotify_base, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework', 'SpotifyiOS')
-  dest = File.join(spotify_base, 'SpotifyiOS.framework', 'SpotifyiOS')
-  if File.exist?(src) && File.exist?(dest)
-    FileUtils.cp(src, dest)
-    puts '[HKLifeApp] Layer 2b: replaced SpotifyiOS.framework binary with arm64 xcframework binary \u2713'
-  else
-    puts '[HKLifeApp] Layer 2b: SpotifyiOS binaries not found — skipping'
-  end
-end
-`;
-          fs.appendFileSync(podfilePath, hook, 'utf8');
-          console.log('[withAppleMusicKit] Layer 2b: appended SpotifyiOS arm64 fix to Podfile ✓');
+          const spotifyCode = `
+    ${spotifyMarker}
+    require 'fileutils'
+    _spotify_base = File.join(__dir__, '..', 'node_modules', 'react-native-spotify-remote', 'ios', 'external', 'SpotifySDK')
+    _spotify_src  = File.join(_spotify_base, 'SpotifyiOS.xcframework', 'ios-arm64_armv7', 'SpotifyiOS.framework', 'SpotifyiOS')
+    _spotify_dest = File.join(_spotify_base, 'SpotifyiOS.framework', 'SpotifyiOS')
+    if File.exist?(_spotify_src) && File.exist?(_spotify_dest)
+      FileUtils.cp(_spotify_src, _spotify_dest)
+      puts '[HKLifeApp] Layer 2b: replaced SpotifyiOS.framework binary with arm64 xcframework binary \u2713'
+    end`;
+          // Expo always generates this exact closing pattern for the post_install block:
+          //   "    )\n  end\nend\n"  (react_native_post_install close → post_install end → target end)
+          // We insert our code between the last ')' and the post_install 'end'.
+          const anchor = '\n  end\nend\n';
+          const anchorIdx = podfile.lastIndexOf(anchor);
+          if (anchorIdx !== -1) {
+            podfile = podfile.slice(0, anchorIdx) + spotifyCode + '\n' + podfile.slice(anchorIdx);
+            fs.writeFileSync(podfilePath, podfile, 'utf8');
+            console.log('[withAppleMusicKit] Layer 2b: injected SpotifyiOS fix into existing post_install ✓');
+          } else {
+            console.warn('[withAppleMusicKit] Layer 2b: could not find post_install closing anchor — skipping');
+          }
         } else {
           console.log('[withAppleMusicKit] Layer 2b: Podfile already has SpotifyiOS fix');
         }
