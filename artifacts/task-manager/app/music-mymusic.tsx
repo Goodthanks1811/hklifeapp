@@ -769,15 +769,9 @@ export default function MusicMyMusicScreen() {
           <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: plSlide }] }]}>
             {selPl && (
               <>
-                {/* Sub-header: back + name + add */}
+                {/* Sub-header: playlist name */}
                 <View style={st.plDetailHeader}>
-                  <Pressable onPress={closePlaylist} hitSlop={12} style={st.plDetailBack}>
-                    <Feather name="chevron-left" size={26} color="#fff" />
-                  </Pressable>
                   <Text style={st.plDetailTitle} numberOfLines={1}>{selPl.name}</Text>
-                  <Pressable onPress={() => pickFiles(selPl.id)} hitSlop={12} style={st.plDetailAdd}>
-                    <Feather name="plus" size={22} color="#fff" />
-                  </Pressable>
                 </View>
 
                 {(selPl.tracks ?? []).length === 0 ? (
@@ -989,12 +983,9 @@ const st = StyleSheet.create({
 
   // Playlist detail sub-header
   plDetailHeader: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, gap: 8,
+    paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12,
   },
-  plDetailBack: { padding: 4 },
-  plDetailTitle: { flex: 1, color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  plDetailAdd:  { padding: 4 },
+  plDetailTitle: { color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
 
   // Playlist rows
   plRow: {
