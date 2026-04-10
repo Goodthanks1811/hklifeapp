@@ -1269,13 +1269,6 @@ export default function SettingsScreen() {
               )}
             </SubAccordion>
 
-          </View>
-        </Accordion>
-
-        {/* ══ MUSIC ════════════════════════════════════════════════════════════ */}
-        <Accordion title="Music" icon="music" defaultOpen={false}>
-          <View style={styles.accordionBody}>
-
             {/* ── Spotify Client ID ── */}
             <SubAccordion title="Spotify" icon="music" defaultOpen={false}>
               <View style={styles.statusRow}>
@@ -1326,6 +1319,13 @@ export default function SettingsScreen() {
                 )}
               </TouchableOpacity>
             </SubAccordion>
+
+          </View>
+        </Accordion>
+
+        {/* ══ MUSIC ════════════════════════════════════════════════════════════ */}
+        <Accordion title="Music" icon="music" defaultOpen={false}>
+          <View style={styles.accordionBody}>
 
             {/* ── Spotify Playlists ── */}
             <SubAccordion title="Spotify Playlists" icon="headphones" defaultOpen={false}>
