@@ -440,6 +440,30 @@ config = withInfoPlist(config, (cfg) => {
 
 ---
 
+### 15. Pod install fails in 3 seconds — `pod install exited with non-zero code: 1`
+
+**Symptom**: EAS build fails at "Install pods" step in ~3 seconds. Prebuild succeeds (10s). Podfile is syntactically valid and prebuild runs cleanly locally.
+
+**Likely cause**: Expo SDK 54 with `newArchEnabled: true` causes the generated Podfile to set `RCT_USE_PREBUILT_RNCORE=1` and `RCT_USE_RN_DEP=1`. These cause CocoaPods to download pre-compiled React Native binaries from Expo's CDN instead of compiling from source. If the CDN is unreachable or the prebuilt binary for this exact RN version is unavailable, pod install fails immediately.
+
+The Podfile lines responsible:
+```ruby
+ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+```
+The `||=` (assign if nil/falsy) means setting these to `"0"` in the EAS env BEFORE pod install prevents the Podfile from overriding them (Ruby treats `"0"` as truthy).
+
+**Fix**: Add to `eas.json` under the `preview` profile env:
+```json
+"RCT_USE_PREBUILT_RNCORE": "0",
+"RCT_USE_RN_DEP": "0"
+```
+This forces CocoaPods to compile React Native from source, which is slower but doesn't depend on Expo's CDN.
+
+**Rule**: `RCT_USE_PREBUILT_RNCORE=0` and `RCT_USE_RN_DEP=0` are now set in `eas.json` for the `preview` profile. Build times will be longer (~20-40 min extra) but pod install is reliable.
+
+---
+
 ## Dependency Version Reference
 
 These are the exact pinned versions required for a successful build with Expo 54 / React Native 0.81 on iOS 26 beta:
