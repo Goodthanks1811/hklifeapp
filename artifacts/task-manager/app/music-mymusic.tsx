@@ -669,6 +669,9 @@ export default function MusicMyMusicScreen() {
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={st.pageTitle}>My Music</Text>
+          <Animated.Text style={[st.plSubtitle, { opacity: slideAnim }]} numberOfLines={1}>
+            {selPl?.name ?? ""}
+          </Animated.Text>
           <Pressable style={st.backZone} onPress={goBack} />
         </View>
 
@@ -770,11 +773,6 @@ export default function MusicMyMusicScreen() {
           <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: plSlide }] }]}>
             {selPl && (
               <>
-                {/* Sub-header: playlist name */}
-                <View style={st.plDetailHeader}>
-                  <Text style={st.plDetailTitle} numberOfLines={1}>{selPl.name}</Text>
-                </View>
-
                 {(selPl.tracks ?? []).length === 0 ? (
                   <View style={st.emptyState}>
                     <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
@@ -970,7 +968,7 @@ const st = StyleSheet.create({
   pageTitle: {
     textAlign: "center", color: "#fff",
     fontSize: 17, fontFamily: "Inter_600SemiBold",
-    paddingTop: 8, paddingBottom: 10,
+    paddingTop: 8, paddingBottom: 2,
   },
 
   list: { flex: 1 },
@@ -982,11 +980,11 @@ const st = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 12, marginTop: 4,
   },
 
-  // Playlist detail sub-header
-  plDetailHeader: {
-    paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12,
+  // Playlist name subtitle in header
+  plSubtitle: {
+    color: RED, fontSize: 11, fontFamily: "Inter_500Medium",
+    textAlign: "center", marginTop: 1, paddingBottom: 6,
   },
-  plDetailTitle: { color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold" },
 
   // Playlist rows
   plRow: {
