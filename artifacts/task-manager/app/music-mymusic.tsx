@@ -198,6 +198,7 @@ export default function MusicMyMusicScreen() {
   const player   = useMusicPlayer();
 
   // ── Tracks ────────────────────────────────────────────────────────────────
+  const [isLoaded, setIsLoaded] = useState(false);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const tracksRef = useRef<MusicTrack[]>([]);
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
@@ -287,6 +288,7 @@ export default function MusicMyMusicScreen() {
         setPlaylists(migrated);
         await AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(migrated));
       }
+      setIsLoaded(true);
     })();
   }, []);
 
@@ -556,7 +558,7 @@ export default function MusicMyMusicScreen() {
     onPanResponderTerminate: () => endDrag(),
   }), [animatePositions, endDrag]);
 
-  const isEmpty = tracks.length === 0 && playlists.length === 0;
+  const isEmpty = isLoaded && tracks.length === 0 && playlists.length === 0;
 
   return (
     <View style={[st.root, { paddingTop: insets.top }]}>
