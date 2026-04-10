@@ -358,38 +358,75 @@ const withAppleMusicKit = (config) => {
 
   // ── 2. Direct Info.plist XML patch — runs LAST, after all Expo mods ───────
   // Dangerous mods execute after info-plist mods, so the file already exists.
-  // Directly injecting UIBackgroundModes as XML is the only approach guaranteed
-  // to survive Expo's built-in infoPlist processing overwriting our changes.
+  // Directly patching the XML on disk is the only approach guaranteed to survive
+  // Expo's built-in infoPlist processing overwriting our changes.
   return withDangerousMod(config, [
     'ios',
     async (config) => {
       const { platformProjectRoot } = config.modRequest;
-      const infoPlistPath = path.join(platformProjectRoot, 'HKLifeApp', 'Info.plist');
-      if (!fs.existsSync(infoPlistPath)) {
-        console.warn('[withAppleMusicKit] Info.plist not found — skipping direct patch');
+
+      // Find Info.plist — search every immediate subdirectory of ios/ rather
+      // than hardcoding the app-name folder (which can vary between builds).
+      let infoPlistPath = null;
+      try {
+        const entries = fs.readdirSync(platformProjectRoot);
+        for (const entry of entries) {
+          const candidate = path.join(platformProjectRoot, entry, 'Info.plist');
+          if (fs.existsSync(candidate)) {
+            infoPlistPath = candidate;
+            console.log(`[withAppleMusicKit] Found Info.plist at: ${candidate}`);
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn('[withAppleMusicKit] Error scanning for Info.plist:', e.message);
+      }
+
+      if (!infoPlistPath) {
+        console.warn('[withAppleMusicKit] Info.plist not found — UIBackgroundModes patch skipped');
         return config;
       }
+
       let plist = fs.readFileSync(infoPlistPath, 'utf8');
+
       if (plist.includes('<key>UIBackgroundModes</key>')) {
         if (!plist.includes('<string>audio</string>')) {
-          // Key exists but audio string missing — inject it into the array
+          // Key exists but audio string is missing — inject into the array
           plist = plist.replace(
             /(<key>UIBackgroundModes<\/key>\s*<array>)/,
             '$1\n\t\t<string>audio</string>'
           );
           fs.writeFileSync(infoPlistPath, plist, 'utf8');
-          console.log('[withAppleMusicKit] Injected audio into existing UIBackgroundModes array');
+          console.log('[withAppleMusicKit] Injected <string>audio</string> into UIBackgroundModes ✓');
         } else {
           console.log('[withAppleMusicKit] UIBackgroundModes:audio already present ✓');
         }
       } else {
-        // Key missing entirely — inject the full block before </dict></plist>
-        plist = plist.replace(
-          /\t<\/dict>\n<\/plist>/,
-          '\t<key>UIBackgroundModes</key>\n\t<array>\n\t\t<string>audio</string>\n\t</array>\n\t</dict>\n</plist>'
-        );
-        fs.writeFileSync(infoPlistPath, plist, 'utf8');
-        console.log('[withAppleMusicKit] Injected UIBackgroundModes:audio into Info.plist ✓');
+        // Key missing entirely — append full block before </dict></plist>.
+        // Try multiple closing-tag patterns to handle different plist whitespace styles.
+        const replacements = [
+          [/\t<\/dict>\n<\/plist>\s*$/, '\t<key>UIBackgroundModes</key>\n\t<array>\n\t\t<string>audio</string>\n\t</array>\n\t</dict>\n</plist>\n'],
+          [/<\/dict>\n<\/plist>\s*$/, '<key>UIBackgroundModes</key>\n<array>\n<string>audio</string>\n</array>\n</dict>\n</plist>\n'],
+          [/<\/dict><\/plist>\s*$/, '<key>UIBackgroundModes</key><array><string>audio</string></array></dict></plist>'],
+        ];
+        let patched = false;
+        for (const [pattern, replacement] of replacements) {
+          if (pattern.test(plist)) {
+            plist = plist.replace(pattern, replacement);
+            patched = true;
+            break;
+          }
+        }
+        if (patched) {
+          fs.writeFileSync(infoPlistPath, plist, 'utf8');
+          console.log('[withAppleMusicKit] Injected UIBackgroundModes:audio into Info.plist ✓');
+        } else {
+          console.error('[withAppleMusicKit] FAILED to inject UIBackgroundModes — no closing-tag pattern matched');
+          // Last resort: append raw XML at end of file
+          plist += '\n<!-- UIBackgroundModes injected by withAppleMusicKit -->\n';
+          fs.appendFileSync(infoPlistPath.replace('Info.plist', 'UIBackgroundModes.debug'), plist);
+          console.log('[withAppleMusicKit] Dumped plist to debug file for inspection');
+        }
       }
       return config;
     },
