@@ -654,32 +654,34 @@ export default function MusicMyMusicScreen() {
         animationType="fade"
         onRequestClose={() => setShowEQMenu(false)}
       >
-        <Pressable style={st.modalOverlay} onPress={() => setShowEQMenu(false)}>
-          <Animated.View style={st.actionSheet}>
-            <View style={st.sheetHandle} />
+        <Pressable style={st.popupOverlay} onPress={() => setShowEQMenu(false)}>
+          <Pressable onPress={() => {}}>
+            <View style={st.popupCard}>
+              <Pressable
+                style={st.menuRow}
+                onPress={() => { setShowEQMenu(false); schedulePick(); }}
+              >
+                <Feather name="music" size={18} color={RED} />
+                <Text style={st.menuRowText}>Add Songs</Text>
+              </Pressable>
 
-            <Pressable
-              style={st.sheetOption}
-              onPress={() => { setShowEQMenu(false); schedulePick(); }}
-            >
-              <Feather name="music" size={18} color={RED} />
-              <Text style={st.sheetOptionTitle}>Add Songs</Text>
-            </Pressable>
+              <View style={st.menuDivider} />
 
-            <View style={st.sheetDivider} />
+              <Pressable
+                style={st.menuRow}
+                onPress={() => { setShowEQMenu(false); setTimeout(() => { setShowNewPL(true); setTimeout(() => newPLInputRef.current?.focus(), 100); }, 300); }}
+              >
+                <Feather name="folder-plus" size={18} color={RED} />
+                <Text style={st.menuRowText}>New Playlist</Text>
+              </Pressable>
 
-            <Pressable
-              style={st.sheetOption}
-              onPress={() => { setShowEQMenu(false); setTimeout(() => { setShowNewPL(true); setTimeout(() => newPLInputRef.current?.focus(), 100); }, 300); }}
-            >
-              <Feather name="folder-plus" size={18} color={RED} />
-              <Text style={st.sheetOptionTitle}>New Playlist</Text>
-            </Pressable>
+              <View style={[st.menuDivider, { marginTop: 4 }]} />
 
-            <Pressable style={st.sheetCancel} onPress={() => setShowEQMenu(false)}>
-              <Text style={st.sheetCancelText}>Cancel</Text>
-            </Pressable>
-          </Animated.View>
+              <Pressable style={st.menuCancel} onPress={() => setShowEQMenu(false)}>
+                <Text style={st.menuCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -690,43 +692,46 @@ export default function MusicMyMusicScreen() {
         animationType="fade"
         onRequestClose={() => setPlMenuId(null)}
       >
-        <Pressable style={st.modalOverlay} onPress={() => setPlMenuId(null)}>
-          <Animated.View style={st.actionSheet}>
-            <View style={st.sheetHandle} />
-            <Text style={st.sheetTitle}>
-              {playlists.find(p => p.id === plMenuId)?.name ?? ""}
-            </Text>
+        <Pressable style={st.popupOverlay} onPress={() => setPlMenuId(null)}>
+          <Pressable onPress={() => {}}>
+            <View style={st.popupCard}>
+              <Text style={st.popupTitle}>
+                {playlists.find(p => p.id === plMenuId)?.name ?? ""}
+              </Text>
 
-            <Pressable
-              style={st.sheetOption}
-              onPress={() => {
-                const id = plMenuId;
-                setPlMenuId(null);
-                schedulePick(id ?? undefined);
-              }}
-            >
-              <Feather name="plus-circle" size={18} color={RED} />
-              <Text style={st.sheetOptionTitle}>Add Songs</Text>
-            </Pressable>
+              <Pressable
+                style={st.menuRow}
+                onPress={() => {
+                  const id = plMenuId;
+                  setPlMenuId(null);
+                  schedulePick(id ?? undefined);
+                }}
+              >
+                <Feather name="plus-circle" size={18} color={RED} />
+                <Text style={st.menuRowText}>Add Songs</Text>
+              </Pressable>
 
-            <View style={st.sheetDivider} />
+              <View style={st.menuDivider} />
 
-            <Pressable
-              style={st.sheetOption}
-              onPress={() => {
-                const id = plMenuId;
-                setPlMenuId(null);
-                if (id) deletePlaylist(id);
-              }}
-            >
-              <Feather name="trash-2" size={18} color={RED} />
-              <Text style={[st.sheetOptionTitle, { color: RED }]}>Delete Playlist</Text>
-            </Pressable>
+              <Pressable
+                style={st.menuRow}
+                onPress={() => {
+                  const id = plMenuId;
+                  setPlMenuId(null);
+                  if (id) deletePlaylist(id);
+                }}
+              >
+                <Feather name="trash-2" size={18} color={RED} />
+                <Text style={[st.menuRowText, { color: RED }]}>Delete Playlist</Text>
+              </Pressable>
 
-            <Pressable style={st.sheetCancel} onPress={() => setPlMenuId(null)}>
-              <Text style={st.sheetCancelText}>Cancel</Text>
-            </Pressable>
-          </Animated.View>
+              <View style={[st.menuDivider, { marginTop: 4 }]} />
+
+              <Pressable style={st.menuCancel} onPress={() => setPlMenuId(null)}>
+                <Text style={st.menuCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -868,39 +873,17 @@ const st = StyleSheet.create({
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  // Modal / action sheet
-  modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "flex-end",
-  },
-  actionSheet: {
-    backgroundColor: "#000",
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderTopWidth: 1, borderColor: BORDER,
-    paddingBottom: 34,
-  },
-  sheetHandle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: "#444", alignSelf: "center",
-    marginTop: 10, marginBottom: 16,
-  },
-  sheetTitle: {
-    color: GREY, fontSize: 13, fontFamily: "Inter_400Regular",
-    textAlign: "center", marginBottom: 12, paddingHorizontal: 20,
-  },
-  sheetOption: {
+  // Popup menu rows (shared by EQ menu + playlist menu)
+  menuRow: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 20, paddingVertical: 16,
+    paddingVertical: 15,
   },
-  sheetOptionTitle: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  sheetDivider:     { height: 1, backgroundColor: BORDER, marginHorizontal: 20 },
-  sheetCancel: {
-    marginTop: 8, marginHorizontal: 16,
-    backgroundColor: "#000",
-    borderWidth: 1, borderColor: BORDER,
-    borderRadius: 13, paddingVertical: 15, alignItems: "center",
+  menuRowText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  menuDivider: { height: 1, backgroundColor: BORDER, marginVertical: 4 },
+  menuCancel: {
+    paddingVertical: 15, alignItems: "center",
   },
-  sheetCancelText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  menuCancelText: { color: GREY, fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
   // New playlist centered popup
   popupOverlay: {
