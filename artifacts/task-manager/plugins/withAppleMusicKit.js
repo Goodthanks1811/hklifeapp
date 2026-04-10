@@ -322,6 +322,52 @@ const withAppleMusicKit = (config) => {
     return cfg;
   });
 
+  // ── 0. Patch react-native-spotify-remote to use xcframework ───────────────
+  // SpotifyiOS.framework ships only i386/armv7/x86_64 — no arm64 → linker
+  // fails on every device build. The package also ships SpotifyiOS.xcframework
+  // (ios-arm64_armv7 slice) which has full arm64 support. Patch the podspec
+  // here (before pod install) to point at the xcframework instead.
+  config = withDangerousMod(config, [
+    'ios',
+    async (config) => {
+      const { projectRoot } = config.modRequest;
+      const podspecPath = path.join(
+        projectRoot,
+        'node_modules',
+        'react-native-spotify-remote',
+        'RNSpotifyRemote.podspec',
+      );
+      if (fs.existsSync(podspecPath)) {
+        let podspec = fs.readFileSync(podspecPath, 'utf8');
+        const before = podspec;
+        // Switch vendored framework from .framework (no arm64) to .xcframework (has arm64)
+        podspec = podspec.replace(
+          /s\.vendored_frameworks\s*=\s*["']ios\/external\/SpotifySDK\/SpotifyiOS\.framework["']/,
+          's.vendored_frameworks = "ios/external/SpotifySDK/SpotifyiOS.xcframework"',
+        );
+        // Switch preserve_path to xcframework
+        podspec = podspec.replace(
+          /s\.preserve_path\s*=\s*["']ios\/external\/SpotifySDK\/SpotifyiOS\.framework["']/,
+          's.preserve_path = "ios/external/SpotifySDK/SpotifyiOS.xcframework"',
+        );
+        // Fix source_files: point headers inside the arm64 slice of the xcframework
+        podspec = podspec.replace(
+          /["']ios\/external\/SpotifySDK\/SpotifyiOS\.framework\/\*\*\/Headers\/\*\.\{h,m\}["']/,
+          '"ios/external/SpotifySDK/SpotifyiOS.xcframework/ios-arm64_armv7/SpotifyiOS.framework/Headers/*.{h,m}"',
+        );
+        if (podspec !== before) {
+          fs.writeFileSync(podspecPath, podspec, 'utf8');
+          console.log('[withAppleMusicKit] Patched RNSpotifyRemote.podspec → xcframework ✓');
+        } else {
+          console.log('[withAppleMusicKit] RNSpotifyRemote.podspec already patched or pattern not found');
+        }
+      } else {
+        console.warn('[withAppleMusicKit] RNSpotifyRemote.podspec not found — skipping Spotify xcframework patch');
+      }
+      return config;
+    },
+  ]);
+
   // ── 1. Swift file + pbxproj patching ──────────────────────────────────────
   config = withDangerousMod(config, [
     'ios',

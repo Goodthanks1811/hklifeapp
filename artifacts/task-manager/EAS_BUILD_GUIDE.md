@@ -392,6 +392,30 @@ const watchdog = setInterval(async () => {
 
 ---
 
+### 13. Linker error: `SpotifyiOS.framework` fat file missing arch 'arm64'
+
+**Symptom**: Build fails at "Run fastlane" step with:
+```
+ld: warning: ignoring file '...SpotifyiOS.framework/SpotifyiOS': fat file missing arch 'arm64', file has 'i386,armv7,x86_64'
+Undefined symbols for architecture arm64:
+ld: symbol(s) not found for architecture arm64
+```
+
+**Root cause**: `react-native-spotify-remote@1.0.0-1` ships a legacy `SpotifyiOS.framework` that only contains `i386,armv7,x86_64` architectures — no arm64. Every iOS device since iPhone 5s is arm64. The linker ignores the framework entirely, then fails because all Spotify symbols are unresolved.
+
+The package also ships `SpotifyiOS.xcframework` (with `ios-arm64_armv7` and `ios-arm64_i386_x86_64-simulator` slices) but the `RNSpotifyRemote.podspec` hardcodes `.framework` not `.xcframework`.
+
+**Why it worked in build `f9dff714` but not `7ca91822`**: Before the lockfile fix, `react-native-spotify-remote@^1.1.4` (non-existent version) failed to install, so Spotify wasn't in `node_modules` and RNSpotifyRemote wasn't linked. After fixing the lockfile to `1.0.0-1`, the broken framework got linked.
+
+**Fix**: Config plugin (`withAppleMusicKit.js` step 0) that patches `RNSpotifyRemote.podspec` before pod install:
+- `vendored_frameworks` → `SpotifyiOS.xcframework`
+- `preserve_path` → `SpotifyiOS.xcframework`
+- `source_files` headers path → xcframework `ios-arm64_armv7` slice
+
+**Rule**: `react-native-spotify-remote@1.0.0-1` cannot be used with its bundled `.framework` on arm64 devices. Always patch to `.xcframework` via config plugin.
+
+---
+
 ### 12d. Background audio stops for ALL sources ~30 seconds after phone locks — UIBackgroundModes not taking effect
 
 **Symptom**: Music from both My Music (RNTP) and Apple Music (MPMusicPlayerController) stops ~30 seconds after the phone screen is locked. No notifications involved. App process is killed and a fresh launch (with Face ID prompt) is required.
