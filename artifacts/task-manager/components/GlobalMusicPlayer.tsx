@@ -432,9 +432,9 @@ export function GlobalMusicPlayer() {
           <View style={s.artZone}>
             <View style={s.artBg}>
               <Image
-                source={require("../assets/images/hk-artwork.png")}
+                source={require("../assets/images/hk-artwork-transparent.png")}
                 style={s.artImage}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             </View>
           </View>
@@ -576,9 +576,8 @@ const s = StyleSheet.create({
   },
   artZone: { marginTop: 8, alignItems: "center" },
   artBg: {
-    width: ART_SIZE, height: ART_SIZE, borderRadius: 16,
-    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#222",
-    alignItems: "center", justifyContent: "center", overflow: "hidden",
+    width: ART_SIZE, height: ART_SIZE,
+    alignItems: "center", justifyContent: "center",
   },
   artImage: { width: "100%", height: "100%" },
   trackBlock: { marginTop: 0 },
