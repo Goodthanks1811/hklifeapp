@@ -409,15 +409,52 @@ const withAppleMusicKit = (config) => {
         console.log('[withAppleMusicKit] react-native-worklets not present — skipping worklets_utils patch');
       }
 
-      // Layer 2: append a Podfile post_install hook that re-applies the swap
-      // after pod install (in case pnpm reinstalled and restored the original).
+      // Layer 2a: PREPEND a Ruby-level worklets_utils.rb patch to the Podfile.
+      // This runs in the same Ruby process as pod install, BEFORE CocoaPods
+      // loads any podspecs — so it patches the file before worklets raises.
+      // __dir__ inside the Podfile = the ios/ directory.
+      // Node.js __dirname equivalent: File.dirname(__FILE__) or __dir__ in Ruby.
+      // The patch is idempotent (marker prevents double-insertion on re-runs).
       const podfilePath = path.join(platformProjectRoot, 'Podfile');
       if (fs.existsSync(podfilePath)) {
-        const marker = '# [HKLifeApp] SpotifyiOS arm64 fix';
+        const workletsRubyMarker = '# [HKLifeApp] worklets_utils.rb patch';
         let podfile = fs.readFileSync(podfilePath, 'utf8');
-        if (!podfile.includes(marker)) {
+        if (!podfile.includes(workletsRubyMarker)) {
+          const workletsRubyPatch = `${workletsRubyMarker}
+# Patches react-native-worklets@0.5.x bug: File.path('./src/featureFlags/staticFlags.json')
+# is CWD-relative; pod install runs from ios/ so it fails. Fix it to use __dir__.
+begin
+  _wu_path = File.expand_path('../node_modules/react-native-worklets/scripts/worklets_utils.rb', __dir__)
+  if File.exist?(_wu_path)
+    _wu_content = File.read(_wu_path)
+    _wu_bad  = "static_feature_flags_path = File.path('./src/featureFlags/staticFlags.json')"
+    _wu_good = "static_feature_flags_path = File.expand_path('../src/featureFlags/staticFlags.json', __dir__)"
+    if _wu_content.include?(_wu_bad)
+      File.write(_wu_path, _wu_content.gsub(_wu_bad, _wu_good))
+      puts '[HKLifeApp] Patched worklets_utils.rb: staticFlags path is now __dir__-relative \u2713'
+    end
+  end
+rescue => _wu_err
+  puts "[HKLifeApp] Warning: worklets_utils.rb patch failed: #{_wu_err.message}"
+end
+
+`;
+          // Prepend so it runs before any require/use_native_modules calls
+          fs.writeFileSync(podfilePath, workletsRubyPatch + podfile, 'utf8');
+          console.log('[withAppleMusicKit] Layer 2a: prepended worklets_utils.rb Ruby patch to Podfile ✓');
+        } else {
+          console.log('[withAppleMusicKit] Layer 2a: Podfile already has worklets_utils.rb patch');
+        }
+
+        // Re-read in case we just modified it
+        podfile = fs.readFileSync(podfilePath, 'utf8');
+
+        // Layer 2b: append a Podfile post_install hook that re-applies the SpotifyiOS binary swap
+        // after pod install (in case pnpm reinstalled and restored the original).
+        const spotifyMarker = '# [HKLifeApp] SpotifyiOS arm64 fix';
+        if (!podfile.includes(spotifyMarker)) {
           const hook = `
-${marker}
+${spotifyMarker}
 post_install do |installer|
   require 'fileutils'
   spotify_base = File.join(__dir__, '..', 'node_modules', 'react-native-spotify-remote', 'ios', 'external', 'SpotifySDK')
@@ -425,19 +462,19 @@ post_install do |installer|
   dest = File.join(spotify_base, 'SpotifyiOS.framework', 'SpotifyiOS')
   if File.exist?(src) && File.exist?(dest)
     FileUtils.cp(src, dest)
-    puts '[HKLifeApp] Layer 2: replaced SpotifyiOS.framework binary with arm64 xcframework binary ✓'
+    puts '[HKLifeApp] Layer 2b: replaced SpotifyiOS.framework binary with arm64 xcframework binary \u2713'
   else
-    puts '[HKLifeApp] Layer 2: SpotifyiOS binaries not found — skipping'
+    puts '[HKLifeApp] Layer 2b: SpotifyiOS binaries not found — skipping'
   end
 end
 `;
           fs.appendFileSync(podfilePath, hook, 'utf8');
-          console.log('[withAppleMusicKit] Layer 2: appended SpotifyiOS arm64 fix to Podfile ✓');
+          console.log('[withAppleMusicKit] Layer 2b: appended SpotifyiOS arm64 fix to Podfile ✓');
         } else {
-          console.log('[withAppleMusicKit] Layer 2: Podfile already has SpotifyiOS fix');
+          console.log('[withAppleMusicKit] Layer 2b: Podfile already has SpotifyiOS fix');
         }
       } else {
-        console.warn('[withAppleMusicKit] Layer 2: Podfile not found — cannot append hook');
+        console.warn('[withAppleMusicKit] Layer 2: Podfile not found — cannot patch');
       }
 
       return config;
