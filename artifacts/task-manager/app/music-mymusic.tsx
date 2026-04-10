@@ -669,19 +669,21 @@ export default function MusicMyMusicScreen() {
 
         {/* Header */}
         <View style={st.headerArea}>
+          {/* Single pressable wraps EQ bars + title so the whole zone long-presses to the menu */}
           <Pressable
-            style={st.eqWrap}
+            style={st.headerLongPressZone}
             onPress={goBack}
             onLongPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               setShowEQMenu(true);
             }}
             delayLongPress={400}
-            hitSlop={{ top: 20, bottom: 20, left: 40, right: 40 }}
           >
-            {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
+            <View style={st.eqWrap}>
+              {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
+            </View>
+            <Text style={st.pageTitle}>My Music</Text>
           </Pressable>
-          <Text style={st.pageTitle}>My Music</Text>
           <Animated.Text style={[st.plSubtitle, { opacity: slideAnim }]} numberOfLines={1}>
             {selPl?.name ?? ""}
           </Animated.Text>
@@ -972,6 +974,10 @@ const st = StyleSheet.create({
     backgroundColor: BG, paddingTop: 28, paddingBottom: 4,
     alignItems: "center", position: "relative",
   },
+  headerLongPressZone: {
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
@@ -1070,7 +1076,7 @@ const st = StyleSheet.create({
   // New playlist centered popup
   popupOverlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.72)",
-    justifyContent: "center", paddingHorizontal: 24,
+    justifyContent: "center", paddingHorizontal: 52,
   },
   popupCard: {
     backgroundColor: "#000",

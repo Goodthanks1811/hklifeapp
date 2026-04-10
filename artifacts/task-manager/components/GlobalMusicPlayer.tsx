@@ -406,14 +406,14 @@ export function GlobalMusicPlayer() {
         >
           <Pressable
             style={[s.miniBarPressable, {
-              paddingTop: 5 + insets.bottom / 2,
-              paddingBottom: 5 + insets.bottom / 2,
+              paddingTop: 4 + insets.bottom / 4,
+              paddingBottom: 4 + insets.bottom / 4,
             }]}
             onPress={expand}
           >
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
             <View style={s.miniIcon}>
-              <Feather name="music" size={28} color={accentColor} />
+              <Feather name="music" size={20} color={accentColor} />
             </View>
 
             {/* Title + artist */}
@@ -427,7 +427,7 @@ export function GlobalMusicPlayer() {
               style={({ pressed }) => [s.miniPlayBtn, { backgroundColor: accentColor, transform: [{ scale: pressed ? 0.91 : 1 }] }]}
               onPress={(e) => { e.stopPropagation(); doToggle(); }}
             >
-              <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
+              <Ionicons name={isPlay ? "pause" : "play"} size={16} color="#fff" />
             </Pressable>
           </Pressable>
         </Animated.View>
@@ -578,10 +578,10 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingLeft: 22, paddingRight: 30, paddingTop: 14, paddingBottom: 14, gap: 14,
+    paddingLeft: 18, paddingRight: 22, paddingTop: 9, paddingBottom: 9, gap: 12,
   },
   miniIcon: {
-    width: 44, height: 44, borderRadius: 11,
+    width: 36, height: 36, borderRadius: 9,
     backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
@@ -589,13 +589,13 @@ const s = StyleSheet.create({
     flex: 1,
   },
   miniTitle: {
-    fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#fff",
+    fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff",
   },
   miniArtist: {
-    fontSize: 14, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
+    fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1,
   },
   miniPlayBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: RED,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
   },
 
