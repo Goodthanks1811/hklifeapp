@@ -31,12 +31,11 @@ import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
 
 const RED    = "#E03131";
 const BG     = "#111111";
-const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#888";
 
-const ITEM_H   = 52;
-const ITEM_GAP = 8;
+const ITEM_H   = 64;
+const ITEM_GAP = 10;
 const SLOT_H   = ITEM_H + ITEM_GAP;
 
 const BAR_COUNT   = 7;
@@ -112,7 +111,9 @@ function PlaylistTile({
         style={st.tile}
       >
         <View style={st.tileArtwork}>
-          <Feather name="music" size={28} color={RED} />
+          <View style={st.tileIconBox}>
+            <Feather name="music" size={26} color={RED} />
+          </View>
           {trackCount > 0 && (
             <View style={st.tileBadge}>
               <Text style={st.tileBadgeText}>{trackCount}</Text>
@@ -184,12 +185,25 @@ function TrackRow({
           onLongPress={() => { if (!revealedRef.current) onLongPress(); }}
           delayLongPress={200}
         >
+          {isActive && <View style={st.rowActiveLine} />}
           <View style={[st.rowIcon, isActive && st.rowIconActive]}>
-            <Feather name={isActive && isPlaying ? "volume-2" : "music"} size={16} color={RED} />
+            <Feather
+              name={isActive && isPlaying ? "volume-2" : "music"}
+              size={17}
+              color={isActive ? RED : "#555"}
+            />
           </View>
-          <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
-            {track.name}
-          </Text>
+          <View style={st.rowInfo}>
+            <Text style={[st.rowName, isActive && st.rowNamePlaying]} numberOfLines={1}>
+              {track.name}
+            </Text>
+            {isActive && (
+              <Text style={st.rowPlayingLabel}>
+                {isPlaying ? "● NOW PLAYING" : "● PAUSED"}
+              </Text>
+            )}
+          </View>
+          <Feather name="menu" size={14} color="#3A3A3A" style={{ marginLeft: 4 }} />
         </Pressable>
       </Swipeable>
     </Animated.View>
@@ -222,6 +236,8 @@ export default function MusicMyMusicScreen() {
   const [plMenuId, setPlMenuId]           = useState<string | null>(null);
   const newPLInputRef                     = useRef<TextInput>(null);
   const keyboardOffset                    = useRef(new Animated.Value(0)).current;
+  const isPickingRef                      = useRef(false);
+  const pickTimerRef                      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keyboard shift for new playlist bottom sheet (project rule: never KeyboardAvoidingView)
   useEffect(() => {
@@ -322,11 +338,13 @@ export default function MusicMyMusicScreen() {
 
   // ── File picker (library + optional playlist target) ───────────────────────
   const pickFiles = async (targetPlaylistId?: string) => {
+    if (isPickingRef.current) return;
+    isPickingRef.current = true;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
         multiple: true,
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: false,
       });
       if (result.canceled || !result.assets?.length) return;
       await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
@@ -360,7 +378,13 @@ export default function MusicMyMusicScreen() {
           }
         }
       }
-    } catch (err) { console.error("picker error:", err); }
+    } catch (err) { console.warn("picker dismissed or error:", err); }
+    finally { isPickingRef.current = false; }
+  };
+
+  const schedulePick = (targetPlaylistId?: string) => {
+    if (pickTimerRef.current) clearTimeout(pickTimerRef.current);
+    pickTimerRef.current = setTimeout(() => pickFiles(targetPlaylistId), 350);
   };
 
   const handleDelete = async (idx: number) => {
@@ -565,7 +589,7 @@ export default function MusicMyMusicScreen() {
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
             <Text style={st.emptySubtitle}>Long press the equaliser above to add music or create a playlist</Text>
-            <Pressable style={st.emptyBtn} onPress={() => pickFiles()}>
+            <Pressable style={st.emptyBtn} onPress={() => schedulePick()}>
               <Feather name="plus" size={15} color="#fff" />
               <Text style={st.emptyBtnText}>Add Music</Text>
             </Pressable>
@@ -664,7 +688,7 @@ export default function MusicMyMusicScreen() {
 
             <Pressable
               style={st.sheetOption}
-              onPress={() => { setShowEQMenu(false); setTimeout(() => pickFiles(), 300); }}
+              onPress={() => { setShowEQMenu(false); schedulePick(); }}
             >
               <View style={st.sheetIconWrap}>
                 <Feather name="music" size={20} color={RED} />
@@ -716,7 +740,7 @@ export default function MusicMyMusicScreen() {
               onPress={() => {
                 const id = plMenuId;
                 setPlMenuId(null);
-                setTimeout(() => pickFiles(id ?? undefined), 300);
+                schedulePick(id ?? undefined);
               }}
             >
               <View style={st.sheetIconWrap}>
@@ -849,12 +873,18 @@ const st = StyleSheet.create({
   tile: { width: TILE_W },
   tileArtwork: {
     width: TILE_W, height: TILE_W,
-    borderRadius: 14, backgroundColor: "#1A1A1A",
-    borderWidth: 1, borderColor: BORDER,
+    borderRadius: 14, backgroundColor: "#1C1C1E",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.55, shadowRadius: 14, elevation: 8,
+  },
+  tileIconBox: {
+    width: 60, height: 60, borderRadius: 18,
+    backgroundColor: "rgba(227,28,28,0.10)",
+    borderWidth: 1, borderColor: "rgba(227,28,28,0.22)",
+    alignItems: "center", justifyContent: "center",
   },
   tileBadge: {
     position: "absolute", top: 8, right: 8,
@@ -862,32 +892,54 @@ const st = StyleSheet.create({
     minWidth: 20, height: 20, alignItems: "center", justifyContent: "center",
     paddingHorizontal: 5,
   },
-  tileBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  tileBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" },
   tileName:  {
-    color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold",
-    marginTop: 8, lineHeight: 18,
+    color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold",
+    marginTop: 10, lineHeight: 18,
   },
-  tileCount: { color: GREY, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  tileCount: { color: "#666", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
 
   // Track list
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
   row: {
     height: ITEM_H, flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
+    backgroundColor: "#1C1C1E",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
     borderRadius: 14, paddingHorizontal: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
+    overflow: "hidden",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.5, shadowRadius: 10, elevation: 6,
   },
-  rowActive:   {},
+  rowActiveLine: {
+    position: "absolute", left: 0, top: 0, bottom: 0,
+    width: 3, backgroundColor: RED,
+  },
+  rowActive: {
+    borderColor: "rgba(227,28,28,0.28)",
+  },
   rowDragging: {
-    backgroundColor: "#1c1c1e",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
+    backgroundColor: "#252525",
+    borderColor: "rgba(255,255,255,0.10)",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6, shadowRadius: 20, elevation: 18,
   },
-  rowIcon:        { width: 36, height: 36, borderRadius: 9, backgroundColor: ROW_BG, alignItems: "center", justifyContent: "center" },
-  rowIconActive:  {},
-  rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium" },
-  rowNamePlaying: { color: RED },
+  rowIcon: {
+    width: 40, height: 40, borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
+    alignItems: "center", justifyContent: "center",
+  },
+  rowIconActive: {
+    backgroundColor: "rgba(227,28,28,0.14)",
+    borderColor: "rgba(227,28,28,0.30)",
+  },
+  rowInfo:        { flex: 1, gap: 3 },
+  rowName:        { fontSize: 14, color: "#DEDEDE", fontFamily: "Inter_600SemiBold" },
+  rowNamePlaying: { color: "#fff" },
+  rowPlayingLabel: {
+    fontSize: 9, color: RED, fontFamily: "Inter_700Bold",
+    letterSpacing: 0.8,
+  },
 
   // Delete
   deleteZone:   { width: 88, height: ITEM_H, paddingVertical: 10, paddingHorizontal: 8, justifyContent: "center", alignItems: "stretch" },
