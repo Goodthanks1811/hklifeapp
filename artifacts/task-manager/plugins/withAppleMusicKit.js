@@ -114,11 +114,15 @@ public class AppleMusicKitModule: Module {
     return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
       UIColor.black.setFill()
       ctx.fill(CGRect(origin: .zero, size: size))
-      // 1.4× scale crops the transparent border, enlarging the visible logo
+      // 1.4× scale crops the transparent border, enlarging the visible logo.
+      // The source icon has slightly more black margin on the left of H than the
+      // right of K, so the pure geometric centre clips H harder than K.
+      // xAdj shifts the draw rect right to equalise the visible margins.
       let s: CGFloat = 1.4
       let dw = size.width * s
       let dh = size.height * s
-      logoImage.draw(in: CGRect(x: (size.width - dw) / 2,
+      let xAdj: CGFloat = 20   // positive = shift logo right inside the canvas
+      logoImage.draw(in: CGRect(x: (size.width - dw) / 2 + xAdj,
                                 y: (size.height - dh) / 2,
                                 width: dw, height: dh))
     }
