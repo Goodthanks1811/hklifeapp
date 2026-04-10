@@ -26,6 +26,7 @@ export async function PlaybackService() {
   // ── Remote control events (Control Centre, Lock Screen, CarPlay) ─────────
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     userPaused = false;
+    MusicSourceBus.setMyMusicUserPaused(false);
     TrackPlayer.play();
   });
 
@@ -73,8 +74,9 @@ export async function PlaybackService() {
         // session stays active, iOS cannot kill the process
       } else {
         // Interruption ended (both permanent and non-permanent) — resume
-        // if the user didn't deliberately press pause and no other source is playing.
-        if (!userPaused && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
+        // if the user didn't deliberately press pause (from Lock Screen OR in-app)
+        // and no other source is playing.
+        if (!userPaused && !MusicSourceBus.myMusicUserPaused() && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
           await TrackPlayer.play();
         }
       }
@@ -99,7 +101,7 @@ export async function PlaybackService() {
   // and no other source holds the session), call play() to re-activate the
   // audio session — well within the 30-second window.
   const watchdog = setInterval(async () => {
-    if (userPaused) return;
+    if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
     if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
     try {
       const state = await TrackPlayer.getPlaybackState();

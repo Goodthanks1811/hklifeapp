@@ -164,9 +164,9 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         wasPlayingBgRef.current = isPlayingRef.current;
       } else if (next === 'active') {
         // Returning to foreground: if we were playing, ensure RNTP is still rolling.
-        // Guard: don't resume if Apple Music intentionally holds the session —
-        // the user switched sources and expects Apple Music to keep playing.
-        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl()) {
+        // Guard: don't resume if Apple Music / Spotify holds the session, or if
+        // the user explicitly paused from inside the app before backgrounding.
+        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl() && !MusicSourceBus.myMusicUserPaused()) {
           wasPlayingBgRef.current = false;
           try {
             const state = await _TrackPlayer.getPlaybackState();
@@ -241,10 +241,17 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const togglePlay = useCallback(async () => {
-    if (isPlaying) { await _TrackPlayer.pause(); } else { await _TrackPlayer.play(); }
+    if (isPlaying) {
+      MusicSourceBus.setMyMusicUserPaused(true);
+      await _TrackPlayer.pause();
+    } else {
+      MusicSourceBus.setMyMusicUserPaused(false);
+      await _TrackPlayer.play();
+    }
   }, [isPlaying]);
 
   const pause = useCallback(async () => {
+    MusicSourceBus.setMyMusicUserPaused(true);
     try { await _TrackPlayer.pause(); } catch {}
   }, []);
 
