@@ -126,16 +126,21 @@ function TrackRow({
   onRemove: () => void;
 }) {
   const renderRight = useCallback(() => (
-    <Pressable
-      style={styles.swipeDelete}
-      onPress={onRemove}
-    >
-      <Text style={styles.swipeDeleteText}>Remove</Text>
-    </Pressable>
+    <View style={styles.deleteZone}>
+      <Pressable style={styles.deleteAction} onPress={onRemove}>
+        <Feather name="trash-2" size={20} color="#fff" />
+      </Pressable>
+    </View>
   ), [onRemove]);
 
   return (
-    <Swipeable renderRightActions={renderRight} overshootRight={false}>
+    <Swipeable
+      renderRightActions={renderRight}
+      overshootRight={false}
+      rightThreshold={28}
+      friction={1.5}
+      containerStyle={{ borderRadius: 14, overflow: "hidden" }}
+    >
       <Pressable onPress={onPress} style={styles.trackRow}>
         <View style={styles.trackIcon}>
           <Feather name="music" size={16} color={RED} />
@@ -393,18 +398,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: -0.2,
   },
-  swipeDelete: {
-    backgroundColor: RED,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 88,
-    height: ITEM_H,
-    borderRadius: 14,
+  deleteZone: {
+    width: 88, height: ITEM_H,
+    paddingVertical: 10, paddingHorizontal: 8,
+    justifyContent: "center", alignItems: "stretch",
   },
-  swipeDeleteText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
+  deleteAction: {
+    flex: 1, backgroundColor: RED,
+    borderRadius: 10, alignItems: "center", justifyContent: "center",
   },
   emptyWrap: {
     flex: 1,
