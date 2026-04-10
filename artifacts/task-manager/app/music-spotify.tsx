@@ -173,6 +173,7 @@ export default function MusicSpotifyScreen() {
   const [authStatus,        setAuthStatus]        = useState<"loading" | "connected" | "disconnected">("loading");
   const [connecting,        setConnecting]        = useState(false);
   const [playlists,         setPlaylists]         = useState<SpotifyPlaylist[]>([]);
+  const [loadingPlaylists,  setLoadingPlaylists]  = useState(true);
   const [errorMsg,          setErrorMsg]          = useState<string | null>(null);
   const [is403,             setIs403]             = useState(false);
   const [loadingKey,        setLoadingKey]        = useState<string | null>(null);
@@ -186,12 +187,13 @@ export default function MusicSpotifyScreen() {
     }
   }, []);
 
-  const loadPlaylists = useCallback(async () => {
+  const loadPlaylists = useCallback(async (showSpinner = true) => {
     setErrorMsg(null);
     setIs403(false);
+    if (showSpinner) setLoadingPlaylists(true);
     try {
       const tokens = await getStoredTokens();
-      if (!tokens) { setAuthStatus("disconnected"); return; }
+      if (!tokens) { setAuthStatus("disconnected"); setLoadingPlaylists(false); return; }
       setAuthStatus("connected");
       const all = await getUserPlaylists();
       const savedRaw = await AsyncStorage.getItem("music_spotify_playlists");
@@ -203,6 +205,7 @@ export default function MusicSpotifyScreen() {
         if (savedIds.length > 0) {
           const byId = new Map(all.map(p => [p.id, p]));
           setPlaylists(savedIds.map(id => byId.get(id)).filter(Boolean) as typeof all);
+          setLoadingPlaylists(false);
           return;
         }
       }
@@ -212,10 +215,14 @@ export default function MusicSpotifyScreen() {
       if (msg === "not_authenticated") setAuthStatus("disconnected");
       else if (msg.includes("403")) { setIs403(true); setErrorMsg(msg); }
       else setErrorMsg(msg);
+    } finally {
+      setLoadingPlaylists(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadPlaylists(); }, [loadPlaylists]));
+  useFocusEffect(useCallback(() => {
+    loadPlaylists(playlists.length === 0);
+  }, [loadPlaylists, playlists.length]));
 
   const handleConnect = useCallback(async () => {
     if (connecting) return;
@@ -257,7 +264,7 @@ export default function MusicSpotifyScreen() {
 
   // ── Auth state body (shown in main panel) ─────────────────────────────────
   const renderBody = () => {
-    if (authStatus === "loading") {
+    if (authStatus === "loading" || (authStatus === "connected" && loadingPlaylists)) {
       return <View style={s.centred}><ActivityIndicator color={GREEN} size="large" /></View>;
     }
     if (authStatus === "disconnected") {
@@ -279,26 +286,25 @@ export default function MusicSpotifyScreen() {
       if (is403) {
         return (
           <View style={s.centred}>
-            <Text style={s.fourOhThreeTitle}>Developer Mode Restriction</Text>
+            <Text style={s.fourOhThreeTitle}>Access Restricted</Text>
             <Text style={s.fourOhThreeBody}>
-              Your Spotify app is in <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Development Mode</Text>, which means only accounts you explicitly allow can use it.{"\n\n"}
-              To fix this, open your Spotify Developer Dashboard, go to your app → <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Users and Access</Text>, and add your Spotify account email.
+              Spotify returned a <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>403 Forbidden</Text> error.{"\n\n"}
+              Your account is added to the dashboard — try <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Reconnecting Spotify</Text> to refresh your access token with the latest permissions.
             </Text>
             <Pressable
-              style={({ pressed }) => [s.dashboardBtn, pressed && { opacity: 0.75 }]}
-              onPress={() => Linking.openURL("https://developer.spotify.com/dashboard")}
+              style={({ pressed }) => [s.connectBtn, { marginTop: 20 }, pressed && { opacity: 0.8 }]}
+              onPress={handleDisconnect}
             >
-              <Feather name="external-link" size={14} color="#fff" />
-              <Text style={s.dashboardBtnText}>Open Spotify Developer Dashboard</Text>
+              <Feather name="refresh-cw" size={16} color="#fff" />
+              <Text style={s.connectBtnText}>Reconnect Spotify</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [s.retryBtn, pressed && { opacity: 0.75 }]}
+              style={({ pressed }) => [s.retryBtn, { marginTop: 12 }, pressed && { opacity: 0.75 }]}
               onPress={loadPlaylists}
             >
               <Feather name="refresh-cw" size={13} color={GREEN} />
               <Text style={s.retryBtnText}>Retry</Text>
             </Pressable>
-            <Text style={s.errorDetail}>{errorMsg}</Text>
           </View>
         );
       }
@@ -393,17 +399,17 @@ export default function MusicSpotifyScreen() {
                       <Text style={s.fourOhThreeTitle}>Access Restricted</Text>
                       <Text style={s.fourOhThreeBody}>
                         This playlist returned a <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>403 Forbidden</Text> error.{"\n\n"}
-                        If your Spotify app is in Development Mode, open the Dashboard and add your account under <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Users and Access</Text>.
+                        If your account is already in the dashboard, try <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Reconnecting Spotify</Text> to get a fresh token with the latest permissions.
                       </Text>
                       <Pressable
-                        style={({ pressed }) => [s.dashboardBtn, pressed && { opacity: 0.75 }]}
-                        onPress={() => Linking.openURL("https://developer.spotify.com/dashboard")}
+                        style={({ pressed }) => [s.connectBtn, { marginTop: 20 }, pressed && { opacity: 0.8 }]}
+                        onPress={() => { closePlaylist(); setTimeout(handleDisconnect, 400); }}
                       >
-                        <Feather name="external-link" size={14} color="#fff" />
-                        <Text style={s.dashboardBtnText}>Open Spotify Developer Dashboard</Text>
+                        <Feather name="refresh-cw" size={16} color="#fff" />
+                        <Text style={s.connectBtnText}>Reconnect Spotify</Text>
                       </Pressable>
                       <Pressable
-                        style={({ pressed }) => [s.retryBtn, pressed && { opacity: 0.75 }]}
+                        style={({ pressed }) => [s.retryBtn, { marginTop: 12 }, pressed && { opacity: 0.75 }]}
                         onPress={() => selPl && openPlaylist(selPl)}
                       >
                         <Feather name="refresh-cw" size={13} color={GREEN} />
