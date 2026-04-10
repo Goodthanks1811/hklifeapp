@@ -9,23 +9,25 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Keyboard,
+  Modal,
   PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
-
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -33,10 +35,9 @@ const ROW_BG = "#0f0f0f";
 const BORDER = "#2A2A2A";
 const GREY   = "#888";
 
-const ITEM_H    = 52;
-const ITEM_GAP  = 8;
-const SLOT_H    = ITEM_H + ITEM_GAP;
-const PLAYER_H  = 280;
+const ITEM_H   = 52;
+const ITEM_GAP = 8;
+const SLOT_H   = ITEM_H + ITEM_GAP;
 
 const BAR_COUNT   = 7;
 const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
@@ -44,12 +45,21 @@ const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
 const MAX_H       = 42;
 const MIN_H       = 5;
 
-const STORAGE_KEY = "mymusic_tracks_v2";
-const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
+const SCREEN_W    = Dimensions.get("window").width;
+const TILE_GAP    = 12;
+const TILE_W      = (SCREEN_W - 32 - TILE_GAP) / 2;
 
-// ── Path helpers (mirrors Mi Corazon pattern) ─────────────────────────────────
-// Store relative paths (e.g. "music/song.mp3") so URIs survive new builds.
-// iOS assigns a new container UUID on fresh install, breaking absolute paths.
+const TRACKS_KEY   = "mymusic_tracks_v2";
+const PLAYLISTS_KEY = "mymusic_playlists_v1";
+const MUSIC_DIR    = (FileSystem.documentDirectory ?? "") + "music/";
+
+type Playlist = {
+  id: string;
+  name: string;
+  createdAt: number;
+  trackIds: string[];
+};
+
 function toRel(uri: string): string {
   if (!uri) return uri;
   const idx = uri.indexOf("music/");
@@ -60,7 +70,6 @@ function toAbs(uri: string): string {
   return (FileSystem.documentDirectory ?? "") + uri;
 }
 
-// Static zero — passed as dimValue to the dragging row so it never dims itself
 const ZERO_ANIM = new Animated.Value(0);
 const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -68,7 +77,7 @@ const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(ma
 function EqBar({ index }: { index: number }) {
   const height = useRef(new Animated.Value(MIN_H)).current;
   useEffect(() => {
-    const dur = 900 + index * 120;
+    const dur  = 900 + index * 120;
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(height, { toValue: MAX_H * BAR_HEIGHTS[index], duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
@@ -81,7 +90,44 @@ function EqBar({ index }: { index: number }) {
   return <Animated.View style={[st.eqBar, { height }]} />;
 }
 
-// ── Swipeable track row — identical drag wiring to Life Admin ──────────────────
+// ── Playlist tile ─────────────────────────────────────────────────────────────
+function PlaylistTile({
+  playlist, trackCount, onPress, onLongPress,
+}: {
+  playlist: Playlist; trackCount: number;
+  onPress: () => void; onLongPress: () => void;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pressIn  = () => Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true, tension: 300, friction: 20 }).start();
+  const pressOut = () => Animated.spring(scaleAnim, { toValue: 1,    useNativeDriver: true, tension: 300, friction: 20 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        delayLongPress={350}
+        style={st.tile}
+      >
+        <View style={st.tileArtwork}>
+          <View style={st.tileGlow} />
+          <Feather name="music" size={30} color={RED} style={{ opacity: 0.9 }} />
+          {trackCount > 0 && (
+            <View style={st.tileBadge}>
+              <Text style={st.tileBadgeText}>{trackCount}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={st.tileName} numberOfLines={2}>{playlist.name}</Text>
+        <Text style={st.tileCount}>{trackCount === 0 ? "No songs" : `${trackCount} song${trackCount === 1 ? "" : "s"}`}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ── Track row ─────────────────────────────────────────────────────────────────
 function TrackRow({
   track, isActive, isPlaying, isDragging, dimValue, onPlay, onDelete, onLongPress,
 }: {
@@ -95,7 +141,6 @@ function TrackRow({
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const rowHeight   = useRef(new Animated.Value(ITEM_H)).current;
 
-  // Combined opacity: delete fade × drag dim (identical to Life Admin)
   const combinedOpacity = Animated.multiply(
     opacityAnim,
     dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] })
@@ -152,7 +197,6 @@ function TrackRow({
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtMs(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -160,77 +204,125 @@ function fmtMs(ms: number): string {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicMyMusicScreen() {
-  const goBack = () => router.back();
+  const goBack   = () => router.back();
   const insets   = useSafeAreaInsets();
-  const isTablet = Dimensions.get("window").width >= 768;
+  const isTablet = SCREEN_W >= 768;
   const player   = useMusicPlayer();
 
+  // ── Tracks ────────────────────────────────────────────────────────────────
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const tracksRef = useRef<MusicTrack[]>([]);
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
-  // Load once on mount (not useFocusEffect — DocumentPicker refocus causes races)
+  // ── Playlists ─────────────────────────────────────────────────────────────
+  const [playlists, setPlaylists]         = useState<Playlist[]>([]);
+  const playlistsRef                      = useRef<Playlist[]>([]);
+  const [showEQMenu, setShowEQMenu]       = useState(false);
+  const [showNewPL, setShowNewPL]         = useState(false);
+  const [newPLName, setNewPLName]         = useState("");
+  const [plMenuId, setPlMenuId]           = useState<string | null>(null);
+  const newPLInputRef                     = useRef<TextInput>(null);
+  const keyboardOffset                    = useRef(new Animated.Value(0)).current;
+
+  // Keyboard shift for new playlist modal (project rule: never KeyboardAvoidingView)
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", e => {
+      Animated.timing(keyboardOffset, {
+        toValue: e.endCoordinates.height * 0.45,
+        duration: e.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hide = Keyboard.addListener("keyboardWillHide", e => {
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: e.duration || 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  // Load on mount
   useEffect(() => {
     (async () => {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      const [rawTracks, rawPlaylists] = await Promise.all([
+        AsyncStorage.getItem(TRACKS_KEY),
+        AsyncStorage.getItem(PLAYLISTS_KEY),
+      ]);
 
-      const parsed = JSON.parse(raw) as MusicTrack[];
-
-      // Ensure all stored URIs are relative (toRel is a no-op if already relative).
-      // Migrates any old absolute-path entries from builds before this fix.
-      const relativised = parsed.map(t => {
-        const rel = toRel(t.uri);
-        return { ...t, id: rel, uri: rel };
-      });
-
-      // Validate: drop tracks whose files no longer exist on disk
-      const valid: MusicTrack[] = [];
-      for (const t of relativised) {
-        try {
-          const info = await FileSystem.getInfoAsync(toAbs(t.uri));
-          if (info.exists) valid.push(t);
-          else console.warn("[MyMusic] file missing, removing:", t.uri);
-        } catch {
-          console.warn("[MyMusic] could not stat, removing:", t.uri);
+      if (rawTracks) {
+        const parsed = JSON.parse(rawTracks) as MusicTrack[];
+        const relativised = parsed.map(t => {
+          const rel = toRel(t.uri);
+          return { ...t, id: rel, uri: rel };
+        });
+        const valid: MusicTrack[] = [];
+        for (const t of relativised) {
+          try {
+            const info = await FileSystem.getInfoAsync(toAbs(t.uri));
+            if (info.exists) valid.push(t);
+          } catch {}
         }
+        setTracks(valid);
+        tracksRef.current = valid;
+        const changed = valid.length !== parsed.length ||
+          relativised.some((t, i) => t.uri !== parsed[i]?.uri);
+        if (changed) AsyncStorage.setItem(TRACKS_KEY, JSON.stringify(valid));
       }
 
-      setTracks(valid);
-      tracksRef.current = valid;
-
-      // Persist if anything changed (migration or pruning)
-      const changed = valid.length !== parsed.length ||
-        relativised.some((t, i) => t.uri !== parsed[i]?.uri);
-      if (changed) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      if (rawPlaylists) {
+        const parsed = JSON.parse(rawPlaylists) as Playlist[];
+        setPlaylists(parsed);
+        playlistsRef.current = parsed;
+      }
     })();
   }, []);
 
-  // Animated player bottom sheet
-  const playerAnim   = useRef(new Animated.Value(0)).current;
-  const playerVisRef = useRef(false);
-  useEffect(() => {
-    const shouldShow = player.track !== null;
-    if (shouldShow === playerVisRef.current) return;
-    playerVisRef.current = shouldShow;
-    Animated.spring(playerAnim, {
-      toValue: shouldShow ? 1 : 0,
-      useNativeDriver: false,
-      tension: 120,
-      friction: 14,
-    }).start();
-  }, [player.track !== null]);
-
-  const playerHeight  = playerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, PLAYER_H] });
-  const playerOpacity = playerAnim;
-
+  // ── Persistence ───────────────────────────────────────────────────────────
   const saveTracks = async (list: MusicTrack[]) => {
     tracksRef.current = list;
     setTracks(list);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    await AsyncStorage.setItem(TRACKS_KEY, JSON.stringify(list));
   };
 
-  const pickFiles = async () => {
+  const savePlaylists = async (list: Playlist[]) => {
+    playlistsRef.current = list;
+    setPlaylists(list);
+    await AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(list));
+  };
+
+  // ── Playlist actions ──────────────────────────────────────────────────────
+  const createPlaylist = async () => {
+    const name = newPLName.trim();
+    if (!name) return;
+    Keyboard.dismiss();
+    const pl: Playlist = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), trackIds: [] };
+    await savePlaylists([...playlistsRef.current, pl]);
+    setShowNewPL(false);
+    setNewPLName("");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const deletePlaylist = async (id: string) => {
+    await savePlaylists(playlistsRef.current.filter(p => p.id !== id));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const playPlaylist = (playlist: Playlist) => {
+    const pts = playlist.trackIds
+      .map(id => tracksRef.current.find(t => t.id === id))
+      .filter(Boolean) as MusicTrack[];
+    if (!pts.length) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    player.playTrack(0, pts.map(t => ({ ...t, uri: toAbs(t.uri) })));
+  };
+
+  // ── File picker (library + optional playlist target) ───────────────────────
+  const pickFiles = async (targetPlaylistId?: string) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
@@ -241,21 +333,33 @@ export default function MusicMyMusicScreen() {
       await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
 
       const newTracks: MusicTrack[] = [];
+      const newIds: string[] = [];
       for (const asset of result.assets) {
-        const fileName    = asset.name ?? `track_${Date.now()}.mp3`;
-        const destUri     = MUSIC_DIR + fileName;
+        const fileName = asset.name ?? `track_${Date.now()}.mp3`;
+        const destUri  = MUSIC_DIR + fileName;
         try {
           const info = await FileSystem.getInfoAsync(destUri);
           if (!info.exists) await FileSystem.copyAsync({ from: asset.uri, to: destUri });
           const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
           const relUri = toRel(destUri);
           newTracks.push({ id: relUri, name: displayName, uri: relUri });
+          newIds.push(relUri);
         } catch (err) { console.warn("copy failed:", fileName, err); }
       }
+
       if (newTracks.length) {
         const cur    = tracksRef.current;
         const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
         await saveTracks(merged);
+
+        if (targetPlaylistId) {
+          const pls = playlistsRef.current;
+          const pl  = pls.find(p => p.id === targetPlaylistId);
+          if (pl) {
+            const updatedIds = [...pl.trackIds, ...newIds.filter(id => !pl.trackIds.includes(id))];
+            await savePlaylists(pls.map(p => p.id === targetPlaylistId ? { ...p, trackIds: updatedIds } : p));
+          }
+        }
       }
     } catch (err) { console.error("picker error:", err); }
   };
@@ -264,10 +368,25 @@ export default function MusicMyMusicScreen() {
     const list  = tracksRef.current;
     const track = list[idx];
     try { await FileSystem.deleteAsync(toAbs(track.uri), { idempotent: true }); } catch {}
+    // Also remove from all playlists
+    const updatedPls = playlistsRef.current.map(p => ({
+      ...p, trackIds: p.trackIds.filter(id => id !== track.id),
+    }));
+    await savePlaylists(updatedPls);
     await saveTracks(list.filter((_, i) => i !== idx));
   };
 
-  // ── Smooth scrubber ─────────────────────────────────────────────────────────
+  // ── Player bottom sheet animation ─────────────────────────────────────────
+  const playerAnim   = useRef(new Animated.Value(0)).current;
+  const playerVisRef = useRef(false);
+  useEffect(() => {
+    const shouldShow = player.track !== null;
+    if (shouldShow === playerVisRef.current) return;
+    playerVisRef.current = shouldShow;
+    Animated.spring(playerAnim, { toValue: shouldShow ? 1 : 0, useNativeDriver: false, tension: 120, friction: 14 }).start();
+  }, [player.track !== null]);
+
+  // ── Scrubber ──────────────────────────────────────────────────────────────
   const barRef    = useRef<View>(null);
   const barLeft   = useRef(0);
   const barWidth  = useRef(0);
@@ -285,35 +404,31 @@ export default function MusicMyMusicScreen() {
     }
   }, [player.posMs, player.durMs]);
 
-  const fillWidth = scrubAnim.interpolate({
-    inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp",
-  });
+  const fillWidth = scrubAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"], extrapolate: "clamp" });
 
-  const scrubber = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder:  () => true,
-      onPanResponderGrant: (e) => {
-        if (!barWidth.current || !durMsRef.current) return;
-        isScrubbing.current = true;
-        scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
-      },
-      onPanResponderMove: (e) => {
-        if (!barWidth.current) return;
-        scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
-      },
-      onPanResponderRelease: (e) => {
-        isScrubbing.current = false;
-        if (!barWidth.current || !durMsRef.current) return;
-        const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
-        scrubAnim.setValue(ratio);
-        seekToRef.current(Math.floor(ratio * durMsRef.current));
-      },
-      onPanResponderTerminate: () => { isScrubbing.current = false; },
-    })
-  ).current;
+  const scrubber = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder:  () => true,
+    onPanResponderGrant: (e) => {
+      if (!barWidth.current || !durMsRef.current) return;
+      isScrubbing.current = true;
+      scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
+    },
+    onPanResponderMove: (e) => {
+      if (!barWidth.current) return;
+      scrubAnim.setValue(Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current)));
+    },
+    onPanResponderRelease: (e) => {
+      isScrubbing.current = false;
+      if (!barWidth.current || !durMsRef.current) return;
+      const ratio = Math.max(0, Math.min(1, (e.nativeEvent.pageX - barLeft.current) / barWidth.current));
+      scrubAnim.setValue(ratio);
+      seekToRef.current(Math.floor(ratio * durMsRef.current));
+    },
+    onPanResponderTerminate: () => { isScrubbing.current = false; },
+  })).current;
 
-  // ── Drag & drop — identical to Life Admin ────────────────────────────────────
+  // ── Drag & drop ───────────────────────────────────────────────────────────
   const posAnims        = useRef<Record<string, Animated.Value>>({});
   const addedAnims      = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
   const containerRef    = useRef<View>(null);
@@ -326,10 +441,9 @@ export default function MusicMyMusicScreen() {
   const dragOccurredRef = useRef(false);
   const panY            = useRef(new Animated.Value(0)).current;
   const dimAnim         = useRef(new Animated.Value(0)).current;
-  const [dragActiveIdx, setDragActiveIdx] = useState(-1);
+  const [dragActiveIdx, setDragActiveIdx]     = useState(-1);
   const [listScrollEnabled, setListScrollEnabled] = useState(true);
 
-  // Initialise position anim for any new track
   tracks.forEach((t, i) => {
     if (!posAnims.current[t.id]) {
       posAnims.current[t.id] = new Animated.Value(i * SLOT_H);
@@ -337,7 +451,6 @@ export default function MusicMyMusicScreen() {
     }
   });
 
-  // Snap positions whenever tracks list changes (e.g. after delete or initial load)
   useEffect(() => {
     if (!isDraggingRef.current) {
       tracksRef.current.forEach((t, i) => {
@@ -362,9 +475,9 @@ export default function MusicMyMusicScreen() {
   }, []);
 
   const startDrag = useCallback((idx: number) => {
-    isDraggingRef.current  = true;
-    draggingIdxRef.current = idx;
-    hoverIdxRef.current    = idx;
+    isDraggingRef.current   = true;
+    draggingIdxRef.current  = idx;
+    hoverIdxRef.current     = idx;
     dragOccurredRef.current = true;
     setDragActiveIdx(idx);
     setListScrollEnabled(false);
@@ -394,7 +507,7 @@ export default function MusicMyMusicScreen() {
         next.splice(hi, 0, moved);
         next.forEach((t, i) => posAnims.current[t.id]?.setValue(i * SLOT_H));
         tracksRef.current = next;
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        AsyncStorage.setItem(TRACKS_KEY, JSON.stringify(next));
         return next;
       });
     } else {
@@ -423,26 +536,37 @@ export default function MusicMyMusicScreen() {
     onPanResponderTerminate: () => endDrag(),
   }), [animatePositions, endDrag]);
 
+  const isEmpty = tracks.length === 0 && playlists.length === 0;
+
   return (
     <View style={[st.root, { paddingTop: insets.top }]}>
       <View style={[st.inner, isTablet && st.innerTablet]}>
 
-        {/* Header — press to go back, long-press EQ to add tracks */}
+        {/* Header */}
         <View style={st.headerArea}>
-          <Pressable style={st.eqWrap} onPress={goBack} onLongPress={pickFiles} delayLongPress={400}>
+          <Pressable
+            style={st.eqWrap}
+            onPress={goBack}
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowEQMenu(true);
+            }}
+            delayLongPress={400}
+          >
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={st.pageTitle}>My Music</Text>
           <Pressable style={st.backZone} onPress={goBack} />
         </View>
 
-        {/* Track list or empty state */}
-        {tracks.length === 0 ? (
+        {/* Content */}
+        {isEmpty ? (
+          /* Empty state */
           <View style={st.emptyState}>
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
-            <Text style={st.emptySubtitle}>Long press the equaliser above to add music from your phone</Text>
-            <Pressable style={st.emptyBtn} onPress={pickFiles}>
+            <Text style={st.emptySubtitle}>Long press the equaliser above to add music or create a playlist</Text>
+            <Pressable style={st.emptyBtn} onPress={() => pickFiles()}>
               <Feather name="plus" size={15} color="#fff" />
               <Text style={st.emptyBtnText}>Add Music</Text>
             </Pressable>
@@ -454,54 +578,230 @@ export default function MusicMyMusicScreen() {
             showsVerticalScrollIndicator={false}
             onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: player.track ? 330 : 24 }}
+            contentContainerStyle={{ paddingTop: 16, paddingBottom: player.track ? 330 : 40 }}
           >
-            {/* Absolute-position container — enables live drag animation (Life Admin pattern) */}
-            <View
-              ref={containerRef}
-              {...dragResponder.panHandlers}
-              style={{ height: Math.max(tracks.length, 1) * SLOT_H + 16, marginHorizontal: 16 }}
-            >
-              {/* Tap-anywhere-to-cancel overlay — above non-dragging rows, below dragging row */}
-              {dragActiveIdx !== -1 && (
-                <Pressable
-                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
-                  onPress={() => endDrag()}
-                />
-              )}
-              {tracks.map((track, idx) => {
-                const isDragging = dragActiveIdx === idx;
-                const posAnim    = posAnims.current[track.id] ?? new Animated.Value(idx * SLOT_H);
-                const translateY = isDragging
-                  ? (addedAnims.current[track.id] ?? posAnim)
-                  : posAnim;
-                return (
-                  <Animated.View
-                    key={track.id}
-                    style={[
-                      st.absItem,
-                      { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] },
-                    ]}
-                  >
-                    <TrackRow
-                      track={track}
-                      isActive={player.track?.id === track.id}
-                      isPlaying={player.isPlaying}
-                      isDragging={isDragging}
-                      dimValue={isDragging ? ZERO_ANIM : dimAnim}
-                      onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); }}
-                      onDelete={() => handleDelete(idx)}
-                      onLongPress={() => startDrag(idx)}
+            {/* ── Playlists section ──────────────────────────────────── */}
+            {playlists.length > 0 && (
+              <View style={st.section}>
+                <Text style={st.sectionHeader}>Playlists</Text>
+                <View style={st.playlistGrid}>
+                  {playlists.map((pl, idx) => {
+                    const count = pl.trackIds.filter(id => tracksRef.current.find(t => t.id === id)).length;
+                    const isLastOdd = playlists.length % 2 === 1 && idx === playlists.length - 1;
+                    return (
+                      <View key={pl.id} style={[st.tileWrapper, isLastOdd && { marginRight: "auto" }]}>
+                        <PlaylistTile
+                          playlist={pl}
+                          trackCount={count}
+                          onPress={() => playPlaylist(pl)}
+                          onLongPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            setPlMenuId(pl.id);
+                          }}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* ── Songs section ──────────────────────────────────────── */}
+            {tracks.length > 0 && (
+              <View style={st.section}>
+                <Text style={st.sectionHeader}>Songs</Text>
+                <View
+                  ref={containerRef}
+                  {...dragResponder.panHandlers}
+                  style={{ height: Math.max(tracks.length, 1) * SLOT_H, marginHorizontal: 16 }}
+                >
+                  {dragActiveIdx !== -1 && (
+                    <Pressable
+                      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+                      onPress={() => endDrag()}
                     />
-                  </Animated.View>
-                );
-              })}
-            </View>
+                  )}
+                  {tracks.map((track, idx) => {
+                    const isDragging = dragActiveIdx === idx;
+                    const posAnim    = posAnims.current[track.id] ?? new Animated.Value(idx * SLOT_H);
+                    const translateY = isDragging
+                      ? (addedAnims.current[track.id] ?? posAnim)
+                      : posAnim;
+                    return (
+                      <Animated.View
+                        key={track.id}
+                        style={[st.absItem, { top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] }]}
+                      >
+                        <TrackRow
+                          track={track}
+                          isActive={player.track?.id === track.id}
+                          isPlaying={player.isPlaying}
+                          isDragging={isDragging}
+                          dimValue={isDragging ? ZERO_ANIM : dimAnim}
+                          onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); }}
+                          onDelete={() => handleDelete(idx)}
+                          onLongPress={() => startDrag(idx)}
+                        />
+                      </Animated.View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </ScrollView>
         )}
-
-
       </View>
+
+      {/* ── EQ long-press menu ────────────────────────────────────────────── */}
+      <Modal
+        visible={showEQMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEQMenu(false)}
+      >
+        <Pressable style={st.modalOverlay} onPress={() => setShowEQMenu(false)}>
+          <Animated.View style={st.actionSheet}>
+            <View style={st.sheetHandle} />
+
+            <Pressable
+              style={st.sheetOption}
+              onPress={() => { setShowEQMenu(false); setTimeout(() => pickFiles(), 300); }}
+            >
+              <View style={st.sheetIconWrap}>
+                <Feather name="music" size={20} color={RED} />
+              </View>
+              <View>
+                <Text style={st.sheetOptionTitle}>Add Songs</Text>
+                <Text style={st.sheetOptionSub}>Import audio files from your phone</Text>
+              </View>
+            </Pressable>
+
+            <View style={st.sheetDivider} />
+
+            <Pressable
+              style={st.sheetOption}
+              onPress={() => { setShowEQMenu(false); setTimeout(() => { setShowNewPL(true); setTimeout(() => newPLInputRef.current?.focus(), 100); }, 300); }}
+            >
+              <View style={st.sheetIconWrap}>
+                <Feather name="folder-plus" size={20} color={RED} />
+              </View>
+              <View>
+                <Text style={st.sheetOptionTitle}>New Playlist</Text>
+                <Text style={st.sheetOptionSub}>Create a playlist and add songs to it</Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={st.sheetCancel} onPress={() => setShowEQMenu(false)}>
+              <Text style={st.sheetCancelText}>Cancel</Text>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
+      {/* ── Playlist long-press menu ──────────────────────────────────────── */}
+      <Modal
+        visible={plMenuId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPlMenuId(null)}
+      >
+        <Pressable style={st.modalOverlay} onPress={() => setPlMenuId(null)}>
+          <Animated.View style={st.actionSheet}>
+            <View style={st.sheetHandle} />
+            <Text style={st.sheetTitle}>
+              {playlists.find(p => p.id === plMenuId)?.name ?? ""}
+            </Text>
+
+            <Pressable
+              style={st.sheetOption}
+              onPress={() => {
+                const id = plMenuId;
+                setPlMenuId(null);
+                setTimeout(() => pickFiles(id ?? undefined), 300);
+              }}
+            >
+              <View style={st.sheetIconWrap}>
+                <Feather name="plus-circle" size={20} color={RED} />
+              </View>
+              <View>
+                <Text style={st.sheetOptionTitle}>Add Songs</Text>
+                <Text style={st.sheetOptionSub}>Add audio files to this playlist</Text>
+              </View>
+            </Pressable>
+
+            <View style={st.sheetDivider} />
+
+            <Pressable
+              style={st.sheetOption}
+              onPress={() => {
+                const id = plMenuId;
+                setPlMenuId(null);
+                if (id) deletePlaylist(id);
+              }}
+            >
+              <View style={[st.sheetIconWrap, { backgroundColor: "rgba(224,49,49,0.12)" }]}>
+                <Feather name="trash-2" size={20} color={RED} />
+              </View>
+              <View>
+                <Text style={[st.sheetOptionTitle, { color: RED }]}>Delete Playlist</Text>
+                <Text style={st.sheetOptionSub}>Songs remain in your library</Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={st.sheetCancel} onPress={() => setPlMenuId(null)}>
+              <Text style={st.sheetCancelText}>Cancel</Text>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
+      {/* ── New Playlist modal ────────────────────────────────────────────── */}
+      <Modal
+        visible={showNewPL}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
+      >
+        <Pressable
+          style={st.centeredOverlay}
+          onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
+        >
+          <Animated.View
+            style={[st.newPLCard, { transform: [{ translateY: Animated.multiply(keyboardOffset, -1) }] }]}
+          >
+            <Pressable onPress={() => {}} /* Absorb taps inside card */>
+              <Text style={st.newPLTitle}>New Playlist</Text>
+              <TextInput
+                ref={newPLInputRef}
+                style={st.newPLInput}
+                placeholder="Playlist name"
+                placeholderTextColor={GREY}
+                value={newPLName}
+                onChangeText={setNewPLName}
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={createPlaylist}
+                maxLength={60}
+              />
+              <View style={st.newPLButtons}>
+                <Pressable
+                  style={st.newPLCancel}
+                  onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}
+                >
+                  <Text style={st.newPLCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[st.newPLCreate, !newPLName.trim() && { opacity: 0.4 }]}
+                  onPress={createPlaylist}
+                  disabled={!newPLName.trim()}
+                >
+                  <Text style={st.newPLCreateText}>Create</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -511,7 +811,10 @@ const st = StyleSheet.create({
   inner:       { flex: 1 },
   innerTablet: { maxWidth: 800, alignSelf: "center", width: "100%" },
 
-  headerArea: { backgroundColor: BG, paddingTop: 28, paddingBottom: 4, alignItems: "center", position: "relative" },
+  headerArea: {
+    backgroundColor: BG, paddingTop: 28, paddingBottom: 4,
+    alignItems: "center", position: "relative",
+  },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
@@ -526,13 +829,53 @@ const st = StyleSheet.create({
 
   list: { flex: 1 },
 
-  // Absolute-position item container — same as Life Admin's absItem
-  absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
+  // Section layout
+  section:       { marginBottom: 8 },
+  sectionHeader: {
+    color: "#fff", fontSize: 18, fontFamily: "Inter_600SemiBold",
+    marginHorizontal: 16, marginBottom: 12, marginTop: 4,
+  },
 
-  // Track row
+  // Playlist grid
+  playlistGrid: {
+    flexDirection: "row", flexWrap: "wrap",
+    paddingHorizontal: 16, gap: TILE_GAP,
+  },
+  tileWrapper: { width: TILE_W },
+
+  // Playlist tile
+  tile: { width: TILE_W },
+  tileArtwork: {
+    width: TILE_W, height: TILE_W,
+    borderRadius: 14, backgroundColor: "#1a0a0a",
+    borderWidth: 1, borderColor: "#2a0a0a",
+    alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
+    shadowColor: RED, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
+  },
+  tileGlow: {
+    position: "absolute", width: TILE_W * 0.7, height: TILE_W * 0.7,
+    borderRadius: TILE_W * 0.35, backgroundColor: RED,
+    opacity: 0.08,
+  },
+  tileBadge: {
+    position: "absolute", top: 8, right: 8,
+    backgroundColor: RED, borderRadius: 10,
+    minWidth: 20, height: 20, alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  tileBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  tileName:  {
+    color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold",
+    marginTop: 8, lineHeight: 18,
+  },
+  tileCount: { color: GREY, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+
+  // Track list
+  absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
   row: {
-    height: ITEM_H,
-    flexDirection: "row", alignItems: "center", gap: 12,
+    height: ITEM_H, flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: ROW_BG, borderWidth: 1, borderColor: BORDER,
     borderRadius: 14, paddingHorizontal: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
@@ -544,27 +887,14 @@ const st = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
   },
-  rowIcon: {
-    width: 36, height: 36, borderRadius: 9,
-    backgroundColor: ROW_BG,
-    alignItems: "center", justifyContent: "center",
-  },
+  rowIcon:        { width: 36, height: 36, borderRadius: 9, backgroundColor: ROW_BG, alignItems: "center", justifyContent: "center" },
   rowIconActive:  {},
   rowName:        { flex: 1, fontSize: 14, color: "#fff", fontFamily: "Inter_500Medium" },
   rowNamePlaying: { color: RED },
 
-  // Delete action
-  deleteZone: {
-    width: 88, height: ITEM_H,
-    paddingVertical: 10, paddingHorizontal: 8,
-    justifyContent: "center", alignItems: "stretch",
-  },
-  deleteAction: {
-    flex: 1,
-    backgroundColor: RED,
-    borderRadius: 10,
-    alignItems: "center", justifyContent: "center",
-  },
+  // Delete
+  deleteZone:   { width: 88, height: ITEM_H, paddingVertical: 10, paddingHorizontal: 8, justifyContent: "center", alignItems: "stretch" },
+  deleteAction: { flex: 1, backgroundColor: RED, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 
   // Empty state
   emptyState:    { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40 },
@@ -579,49 +909,74 @@ const st = StyleSheet.create({
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
-  // ── Player — identical spec to Music home screen ──────────────────────────
-  playerWrap: {
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 20,
+  // Modal / action sheet
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "flex-end",
   },
-  playerPanel: {
-    flex: 1,
-    backgroundColor: ROW_BG,
-    borderTopWidth: 1, borderTopColor: BORDER,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingHorizontal: 20, paddingTop: 10,
+  centeredOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center", alignItems: "center",
   },
-  npTop: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
-  npArt: {
-    width: 56, height: 56, borderRadius: 10,
-    backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+  actionSheet: {
+    backgroundColor: "#1c1c1e", borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingBottom: 36, paddingTop: 12, paddingHorizontal: 0,
+  },
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: "#444", alignSelf: "center", marginBottom: 16,
+  },
+  sheetTitle: {
+    color: GREY, fontSize: 13, fontFamily: "Inter_400Regular",
+    textAlign: "center", marginBottom: 12, paddingHorizontal: 20,
+  },
+  sheetOption: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingHorizontal: 20, paddingVertical: 16,
+  },
+  sheetIconWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "rgba(224,49,49,0.1)",
     alignItems: "center", justifyContent: "center",
   },
-  npTitle:  { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  progressHitArea: { height: 24, justifyContent: "center", marginBottom: 4 },
-  timeRow:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  timeText: { fontSize: 12, fontFamily: "Inter_400Regular", color: GREY },
-  progressTrack: {
-    height: 4, backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 2, overflow: "visible",
+  sheetOptionTitle: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  sheetOptionSub:   { color: GREY, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  sheetDivider:     { height: 1, backgroundColor: "#2a2a2a", marginHorizontal: 20 },
+  sheetCancel: {
+    marginTop: 8, marginHorizontal: 16,
+    backgroundColor: "#2a2a2a", borderRadius: 14,
+    paddingVertical: 16, alignItems: "center",
   },
-  progressFill: {
-    height: "100%", backgroundColor: RED,
-    borderRadius: 2, overflow: "visible",
+  sheetCancelText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+
+  // New playlist modal
+  newPLCard: {
+    backgroundColor: "#1c1c1e", borderRadius: 20,
+    padding: 24, width: SCREEN_W - 48,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.4, shadowRadius: 30,
   },
-  progressThumb: {
-    position: "absolute", right: -6, top: -4,
-    width: 12, height: 12, borderRadius: 6, backgroundColor: RED,
+  newPLTitle: {
+    color: "#fff", fontSize: 18, fontFamily: "Inter_700Bold",
+    textAlign: "center", marginBottom: 20,
   },
-  controls:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 14 },
-  ctrlBtn:      { width: 62, height: 62, alignItems: "center", justifyContent: "center" },
-  playBtn: {
-    width: 62, height: 62, borderRadius: 31, backgroundColor: RED,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: RED, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, shadowOpacity: 0.45,
+  newPLInput: {
+    backgroundColor: "#2a2a2a", borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    color: "#fff", fontSize: 16, fontFamily: "Inter_400Regular",
+    borderWidth: 1, borderColor: "#3a3a3a",
   },
+  newPLButtons: { flexDirection: "row", gap: 12, marginTop: 16 },
+  newPLCancel: {
+    flex: 1, backgroundColor: "#2a2a2a", borderRadius: 12,
+    paddingVertical: 14, alignItems: "center",
+  },
+  newPLCancelText: { color: GREY, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  newPLCreate: {
+    flex: 1, backgroundColor: RED, borderRadius: 12,
+    paddingVertical: 14, alignItems: "center",
+    shadowColor: RED, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 8,
+  },
+  newPLCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
