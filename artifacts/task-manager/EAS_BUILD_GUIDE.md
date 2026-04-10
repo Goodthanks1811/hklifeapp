@@ -459,7 +459,35 @@ The `||=` (assign if nil/falsy) means setting these to `"0"` in the EAS env BEFO
 ```
 This forces CocoaPods to compile React Native from source, which is slower but doesn't depend on Expo's CDN.
 
-**Rule**: `RCT_USE_PREBUILT_RNCORE=0` and `RCT_USE_RN_DEP=0` are now set in `eas.json` for the `preview` profile. Build times will be longer (~20-40 min extra) but pod install is reliable.
+**Note**: Setting `RCT_USE_PREBUILT_RNCORE=0` / `RCT_USE_RN_DEP=0` did NOT fix this — the actual cause was the `react-native-worklets` bug below (issue #16). See that issue for the real fix. These env vars remain in `eas.json` as a belt-and-suspenders measure.
+
+---
+
+### 16. Pod install fails in ~2 seconds — `react-native-worklets` CWD-relative path bug
+
+**Symptom**: Pod install exits with code 1 in 2–3 seconds. No network involved. Prebuild succeeds. The actual Ruby exception is:
+```
+[Worklets] Feature flags file not found at ./src/featureFlags/staticFlags.json.
+```
+
+**Root cause**: `react-native-worklets@0.5.1` (and likely other 0.5.x versions) has a bug in `scripts/worklets_utils.rb` line 73:
+```ruby
+static_feature_flags_path = File.path('./src/featureFlags/staticFlags.json')
+```
+`File.path` just converts the string — it doesn't make it absolute. `./` is relative to the **current working directory** at runtime. When CocoaPods runs `pod install`, the CWD is the `ios/` directory (where the Podfile is). So this resolves to `ios/src/featureFlags/staticFlags.json` which doesn't exist. The `raise` fires, pod install exits immediately with code 1.
+
+The file actually lives at `node_modules/react-native-worklets/src/featureFlags/staticFlags.json`. The fix is to use `__dir__` (directory of `worklets_utils.rb` itself = `scripts/`) to build an absolute path.
+
+**Fix**: Added a patch in `plugins/withAppleMusicKit.js` `withDangerousMod` (runs during expo prebuild, before pod install) that rewrites the bad line:
+```ruby
+# Bad (CWD-relative — breaks when pod install runs from ios/):
+static_feature_flags_path = File.path('./src/featureFlags/staticFlags.json')
+
+# Good (__dir__-relative — resolves correctly from scripts/ to src/):
+static_feature_flags_path = File.expand_path('../src/featureFlags/staticFlags.json', __dir__)
+```
+
+**Rule**: Any time `react-native-worklets` is upgraded, re-check line 73 of `scripts/worklets_utils.rb` for this pattern. The patch in `withAppleMusicKit.js` is idempotent — it checks for both the bad and already-patched strings before writing.
 
 ---
 

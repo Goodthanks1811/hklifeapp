@@ -382,6 +382,33 @@ const withAppleMusicKit = (config) => {
         console.warn('[withAppleMusicKit] Layer 1: SpotifyiOS binaries not found — skipping direct swap');
       }
 
+      // ── Patch react-native-worklets/scripts/worklets_utils.rb ────────────────
+      // worklets_utils.rb line 73 uses `File.path('./src/featureFlags/staticFlags.json')`
+      // which is a CWD-relative path.  When CocoaPods runs `pod install`, the CWD is
+      // the ios/ directory — NOT the worklets package root — so this raises:
+      //   "[Worklets] Feature flags file not found at ./src/featureFlags/staticFlags.json"
+      // and pod install exits with code 1 in ~2 seconds.
+      // Fix: replace the CWD-relative path with a __dir__-relative absolute path so
+      // it works regardless of where `pod install` is invoked from.
+      const workletsUtilsPath = path.join(
+        projectRoot, 'node_modules', 'react-native-worklets', 'scripts', 'worklets_utils.rb'
+      );
+      if (fs.existsSync(workletsUtilsPath)) {
+        const bad  = "static_feature_flags_path = File.path('./src/featureFlags/staticFlags.json')";
+        const good = "static_feature_flags_path = File.expand_path('../src/featureFlags/staticFlags.json', __dir__)";
+        let rb = fs.readFileSync(workletsUtilsPath, 'utf8');
+        if (rb.includes(bad)) {
+          fs.writeFileSync(workletsUtilsPath, rb.replace(bad, good), 'utf8');
+          console.log('[withAppleMusicKit] Patched worklets_utils.rb: staticFlags path is now __dir__-relative ✓');
+        } else if (rb.includes(good)) {
+          console.log('[withAppleMusicKit] worklets_utils.rb already patched ✓');
+        } else {
+          console.warn('[withAppleMusicKit] worklets_utils.rb: staticFlags line not found — patch skipped');
+        }
+      } else {
+        console.log('[withAppleMusicKit] react-native-worklets not present — skipping worklets_utils patch');
+      }
+
       // Layer 2: append a Podfile post_install hook that re-applies the swap
       // after pod install (in case pnpm reinstalled and restored the original).
       const podfilePath = path.join(platformProjectRoot, 'Podfile');
