@@ -779,24 +779,18 @@ export default function SettingsScreen() {
     { name: "Life",             url: "spotify://playlist/7A7nzaXeOuAiTRdRzOQ64H?si=z1-VlOfxR1awOGPHBOUjPA&pi=XjlBmTebRtiNB" },
     { name: "September 2022",   url: "spotify://playlist/5G1ZOG3K4srwBr6Y2gdLCi?si=wManU4LNRly01VsODI2kbA&pi=IPovAIyWT26bK" },
   ];
-  const [spotifyClientId, setSpotifyClientId] = useState("");
-  const [spotifyPL,       setSpotifyPL]       = useState<SpotifyPL[]>(DEFAULT_SPOTIFY_PL);
+  const [spotifyClientId,  setSpotifyClientId]  = useState("");
+  const [spotifyIdDraft,   setSpotifyIdDraft]   = useState("");
+  const [spotifyIdSaved,   setSpotifyIdSaved]   = useState(false);
+  const [spotifyIdMasked,  setSpotifyIdMasked]  = useState(true);
+  const [spotifyPL,        setSpotifyPL]        = useState<SpotifyPL[]>(DEFAULT_SPOTIFY_PL);
   const [newSpotifyName,  setNewSpotifyName]  = useState("");
   const [newSpotifyURL,   setNewSpotifyURL]   = useState("");
 
   useEffect(() => {
     AsyncStorage.getItem("music_spotify_playlists").then(v => { if (v) setSpotifyPL(JSON.parse(v)); });
-    AsyncStorage.getItem("spotify_client_id").then(v => { if (v) setSpotifyClientId(v); });
+    AsyncStorage.getItem("spotify_client_id").then(v => { if (v) { setSpotifyClientId(v); setSpotifyIdDraft(v); } });
   }, []);
-
-  const saveSpotifyClientId = async (val: string) => {
-    setSpotifyClientId(val);
-    if (val.trim()) {
-      await AsyncStorage.setItem("spotify_client_id", val.trim());
-    } else {
-      await AsyncStorage.removeItem("spotify_client_id");
-    }
-  };
 
   const saveSpotify = (list: SpotifyPL[]) => { setSpotifyPL(list); AsyncStorage.setItem("music_spotify_playlists", JSON.stringify(list)); };
 
@@ -930,6 +924,27 @@ export default function SettingsScreen() {
       Animated.delay(1800),
       Animated.timing(aiTickOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start(() => setAiSaved(false));
+  };
+
+  const spotifyIdTickOpacity = useRef(new Animated.Value(0)).current;
+  const handleSpotifyIdSave = async () => {
+    const trimmed = spotifyIdDraft.trim();
+    Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (trimmed) {
+      await AsyncStorage.setItem("spotify_client_id", trimmed);
+      setSpotifyClientId(trimmed);
+    } else {
+      await AsyncStorage.removeItem("spotify_client_id");
+      setSpotifyClientId("");
+    }
+    setSpotifyIdSaved(true);
+    spotifyIdTickOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(spotifyIdTickOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(spotifyIdTickOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setSpotifyIdSaved(false));
   };
 
   const handleBiometricToggle = async (val: boolean) => {
@@ -1271,28 +1286,54 @@ export default function SettingsScreen() {
                 Your Spotify Client ID is required to connect your account. Get it from{" "}
                 <Text style={{ color: Colors.primary }}>developer.spotify.com</Text> → your app → Settings.
               </Text>
-              <View style={styles.mPLAddRow}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={[styles.mPLInput, { flex: 1 }]}
-                  value={spotifyClientId}
-                  onChangeText={saveSpotifyClientId}
+                  style={styles.input}
+                  value={spotifyIdDraft}
+                  onChangeText={setSpotifyIdDraft}
                   placeholder="Paste your Spotify Client ID..."
                   placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={spotifyIdMasked}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardAppearance="dark"
                   returnKeyType="done"
-                  secureTextEntry={false}
+                  onSubmitEditing={handleSpotifyIdSave}
                 />
+                <Pressable onPress={() => setSpotifyIdMasked(m => !m)} style={styles.eyeBtn}>
+                  <Feather name={spotifyIdMasked ? "eye" : "eye-off"} size={18} color={Colors.textSecondary} />
+                </Pressable>
               </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.saveBtn, (spotifyIdDraft.trim() === spotifyClientId) && styles.saveBtnDisabled]}
+                onPress={handleSpotifyIdSave}
+                disabled={spotifyIdDraft.trim() === spotifyClientId}
+              >
+                {spotifyIdSaved ? (
+                  <Animated.View style={[styles.savedRow, { opacity: spotifyIdTickOpacity }]}>
+                    <Feather name="check" size={16} color="#fff" />
+                    <Text style={styles.saveBtnText}>Saved</Text>
+                  </Animated.View>
+                ) : (
+                  <Text style={styles.saveBtnText}>Save Client ID</Text>
+                )}
+              </TouchableOpacity>
+
               {spotifyClientId ? (
                 <TouchableOpacity
                   activeOpacity={0.75}
                   style={styles.clearBtn}
-                  onPress={() => saveSpotifyClientId("")}
+                  onPress={async () => {
+                    setSpotifyIdDraft("");
+                    setSpotifyClientId("");
+                    await AsyncStorage.removeItem("spotify_client_id");
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  }}
                 >
                   <Feather name="trash-2" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.clearBtnText}>Clear Client ID</Text>
+                  <Text style={styles.clearBtnText}>Remove Client ID</Text>
                 </TouchableOpacity>
               ) : null}
             </SubAccordion>
