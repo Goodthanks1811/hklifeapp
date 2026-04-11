@@ -29,3 +29,9 @@ id = "FlR6LzHIbk69goVpHx062"
 uri = "file://SESSION_CHANGES.md"
 type = "text"
 title = "Session Changes — HK Life App"
+
+[[outputs]]
+id = "mDXRPoUcfx_JMLt_QtWpL"
+uri = "file://MUSIC_FIXES.md"
+type = "text"
+title = "Music Fixes — Apple, Spotify & My Music"
