@@ -194,15 +194,18 @@ export default function YouTubeScreen() {
   }, [persistHistory]);
 
   return (
-    <ScrollView
-      style={st.root}
-      contentContainerStyle={[st.content, { paddingTop: topPad + 80 }]}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Logo */}
-      <View style={st.logoWrap}>
+    <View style={[st.root, { paddingTop: topPad }]}>
+
+      {/* Fixed logo header — matches Shazam page structure */}
+      <View style={st.logoHeader}>
         <YouTubeLogo size={72} />
       </View>
+
+      <ScrollView
+        style={st.scrollArea}
+        contentContainerStyle={st.content}
+        keyboardShouldPersistTaps="handled"
+      >
 
       {/* Search bar + button */}
       <Animated.View style={[st.searchGroup, { transform: [{ translateX: shakeX }] }]}>
@@ -256,16 +259,17 @@ export default function YouTubeScreen() {
           </TouchableOpacity>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const st = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: "#0b0b0c" },
-  content: { paddingHorizontal: 16, paddingBottom: 60 },
-
-  logoWrap: { alignItems: "center", marginBottom: 64 },
+  root:       { flex: 1, backgroundColor: "#0b0b0c" },
+  logoHeader: { alignItems: "center", paddingTop: 20, paddingBottom: 20 },
+  scrollArea: { flex: 1 },
+  content:    { paddingHorizontal: 16, paddingBottom: 60 },
 
   searchGroup: {
     width: "90%",

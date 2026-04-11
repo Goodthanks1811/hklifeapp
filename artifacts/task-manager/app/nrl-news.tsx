@@ -71,7 +71,7 @@ function NrlLogo() {
   );
 }
 const logo = StyleSheet.create({
-  row: { alignItems: "center", paddingTop: 10, paddingBottom: 8, backgroundColor: "#000" },
+  row: { alignItems: "center", paddingTop: 4, paddingBottom: 8, backgroundColor: "#000" },
   img: { height: 115, width: "100%" },
 });
 
