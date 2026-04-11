@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Image,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -24,6 +25,7 @@ import Svg, {
 import { usePathname } from "expo-router";
 import { useMusicPlayer } from "@/context/MusicPlayerContext";
 import { useAppleMusicPlayer } from "@/context/AppleMusicPlayerContext";
+import { useSpotifyPlayer } from "@/context/SpotifyPlayerContext";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 // ── System volume hook — reads hardware volume and listens for button changes ─
@@ -218,9 +220,12 @@ function SliderBar({
 }
 
 // ── Global persistent player ──────────────────────────────────────────────────
+const GREEN = "#1DB954";
+
 export function GlobalMusicPlayer() {
   const player   = useMusicPlayer();
   const am       = useAppleMusicPlayer();
+  const sp       = useSpotifyPlayer();
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
 
@@ -258,25 +263,20 @@ export function GlobalMusicPlayer() {
     slideAnim.setValue(screenH);
     miniBarAlpha.setValue(0);
     setExpanded(true);
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 38, stiffness: 160 }).start();
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
   }, [slideAnim, panDrag, miniBarAlpha, screenH]);
 
   // collapse() — called from non-gesture triggers only (panDrag is 0 here)
   const collapse = useCallback(() => {
     if (dismissing.current) return;
     dismissing.current = true;
+    miniBarAlpha.setValue(1);
     Animated.timing(slideAnim, {
       toValue: screenH,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
+      duration: 340,
+      easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(() => { setExpanded(false); });
-    Animated.timing(miniBarAlpha, {
-      toValue: 1,
-      duration: 80,
-      delay: 180,
-      useNativeDriver: true,
-    }).start();
   }, [slideAnim, screenH, miniBarAlpha]);
 
   const collapseRef = useRef(collapse);
@@ -310,22 +310,17 @@ export function GlobalMusicPlayer() {
       const delta = Math.max(0, (panDrag as any).__getValue() as number);
       if (delta > 80 || velocityY > 800) {
         dismissing.current = true;
+        miniBarAlpha.setValue(1);
         Animated.timing(panDrag, {
           toValue: screenH,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
+          duration: 340,
+          easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }).start(() => {
           panDrag.setValue(0);
           slideAnim.setValue(screenH); // reset so next expand() has a valid start position
           setExpanded(false);
         });
-        Animated.timing(miniBarAlpha, {
-          toValue: 1,
-          duration: 80,
-          delay: 180,
-          useNativeDriver: true,
-        }).start();
       } else {
         Animated.spring(panDrag, { toValue: 0, useNativeDriver: true }).start();
       }
@@ -336,26 +331,56 @@ export function GlobalMusicPlayer() {
   const { sysVol, setSystemVolume, volAnim } = useSystemVolume();
 
   // ── Determine active source ──────────────────────────────────────────────
-  const source: "mymusic" | "apple" | null =
+  const source: "mymusic" | "apple" | "spotify" | null =
     player.isPlaying ? "mymusic"
     : am.isPlaying   ? "apple"
+    : sp.isPlaying   ? "spotify"
     : player.track   ? "mymusic"
     : am.nowPlaying  ? "apple"
+    : sp.nowPlaying  ? "spotify"
     : null;
 
   if (!source) return null;
 
-  const title    = source === "mymusic" ? (player.track?.name ?? "") : (am.nowPlaying?.title ?? "");
-  const artist   = source === "mymusic" ? ((player.track as any)?.artist ?? "") : (am.nowPlaying?.artist ?? "");
-  const isPlay   = source === "mymusic" ? player.isPlaying : am.isPlaying;
-  const posMs    = source === "mymusic" ? player.posMs : am.posMs;
-  const durMs    = source === "mymusic" ? player.durMs : am.durMs;
+  const accentColor = source === "spotify" ? GREEN : RED;
+
+  const title  = source === "mymusic" ? (player.track?.name ?? "")
+    : source === "apple"   ? (am.nowPlaying?.title  ?? "")
+    : (sp.nowPlaying?.title  ?? "");
+  const artist = source === "mymusic" ? ((player.track as any)?.artist ?? "")
+    : source === "apple"   ? (am.nowPlaying?.artist ?? "")
+    : (sp.nowPlaying?.artist ?? "");
+  const isPlay = source === "mymusic" ? player.isPlaying
+    : source === "apple"   ? am.isPlaying
+    : sp.isPlaying;
+  const posMs  = source === "mymusic" ? player.posMs
+    : source === "apple"   ? am.posMs
+    : sp.posMs;
+  const durMs  = source === "mymusic" ? player.durMs
+    : source === "apple"   ? am.durMs
+    : sp.durMs;
   const progress = durMs > 0 ? posMs / durMs : 0;
 
-  const doToggle    = () => source === "mymusic" ? player.togglePlay() : (am.isPlaying ? am.pause() : am.play());
-  const doSkipBack  = () => source === "mymusic" ? player.skipBack()   : am.skipToPrevious();
-  const doSkipFwd   = () => source === "mymusic" ? player.skipForward() : am.skipToNext();
-  const doSeek      = (r: number) => source === "mymusic" ? player.seekTo(r * durMs) : am.seekTo(r * durMs);
+  const doToggle = () => {
+    if (source === "mymusic") { player.togglePlay(); return; }
+    if (source === "apple")   { am.isPlaying ? am.pause() : am.play(); return; }
+    sp.isPlaying ? sp.pause() : sp.play();
+  };
+  const doSkipBack = () => {
+    if (source === "mymusic") { player.skipBack(); return; }
+    if (source === "apple")   { am.skipToPrevious(); return; }
+    sp.skipToPrevious();
+  };
+  const doSkipFwd = () => {
+    if (source === "mymusic") { player.skipForward(); return; }
+    if (source === "apple")   { am.skipToNext(); return; }
+    sp.skipToNext();
+  };
+  const doSeek = (r: number) => {
+    if (source === "mymusic") { player.seekTo(r * durMs); return; }
+    if (source === "apple")   { am.seekTo(r * durMs); return; }
+    sp.seekTo(r * durMs);
+  };
   const doSetVolume = (r: number) => setSystemVolume(r);
 
   function fmtMs(ms: number) {
@@ -366,20 +391,29 @@ export function GlobalMusicPlayer() {
   return (
     <View style={s.outerWrap} pointerEvents="box-none">
 
+      {/* Pre-decode HK artwork so it's in GPU memory before first expand */}
+      <Image
+        source={require("../assets/images/hk-artwork-transparent.png")}
+        style={{ width: 0, height: 0, position: "absolute" }}
+      />
+
       {/* ── Mini bar — always in tree when on music page; opacity controlled by
                miniBarAlpha (Animated.Value) so it appears synchronously on collapse ── */}
       {isOnMusicPage && (
         <Animated.View
-          style={[s.miniBar, { opacity: miniBarAlpha, bottom: insets.bottom }]}
+          style={[s.miniBar, { opacity: miniBarAlpha }]}
           pointerEvents={expanded ? "none" : "auto"}
         >
           <Pressable
-            style={s.miniBarPressable}
+            style={[s.miniBarPressable, {
+              paddingTop: 4 + insets.bottom / 4,
+              paddingBottom: 4 + insets.bottom / 4,
+            }]}
             onPress={expand}
           >
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}
             <View style={s.miniIcon}>
-              <Feather name="music" size={24} color={RED} />
+              <Feather name="music" size={20} color={accentColor} />
             </View>
 
             {/* Title + artist */}
@@ -390,10 +424,10 @@ export function GlobalMusicPlayer() {
 
             {/* Play/pause */}
             <Pressable
-              style={({ pressed }) => [s.miniPlayBtn, { transform: [{ scale: pressed ? 0.91 : 1 }] }]}
+              style={({ pressed }) => [s.miniPlayBtn, { backgroundColor: accentColor, transform: [{ scale: pressed ? 0.91 : 1 }] }]}
               onPress={(e) => { e.stopPropagation(); doToggle(); }}
             >
-              <Ionicons name={isPlay ? "pause" : "play"} size={20} color="#fff" />
+              <Ionicons name={isPlay ? "pause" : "play"} size={13} color="#fff" />
             </Pressable>
           </Pressable>
         </Animated.View>
@@ -420,7 +454,11 @@ export function GlobalMusicPlayer() {
           >
             <Pressable style={[s.gradHeader, { paddingTop: insets.top + 6 }]} onPress={collapse}>
               <LinearGradient
-                colors={[
+                colors={source === "spotify" ? [
+                  "rgba(29,185,84,0.92)", "rgba(24,160,72,0.76)",
+                  "rgba(18,130,58,0.58)", "rgba(12,90,40,0.38)",
+                  "rgba(6,50,22,0.20)",   "rgba(2,20,8,0.08)", BG,
+                ] : [
                   "rgba(224,49,49,0.92)", "rgba(215,42,42,0.76)",
                   "rgba(190,28,28,0.58)", "rgba(145,16,16,0.38)",
                   "rgba(90,8,8,0.20)",   "rgba(35,3,3,0.08)", BG,
@@ -437,7 +475,11 @@ export function GlobalMusicPlayer() {
           {/* Artwork */}
           <View style={s.artZone}>
             <View style={s.artBg}>
-              <MusicNoteIcon />
+              <Image
+                source={require("../assets/images/hk-artwork-transparent.png")}
+                style={s.artImage}
+                resizeMode="contain"
+              />
             </View>
           </View>
 
@@ -452,7 +494,7 @@ export function GlobalMusicPlayer() {
 
           {/* Scrub bar */}
           <View style={s.scrubSection}>
-            <SliderBar value={progress} onChange={doSeek} height={4} thumbSize={14} />
+            <SliderBar value={progress} onChange={doSeek} height={4} thumbSize={14} color={accentColor} />
             <View style={s.timeRow}>
               <Text style={s.timeText}>{fmtMs(posMs)}</Text>
               <Text style={s.timeText}>{durMs > 0 ? fmtMs(durMs) : "--:--"}</Text>
@@ -465,7 +507,7 @@ export function GlobalMusicPlayer() {
               style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
               onPress={() => setShuffle(v => !v)}
             >
-              <Ionicons name="shuffle" size={22} color={shuffle ? RED : "#3a3a3a"} />
+              <Ionicons name="shuffle" size={22} color={shuffle ? accentColor : "#3a3a3a"} />
             </Pressable>
             <Pressable
               style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
@@ -474,7 +516,7 @@ export function GlobalMusicPlayer() {
               <Ionicons name="play-skip-back" size={30} color="#fff" />
             </Pressable>
             <Pressable
-              style={({ pressed }) => [s.bigPlayBtn, { transform: [{ scale: pressed ? 0.91 : 1 }] }]}
+              style={({ pressed }) => [s.bigPlayBtn, { backgroundColor: accentColor, shadowColor: accentColor, transform: [{ scale: pressed ? 0.91 : 1 }] }]}
               onPress={doToggle}
             >
               <Ionicons name={isPlay ? "pause" : "play"} size={30} color="#fff" />
@@ -489,7 +531,7 @@ export function GlobalMusicPlayer() {
               style={({ pressed }) => [s.iconBtn, { opacity: pressed ? 0.45 : 1 }]}
               onPress={() => setRepeat(v => !v)}
             >
-              <Ionicons name="repeat" size={22} color={repeat ? RED : "#3a3a3a"} />
+              <Ionicons name="repeat" size={22} color={repeat ? accentColor : "#3a3a3a"} />
             </Pressable>
           </View>
 
@@ -527,7 +569,7 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 0, left: 12, right: 12,
+    position: "absolute", bottom: 0, left: 16, right: 16,
     backgroundColor: ROW,
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     borderTopWidth: 1, borderTopColor: BORDER,
@@ -536,10 +578,10 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingLeft: 22, paddingRight: 18, paddingTop: 15, paddingBottom: 15, gap: 14,
+    paddingLeft: 18, paddingRight: 22, paddingTop: 15, paddingBottom: 15, gap: 12,
   },
   miniIcon: {
-    width: 44, height: 44, borderRadius: 11,
+    width: 36, height: 36, borderRadius: 9,
     backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
@@ -547,15 +589,15 @@ const s = StyleSheet.create({
     flex: 1,
   },
   miniTitle: {
-    fontSize: 17, fontFamily: "Inter_600SemiBold", color: "#fff",
+    fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#fff",
   },
   miniArtist: {
-    fontSize: 14, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2,
+    fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1,
   },
   miniPlayBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: RED,
+    width: 26, height: 26, borderRadius: 13, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
-    marginRight: 6,
+    marginRight: 10,
   },
 
   // ── Full screen ───────────────────────────────────────────────────────────
@@ -579,10 +621,10 @@ const s = StyleSheet.create({
   },
   artZone: { marginTop: 8, alignItems: "center" },
   artBg: {
-    width: ART_SIZE, height: ART_SIZE, borderRadius: 16,
-    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#222",
-    alignItems: "center", justifyContent: "center", overflow: "hidden",
+    width: ART_SIZE, height: ART_SIZE,
+    alignItems: "center", justifyContent: "center",
   },
+  artImage: { width: "100%", height: "100%" },
   trackBlock: { marginTop: 0 },
   trackTitle: {
     fontSize: 22, fontWeight: "700", color: "#fff",
