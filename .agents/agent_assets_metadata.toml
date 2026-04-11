@@ -23,3 +23,9 @@ id = "wBJh7cuEIqj4pd_4sKUOK"
 uri = "file://artifacts/task-manager/assets/images/icon_preview_ebbeed9.png"
 type = "image"
 title = "Icon from April 6 'Restore original' commit"
+
+[[outputs]]
+id = "FlR6LzHIbk69goVpHx062"
+uri = "file://SESSION_CHANGES.md"
+type = "text"
+title = "Session Changes — HK Life App"
