@@ -267,7 +267,7 @@ export default function YouTubeScreen() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const st = StyleSheet.create({
   root:       { flex: 1, backgroundColor: "#0b0b0c" },
-  logoHeader: { alignItems: "center", paddingTop: 20, paddingBottom: 20 },
+  logoHeader: { alignItems: "center", paddingTop: 78, paddingBottom: 8 },
   scrollArea: { flex: 1 },
   content:    { paddingHorizontal: 16, paddingBottom: 60 },
 

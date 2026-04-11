@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   center:   { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
 
   // Fixed logo header — lives outside scroll/swipeable content
-  fixedHeader: { alignItems: "center", paddingTop: 20, paddingBottom: 20, position: "relative" },
+  fixedHeader: { alignItems: "center", paddingTop: 78, paddingBottom: 8, position: "relative" },
   logo:        { width: 78, height: 78, borderRadius: 18 },
   // Invisible back zone — left 80px of the fixed header, same pattern as My Music
   backZone:    { position: "absolute", left: 0, top: 0, bottom: 0, width: 80 },
