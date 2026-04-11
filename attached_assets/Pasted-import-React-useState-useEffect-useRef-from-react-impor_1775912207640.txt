@@ -1,0 +1,375 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Linking,
+  StatusBar,
+  Animated,
+  Keyboard,
+  Platform,
+  Image,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// ─── Theme (HK) ──────────────────────────────────────────────────────────────
+const T = {
+  bg:         '#0b0b0c',
+  surface:    '#111113',
+  border:     '#1e1e20',
+  borderFocus:'rgb(255,30,30)',
+  accent:     'rgb(255,30,30)',
+  accentDim:  'rgba(255,30,30,0.10)',
+  text:       '#f0f0f0',
+  muted:      '#444448',
+  mutedLight: '#666',
+};
+
+const FILTERS = [
+  { label: 'All',      param: '' },
+  { label: 'Video',    param: '&sp=EgIQAQ%3D%3D' },
+  { label: 'Playlist', param: '&sp=EgIQBQ%3D%3D' },
+  { label: 'Channel',  param: '&sp=EgIQAg%3D%3D' },
+  { label: 'Short',    param: '&sp=EgQQARgC' },
+];
+
+const STORAGE_KEY = 'hk_yt_recents';
+const MAX_RECENTS = 10;
+
+// ─── YouTube logo (bundled as local asset — drop Youtube.png into assets/) ───
+// If you have the file in assets/Youtube.png, use:
+//   const YT_LOGO = require('../assets/Youtube.png');
+// Otherwise we use a URI. Swap this out:
+const YT_LOGO_URI = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/800px-YouTube_full-color_icon_%282017%29.svg.png';
+
+export default function YouTubeSearchScreen() {
+  const [query, setQuery]           = useState('');
+  const [activeFilter, setFilter]   = useState(0);
+  const [recents, setRecents]       = useState([]);
+  const [focused, setFocused]       = useState(false);
+  const inputRef                    = useRef(null);
+  const borderAnim                  = useRef(new Animated.Value(0)).current;
+
+  // ── Load recents on mount ──
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then(val => {
+      if (val) setRecents(JSON.parse(val));
+    });
+  }, []);
+
+  // ── Border glow animation ──
+  useEffect(() => {
+    Animated.timing(borderAnim, {
+      toValue: focused ? 1 : 0,
+      duration: 150,
+      useNativeDriver: false,
+    }).start();
+  }, [focused]);
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [T.border, T.borderFocus],
+  });
+
+  // ── Save & search ──
+  async function saveRecent(q) {
+    const next = [q, ...recents.filter(r => r.toLowerCase() !== q.toLowerCase())]
+      .slice(0, MAX_RECENTS);
+    setRecents(next);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+
+  async function doSearch(q) {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    Keyboard.dismiss();
+    await saveRecent(trimmed);
+
+    const encoded = encodeURIComponent(trimmed);
+    const filter  = FILTERS[activeFilter].param;
+
+    // Try YouTube app first, fallback to browser
+    const appUrl     = `youtube://results?search_query=${encoded}`;
+    const browserUrl = `https://www.youtube.com/results?search_query=${encoded}${filter}`;
+
+    const canOpen = await Linking.canOpenURL(appUrl);
+    Linking.openURL(canOpen ? appUrl : browserUrl);
+  }
+
+  async function clearRecents() {
+    setRecents([]);
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  }
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={T.bg} />
+
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <Image
+          source={{ uri: YT_LOGO_URI }}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.headerSub}>No homepage. No distractions.</Text>
+      </View>
+
+      {/* ── Search bar ── */}
+      <Animated.View style={[styles.searchWrap, { borderColor }]}>
+        <TextInput
+          ref={inputRef}
+          style={styles.searchInput}
+          placeholder="Search YouTube..."
+          placeholderTextColor={T.muted}
+          value={query}
+          onChangeText={setQuery}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onSubmitEditing={() => doSearch(query)}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+          selectionColor={T.accent}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearBtn}
+            onPress={() => { setQuery(''); inputRef.current?.focus(); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.clearBtnText}>✕</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={styles.searchBtn} onPress={() => doSearch(query)}>
+          <Text style={styles.searchBtnIcon}>⌕</Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* ── Filter chips ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersScroll}
+        contentContainerStyle={styles.filtersContent}
+      >
+        {FILTERS.map((f, i) => (
+          <TouchableOpacity
+            key={f.label}
+            style={[styles.chip, activeFilter === i && styles.chipActive]}
+            onPress={() => setFilter(i)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.chipText, activeFilter === i && styles.chipTextActive]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* ── Divider ── */}
+      <View style={styles.divider} />
+
+      {/* ── Recents ── */}
+      <View style={styles.recentsHeader}>
+        <Text style={styles.sectionLabel}>Recent</Text>
+        {recents.length > 0 && (
+          <TouchableOpacity onPress={clearRecents} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.clearAllText}>Clear all</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView
+        style={styles.recentsList}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {recents.length === 0 ? (
+          <Text style={styles.emptyText}>No recent searches yet.{'\n'}Start typing above.</Text>
+        ) : (
+          recents.map((r, i) => (
+            <TouchableOpacity
+              key={i}
+              style={styles.recentItem}
+              onPress={() => { setQuery(r); doSearch(r); }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.recentArrow}>↗</Text>
+              <Text style={styles.recentText} numberOfLines={1}>{r}</Text>
+              <Text style={styles.recentHint}>search</Text>
+            </TouchableOpacity>
+          ))
+        )}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: T.bg,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 18,
+  },
+
+  // Header
+  header: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  logo: {
+    width: 56,
+    height: 40,
+    marginBottom: 8,
+  },
+  headerSub: {
+    fontSize: 11,
+    color: T.muted,
+    letterSpacing: 0.4,
+    fontWeight: '300',
+  },
+
+  // Search
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: T.surface,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: T.text,
+    fontWeight: '400',
+    padding: 0,
+    margin: 0,
+  },
+  clearBtn: {
+    paddingHorizontal: 6,
+  },
+  clearBtnText: {
+    color: T.mutedLight,
+    fontSize: 13,
+  },
+  searchBtn: {
+    backgroundColor: T.accent,
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  searchBtnIcon: {
+    color: '#fff',
+    fontSize: 20,
+    lineHeight: 22,
+    marginTop: -1,
+  },
+
+  // Filters
+  filtersScroll: {
+    marginBottom: 16,
+    flexGrow: 0,
+  },
+  filtersContent: {
+    gap: 6,
+    paddingRight: 4,
+  },
+  chip: {
+    backgroundColor: T.surface,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 5,
+  },
+  chipActive: {
+    backgroundColor: T.accentDim,
+    borderColor: T.accent,
+  },
+  chipText: {
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: T.muted,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: T.accent,
+  },
+
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: T.border,
+    marginBottom: 14,
+  },
+
+  // Recents
+  recentsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: T.muted,
+    fontWeight: '600',
+  },
+  clearAllText: {
+    fontSize: 10,
+    color: T.muted,
+  },
+
+  recentsList: {
+    flex: 1,
+  },
+  recentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: T.surface,
+    borderWidth: 1,
+    borderColor: T.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    marginBottom: 5,
+    gap: 10,
+  },
+  recentArrow: {
+    color: T.muted,
+    fontSize: 13,
+  },
+  recentText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#aaa',
+  },
+  recentHint: {
+    fontSize: 10,
+    color: T.muted,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: T.muted,
+    fontSize: 12,
+    lineHeight: 20,
+    marginTop: 24,
+  },
+});
