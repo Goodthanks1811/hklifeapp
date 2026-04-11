@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, Image } from 'react-native';
+import { Alert, AppState, Image } from 'react-native';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
@@ -141,6 +141,17 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
   // Register our pause fn so Apple Music can silence us when it starts
   useEffect(() => {
     MusicSourceBus.registerPauseMyMusic(() => { _TrackPlayer.pause().catch(() => {}); });
+  }, []);
+
+  // Debug: alert once on mount if the AppleMusicKit native module failed to load.
+  // If you see this popup, the native watchdog is never starting — root cause of 53s dropout.
+  useEffect(() => {
+    if (!_AppleMusicKit) {
+      Alert.alert(
+        "Debug: AppleMusicKit NULL",
+        "The apple-musickit native module did not load. The native watchdog will never start — this is likely the cause of the 53-second dropout. A JS fallback keepalive is needed.",
+      );
+    }
   }, []);
 
   // Track whether RNTP was actively playing when the app went to background.
