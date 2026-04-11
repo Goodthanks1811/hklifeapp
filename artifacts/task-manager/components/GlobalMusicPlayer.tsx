@@ -578,7 +578,7 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingLeft: 18, paddingRight: 22, paddingTop: 12, paddingBottom: 12, gap: 12,
+    paddingLeft: 18, paddingRight: 22, paddingTop: 15, paddingBottom: 15, gap: 12,
   },
   miniIcon: {
     width: 36, height: 36, borderRadius: 9,
