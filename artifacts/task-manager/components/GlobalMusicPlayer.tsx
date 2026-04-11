@@ -605,7 +605,7 @@ const s = StyleSheet.create({
     fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1,
   },
   miniPlayBtn: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: RED,
+    width: 27, height: 27, borderRadius: 14, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
     marginRight: 10,
   },

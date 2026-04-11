@@ -284,36 +284,29 @@ export default function MusicMyMusicScreen() {
   const player   = useMusicPlayer();
 
   // ── In-screen playlist navigation ────────────────────────────────────────
-  const [selPlId, setSelPlId]     = useState<string | null>(null);
-  const selPlIdRef                = useRef<string | null>(null);
-  // panelPlId is set on open and NEVER cleared on close — keeps the panel mounted
-  // so the slide animation can start instantly on every subsequent tap
-  const [panelPlId, setPanelPlId] = useState<string | null>(null);
-  const slideAnim                 = useRef(new Animated.Value(0)).current;
-  const mainSlide                 = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -screenW] });
-  const plSlide                   = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [screenW, 0] });
+  const [selPlId, setSelPlId] = useState<string | null>(null);
+  const selPlIdRef            = useRef<string | null>(null);
+  const slideAnim             = useRef(new Animated.Value(0)).current;
+  const mainSlide             = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -screenW] });
+  const plSlide               = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [screenW, 0] });
 
   const openPlaylist = (id: string) => {
     selPlIdRef.current = id;
     setSelPlId(id);
-    setPanelPlId(id); // persist so panel stays mounted between opens
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.timing(slideAnim, {
-      toValue: 1, duration: 300,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+    Animated.spring(slideAnim, {
+      toValue: 1, useNativeDriver: true,
+      friction: 20, tension: 200,
     }).start();
   };
 
   const closePlaylist = () => {
-    Animated.timing(slideAnim, {
-      toValue: 0, duration: 280,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+    Animated.spring(slideAnim, {
+      toValue: 0, useNativeDriver: true,
+      friction: 20, tension: 200,
     }).start(() => {
       selPlIdRef.current = null;
       setSelPlId(null);
-      // panelPlId intentionally NOT cleared — keeps panel mounted for instant next open
     });
   };
 
@@ -813,7 +806,7 @@ export default function MusicMyMusicScreen() {
   const [pdDragActiveIdx, setPdDragActiveIdx] = useState(-1);
   const [pdScrollEnabled, setPdScrollEnabled] = useState(true);
 
-  const selPlTracks = panelPlId ? (playlists.find(p => p.id === panelPlId)?.tracks ?? []) : [];
+  const selPlTracks = selPlId ? (playlists.find(p => p.id === selPlId)?.tracks ?? []) : [];
 
   selPlTracks.forEach((t, i) => {
     if (!pdPosAnims.current[t.id]) {
@@ -911,9 +904,8 @@ export default function MusicMyMusicScreen() {
     onPanResponderTerminate: () => pdEndDrag(),
   }), [pdAnimatePositions, pdEndDrag]);
 
-  const isEmpty  = isLoaded && tracks.length === 0 && playlists.length === 0;
-  const selPl    = selPlId   ? (playlists.find(p => p.id === selPlId)   ?? null) : null; // for subtitle
-  const panelPl  = panelPlId ? (playlists.find(p => p.id === panelPlId) ?? null) : null; // for panel content
+  const isEmpty = isLoaded && tracks.length === 0 && playlists.length === 0;
+  const selPl   = selPlId ? (playlists.find(p => p.id === selPlId) ?? null) : null;
 
   return (
     <View style={[st.root, { paddingTop: insets.top }]}>
@@ -1065,13 +1057,13 @@ export default function MusicMyMusicScreen() {
 
           {/* ── Playlist detail — slides in from right ── */}
           <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: plSlide }] }]}>
-            {panelPl && (
+            {selPl && (
               <>
-                {(panelPl.tracks ?? []).length === 0 ? (
+                {(selPl.tracks ?? []).length === 0 ? (
                   <View style={st.emptyState}>
                     <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
                     <Text style={st.emptyTitle}>No tracks yet</Text>
-                    <Pressable style={st.emptyBtn} onPress={() => pickFiles(panelPl.id)}>
+                    <Pressable style={st.emptyBtn} onPress={() => pickFiles(selPl.id)}>
                       <Feather name="plus" size={15} color="#fff" />
                       <Text style={st.emptyBtnText}>Add Songs</Text>
                     </Pressable>
@@ -1088,7 +1080,7 @@ export default function MusicMyMusicScreen() {
                     <View
                       ref={pdContainerRef}
                       {...pdDragResponder.panHandlers}
-                      style={{ height: (panelPl.tracks ?? []).length * SLOT_H }}
+                      style={{ height: (selPl.tracks ?? []).length * SLOT_H }}
                     >
                       {pdDragActiveIdx !== -1 && (
                         <Pressable
@@ -1096,7 +1088,7 @@ export default function MusicMyMusicScreen() {
                           onPress={() => pdEndDrag()}
                         />
                       )}
-                      {(panelPl.tracks ?? []).map((track, idx) => {
+                      {(selPl.tracks ?? []).map((track, idx) => {
                         const isDragging = pdDragActiveIdx === idx;
                         const posAnim    = pdPosAnims.current[track.id] ?? new Animated.Value(idx * SLOT_H);
                         const translateY = isDragging
@@ -1116,10 +1108,10 @@ export default function MusicMyMusicScreen() {
                               onPlay={() => {
                                 if (pdDragOccurredRef.current) return;
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                player.playTrack(idx, (panelPl.tracks ?? []).map(t => ({ ...t, uri: toAbs(t.uri) })));
+                                player.playTrack(idx, (selPl.tracks ?? []).map(t => ({ ...t, uri: toAbs(t.uri) })));
                                 MusicSourceBus.triggerExpand();
                               }}
-                              onDelete={() => removeFromPlaylist(panelPl.id, track.id)}
+                              onDelete={() => removeFromPlaylist(selPl.id, track.id)}
                               onLongPress={() => pdStartDrag(idx)}
                             />
                           </Animated.View>
