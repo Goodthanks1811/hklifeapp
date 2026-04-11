@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -8,6 +9,7 @@ import {
   Animated,
   Easing,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,6 +34,10 @@ const GREY   = "#888";
 
 const ITEM_H   = 52;
 const ITEM_GAP = 8;
+const SLOT_H   = ITEM_H + ITEM_GAP;
+
+const ZERO_ANIM = new Animated.Value(0);
+const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
 
 const BAR_COUNT   = 7;
 const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
@@ -117,14 +123,24 @@ function EQBars({ playing, paused }: { playing: boolean; paused: boolean }) {
 function TrackRow({
   track,
   isActive,
+  isDragging,
+  dimValue,
   onPress,
   onRemove,
+  onLongPress,
 }: {
   track: MusicTrack;
   isActive: boolean;
+  isDragging: boolean;
+  dimValue: Animated.Value;
   onPress: () => void;
   onRemove: () => void;
+  onLongPress: () => void;
 }) {
+  const swipeRef    = useRef<Swipeable>(null);
+  const revealedRef = useRef(false);
+  const opacity     = dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] });
+
   const renderRight = useCallback(() => (
     <View style={styles.deleteZone}>
       <Pressable style={styles.deleteAction} onPress={onRemove}>
@@ -134,25 +150,36 @@ function TrackRow({
   ), [onRemove]);
 
   return (
-    <Swipeable
-      renderRightActions={renderRight}
-      overshootRight={false}
-      rightThreshold={28}
-      friction={1.5}
-      containerStyle={{ borderRadius: 14, overflow: "hidden" }}
-    >
-      <Pressable onPress={onPress} style={styles.trackRow}>
-        <View style={styles.trackIcon}>
-          <Feather name="music" size={16} color={RED} />
-        </View>
-        <Text
-          style={[styles.trackName, isActive && { color: RED }]}
-          numberOfLines={1}
+    <Animated.View style={{ opacity }}>
+      <Swipeable
+        ref={swipeRef}
+        renderRightActions={renderRight}
+        overshootRight={false}
+        rightThreshold={28}
+        friction={1.5}
+        enabled={!isDragging}
+        onSwipeableOpen={() => { revealedRef.current = true; }}
+        onSwipeableClose={() => { revealedRef.current = false; }}
+        containerStyle={{ borderRadius: 14, overflow: "hidden" }}
+      >
+        <Pressable
+          onPress={() => revealedRef.current ? swipeRef.current?.close() : onPress()}
+          onLongPress={() => { if (!revealedRef.current) onLongPress(); }}
+          delayLongPress={200}
+          style={[styles.trackRow, isDragging && styles.trackRowDragging]}
         >
-          {track.name}
-        </Text>
-      </Pressable>
-    </Swipeable>
+          <View style={styles.trackIcon}>
+            <Feather name="music" size={16} color={RED} />
+          </View>
+          <Text
+            style={[styles.trackName, isActive && { color: RED }]}
+            numberOfLines={1}
+          >
+            {track.name}
+          </Text>
+        </Pressable>
+      </Swipeable>
+    </Animated.View>
   );
 }
 
@@ -165,7 +192,115 @@ export default function MusicPlaylistScreen() {
   const [tracks, setTracks]         = useState<MusicTrack[]>([]);
   const [showMenu, setShowMenu]     = useState(false);
   const playlistRef                 = useRef<Playlist | null>(null);
+  const tracksRef                   = useRef<MusicTrack[]>([]);
+  useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
+  // ── Drag/reorder ────────────────────────────────────────────────────────
+  const posAnims        = useRef<Record<string, Animated.Value>>({});
+  const addedAnims      = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const containerRef    = useRef<View>(null);
+  const containerTopRef = useRef(0);
+  const scrollOffsetRef = useRef(0);
+  const startScrollRef  = useRef(0);
+  const isDraggingRef   = useRef(false);
+  const draggingIdxRef  = useRef(-1);
+  const hoverIdxRef     = useRef(-1);
+  const dragOccurredRef = useRef(false);
+  const panY            = useRef(new Animated.Value(0)).current;
+  const dimAnim         = useRef(new Animated.Value(0)).current;
+  const [dragActiveIdx, setDragActiveIdx]       = useState(-1);
+  const [listScrollEnabled, setListScrollEnabled] = useState(true);
+
+  tracks.forEach((t, i) => {
+    if (!posAnims.current[t.id]) {
+      posAnims.current[t.id]   = new Animated.Value(i * SLOT_H);
+      addedAnims.current[t.id] = Animated.add(posAnims.current[t.id], panY);
+    }
+  });
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      tracksRef.current.forEach((t, i) => posAnims.current[t.id]?.setValue(i * SLOT_H));
+    }
+  }, [tracks]);
+
+  const animatePositions = useCallback((dragIdx: number, hoverIdx: number) => {
+    const cur = tracksRef.current;
+    cur.forEach((t, i) => {
+      if (i === dragIdx) return;
+      let target = i;
+      if (dragIdx < hoverIdx && i > dragIdx && i <= hoverIdx) target = i - 1;
+      else if (dragIdx > hoverIdx && i >= hoverIdx && i < dragIdx) target = i + 1;
+      posAnims.current[t.id]?.stopAnimation();
+      Animated.timing(posAnims.current[t.id], {
+        toValue: target * SLOT_H, duration: 110, useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
+      }).start();
+    });
+  }, []);
+
+  const startDrag = useCallback((idx: number) => {
+    isDraggingRef.current   = true;
+    draggingIdxRef.current  = idx;
+    hoverIdxRef.current     = idx;
+    dragOccurredRef.current = true;
+    setDragActiveIdx(idx);
+    setListScrollEnabled(false);
+    panY.setValue(0);
+    Animated.timing(dimAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    startScrollRef.current = scrollOffsetRef.current;
+    containerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
+      containerTopRef.current = py;
+    });
+  }, [dimAnim]);
+
+  const endDrag = useCallback(() => {
+    const di = draggingIdxRef.current;
+    const hi = hoverIdxRef.current;
+    isDraggingRef.current  = false;
+    draggingIdxRef.current = -1;
+    hoverIdxRef.current    = -1;
+    panY.setValue(0);
+    setListScrollEnabled(true);
+    Animated.timing(dimAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+
+    if (di >= 0 && hi >= 0 && di !== hi) {
+      const pl = playlistRef.current;
+      if (pl) {
+        const next = [...tracksRef.current];
+        const [moved] = next.splice(di, 1);
+        next.splice(hi, 0, moved);
+        next.forEach((t, i) => posAnims.current[t.id]?.setValue(i * SLOT_H));
+        tracksRef.current = next;
+        setTracks(next);
+        savePlaylists({ ...pl, tracks: next });
+      }
+    } else {
+      tracksRef.current.forEach((t, i) => posAnims.current[t.id]?.setValue(i * SLOT_H));
+    }
+    setDragActiveIdx(-1);
+    setTimeout(() => { dragOccurredRef.current = false; }, 80);
+  }, []);
+
+  const dragResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: () => isDraggingRef.current,
+    onPanResponderMove: (_, gs) => {
+      if (!isDraggingRef.current) return;
+      const di  = draggingIdxRef.current;
+      const len = tracksRef.current.length;
+      panY.setValue(gs.dy);
+      const relY     = gs.moveY - containerTopRef.current + (scrollOffsetRef.current - startScrollRef.current);
+      const newHover = clamp(0, len - 1, Math.floor(relY / SLOT_H));
+      if (newHover !== hoverIdxRef.current) {
+        hoverIdxRef.current = newHover;
+        animatePositions(di, newHover);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    onPanResponderEnd:       () => endDrag(),
+    onPanResponderTerminate: () => endDrag(),
+  }), [animatePositions, endDrag]);
 
   const activeId = player.track?.id
     ? toRel(player.track.id)
@@ -278,23 +413,51 @@ export default function MusicPlaylistScreen() {
       ) : (
         <ScrollView
           style={{ flex: 1 }}
+          scrollEnabled={listScrollEnabled}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 12,
             paddingBottom: player.track ? 330 : 40,
-            gap: ITEM_GAP,
           }}
+          onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
         >
-          {tracks.map((track, idx) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              isActive={activeId === track.id}
-              onPress={() => playFrom(idx)}
-              onRemove={() => removeTrack(track.id)}
-            />
-          ))}
+          <View
+            ref={containerRef}
+            {...dragResponder.panHandlers}
+            style={{ height: tracks.length * SLOT_H }}
+          >
+            {dragActiveIdx !== -1 && (
+              <Pressable
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+                onPress={() => endDrag()}
+              />
+            )}
+            {tracks.map((track, idx) => {
+              const isDragging = dragActiveIdx === idx;
+              const posAnim    = posAnims.current[track.id] ?? new Animated.Value(idx * SLOT_H);
+              const translateY = isDragging
+                ? (addedAnims.current[track.id] ?? posAnim)
+                : posAnim;
+              return (
+                <Animated.View
+                  key={track.id}
+                  style={{ position: "absolute", left: 0, right: 0, height: ITEM_H, top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] }}
+                >
+                  <TrackRow
+                    track={track}
+                    isActive={activeId === track.id}
+                    isDragging={isDragging}
+                    dimValue={isDragging ? ZERO_ANIM : dimAnim}
+                    onPress={() => { if (!dragOccurredRef.current) playFrom(idx); }}
+                    onRemove={() => removeTrack(track.id)}
+                    onLongPress={() => startDrag(idx)}
+                  />
+                </Animated.View>
+              );
+            })}
+          </View>
         </ScrollView>
       )}
 
@@ -381,6 +544,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
+  },
+  trackRowDragging: {
+    backgroundColor: "#1c1c1e",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
   },
   trackIcon: {
     width: 36,
