@@ -2,10 +2,24 @@ import { Router } from "express";
 
 const router = Router();
 
-const BASE_URL   = "https://www.nrl.com";
-const NEWS_URL   = "https://www.nrl.com/news/";
-const MAX_ITEMS  = 30;
+// Zero Tackle news is sourced via the WordPress REST API (not HTML scraping).
+// The listing page URL in the task spec (/nrl-news/) returns a 404; the WP API
+// at /wp-json/wp/v2/posts is stable and returns clean JSON.
+// Category 18176 = "Latest NRL News" on zerotackle.com.
+const ZT_API_URL  = "https://www.zerotackle.com/wp-json/wp/v2/posts";
+const ZT_CATEGORY = 18176;
+const MAX_ITEMS   = 40;
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+// Prefixes that are blocked from the NRL News tab
+// (team-list prefixes are routed to the Team Lists tab instead)
+const NRL_NEWS_BLOCKED_PREFIXES = [
+  "full time",
+  "updated team lists",
+  "final teams",
+  "coach's corner",
+  "coaches corner",
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -17,6 +31,12 @@ function decodeHtml(s: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&#8216;/g, "\u2018")
+    .replace(/&#8217;/g, "\u2019")
+    .replace(/&#8220;/g, "\u201C")
+    .replace(/&#8221;/g, "\u201D")
+    .replace(/&#8211;/g, "\u2013")
+    .replace(/&#8212;/g, "\u2014")
     .replace(/&#(\d+);/g, (_: string, n: string) => String.fromCharCode(parseInt(n, 10)));
 }
 
@@ -84,102 +104,71 @@ function isHeadingLike(s: string): boolean {
   return isAllCapsHeadingLike(s) || isTitleCaseHeadingLike(s);
 }
 
-// ── NRL.com news listing parser ───────────────────────────────────────────────
-
-interface NewsItem { title: string; link: string; pubDate: string; category: string }
-
-function parseNewsList(html: string): NewsItem[] {
-  const items: NewsItem[] = [];
-  const seenLinks = new Set<string>();
-  const junkTitles = new Set(["see more", "load more", "read more", "watch"]);
-
-  // For each card-content__text, scan backwards to find the nearest news link.
-  // This correctly pairs titles to links even when hero cards have no text element.
-  const titleRx = /<p[^>]+class="[^"]*card-content__text[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
-  const linkRx  = /href="(\/news\/\d{4}\/[^"]+)"/g;
-
-  // Build index of all link positions: { path, index }
-  const allLinks: { path: string; index: number }[] = [];
-  let lm: RegExpExecArray | null;
-  while ((lm = linkRx.exec(html)) !== null) {
-    allLinks.push({ path: lm[1], index: lm.index });
-  }
-
-  // Build index of all topic (category) positions
-  const topicRx = /<h3[^>]+class="[^"]*card-content__topic[^"]*"[^>]*>([\s\S]*?)<\/h3>/gi;
-  const allTopics: { text: string; index: number }[] = [];
-  let topm: RegExpExecArray | null;
-  while ((topm = topicRx.exec(html)) !== null) {
-    const t = cleanLine(decodeHtml(stripTags(topm[1])));
-    if (t) allTopics.push({ text: t, index: topm.index });
-  }
-
-  let tm: RegExpExecArray | null;
-  while ((tm = titleRx.exec(html)) !== null && items.length < MAX_ITEMS) {
-    const titleText = cleanLine(decodeHtml(stripTags(tm[1])));
-    if (!titleText || titleText.length <= 5 || junkTitles.has(titleText.toLowerCase())) continue;
-
-    const titlePos = tm.index;
-
-    // Find the nearest link that appears BEFORE this title
-    let bestLink = "";
-    for (let i = allLinks.length - 1; i >= 0; i--) {
-      if (allLinks[i].index < titlePos && !seenLinks.has(allLinks[i].path)) {
-        bestLink = allLinks[i].path;
-        break;
-      }
-    }
-    if (!bestLink) continue;
-    seenLinks.add(bestLink);
-
-    // Find the nearest topic that appears BEFORE this title (within 2000 chars)
-    let category = "";
-    for (let i = allTopics.length - 1; i >= 0; i--) {
-      if (allTopics[i].index < titlePos && titlePos - allTopics[i].index < 2000) {
-        category = allTopics[i].text;
-        break;
-      }
-    }
-
-    items.push({
-      title: titleText,
-      link: BASE_URL + bestLink,
-      pubDate: "",
-      category,
-    });
-  }
-
-  return items;
+function normalizeQuotes(s: string): string {
+  return s
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"');
 }
 
-// ── NRL.com article parser ────────────────────────────────────────────────────
+function hasBlockedPrefix(title: string): boolean {
+  const t = normalizeQuotes(title).toLowerCase().trim();
+  return NRL_NEWS_BLOCKED_PREFIXES.some(p => t.startsWith(p));
+}
+
+// ── Zero Tackle WP API types ──────────────────────────────────────────────────
+
+interface WpPost {
+  id: number;
+  date: string;
+  title: { rendered: string };
+  link: string;
+  categories: number[];
+  _embedded?: {
+    "wp:term"?: Array<Array<{ id: number; name: string; slug: string }>>;
+  };
+}
+
+interface NewsItem { title: string; link: string; pubDate: string; category: string; _blocked: boolean }
+
+// ── Zero Tackle article parser (HTML scraping of individual article pages) ────
 
 export interface ArticleBlock { type: "heading" | "paragraph"; text: string }
 
 function getArticleTitle(html: string): string {
-  const h1 = html.match(/<h1[^>]+class="[^"]*header__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i);
+  const h1 = html.match(/<h1[^>]+class="[^"]*entry-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i)
+           || html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
   if (h1) return cleanLine(decodeHtml(stripTags(h1[1])));
   const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i)
                 || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["'][^>]*>/i);
-  if (ogTitle) return cleanLine(decodeHtml(ogTitle[1])).replace(/\s*\|\s*NRL.*/i, "").trim();
+  if (ogTitle) return cleanLine(decodeHtml(ogTitle[1])).replace(/\s*[-|]\s*Zero Tackle.*/i, "").trim();
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (title) return cleanLine(decodeHtml(title[1])).replace(/\s*\|\s*NRL.*/i, "").trim();
+  if (title) return cleanLine(decodeHtml(title[1])).replace(/\s*[-|]\s*Zero Tackle.*/i, "").trim();
   return "Article";
 }
 
-function parseArticle(html: string): ArticleBlock[] {
-  // Try to find the main article body
-  const articleM = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)
-                || html.match(/<div[^>]+class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-                || html.match(/<div[^>]+class="[^"]*content[^"]*body[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+function parseZtArticle(html: string): ArticleBlock[] {
+  let content = html;
 
-  const content = articleM ? articleM[1] : html;
+  // Strip known junk blocks before parsing
+  content = content.replace(/<div[^>]+class="[^"]*code-block[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  content = content.replace(/<div[^>]+class="[^"]*td-post-sharing[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  content = content.replace(/<div[^>]+class="[^"]*td-author[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  content = content.replace(/<div[^>]+class="[^"]*td-post-next-prev[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  content = content.replace(/<div[^>]+class="[^"]*td-related[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+
+  // Find the article body
+  const articleM = content.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)
+                 || content.match(/<div[^>]+class="[^"]*td-post-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+                 || content.match(/<div[^>]+class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+
+  const body = articleM ? articleM[1] : content;
+
   const blockRx = /<(h1|h2|h3|p)\b[^>]*>([\s\S]*?)<\/\1>/gi;
   const blocks: ArticleBlock[] = [];
   let blocked = false;
   let m: RegExpExecArray | null;
 
-  while ((m = blockRx.exec(content)) !== null) {
+  while ((m = blockRx.exec(body)) !== null) {
     const tag  = m[1].toLowerCase();
     const text = cleanLine(stripTags(m[2]));
     if (!text || isJunkLine(text)) continue;
@@ -229,19 +218,59 @@ async function fetchPage(url: string): Promise<string> {
   return r.text();
 }
 
+async function fetchWpPosts(page: number): Promise<WpPost[]> {
+  const url = `${ZT_API_URL}?categories=${ZT_CATEGORY}&per_page=20&page=${page}&_embed=wp:term`;
+  const r = await fetch(url, {
+    headers: {
+      "User-Agent": UA,
+      "Accept": "application/json",
+    },
+    signal: AbortSignal.timeout(12_000),
+  });
+  // Page 2 can return 400 when there are fewer than 21 total posts — treat as empty
+  if (!r.ok) {
+    if (page > 1 && r.status === 400) return [];
+    throw new Error(`WP API error: ${r.status}`);
+  }
+  return r.json();
+}
+
+function wpPostToNewsItem(post: WpPost): NewsItem {
+  const title = cleanLine(decodeHtml(post.title.rendered));
+
+  // Extract primary category name from embedded terms
+  let category = "";
+  const terms = post._embedded?.["wp:term"]?.[0] ?? [];
+  // Skip the catch-all categories (18176, 6) and pick the first meaningful one
+  const skipIds = new Set([ZT_CATEGORY, 6]);
+  const catTerm = terms.find(t => !skipIds.has(t.id));
+  if (catTerm) category = decodeHtml(catTerm.name);
+
+  return {
+    title,
+    link: post.link,
+    pubDate: post.date ?? "",
+    category,
+    _blocked: hasBlockedPrefix(title),
+  };
+}
+
 router.get("/news", async (_req, res) => {
   try {
-    // Fetch pages 1 and 2 in parallel for ~48 raw articles
-    const [html1, html2] = await Promise.all([
-      fetchPage(NEWS_URL),
-      fetchPage(`${NEWS_URL}?page=2`),
+    // Fetch pages 1 and 2 in parallel for ~40 articles
+    const [posts1, posts2] = await Promise.all([
+      fetchWpPosts(1),
+      fetchWpPosts(2),
     ]);
-    const page1 = parseNewsList(html1);
-    const page2 = parseNewsList(html2);
 
-    // Deduplicate by link
-    const seen = new Set(page1.map(x => x.link));
-    const combined = [...page1, ...page2.filter(x => !seen.has(x.link))];
+    const seen = new Set<string>();
+    const combined: NewsItem[] = [];
+    for (const post of [...posts1, ...posts2]) {
+      if (seen.has(post.link)) continue;
+      seen.add(post.link);
+      combined.push(wpPostToNewsItem(post));
+      if (combined.length >= MAX_ITEMS) break;
+    }
 
     res.json({ items: combined });
   } catch (err: any) {
@@ -256,21 +285,20 @@ router.get("/article", async (req, res) => {
     return;
   }
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-AU,en;q=0.9",
-      },
-      signal: AbortSignal.timeout(14_000),
-    });
-    if (!response.ok) {
-      res.status(502).json({ error: `Article fetch failed: ${response.status}` });
+    const parsed = new URL(url);
+    const ALLOWED_HOSTS = new Set(["zerotackle.com", "www.zerotackle.com"]);
+    if (!ALLOWED_HOSTS.has(parsed.hostname)) {
+      res.status(400).json({ error: "URL must be a zerotackle.com article" });
       return;
     }
-    const html   = await response.text();
+  } catch {
+    res.status(400).json({ error: "Invalid url param" });
+    return;
+  }
+  try {
+    const html   = await fetchPage(url);
     const title  = getArticleTitle(html);
-    const blocks = parseArticle(html).slice(0, 80);
+    const blocks = parseZtArticle(html).slice(0, 80);
     res.json({ title, blocks });
   } catch (err: any) {
     res.status(500).json({ error: String(err?.message ?? err) });

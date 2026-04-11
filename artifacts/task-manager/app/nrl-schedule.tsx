@@ -14,10 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { isTablet } from "@/context/DrawerContext";
+import { isTablet, useDrawer } from "@/context/DrawerContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewMessageEvent } from "react-native-webview";
-import { ScreenHeader } from "@/components/ScreenHeader";
 
 // ── NRL theme ──────────────────────────────────────────────────────────────────
 const NRL_GREEN  = "#00A550";
@@ -410,8 +409,8 @@ function buildMainHtml(
     `<button class="round-pill${r === selRound ? " active" : ""}" id="pill-${r}" onclick="handleRound(${r})">${r}</button>`
   ).join("");
 
-  const tabBarH  = 104 + bottomPad;
-  const contentPb = 120 + bottomPad;
+  const tabBarH  = 52 + bottomPad;
+  const contentPb = 68 + bottomPad;
 
   const css = `
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap');
@@ -424,7 +423,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .tab-btn.active-ladder{color:#cccccc;border-bottom-color:#cccccc;}
 .tab-panel{display:none;}.tab-panel.visible{display:block;}
 .header{position:sticky;top:0;z-index:100;background:#000;}
-.header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;background:#000;}
+.header-logo-row{display:flex;justify-content:center;align-items:center;padding:78px 0 8px;background:#000;}
 .header-banner{height:115px;width:auto;display:block;object-fit:contain;}
 .rounds-scroll{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#000;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .rounds-scroll::-webkit-scrollbar{display:none}
@@ -432,7 +431,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .round-pill.active{background:${NRL_GREEN};border-color:${NRL_GREEN};color:#fff}
 .ladder-pill-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;background:#000;}
 .drg-header{position:sticky;top:0;z-index:100;background:${NRL_DARK};}
-.drg-header-logo-row{display:flex;justify-content:center;align-items:center;padding:10px 0 8px;}
+.drg-header-logo-row{display:flex;justify-content:center;align-items:center;padding:78px 0 8px;}
 .drg-header-banner{height:115px;width:auto;display:block;object-fit:contain;mix-blend-mode:screen;}
 .drg-header-spacer{height:45px;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .drg-round-header{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;color:${DRG_RED};text-align:center;padding:6px 0 8px;letter-spacing:.3px;}
@@ -696,6 +695,7 @@ function PickerContent({
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function NRLScheduleScreen() {
   const insets    = useSafeAreaInsets();
+  const { openDrawer } = useDrawer();
   const topPad    = Platform.OS === "web" ? Math.max(insets.top, 67)  : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
@@ -956,7 +956,11 @@ export default function NRLScheduleScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
-      <ScreenHeader title="Schedule" />
+      {/* Invisible left-half tap zone to open drawer — same pattern as Music */}
+      <Pressable
+        style={styles.backZone}
+        onPress={() => { openDrawer(); }}
+      />
 
       {loading && (
         <View style={styles.loadingCover}>
@@ -1021,6 +1025,7 @@ export default function NRLScheduleScreen() {
 
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: NRL_DARK },
+  backZone:     { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%", zIndex: 10 },
   webview:      { flex: 1, backgroundColor: NRL_DARK },
   loadingCover: {
     ...StyleSheet.absoluteFillObject,

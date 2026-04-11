@@ -18,7 +18,8 @@ import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import * as Haptics from "expo-haptics";
+import { useDrawer } from "@/context/DrawerContext";
 import { useNotion } from "@/context/NotionContext";
 
 const DB_ID  = "2d0b7eba3523806d96f1e5c22ef094c1";
@@ -68,6 +69,7 @@ const TEAMS = [
 
 export default function FootyHighlightsScreen() {
   const insets      = useSafeAreaInsets();
+  const { openDrawer } = useDrawer();
   const { apiKey }  = useNotion();
   const { width: screenW } = useWindowDimensions();
   const isIpad      = screenW >= 768;
@@ -224,7 +226,11 @@ export default function FootyHighlightsScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Footy Highlights" />
+      {/* Invisible left-half tap zone to open drawer — same pattern as Music */}
+      <Pressable
+        style={s.backZone}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+      />
 
       <Animated.ScrollView
         ref={scrollRef as any}
@@ -348,7 +354,8 @@ export default function FootyHighlightsScreen() {
 const s = StyleSheet.create({
   root:    { flex: 1, backgroundColor: BG },
   scroll:  { flex: 1 },
-  content: { paddingTop: 8 },
+  backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%", zIndex: 10 },
+  content: { paddingTop: 82 },
 
   label: {
     fontSize: 11, fontWeight: "600", color: TEXT,

@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useDrawer } from "@/context/DrawerContext";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -16,49 +15,20 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDrawer } from "@/context/DrawerContext";
+import Colors from "@/constants/colors";
 
-// ── Config ─────────────────────────────────────────────────────────────────────
-const HEADER_IMAGE = "https://i.postimg.cc/8CFL755P/IMG-4791.png";
 const BASE_URL     = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "";
-
-// ── Theme ──────────────────────────────────────────────────────────────────────
-const C = {
-  bg:        "#000000",
-  card:      "#111214",
-  cardBorder:"rgba(255,255,255,0.08)",
-  green:     "#2DB65F",
-  greenRgb:  "45,182,95",
-  greenLight:"#5FEB91",
-  text:      "#ffffff",
-  muted:     "#888888",
-  dim:       "rgba(255,255,255,0.5)",
-  tabBg:     "#111214",
-  tabActiveBg: "rgba(45,182,95,0.12)",
-  tabBorder: "rgba(255,255,255,0.06)",
-};
+const HEADER_IMAGE = "https://i.postimg.cc/8CFL755P/IMG-4791.png";
+const NRL_GREEN    = "#00D85B";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type TabId = "news" | "teamlists";
-interface NewsItem   { title: string; link: string; pubDate: string; category: string }
+interface NewsItem     { title: string; link: string; pubDate: string; category: string; _blocked?: boolean }
 interface ArticleBlock { type: "heading" | "paragraph"; text: string }
-interface Article   { title: string; blocks: ArticleBlock[] }
+interface Article      { title: string; blocks: ArticleBlock[] }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function isFirstTake(item: NewsItem): boolean {
-  return item.title.toLowerCase().startsWith("first take");
-}
-
-function isTeamList(item: NewsItem): boolean {
-  const cat = (item.category ?? "").toLowerCase();
-  // NRL.com tags team selection articles as "Team Lists" or "Match Preview"
-  if (cat.includes("team list") || cat === "match preview") return true;
-  // Fallback: URL slug (no category returned) — exclude fantasy columns
-  if (!cat) return item.link.includes("team-list") && !isFirstTake(item);
-  return false;
-}
-
-// ── Spinner ────────────────────────────────────────────────────────────────────
+// ── Green ring spinner ─────────────────────────────────────────────────────────
 function NrlSpinner() {
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -80,123 +50,71 @@ function NrlSpinner() {
 const sp = StyleSheet.create({
   wrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   ring: {
-    width: 52, height: 52, borderRadius: 26,
-    borderWidth: 5,
+    width: 48, height: 48, borderRadius: 24,
+    borderWidth: 4,
     borderColor: "#1a1a1a",
-    borderTopColor: C.green,
-    borderRightColor: C.green,
+    borderTopColor: NRL_GREEN,
+    borderRightColor: NRL_GREEN,
   },
 });
 
-// ── Tab bar ────────────────────────────────────────────────────────────────────
-const TABS: { id: TabId; label: string }[] = [
-  { id: "news",      label: "NRL News"   },
-  { id: "teamlists", label: "Team Lists" },
-];
-
-function TabBar({ active, onChange, isTablet }: { active: TabId; onChange: (t: TabId) => void; isTablet: boolean }) {
+// ── NRL logo — identical sizing to Schedule page (.header-banner) ─────────────
+function NrlLogo() {
   return (
-    <View style={[tb.row, { marginTop: isTablet ? 12 : 8, marginBottom: isTablet ? 18 : 14 }]}>
-      {TABS.map((tab) => {
-        const isActive = tab.id === active;
-        return (
-          <Pressable
-            key={tab.id}
-            onPress={() => {
-              if (!isActive) {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onChange(tab.id);
-              }
-            }}
-            style={[tb.tab, isActive && tb.tabActive]}
-          >
-            <Text style={[tb.label, { fontSize: isTablet ? 15 : 13 }, isActive && tb.labelActive]}>
-              {tab.label}
-            </Text>
-            {isActive && <View style={tb.underline} />}
-          </Pressable>
-        );
-      })}
+    <View style={logo.row}>
+      <Image
+        source={{ uri: HEADER_IMAGE }}
+        style={logo.img}
+        resizeMode="contain"
+      />
     </View>
   );
 }
-const tb = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    backgroundColor: C.tabBg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.tabBorder,
-    overflow: "hidden",
-  },
-  tab: {
-    flex: 1, alignItems: "center", justifyContent: "center",
-    paddingVertical: 11,
-    position: "relative",
-  },
-  tabActive: {
-    backgroundColor: C.tabActiveBg,
-  },
-  label: {
-    color: C.text,
-    fontWeight: "600",
-    letterSpacing: -0.1,
-  },
-  labelActive: {
-    color: C.text,
-  },
-  underline: {
-    position: "absolute",
-    bottom: 0, left: "15%", right: "15%",
-    height: 2, borderRadius: 2,
-    backgroundColor: C.green,
-  },
+const logo = StyleSheet.create({
+  row: { alignItems: "center", paddingTop: 10, paddingBottom: 8, backgroundColor: "#000" },
+  img: { height: 115, width: "100%" },
 });
 
-// ── Article card ───────────────────────────────────────────────────────────────
-function ArticleCard({ item, onPress, isTablet }: { item: NewsItem; onPress: () => void; isTablet: boolean }) {
-  const titleSize = isTablet ? 14 : 13;
-  const padV      = isTablet ? 13 : 12;
-  const padH      = 16;
+// ── Article card — Chest row style, no chevron ─────────────────────────────────
+function ArticleCard({ item, onPress }: { item: NewsItem; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [ac.shell, pressed && { opacity: 0.8 }]}>
-      <View style={[ac.card, { paddingVertical: padV, paddingHorizontal: padH }]}>
-        <Text style={[ac.title, { fontSize: titleSize, lineHeight: titleSize * 1.38, fontWeight: "500" }]}>{item.title}</Text>
-        <Text style={[ac.chevron, { fontSize: 16, lineHeight: 16 }]}>›</Text>
-      </View>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [ac.row, pressed && { opacity: 0.75 }]}
+    >
+      <Text style={ac.title} numberOfLines={2}>{item.title}</Text>
     </Pressable>
   );
 }
 const ac = StyleSheet.create({
-  shell:   { position: "relative", marginBottom: 0 },
-  card: {
-    backgroundColor: C.card,
-    borderWidth: 1, borderColor: C.cardBorder,
-    borderRadius: 16,
-    flexDirection: "row", alignItems: "center", gap: 12,
-    zIndex: 1,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.32, shadowRadius: 20, elevation: 6,
+  row: {
+    backgroundColor: "#0f0f0f",
+    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 13,
+    minHeight: 48,
   },
-  title:   { flex: 1, color: C.text, textAlign: "center", letterSpacing: -0.2 },
-  chevron: { color: C.muted },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    lineHeight: 21,
+  },
 });
 
 // ── Article body ───────────────────────────────────────────────────────────────
 function ArticleBody({ blocks, isTablet }: { blocks: ArticleBlock[]; isTablet: boolean }) {
   const textSize    = isTablet ? 16 : 15;
   const headingSize = isTablet ? 19 : 17;
-  const divH        = 3;
-
   return (
-    <View style={[ab.body, { borderRadius: isTablet ? 18 : 16, padding: isTablet ? 24 : 18 }]}>
+    <View style={ab.body}>
       {blocks.map((block, i) => {
         if (block.type === "heading") {
           const showDivider = i > 0 && blocks[i - 1]?.type !== "heading";
           return (
             <View key={i}>
               {showDivider && (
-                <View style={[ab.divider, { height: divH, marginTop: isTablet ? 32 : 26, marginBottom: isTablet ? 16 : 12 }]} />
+                <View style={[ab.divider, { marginTop: isTablet ? 32 : 26, marginBottom: isTablet ? 16 : 12 }]} />
               )}
               <Text style={[ab.heading, { fontSize: headingSize, marginBottom: 8 }]}>{block.text}</Text>
             </View>
@@ -213,54 +131,44 @@ function ArticleBody({ blocks, isTablet }: { blocks: ArticleBlock[]; isTablet: b
 }
 const ab = StyleSheet.create({
   body: {
-    borderWidth: 1, borderColor: C.cardBorder,
-    backgroundColor: "#151515",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3, shadowRadius: 28, elevation: 6,
+    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: "#0f0f0f",
+    borderRadius: 10,
+    padding: 18,
     overflow: "hidden",
   },
-  heading: { color: C.text, fontWeight: "800", lineHeight: 32, letterSpacing: -0.3 },
-  para:    { color: C.text, letterSpacing: -0.15 },
-  divider: {
-    borderRadius: 4,
-    marginHorizontal: 10,
-    backgroundColor: C.green,
-    shadowColor: C.green, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2, shadowRadius: 8,
-  },
+  heading: { color: "#fff", fontFamily: "Inter_700Bold", lineHeight: 28, letterSpacing: -0.3 },
+  para:    { color: "#fff", fontFamily: "Inter_400Regular", letterSpacing: -0.1 },
+  divider: { height: 3, borderRadius: 4, marginHorizontal: 10, backgroundColor: NRL_GREEN },
 });
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function NrlNewsScreen() {
+  const insets             = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
+  const isTablet           = screenW >= 768;
+
   const { openDrawer } = useDrawer();
-  const insets               = useSafeAreaInsets();
-  const { width: screenW }   = useWindowDimensions();
-  const isTablet             = screenW >= 768;
 
   const [news,       setNews]       = useState<NewsItem[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab,  setActiveTab]  = useState<TabId>("news");
 
   const [article,    setArticle]    = useState<Article | null>(null);
   const [artLoading, setArtLoading] = useState(false);
   const [artError,   setArtError]   = useState<string | null>(null);
 
   // Transition anim: 0 = list, 1 = article
-  const viewAnim  = useRef(new Animated.Value(0)).current;
-  const articleRef = useRef<Article | null>(null);
+  const viewAnim = useRef(new Animated.Value(0)).current;
 
   const topPad  = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
-  const sidePad = isTablet ? 20 : 14;
-  const maxW    = isTablet ? 1000 : 760;
+  const sidePad = isTablet ? 20 : 16;
+  const maxW    = isTablet ? 860 : 600;
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const visibleNews = activeTab === "teamlists"
-    ? news.filter(isTeamList)
-    : news.filter(x => !isFirstTake(x) && !isTeamList(x));
+  const visibleNews = news.filter(x => !x._blocked);
 
-  // ── Fetch news list ──────────────────────────────────────────────────────────
+  // ── Fetch ────────────────────────────────────────────────────────────────────
   const fetchNews = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
@@ -295,7 +203,6 @@ export default function NrlNewsScreen() {
       if (!r.ok) throw new Error(`Server error ${r.status}`);
       const data: Article = await r.json();
       setArticle(data);
-      articleRef.current = data;
     } catch (e: any) {
       setArtError(e?.message ?? "Failed to load article");
     } finally {
@@ -318,22 +225,17 @@ export default function NrlNewsScreen() {
   const listTranslateX    = viewAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -screenW] });
   const articleTranslateX = viewAnim.interpolate({ inputRange: [0, 1], outputRange: [screenW, 0] });
 
-  const headerImgW = isTablet ? screenW * 0.22 : screenW * 0.46;
-
   return (
-    <View style={[styles.root, { backgroundColor: C.bg }]}>
-      {/* ── LIST VIEW ────────────────────────────────────────────────────── */}
-      <Animated.View style={[styles.pane, { transform: [{ translateX: listTranslateX }] }]}>
-        {/* Hamburger */}
-        <Pressable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
-          style={[styles.hamburger, { top: topPad + 4 }]}
-          hitSlop={16}
-        >
-          <Feather name="menu" size={isTablet ? 22 : 20} color="rgba(255,255,255,0.7)" />
-        </Pressable>
+    <View style={styles.root}>
 
-        {/* Full-screen centred loader */}
+      {/* ── LIST VIEW ────────────────────────────────────────────────────── */}
+      <Animated.View style={[styles.pane, { transform: [{ translateX: listTranslateX }], backgroundColor: "#000" }]}>
+        {/* Invisible left-half tap zone to open drawer */}
+        <Pressable
+          style={styles.backZone}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+        />
+
         {loading && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NrlSpinner />
@@ -342,75 +244,62 @@ export default function NrlNewsScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: topPad + 16, paddingBottom: insets.bottom + 32, paddingHorizontal: 0 }}
+          contentContainerStyle={{
+            paddingTop: topPad + 74,
+            paddingBottom: insets.bottom + 40,
+          }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => fetchNews(true)}
-              tintColor={C.green}
-              colors={[C.green]}
+              tintColor={NRL_GREEN}
+              colors={[NRL_GREEN]}
             />
           }
         >
-          {/* Header image */}
-          {!loading && (
-            <View style={{ alignItems: "center", marginBottom: isTablet ? 28 : 22 }}>
-              <Image
-                source={{ uri: HEADER_IMAGE }}
-                style={{ width: headerImgW, maxWidth: isTablet ? 250 : 240, height: undefined, aspectRatio: 3.4, borderRadius: 12 }}
-                resizeMode="contain"
-              />
-            </View>
-          )}
+          {/* NRL logo — same sizing as Schedule page */}
+          {!loading && <NrlLogo />}
 
-          {/* Tab bar — constrained to same width as cards */}
-          {!loading && !error && (
-            <View style={{ maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
-              <TabBar active={activeTab} onChange={setActiveTab} isTablet={isTablet} />
-            </View>
-          )}
+          <View style={{ paddingTop: 16, paddingHorizontal: sidePad, maxWidth: maxW, alignSelf: "center", width: "100%" }}>
+            {error && !loading && (
+              <View style={styles.center}>
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable onPress={() => fetchNews()} style={styles.retryBtn}>
+                  <Text style={styles.retryTx}>Retry</Text>
+                </Pressable>
+              </View>
+            )}
 
-          {error && !loading && (
-            <View style={styles.center}>
-              <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => fetchNews()} style={styles.retryBtn}>
-                <Text style={styles.retryTx}>Retry</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {!loading && !error && (
-            <View style={{ gap: 10, maxWidth: maxW, alignSelf: "center", width: "100%", paddingHorizontal: sidePad }}>
-              {visibleNews.length === 0 ? (
-                <View style={styles.center}>
-                  <Text style={styles.errorText}>No articles found.</Text>
-                </View>
-              ) : (
-                visibleNews.map((item, i) => (
-                  <ArticleCard key={i} item={item} isTablet={isTablet} onPress={() => openArticle(item)} />
-                ))
-              )}
-            </View>
-          )}
+            {!loading && !error && (
+              <View style={{ gap: 8 }}>
+                {visibleNews.length === 0 ? (
+                  <View style={styles.center}>
+                    <Text style={styles.errorText}>No articles found.</Text>
+                  </View>
+                ) : (
+                  visibleNews.map((item, i) => (
+                    <ArticleCard key={i} item={item} onPress={() => openArticle(item)} />
+                  ))
+                )}
+              </View>
+            )}
+          </View>
         </ScrollView>
       </Animated.View>
 
       {/* ── ARTICLE VIEW ─────────────────────────────────────────────────── */}
-      <Animated.View style={[styles.pane, { transform: [{ translateX: articleTranslateX }] }]}>
-        {/* Back button */}
-        <Pressable
-          onPress={goBack}
-          style={[styles.backBtn, { top: topPad + 4 }]}
-          hitSlop={16}
-        >
-          <Feather name="chevron-left" size={isTablet ? 28 : 24} color={C.green} />
-          <Text style={[styles.backTx, { fontSize: isTablet ? 17 : 15 }]}>
-            {activeTab === "teamlists" ? "Team Lists" : "News"}
-          </Text>
-        </Pressable>
+      <Animated.View style={[styles.pane, { transform: [{ translateX: articleTranslateX }], backgroundColor: "#000" }]}>
+        {/* Back button — green */}
+        <View style={{ paddingTop: topPad }}>
+          <View style={styles.artHeader}>
+            <Pressable onPress={goBack} style={styles.backBtn} hitSlop={16}>
+              <Feather name="chevron-left" size={isTablet ? 28 : 24} color={NRL_GREEN} />
+              <Text style={[styles.backTx, { fontSize: isTablet ? 17 : 15 }]}>News</Text>
+            </Pressable>
+          </View>
+        </View>
 
-        {/* Full-screen centred loader — same pattern as list view */}
         {artLoading && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NrlSpinner />
@@ -419,25 +308,12 @@ export default function NrlNewsScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{
-            paddingTop: topPad + (isTablet ? 64 : 56),
-            paddingBottom: insets.bottom + 40,
-            paddingHorizontal: sidePad,
-          }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ maxWidth: isTablet ? 980 : 860, alignSelf: "center", width: "100%" }}>
-            {/* Header logo — same as list view */}
-            {!artLoading && (
-              <View style={{ alignItems: "center", marginBottom: isTablet ? 28 : 20 }}>
-                <Image
-                  source={{ uri: HEADER_IMAGE }}
-                  style={{ width: headerImgW, maxWidth: isTablet ? 250 : 240, height: undefined, aspectRatio: 3.4, borderRadius: 12 }}
-                  resizeMode="contain"
-                />
-              </View>
-            )}
+          {!artLoading && <NrlLogo />}
 
+          <View style={{ paddingTop: 16, paddingHorizontal: sidePad, maxWidth: isTablet ? 860 : 600, alignSelf: "center", width: "100%" }}>
             {artError && !artLoading && (
               <View style={styles.center}>
                 <Text style={styles.errorText}>{artError}</Text>
@@ -446,8 +322,8 @@ export default function NrlNewsScreen() {
 
             {article && !artLoading && (
               <>
-                <View style={{ paddingHorizontal: 4, paddingBottom: isTablet ? 24 : 18 }}>
-                  <Text style={[styles.artTitle, { fontSize: isTablet ? 28 : 21 }]}>{article.title}</Text>
+                <View style={{ paddingBottom: isTablet ? 24 : 18 }}>
+                  <Text style={[styles.artTitle, { fontSize: isTablet ? 26 : 20 }]}>{article.title}</Text>
                 </View>
                 {article.blocks.length > 0 ? (
                   <ArticleBody blocks={article.blocks} isTablet={isTablet} />
@@ -466,24 +342,20 @@ export default function NrlNewsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:      { flex: 1, backgroundColor: C.bg, overflow: "hidden" },
+  root:      { flex: 1, backgroundColor: Colors.darkBg },
   pane:      { ...StyleSheet.absoluteFillObject },
-  hamburger: { position: "absolute", left: 14, zIndex: 100,
-               width: 36, height: 36, borderRadius: 10,
-               backgroundColor: "rgba(255,255,255,0.08)",
-               alignItems: "center", justifyContent: "center" },
-  center:    { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
-  errorText: { color: C.muted, fontSize: 15, textAlign: "center", marginBottom: 16 },
-  retryBtn:  { borderWidth: 1, borderColor: C.green, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
-  retryTx:   { color: C.green, fontSize: 14, fontWeight: "600" },
-  backBtn: {
-    position: "absolute", left: 12, zIndex: 100,
-    flexDirection: "row", alignItems: "center", gap: 2,
-    paddingHorizontal: 8, paddingVertical: 6,
+  backZone:  { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%", zIndex: 10 },
+  center:    { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  errorText: { color: Colors.textMuted, fontSize: 15, textAlign: "center", marginBottom: 16 },
+  retryBtn:  { borderWidth: 1, borderColor: NRL_GREEN, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
+  retryTx:   { color: NRL_GREEN, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  artHeader: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 4, paddingVertical: 4,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: Colors.darkBg,
   },
-  backTx:    { color: C.green, fontWeight: "600", letterSpacing: -0.1 },
-  artTitle:  {
-    color: C.text, fontWeight: "800", lineHeight: 32,
-    letterSpacing: -0.3, textAlign: "center",
-  },
+  backBtn:   { flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 8, paddingVertical: 6 },
+  backTx:    { color: NRL_GREEN, fontFamily: "Inter_600SemiBold", letterSpacing: -0.1 },
+  artTitle:  { color: "#fff", fontFamily: "Inter_700Bold", lineHeight: 30, letterSpacing: -0.3, textAlign: "center" },
 });
