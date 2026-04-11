@@ -13,20 +13,13 @@ import { getStoredTokens, clearStoredTokens } from "@/utils/SpotifyAuth";
 let AppleMusicKit: any = null;
 try { AppleMusicKit = require("apple-musickit"); } catch {}
 
-let SpotifyRemote: any     = null;
-let SpotifySession: any    = null;
-let Remote: any            = null;
+let SpotifyRemote: any = null;
 try {
-  const mod      = require("react-native-spotify-remote");
-  SpotifyRemote  = mod.SpotifyRemote ?? mod.default?.SpotifyRemote;
-  SpotifySession = mod.SpotifySession ?? mod.default?.SpotifySession;
-  Remote         = mod;
+  const mod     = require("react-native-spotify-remote");
+  SpotifyRemote = mod.SpotifyRemote ?? mod.default?.SpotifyRemote;
 } catch {}
 
-const SPOTIFY_CLIENT_ID   = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? "";
-const APP_SCHEME          = process.env.APP_VARIANT === "development" ? "hk-life-app-dev" : "hk-life-app";
-const SPOTIFY_REDIRECT    = `${APP_SCHEME}://spotify-callback`;
-const REMOTE_AVAILABLE    = SpotifyRemote != null;
+const REMOTE_AVAILABLE = SpotifyRemote != null;
 
 export type SpotifySongInfo = {
   id:         string;
@@ -77,25 +70,13 @@ async function ensureRemoteConnected(): Promise<boolean> {
     const tokens = await getStoredTokens();
     if (!tokens) { _connectingRemote = false; return false; }
 
-    const sessionConfig = {
-      clientID:    SPOTIFY_CLIENT_ID,
-      redirectURL: SPOTIFY_REDIRECT,
-      tokenSwapURL: undefined as string | undefined,
-      tokenRefreshURL: undefined as string | undefined,
-      scopes: [
-        "user-read-private",
-        "user-read-email",
-        "playlist-read-private",
-        "playlist-read-collaborative",
-        "app-remote-control",
-        "streaming",
-      ],
-    };
-
-    if (SpotifySession?.authorize) {
-      await SpotifySession.authorize(sessionConfig);
-    }
-
+    // Connect to the Spotify app using our PKCE-obtained access token.
+    // SpotifySession.authorize is intentionally NOT called here — we do our own
+    // OAuth via expo-auth-session (PKCE).  Calling authorize would re-open the
+    // Spotify app for a second login prompt, and it used an empty clientID from
+    // the build-time env var (EXPO_PUBLIC_SPOTIFY_CLIENT_ID) rather than the
+    // user-configured value in AsyncStorage, causing every connect attempt to
+    // fail silently and prevent playUri from ever being reached.
     if (SpotifyRemote?.connect) {
       await SpotifyRemote.connect(tokens.accessToken);
     }

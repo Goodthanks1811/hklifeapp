@@ -12,7 +12,6 @@ const SCOPES       = [
   "playlist-read-private",
   "playlist-read-collaborative",
   "app-remote-control",
-  "streaming",
 ];
 
 const DISCOVERY: AuthSession.DiscoveryDocument = {

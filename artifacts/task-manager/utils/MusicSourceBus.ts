@@ -7,23 +7,24 @@ let _pauseAppleMusic: PauseFn     | null = null;
 let _pauseSpotify:    PauseFn     | null = null;
 let _expandPlayer:    ExpandFn    | null = null;
 
-// Silent PCM keepalive — runs alongside EVERY active source.
+// Silent PCM keepalive — used ONLY when Spotify is the active source.
 //
-// iOS 26 checks for actual audio-buffer output, not just an active session flag.
-// Calling setActive(true) on a timer is not sufficient — iOS can still kill the
-// process if no audio frames are flowing.  The silent AVAudioEngine (0-amplitude
-// PCM, MixWithOthers) feeds real frames to the audio graph, satisfying the OS
-// check and keeping our process alive through track transitions, lock-screen
-// suspension, and any brief session deactivation from RNTP or the system.
+// When Spotify plays, audio lives in the Spotify app process (IPC from our side).
+// Our process has no audio session of its own, so iOS can suspend/kill it.
+// The silent AVAudioEngine (0-amplitude PCM, MixWithOthers) keeps a live
+// AVAudioSession in our process without interfering with Spotify's audio.
 //
-// Previously this was only used for Spotify (where we produce no audio ourselves).
-// It now runs for ALL three sources as a universal background-survival layer.
+// The keepalive must NOT run alongside RNTP (My Music) or applicationQueuePlayer
+// (Apple Music).  MixWithOthers conflicts with RNTP's DoNotMix session and can
+// knock RNTP out of a playing state during track transitions, causing background
+// audio to die when the phone is locked.  Both RNTP and applicationQueuePlayer
+// produce their own audio and hold the session natively; they do not need this.
 let _startKeepalive: KeepaliveFn | null = null;
 let _stopKeepalive:  KeepaliveFn | null = null;
 
-// Secondary guard — Swift Timer calls setActive(true) every 2 s independently
-// of the JS thread.  Kept as a belt-and-suspenders complement to the keepalive;
-// the keepalive is the primary mechanism.
+// Native watchdog — Swift Timer calls setActive(true) every 2 s independently
+// of the JS thread.  Primary background-survival mechanism for My Music (RNTP)
+// and Apple Music (applicationQueuePlayer).  Fires even when JS is suspended.
 let _startWatchdog: KeepaliveFn | null = null;
 let _stopWatchdog:  KeepaliveFn | null = null;
 
@@ -72,13 +73,17 @@ export const MusicSourceBus = {
     _myMusicUserPaused    = false;
     _pauseAppleMusic?.();
     _pauseSpotify?.();
-    // Run the silent PCM engine alongside RNTP.  RNTP briefly deactivates the
-    // AVAudioSession when its queue item is nil (track gap).  The silent engine
-    // keeps real audio frames flowing through that window so iOS never sees a
-    // fully-quiet process and doesn't kill us.
-    _startKeepalive?.();
-    // Belt-and-suspenders: native watchdog re-calls setActive(true) every 2 s
-    // in case RNTP resets the category without MixWithOthers.
+    // Stop the silent PCM keepalive if it was running from a previous Spotify
+    // session.  The keepalive uses MixWithOthers, which conflicts with RNTP's
+    // DoNotMix session — they fight over the AVAudioSession and the keepalive
+    // can knock RNTP out of a playing state during track transitions, causing
+    // background audio to die.  RNTP (with RepeatMode.Queue) produces its own
+    // continuous audio and holds the session natively; it does not need the
+    // keepalive the way Spotify does.
+    _stopKeepalive?.();
+    // Native watchdog re-calls setActive(true) every 2 s at the Swift level,
+    // independent of the JS thread — keeps the session alive through any brief
+    // deactivation during RNTP track transitions without touching the category.
     _startWatchdog?.();
   },
 
