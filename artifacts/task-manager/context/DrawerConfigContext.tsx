@@ -83,11 +83,12 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Highlights", icon: "star",     route: "/footy-highlights",  description: "Log a footy highlight" },
   ],
   tools: [
-    { label: "Shazam",         icon: "music",     route: "/shazam",          description: "Songs you've Shazamed"  },
-    { label: "Mood Log",       icon: "smile",     route: "/mood-log",        description: "Log how you're feeling" },
-    { label: "Win Of The Day", icon: "award",     route: "/win-of-the-day",  description: "Log your daily win"     },
-    { label: "HK Quick Add",   icon: "zap",       route: "/hk-quick-add",    description: "Add HK Life tasks fast" },
-    { label: "IR Quick Add",   icon: "send",      route: "/ir-quick-add",    description: "Add IR App tasks fast"  },
+    { label: "Shazam",         icon: "music",        route: "/shazam",          description: "Songs you've Shazamed"  },
+    { label: "Mood Log",       icon: "smile",        route: "/mood-log",        description: "Log how you're feeling" },
+    { label: "Win Of The Day", icon: "award",        route: "/win-of-the-day",  description: "Log your daily win"     },
+    { label: "HK Quick Add",   icon: "zap",          route: "/hk-quick-add",    description: "Add HK Life tasks fast" },
+    { label: "IR Quick Add",   icon: "send",         route: "/ir-quick-add",    description: "Add IR App tasks fast"  },
+    { label: "YouTube",        icon: "play-circle",  route: "/youtube",         description: "Search YouTube videos"  },
   ],
   knowledge: [
     { label: "API's",              icon: "code",     route: "/api-quiz",           description: "Learn & quiz API fundamentals" },
