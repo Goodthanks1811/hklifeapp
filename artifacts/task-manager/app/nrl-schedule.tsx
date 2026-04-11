@@ -37,6 +37,18 @@ const YEAR                = new Date().getFullYear();
 const BASE_URL            = `https://www.nrl.com`;
 const PICKS_KEY           = "@nrl_picks";
 
+// iTipfooty proxy — single source for all fixture data
+const ITIPFOOTY_COMPID = "132428";
+const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
+  : "";
+
+// Origin game appears in rounds 12, 15, 18 → Game 1, 2, 3
+const ORIGIN_ROUND_MAP: Record<number, number> = { 12: 1, 15: 2, 18: 3 };
+
+// iTipfooty uses shortened names for some teams
+const ITIP_TEAM_MAP: Record<string, string> = { "Tigers": "Wests Tigers" };
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Match {
   id:          string;
@@ -53,6 +65,61 @@ interface Match {
   isComplete:  boolean;
   spoiler:     boolean;
   isBye:       boolean;
+  isOrigin?:   boolean;
+  gameNumber?: number;
+}
+
+// ── iTipfooty fetch + parse ────────────────────────────────────────────────────
+async function itipFetch<T = any>(url: string, options?: RequestInit): Promise<T | null> {
+  try {
+    const r = await fetch(url, {
+      headers: { Accept: "application/json", ...(options?.headers as Record<string, string> ?? {}) },
+      ...options,
+    });
+    if (!r.ok) return null;
+    return r.json() as Promise<T>;
+  } catch { return null; }
+}
+
+function normalizeTeamName(name: string): string {
+  return ITIP_TEAM_MAP[name] ?? name;
+}
+
+function teamColourFromName(name: string): string {
+  const key = name.toLowerCase().replace(/\s+/g, "-");
+  return "#" + (TEAM_COLOURS[key] || "444444");
+}
+
+function parseItipGames(games: any[], round: number): Match[] {
+  return games.map((g: any) => {
+    const kickoff    = g.kickoff ? new Date(g.kickoff) : new Date(NaN);
+    const ageMs      = Date.now() - kickoff.getTime();
+    const isComplete = g.locked && g.homeScore !== null && g.homeScore !== undefined
+                    && g.awayScore !== null && g.awayScore !== undefined;
+    const isOrigin   = g.isOrigin ?? false;
+
+    const rawHome = isOrigin ? "NSW Blues" : normalizeTeamName(g.homeTeam || g.homeTeamShort || "TBA");
+    const rawAway = isOrigin ? "QLD Maroons" : normalizeTeamName(g.awayTeam || g.awayTeamShort || "TBA");
+
+    return {
+      id:          isOrigin ? `origin-game-${ORIGIN_ROUND_MAP[round] ?? 1}` : `itip-${round}-${g.gameId}`,
+      homeTeam:    rawHome,
+      awayTeam:    rawAway,
+      homeScore:   g.homeScore ?? null,
+      awayScore:   g.awayScore ?? null,
+      homeColour:  isOrigin ? "#005DAA" : teamColourFromName(rawHome),
+      awayColour:  isOrigin ? "#700F23" : teamColourFromName(rawAway),
+      venue:       g.venue || "",
+      kickoff,
+      roundNumber: round,
+      state:       isComplete ? "FullTime" : (g.locked ? "InProgress" : "Upcoming"),
+      isComplete,
+      spoiler:     g.locked && ageMs > 0 && ageMs < SPOILER_WINDOW_MS,
+      isBye:       false,
+      isOrigin,
+      gameNumber:  isOrigin ? (ORIGIN_ROUND_MAP[round] ?? 1) : undefined,
+    };
+  });
 }
 
 interface DayGroup {
@@ -234,16 +301,15 @@ async function fetchAllDragonsMatches(maxRound: number): Promise<Match[]> {
     const fetches: Promise<{ round: number; data: any }>[] = [];
     for (let r = start; r <= end; r++) {
       fetches.push(
-        nrlFetch(`${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${r}`)
+        itipFetch(`${API_BASE}/itipfooty/fixture?compid=${ITIPFOOTY_COMPID}&round=${r}`)
           .then((data: any) => ({ round: r, data }))
       );
     }
     const results = await Promise.all(fetches);
     for (const { round, data } of results) {
-      if (!data?.fixtures) continue;
-      const parsed = parseMatches(data);
+      if (!data?.games) continue;
+      const parsed = parseItipGames(data.games, round);
       for (const m of parsed) {
-        m.roundNumber = m.roundNumber ?? round;
         if (m.homeTeam.includes("Dragons") || m.awayTeam.includes("Dragons")) {
           allMatches.push(m);
         }
@@ -322,12 +388,79 @@ function matchCard(m: Match, isDrgTab: boolean): string {
 </div>`;
 }
 
+function originCard(m: Match): string {
+  const { day, dateStr, time } = formatKickoff(m.kickoff);
+  const gameNum   = m.gameNumber ?? 1;
+  const venueStr  = m.venue ? `\uD83D\uDCCD ${m.venue}` : "";
+  const dateLabel = dateStr ? `${day}, ${dateStr}` : "";
+  const NSW_LIGHT  = "#3A8FFF";
+  const QLD_LIGHT  = "#D4384A";
+
+  const nswLogoUrl = `${API_BASE}/files/nsw-blues.png`;
+  const qldLogoUrl = `${API_BASE}/files/qld-maroons.png`;
+
+  const isLive     = m.state === "InProgress";
+  const isFinished = m.isComplete || isLive;
+
+  let scoreArea: string;
+  if (m.spoiler) {
+    scoreArea = `
+<div class="score-area">
+  <div id="spoiler-${m.id}" class="spoiler-block">
+    <button class="reveal-btn" onclick="revealScore('${m.id}')">Reveal</button>
+    ${dateLabel ? `<div class="centre-date" style="margin-top:6px">${dateLabel}</div>` : ""}
+    ${venueStr  ? `<div class="centre-loc"  style="margin-top:4px">${venueStr}</div>`  : ""}
+  </div>
+  <div id="score-${m.id}" class="score-inner" style="display:none">
+    <div class="score-display">${m.homeScore ?? 0} \u2013 ${m.awayScore ?? 0}</div>
+    <div class="score-label${isLive ? " live-label" : ""}">${isLive ? "LIVE" : "Full Time"}</div>
+    ${dateLabel ? `<div class="centre-date">${dateLabel}</div>` : ""}
+    ${venueStr  ? `<div class="centre-loc">${venueStr}</div>`   : ""}
+  </div>
+</div>`;
+  } else if (isFinished && m.homeScore != null && m.awayScore != null) {
+    scoreArea = `
+<div class="score-area"><div class="score-inner">
+  <div class="score-display">${m.homeScore} \u2013 ${m.awayScore}</div>
+  <div class="score-label${isLive ? " live-label" : ""}">${isLive ? "LIVE" : "Full Time"}</div>
+  ${dateLabel ? `<div class="centre-date">${dateLabel}</div>` : ""}
+  ${venueStr  ? `<div class="centre-loc">${venueStr}</div>`   : ""}
+</div></div>`;
+  } else {
+    scoreArea = `
+<div class="score-area"><div class="score-inner">
+  <div class="score-vs">vs</div>
+  ${dateLabel ? `<div class="centre-date">${dateLabel}</div>` : ""}
+  <div class="score-time">${time}</div>
+  ${venueStr  ? `<div class="centre-loc">${venueStr}</div>`   : ""}
+</div></div>`;
+  }
+
+  return `
+<div class="match-card" id="mc-${m.id}" style="border-color:#1a2a3a;background:linear-gradient(135deg,#001833 0%,#0c0c0c 50%,#1a000a 100%);">
+  <div class="origin-banner">
+    <span class="origin-label">Game ${gameNum} \u2013 State of Origin</span>
+  </div>
+  <div class="match-body">
+    <div class="team-block">
+      <div class="team-name" style="color:${NSW_LIGHT}">NSW Blues</div>
+      <img class="team-logo" src="${nswLogoUrl}" onerror="this.style.display='none'" alt="NSW Blues">
+    </div>
+    ${scoreArea}
+    <div class="team-block">
+      <div class="team-name" style="color:${QLD_LIGHT}">QLD Maroons</div>
+      <img class="team-logo" src="${qldLogoUrl}" onerror="this.style.display='none'" alt="QLD Maroons">
+    </div>
+  </div>
+</div>`;
+}
+
 function buildDayGroups(groups: DayGroup[]): string {
   if (groups.length === 0) return `<div class="empty">No fixtures found for this round.</div>`;
   return groups.map((g, i) => `
     ${i > 0 ? '<div class="day-divider"></div>' : ""}
     <div class="day-header">${g.day}, ${g.dateStr}</div>
-    <div class="cards-col">${g.matches.map((m) => matchCard(m, false)).join("")}</div>`
+    <div class="cards-col">${g.matches.map((m) => m.isOrigin ? originCard(m) : matchCard(m, false)).join("")}</div>`
   ).join("");
 }
 
@@ -480,7 +613,9 @@ td.ldiff{font-size:13px;}.dpos{color:#5a9;}.dneg{color:#a55;}
 .ladder-sep td{padding:0;height:2px;background:linear-gradient(to right,transparent,#333 20%,#333 80%,transparent);border:none;}
 .loading{text-align:center;padding:80px 20px;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-size:16px}
 .loader{width:28px;height:28px;border:2px solid #1a3a1a;border-top-color:${NRL_GREEN};border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
-@keyframes spin{to{transform:rotate(360deg)}}`;
+@keyframes spin{to{transform:rotate(360deg)}}
+.origin-banner{background:linear-gradient(90deg,#003a6e 0%,#005DAA 40%,#700F23 100%);padding:6px 16px;text-align:center;}
+.origin-label{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:12px;color:#fff;letter-spacing:1.2px;text-transform:uppercase;}`;
 
   const js = `
 var currentTab='nrl';
@@ -768,11 +903,10 @@ export default function NRLScheduleScreen() {
   }, [injectPickMarkers, injectPickResults]));
 
   const loadInitial = async () => {
-    const data = await nrlFetch(
-      `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}`
-    );
+    // Fetch current round from iTipfooty (no round param = current active round)
+    const data = await itipFetch(`${API_BASE}/itipfooty/fixture?compid=${ITIPFOOTY_COMPID}`);
 
-    if (!data) {
+    if (!data || data.error) {
       setLoading(false);
       const errHtml = buildMainHtml([], [], 1,
         `<div class="empty">Could not load Dragons data.</div>`,
@@ -784,15 +918,12 @@ export default function NRLScheduleScreen() {
       return;
     }
 
-    const currentRound = detectCurrentRound(data);
-    const maxRound     = data.totalRounds || MAX_ROUNDS;
+    const currentRound = data.round ?? 1;
+    const maxRound     = MAX_ROUNDS;
     maxRoundRef.current = maxRound;
     const rounds       = Array.from({ length: maxRound }, (_, i) => i + 1);
 
-    const roundData = await nrlFetch(
-      `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${currentRound}`
-    );
-    const matches = parseMatches(roundData || data);
+    const matches = parseItipGames(data.games ?? [], currentRound);
     currentMatchesRef.current = matches;
     currentRoundRef.current   = currentRound;
 
@@ -871,10 +1002,10 @@ export default function NRLScheduleScreen() {
     try { msg = JSON.parse(event.nativeEvent.data); } catch { return; }
 
     if (msg.type === "changeRound") {
-      const roundData = await nrlFetch(
-        `${BASE_URL}/draw/data?competition=${COMPETITION_ID}&season=${YEAR}&round=${msg.round}`
+      const roundData = await itipFetch(
+        `${API_BASE}/itipfooty/fixture?compid=${ITIPFOOTY_COMPID}&round=${msg.round}`
       );
-      const matches = parseMatches(roundData || {});
+      const matches = parseItipGames(roundData?.games ?? [], msg.round);
       currentMatchesRef.current = matches;
       currentRoundRef.current   = msg.round;
       const groups   = groupByDay(matches);

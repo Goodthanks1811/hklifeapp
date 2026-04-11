@@ -1,0 +1,89 @@
+{
+    "compid": "132428",
+    "round": 6,
+    "memberid": "558580",
+    "tipref": "1542957",
+    "jokerCount": "1",
+    "currentJokerCount": "0",
+    "cutoff": "GAME",
+    "code": "NRL",
+    "margin": "12",
+    "games": [
+        {
+            "gameNumber": 1,
+            "currentTip": "A",
+            "locked": true,
+            "homeTeam": "BUL",
+            "awayTeam": null,
+            "previousTip": "Panthers"
+        },
+        {
+            "gameNumber": 2,
+            "currentTip": "H",
+            "locked": true,
+            "homeTeam": "DRA",
+            "awayTeam": "SEA",
+            "previousTip": "Dragons"
+        },
+        {
+            "gameNumber": 3,
+            "currentTip": "H",
+            "locked": true,
+            "homeTeam": "BRO",
+            "awayTeam": "COW",
+            "previousTip": "Broncos"
+        },
+        {
+            "gameNumber": 4,
+            "currentTip": "A",
+            "locked": false,
+            "homeTeam": "RAB",
+            "awayTeam": null,
+            "previousTip": "Raiders"
+        },
+        {
+            "gameNumber": 5,
+            "currentTip": "A",
+            "locked": false,
+            "homeTeam": "SHA",
+            "awayTeam": null,
+            "previousTip": "Roosters"
+        },
+        {
+            "gameNumber": 6,
+            "currentTip": "H",
+            "locked": false,
+            "homeTeam": "STO",
+            "awayTeam": "WAR",
+            "previousTip": "Storm"
+        },
+        {
+            "gameNumber": 7,
+            "currentTip": "H",
+            "locked": false,
+            "homeTeam": "EEL",
+            "awayTeam": "TIT",
+            "previousTip": "Eels"
+        },
+        {
+            "gameNumber": 8,
+            "currentTip": "H",
+            "locked": false,
+            "homeTeam": "TIG",
+            "awayTeam": "KNI",
+            "previousTip": "Tigers"
+        }
+    ],
+    "oldFields": {
+        "OldTip1": "Panthers",
+        "OldMargin": "12",
+        "OldMarginNonSub": "N",
+        "OldTip2": "Dragons",
+        "OldTip3": "Broncos",
+        "OldTip4": "Raiders",
+        "OldTip5": "Roosters",
+        "OldTip6": "Storm",
+        "OldTip7": "Eels",
+        "OldTip8": "Tigers"
+    }
+}
