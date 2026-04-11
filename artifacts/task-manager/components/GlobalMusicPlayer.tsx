@@ -370,14 +370,11 @@ export function GlobalMusicPlayer() {
                miniBarAlpha (Animated.Value) so it appears synchronously on collapse ── */}
       {isOnMusicPage && (
         <Animated.View
-          style={[s.miniBar, { opacity: miniBarAlpha }]}
+          style={[s.miniBar, { opacity: miniBarAlpha, bottom: insets.bottom }]}
           pointerEvents={expanded ? "none" : "auto"}
         >
           <Pressable
-            style={[s.miniBarPressable, {
-              paddingTop: 9 + insets.bottom / 2,
-              paddingBottom: 9 + insets.bottom / 2,
-            }]}
+            style={s.miniBarPressable}
             onPress={expand}
           >
             {/* Icon — matches mymusic track rows: Feather "music" in a square box */}

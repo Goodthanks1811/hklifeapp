@@ -294,11 +294,22 @@ export default function MusicMyMusicScreen() {
     selPlIdRef.current = id;
     setSelPlId(id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.spring(slideAnim, { toValue: 1, friction: 20, tension: 200, useNativeDriver: true }).start();
+    // Wait two frames so the playlist tracks mount and get laid out before sliding in
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      Animated.timing(slideAnim, {
+        toValue: 1, duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }));
   };
 
   const closePlaylist = () => {
-    Animated.spring(slideAnim, { toValue: 0, friction: 20, tension: 200, useNativeDriver: true }).start(() => {
+    Animated.timing(slideAnim, {
+      toValue: 0, duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
       selPlIdRef.current = null;
       setSelPlId(null);
     });
@@ -1133,7 +1144,7 @@ export default function MusicMyMusicScreen() {
             <View style={st.popupCard}>
               <Pressable
                 style={st.menuRow}
-                onPress={async () => { setShowEQMenu(false); await pickFiles(); }}
+                onPress={() => { setShowEQMenu(false); setTimeout(() => pickFiles(), 350); }}
               >
                 <Feather name="music" size={18} color={RED} />
                 <Text style={st.menuRowText}>Add Songs</Text>
@@ -1175,10 +1186,10 @@ export default function MusicMyMusicScreen() {
 
               <Pressable
                 style={st.menuRow}
-                onPress={async () => {
+                onPress={() => {
                   const id = plMenuId;
                   setPlMenuId(null);
-                  await pickFiles(id ?? undefined);
+                  setTimeout(() => pickFiles(id ?? undefined), 350);
                 }}
               >
                 <Feather name="plus-circle" size={18} color={RED} />
@@ -1298,8 +1309,8 @@ const st = StyleSheet.create({
 
   // Playlist name subtitle in header
   plSubtitle: {
-    color: RED, fontSize: 11, fontFamily: "Inter_500Medium",
-    textAlign: "center", marginTop: 1, paddingBottom: 6,
+    color: RED, fontSize: 12, fontFamily: "Inter_700Bold",
+    textAlign: "center", marginTop: -6, paddingBottom: 2,
   },
 
   // Playlist rows
