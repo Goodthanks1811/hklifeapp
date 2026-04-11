@@ -1549,9 +1549,7 @@ export default function SettingsScreen() {
       <View style={[styles.buildFooter, { paddingBottom: Math.max(bottomPad, 16) }]}>
         <Text style={styles.buildFooterText}>HK Life App</Text>
         <Text style={styles.buildFooterText}>
-          Version {Constants.expoConfig?.version ?? "1.0.0"}
-          {" · "}
-          {Constants.expoConfig?.extra?.easBuildId ?? "dev"}
+          {`Version ${Constants.expoConfig?.version ?? "1.0.0"} · ${String(Constants.expoConfig?.extra?.easBuildId ?? "dev")}`}
         </Text>
       </View>
     </View>
