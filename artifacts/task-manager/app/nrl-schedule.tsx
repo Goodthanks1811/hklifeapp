@@ -262,10 +262,12 @@ function matchCard(m: Match, isDrgTab: boolean): string {
   const venueStr   = m.venue ? `\uD83D\uDCCD ${m.venue}` : "";
   const dateLabel  = dateStr ? `${day}, ${dateStr}` : "";
   const revClass   = isDrgTab ? "reveal-btn reveal-btn-drg" : "reveal-btn";
+  // Dragons tab uses a prefixed ID namespace to avoid colliding with NRL tab elements
+  const idPfx      = isDrgTab ? "drg-" : "";
 
   if (m.isBye) {
     return `
-<div class="match-card" id="mc-${m.id}">
+<div class="match-card" id="mc-${idPfx}${m.id}">
   <div class="match-body" style="justify-content:center;padding:20px 14px">
     <div style="text-align:center">
       <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:26px;color:${NRL_MUTED};letter-spacing:1px">BYE</div>
@@ -291,12 +293,12 @@ function matchCard(m: Match, isDrgTab: boolean): string {
   if (m.spoiler) {
     scoreArea = `
 <div class="score-area">
-  <div id="spoiler-${m.id}" class="spoiler-block">
-    <button class="${revClass}" onclick="revealScore('${m.id}')">Reveal</button>
+  <div id="spoiler-${idPfx}${m.id}" class="spoiler-block">
+    <button class="${revClass}" onclick="revealScore('${idPfx}${m.id}')">Reveal</button>
     ${dateLabel ? `<div class="centre-date" style="margin-top:6px">${dateLabel}</div>` : ""}
     ${venueStr  ? `<div class="centre-loc"  style="margin-top:4px">${venueStr}</div>`  : ""}
   </div>
-  <div id="score-${m.id}" class="score-inner" style="display:none">${centreFinished}</div>
+  <div id="score-${idPfx}${m.id}" class="score-inner" style="display:none">${centreFinished}</div>
 </div>`;
   } else if (isFinished) {
     scoreArea = `<div class="score-area"><div class="score-inner">${centreFinished}</div></div>`;
@@ -305,18 +307,16 @@ function matchCard(m: Match, isDrgTab: boolean): string {
   }
 
   return `
-<div class="match-card" id="mc-${m.id}">
+<div class="match-card" id="mc-${idPfx}${m.id}">
   <div class="match-body">
     <div class="team-block">
-      <div class="team-colour-bar" style="background:${m.homeColour}"></div>
       <div class="team-name" id="hn-${m.id}">${m.homeTeam}</div>
       ${getTeamLogo(m.homeTeam) ? '<img class="team-logo" src="' + getTeamLogo(m.homeTeam) + '" alt="">' : ''}
     </div>
     ${scoreArea}
-    <div class="team-block" style="align-items:flex-end">
-      <div class="team-colour-bar" style="background:${m.awayColour};margin-left:auto"></div>
-      <div class="team-name" id="an-${m.id}" style="text-align:right">${m.awayTeam}</div>
-      ${getTeamLogo(m.awayTeam) ? '<img class="team-logo away-logo" src="' + getTeamLogo(m.awayTeam) + '" alt="">' : ''}
+    <div class="team-block">
+      <div class="team-name" id="an-${m.id}">${m.awayTeam}</div>
+      ${getTeamLogo(m.awayTeam) ? '<img class="team-logo" src="' + getTeamLogo(m.awayTeam) + '" alt="">' : ''}
     </div>
   </div>
 </div>`;
@@ -417,10 +417,11 @@ function buildMainHtml(
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-serif;font-size:15px;min-height:100vh;overscroll-behavior:none;}
 .tab-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;display:flex;background:#000;border-top:2px solid #1a1a1a;height:${tabBarH}px;}
-.tab-btn{flex:1;display:flex;align-items:center;justify-content:center;padding-bottom:${bottomPad}px;background:none;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:${tabFontSize}px;color:${NRL_MUTED};-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px;border-bottom:3px solid transparent;}
-.tab-btn.active-nrl{color:${NRL_GREEN};border-bottom-color:${NRL_GREEN};}
-.tab-btn.active-drg{color:${DRG_RED};border-bottom-color:${DRG_RED};}
-.tab-btn.active-ladder{color:#cccccc;border-bottom-color:#cccccc;}
+.tab-btn{flex:1;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.tab-btn span{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:${tabFontSize}px;color:${NRL_MUTED};letter-spacing:.5px;border-bottom:3px solid transparent;padding-bottom:3px;}
+.tab-btn.active-nrl span{color:${NRL_GREEN};border-bottom-color:${NRL_GREEN};}
+.tab-btn.active-drg span{color:${DRG_RED};border-bottom-color:${DRG_RED};}
+.tab-btn.active-ladder span{color:#cccccc;border-bottom-color:#cccccc;}
 .tab-panel{display:none;}.tab-panel.visible{display:block;}
 .header{position:sticky;top:0;z-index:100;background:#000;}
 .header-logo-row{display:flex;justify-content:center;align-items:center;padding:78px 0 8px;background:#000;}
@@ -445,11 +446,9 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .pick-chip{display:inline;font-size:16px;line-height:1;pointer-events:none;vertical-align:middle;}
 .pick-dot{display:inline-block;width:7px;height:7px;background:${NRL_GREEN};border-radius:50%;vertical-align:middle;pointer-events:none;flex-shrink:0;}
 .match-body{padding:14px;display:flex;align-items:center;gap:8px}
-.team-block{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
-.team-colour-bar{height:3px;width:32px;border-radius:2px}
-.team-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;line-height:1.1}
+.team-block{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+.team-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;line-height:1.1;text-align:center}
 .team-logo{width:64px;height:64px;object-fit:contain;margin-top:6px;display:block}
-.away-logo{margin-left:auto}
 .score-area{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:110px;flex-shrink:0}
 .score-inner{display:flex;flex-direction:column;align-items:center;gap:2px}
 .score-display{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;color:#fff;letter-spacing:1px;line-height:1;text-align:center}
@@ -623,9 +622,9 @@ function attachNrlLogo(){
 </div>
 <!-- Tab bar -->
 <div class="tab-bar">
-  <button class="tab-btn active-nrl" id="tab-nrl"    onclick="switchTab('nrl')">NRL</button>
-  <button class="tab-btn"            id="tab-drg"    onclick="switchTab('drg')">Dragons</button>
-  <button class="tab-btn"            id="tab-ladder" onclick="switchTab('ladder')">Ladder</button>
+  <button class="tab-btn active-nrl" id="tab-nrl"    onclick="switchTab('nrl')"><span>NRL</span></button>
+  <button class="tab-btn"            id="tab-drg"    onclick="switchTab('drg')"><span>Dragons</span></button>
+  <button class="tab-btn"            id="tab-ladder" onclick="switchTab('ladder')"><span>Ladder</span></button>
 </div>
 <script>${js}</script>
 </body>
@@ -779,7 +778,7 @@ export default function NRLScheduleScreen() {
         `<div class="empty">Could not load Dragons data.</div>`,
         `<div class="empty">Could not load ladder.</div>`,
         bottomPad,
-        isTablet ? 22 : 17,
+        isTablet ? 24 : 19,
       );
       setHtml(errHtml);
       return;
@@ -800,7 +799,7 @@ export default function NRLScheduleScreen() {
     const drgLoading = `<div class="loading"><div class="loader" style="border-top-color:${DRG_RED}"></div>Loading Dragons schedule\u2026</div>`;
     const ldrLoading = `<div class="loading"><div class="loader"></div>Loading ladder\u2026</div>`;
 
-    setHtml(buildMainHtml(matches, rounds, currentRound, drgLoading, ldrLoading, bottomPad, isTablet ? 22 : 17));
+    setHtml(buildMainHtml(matches, rounds, currentRound, drgLoading, ldrLoading, bottomPad, isTablet ? 24 : 19));
     setLoading(false);
   };
 
@@ -1025,7 +1024,7 @@ export default function NRLScheduleScreen() {
 
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: NRL_DARK },
-  backZone:     { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%", zIndex: 10 },
+  backZone:     { position: "absolute", left: 0, top: 0, height: 160, width: 110, zIndex: 10 },
   webview:      { flex: 1, backgroundColor: NRL_DARK },
   loadingCover: {
     ...StyleSheet.absoluteFillObject,
