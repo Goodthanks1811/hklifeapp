@@ -190,6 +190,7 @@ export default function MusicSpotifyScreen() {
       const msg = e?.message ?? String(e);
       setTrackError(msg);
       setSelPlSongs([]);
+      Alert.alert("Spotify Track Error", msg);
     }
     finally { setLoadingTracks(false); }
   }, [slideAnim]);
@@ -707,6 +708,7 @@ export default function MusicSpotifyScreen() {
                         This playlist returned a <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>403 Forbidden</Text> error.{"\n\n"}
                         If your account is already in the dashboard, try <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Reconnecting Spotify</Text> to get a fresh token with the latest permissions.
                       </Text>
+                      {trackError ? <Text style={[s.errorDetail, { marginTop: 12, textAlign: "left" }]}>{trackError}</Text> : null}
                       <Pressable
                         style={({ pressed }) => [s.connectBtn, { marginTop: 20 }, pressed && { opacity: 0.8 }]}
                         onPress={() => { closePlaylist(); setTimeout(handleDisconnect, 400); }}

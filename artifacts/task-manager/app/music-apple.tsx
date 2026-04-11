@@ -35,8 +35,10 @@ type AppleSong     = { id: string; title: string; artist: string; albumTitle: st
 type AuthStatus    = "authorized" | "denied" | "restricted" | "notDetermined" | "unavailable" | "loading";
 
 let AppleMusicKit: any = null;
+let _addPlayFailedListener: ((cb: (e: { reason: string; stateRaw: number }) => void) => { remove: () => void } | null) | null = null;
 try {
   AppleMusicKit = require("apple-musickit");
+  _addPlayFailedListener = AppleMusicKit?.addPlayFailedListener ?? null;
 } catch {
   AppleMusicKit = null;
 }
@@ -200,6 +202,14 @@ export default function MusicAppleScreen() {
       setPlayingPlaylistId(am.nowPlaying.playlistId);
       setPlayingSongIndex(am.nowPlaying.songIndex);
     }
+  }, []);
+
+  // Diagnostic: alert if play() succeeded but audio never started
+  useEffect(() => {
+    const sub = _addPlayFailedListener?.((e) => {
+      Alert.alert("Apple Music Not Playing", e.reason);
+    });
+    return () => { sub?.remove(); };
   }, []);
 
   const fetchPlaylists = useCallback(async () => {

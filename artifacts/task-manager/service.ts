@@ -86,8 +86,17 @@ export async function PlaybackService() {
   });
 
   // ── Playback errors ───────────────────────────────────────────────────────
-  TrackPlayer.addEventListener(Event.PlaybackError, (e: any) => {
-    console.warn("[PlaybackService] Playback error:", e?.message ?? e);
+  // When RNTP reports a playback error, skip to next track so the queue keeps
+  // rolling rather than getting stuck on a bad file.
+  TrackPlayer.addEventListener(Event.PlaybackError, async () => {
+    if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
+    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
+    try {
+      await TrackPlayer.skipToNext();
+      await TrackPlayer.play();
+    } catch {
+      try { await TrackPlayer.skip(0); await TrackPlayer.play(); } catch {}
+    }
   });
 
   // ── Track-transition guard ────────────────────────────────────────────────
@@ -143,11 +152,15 @@ export async function PlaybackService() {
     try {
       const state = await TrackPlayer.getPlaybackState();
       const s = state?.state;
-      const isIdle = s === State.Paused || s === State.Stopped || s === State.Ready;
+      const isIdle = s === State.Paused || s === State.Stopped || s === State.Ready || s === State.Error;
       if (!isIdle) return;
       // Only resume if there are tracks loaded — don't start from empty
       const queue = await TrackPlayer.getQueue();
       if (queue?.length > 0) {
+        // Error state: skip to a known-good position before resuming
+        if (s === State.Error) {
+          try { await TrackPlayer.skip(0); } catch {}
+        }
         await TrackPlayer.play();
       }
     } catch {

@@ -109,3 +109,12 @@ export function stopNativeWatchdog(): Promise<void> {
 export function addAudioOutputLostListener(callback: () => void): Subscription | null {
   return emitter?.addListener("onAudioOutputLost", callback) ?? null;
 }
+
+// ── Play-failed diagnostic event ─────────────────────────────────────────────
+// Fires ~1.5 s after playSongInPlaylist() if the native player is not in
+// .playing state — surfaces silent play() failures (iOS 26 DRM, session issues).
+export function addPlayFailedListener(
+  callback: (e: { reason: string; stateRaw: number }) => void
+): Subscription | null {
+  return emitter?.addListener("appleMusicPlayFailed", callback) ?? null;
+}
