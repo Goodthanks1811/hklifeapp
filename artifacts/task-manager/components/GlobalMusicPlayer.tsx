@@ -263,20 +263,25 @@ export function GlobalMusicPlayer() {
     slideAnim.setValue(screenH);
     miniBarAlpha.setValue(0);
     setExpanded(true);
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 28, stiffness: 220 }).start();
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 38, stiffness: 160 }).start();
   }, [slideAnim, panDrag, miniBarAlpha, screenH]);
 
   // collapse() — called from non-gesture triggers only (panDrag is 0 here)
   const collapse = useCallback(() => {
     if (dismissing.current) return;
     dismissing.current = true;
-    miniBarAlpha.setValue(1);
     Animated.timing(slideAnim, {
       toValue: screenH,
-      duration: 340,
-      easing: Easing.in(Easing.cubic),
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => { setExpanded(false); });
+    Animated.timing(miniBarAlpha, {
+      toValue: 1,
+      duration: 80,
+      delay: 180,
+      useNativeDriver: true,
+    }).start();
   }, [slideAnim, screenH, miniBarAlpha]);
 
   const collapseRef = useRef(collapse);
@@ -310,17 +315,22 @@ export function GlobalMusicPlayer() {
       const delta = Math.max(0, (panDrag as any).__getValue() as number);
       if (delta > 80 || velocityY > 800) {
         dismissing.current = true;
-        miniBarAlpha.setValue(1);
         Animated.timing(panDrag, {
           toValue: screenH,
-          duration: 340,
-          easing: Easing.in(Easing.cubic),
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start(() => {
           panDrag.setValue(0);
           slideAnim.setValue(screenH); // reset so next expand() has a valid start position
           setExpanded(false);
         });
+        Animated.timing(miniBarAlpha, {
+          toValue: 1,
+          duration: 80,
+          delay: 180,
+          useNativeDriver: true,
+        }).start();
       } else {
         Animated.spring(panDrag, { toValue: 0, useNativeDriver: true }).start();
       }
