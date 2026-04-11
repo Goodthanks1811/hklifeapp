@@ -57,13 +57,20 @@ const SpotifyPlayerContext = createContext<SpotifyPlayerContextValue | null>(nul
 
 // ── Remote session helpers ────────────────────────────────────────────────────
 
-let _remoteConnected  = false;
-let _connectingRemote = false;
+let _remoteConnected    = false;
+let _connectingRemote   = false;
+let _lastRefreshFailMs  = 0;
+const REFRESH_BACKOFF_MS = 10_000;
 
 async function ensureRemoteConnected(): Promise<boolean> {
   if (!REMOTE_AVAILABLE) { console.log("[Spotify] SpotifyRemote module not available"); return false; }
   if (_remoteConnected)  return true;
   if (_connectingRemote) { console.log("[Spotify] connect already in progress"); return false; }
+  // Back off for 10 s after a failed refresh so we don't hammer Spotify's servers
+  // with rapid retries when the token is expired and the polling loop fires every 1 s.
+  if (_lastRefreshFailMs && (Date.now() - _lastRefreshFailMs) < REFRESH_BACKOFF_MS) {
+    return false;
+  }
 
   _connectingRemote = true;
   console.log("[Spotify] ensureRemoteConnected: fetching stored tokens...");
@@ -88,8 +95,9 @@ async function ensureRemoteConnected(): Promise<boolean> {
     return true;
   } catch (err) {
     console.log("[Spotify] ensureRemoteConnected: FAILED —", err);
-    _remoteConnected  = false;
-    _connectingRemote = false;
+    _remoteConnected    = false;
+    _connectingRemote   = false;
+    _lastRefreshFailMs  = Date.now();
     return false;
   }
 }

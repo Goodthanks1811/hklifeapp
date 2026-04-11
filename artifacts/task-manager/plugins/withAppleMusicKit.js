@@ -406,6 +406,9 @@ public class AppleMusicKitModule: Module {
           // Re-activate before play() in case prepareToPlay briefly deactivated the session.
           self?.activateAudioSession()
           player.play()
+          // Start the native watchdog immediately so the audio session stays alive
+          // even if the JS thread is suspended before it can call startNativeWatchdog().
+          self?.startNativeWatchdog()
 
           // Resolve immediately so the UI spinner stops.
           promise.resolve(nil)
