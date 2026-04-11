@@ -924,8 +924,8 @@ function QuickAddSheet({ visible, catEmojis, catEmojiMap, catValue, allCategorie
           Animated.timing(bgAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
         ]).start();
       } else {
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 90, friction: 13 }).start();
-        Animated.timing(bgAnim,   { toValue: 1, duration: 220, useNativeDriver: false }).start();
+        Animated.timing(slideAnim, { toValue: 0, duration: 280, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }).start();
+        Animated.timing(bgAnim,   { toValue: 1, duration: 200, useNativeDriver: false }).start();
       }
     } else {
       if (isTablet) {
