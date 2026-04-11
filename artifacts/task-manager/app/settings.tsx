@@ -861,6 +861,26 @@ export default function SettingsScreen() {
   const moveAppleUp   = (i: number) => { if (i === 0) return; const n = [...appleNames]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveAppleNames(n); };
   const moveAppleDown = (i: number) => { if (i === appleNames.length - 1) return; const n = [...appleNames]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; saveAppleNames(n); };
 
+  // My Music — delete all
+  const [myMusicDeleteConfirm, setMyMusicDeleteConfirm] = useState(false);
+  const [myMusicDeleting,      setMyMusicDeleting]      = useState(false);
+  const [myMusicDeleted,       setMyMusicDeleted]       = useState(false);
+
+  const handleDeleteAllMyMusic = async () => {
+    if (!myMusicDeleteConfirm) { setMyMusicDeleteConfirm(true); return; }
+    setMyMusicDeleting(true);
+    try {
+      await AsyncStorage.multiRemove(["mymusic_tracks_v2", "mymusic_playlists_v1"]);
+      const musicDir = (FileSystem.documentDirectory ?? "") + "music/";
+      await FileSystem.deleteAsync(musicDir, { idempotent: true });
+    } catch {}
+    setMyMusicDeleting(false);
+    setMyMusicDeleteConfirm(false);
+    setMyMusicDeleted(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => setMyMusicDeleted(false), 2500);
+  };
+
   const startEditSpotify = (i: number) => {
     setEditSpotifyIdx(i);
     setEditSpotifyName(spotifyPL[i].name);
@@ -1475,6 +1495,49 @@ export default function SettingsScreen() {
                   <Feather name="plus" size={16} color="#fff" />
                 </Pressable>
               </View>
+            </SubAccordion>
+
+            {/* ── My Music ── */}
+            <SubAccordion title="My Music" icon="hard-drive" defaultOpen={false}>
+              <Text style={[styles.mPLUrl, { marginBottom: 14 }]}>
+                Deletes all imported songs and playlists from My Music. The files are permanently removed from storage. You can re-import songs afterwards.
+              </Text>
+
+              {myMusicDeleted ? (
+                <View style={[styles.saveBtn, { backgroundColor: "rgba(0,200,80,0.18)", borderColor: "rgba(0,200,80,0.35)", borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }]}>
+                  <Feather name="check" size={16} color="#00c850" />
+                  <Text style={[styles.saveBtnText, { color: "#00c850" }]}>All music deleted</Text>
+                </View>
+              ) : myMusicDeleteConfirm ? (
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <Pressable
+                    style={({ pressed }) => [styles.saveBtn, { flex: 1, backgroundColor: pressed ? "rgba(224,49,49,0.35)" : "rgba(224,49,49,0.22)", borderColor: "rgba(224,49,49,0.5)", borderWidth: 1 }]}
+                    onPress={handleDeleteAllMyMusic}
+                    disabled={myMusicDeleting}
+                  >
+                    <Text style={[styles.saveBtnText, { color: "#E03131" }]}>
+                      {myMusicDeleting ? "Deleting…" : "Yes, delete all"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.saveBtn, { flex: 1, backgroundColor: pressed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.15)", borderWidth: 1 }]}
+                    onPress={() => setMyMusicDeleteConfirm(false)}
+                    disabled={myMusicDeleting}
+                  >
+                    <Text style={styles.saveBtnText}>Cancel</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.saveBtn, { backgroundColor: pressed ? "rgba(224,49,49,0.2)" : "rgba(224,49,49,0.12)", borderColor: "rgba(224,49,49,0.35)", borderWidth: 1 }]}
+                  onPress={handleDeleteAllMyMusic}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Feather name="trash-2" size={15} color="#E03131" />
+                    <Text style={[styles.saveBtnText, { color: "#E03131" }]}>Delete All My Music</Text>
+                  </View>
+                </Pressable>
+              )}
             </SubAccordion>
 
           </View>

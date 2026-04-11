@@ -724,7 +724,6 @@ export default function MusicMyMusicScreen() {
                 {/* ── Playlists section ─────────────────────────────── */}
                 {playlists.length > 0 && (
                   <View style={st.section}>
-                    <Text style={st.sectionHeader}>Playlists</Text>
                     <View style={{ marginHorizontal: 16, gap: ITEM_GAP }}>
                       {playlists.map(pl => {
                         const count = (pl.tracks ?? []).length;
@@ -748,7 +747,6 @@ export default function MusicMyMusicScreen() {
                 {/* ── Songs section ─────────────────────────────────── */}
                 {tracks.length > 0 && (
                   <View style={st.section}>
-                    <Text style={st.sectionHeader}>Songs</Text>
                     <View
                       ref={containerRef}
                       {...dragResponder.panHandlers}
