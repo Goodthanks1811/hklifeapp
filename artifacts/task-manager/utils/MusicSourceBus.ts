@@ -87,9 +87,18 @@ export const MusicSourceBus = {
     _spotifyHasControl    = false;
     _pauseMyMusic?.();
     _pauseSpotify?.();
-    // Same rationale as My Music: run the silent engine alongside
-    // applicationQueuePlayer so track-transition gaps don't kill the process.
-    _startKeepalive?.();
+    // IMPORTANT: Do NOT start the silent keepalive for Apple Music.
+    // The keepalive sets the audio session to MixWithOthers, which conflicts with
+    // applicationQueuePlayer's FairPlay DRM decryption — Apple Music catalog content
+    // requires an exclusive (DoNotMix) session, and MixWithOthers silently prevents
+    // prepareToPlay from succeeding.
+    // applicationQueuePlayer produces its own audio frames, so the process doesn't
+    // need the keepalive for background survival anyway.
+    // If the keepalive was running (e.g. from a previous RNTP or Spotify session),
+    // stop it so the session is exclusively owned by Apple Music.
+    _stopKeepalive?.();
+    // The native watchdog (setActive every 2s) is safe and keeps the session alive
+    // through any brief interruptions without touching the session category.
     _startWatchdog?.();
   },
 

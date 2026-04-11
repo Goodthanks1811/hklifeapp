@@ -17,7 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSpotifyPlayer, ensureRemoteConnected, disconnectRemote } from "@/context/SpotifyPlayerContext";
-import { getUserPlaylists, getPlaylistTracks, SpotifyPlaylist, SpotifyTrack } from "@/utils/SpotifyAPI";
+import { getUserPlaylists, getPlaylist, getPlaylistTracks, extractPlaylistId, SpotifyPlaylist, SpotifyTrack } from "@/utils/SpotifyAPI";
 import { getStoredTokens, clearStoredTokens, authenticateSpotify } from "@/utils/SpotifyAuth";
 
 const GREEN  = "#1DB954";
@@ -195,20 +195,28 @@ export default function MusicSpotifyScreen() {
       const tokens = await getStoredTokens();
       if (!tokens) { setAuthStatus("disconnected"); setLoadingPlaylists(false); return; }
       setAuthStatus("connected");
-      const all = await getUserPlaylists();
+
+      // Check for saved playlist IDs from settings.
+      // When specific IDs are saved, fetch each playlist directly via /playlists/{id}
+      // instead of calling /me/playlists. This avoids the library-level call (which
+      // requires playlist-read-private and paginates the whole library) and also works
+      // for public playlists even without any playlist scope.
       const savedRaw = await AsyncStorage.getItem("music_spotify_playlists");
       if (savedRaw) {
         const saved: { name: string; url: string }[] = JSON.parse(savedRaw);
         const savedIds: string[] = saved
-          .map(pl => { const m = pl.url.match(/spotify:\/\/playlist\/([A-Za-z0-9]+)/); return m ? m[1] : null; })
+          .map(pl => extractPlaylistId(pl.url))
           .filter(Boolean) as string[];
         if (savedIds.length > 0) {
-          const byId = new Map(all.map(p => [p.id, p]));
-          setPlaylists(savedIds.map(id => byId.get(id)).filter(Boolean) as typeof all);
+          const results = await Promise.all(savedIds.map(id => getPlaylist(id)));
+          setPlaylists(results.filter(Boolean) as SpotifyPlaylist[]);
           setLoadingPlaylists(false);
           return;
         }
       }
+
+      // No saved IDs — fall back to loading the full library
+      const all = await getUserPlaylists();
       setPlaylists(all);
     } catch (e: any) {
       const msg = e?.message ?? String(e);

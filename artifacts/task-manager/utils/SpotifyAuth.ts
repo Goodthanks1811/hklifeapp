@@ -130,6 +130,11 @@ export async function authenticateSpotify(): Promise<SpotifyAuthResult> {
     scopes:      SCOPES,
     redirectUri: REDIRECT_URI,
     usePKCE:     true,
+    // Force Spotify to show the consent screen every time.
+    // Without this, Spotify silently re-issues tokens with the SAME scopes as the
+    // original grant — new scopes added to the code are never approved, causing
+    // persistent 403s from /me/playlists even after "reconnecting".
+    extraParams: { show_dialog: "true" },
   });
 
   await request.makeAuthUrlAsync(DISCOVERY);

@@ -1,5 +1,16 @@
 import { getStoredTokens, refreshAccessToken, clearStoredTokens, forceRefreshTokens } from "./SpotifyAuth";
 
+// ── URL → playlist ID helper ──────────────────────────────────────────────────
+// Handles both formats users might paste:
+//   spotify://playlist/PLAYLIST_ID?si=...
+//   https://open.spotify.com/playlist/PLAYLIST_ID?si=...
+//   spotify:playlist:PLAYLIST_ID  (Spotify URI)
+export function extractPlaylistId(url: string): string | null {
+  // spotify://playlist/ID  or  https://open.spotify.com/playlist/ID
+  const webOrDeep = url.match(/playlist[:/]([A-Za-z0-9]+)/);
+  return webOrDeep ? webOrDeep[1] : null;
+}
+
 export type SpotifyPlaylist = {
   id:         string;
   name:       string;
@@ -48,6 +59,25 @@ async function apiFetch(path: string, retried = false): Promise<any> {
 
   if (!res.ok) throw new Error(`spotify_api_error:${res.status}`);
   return res.json();
+}
+
+// Fetch a single playlist by ID — works for public playlists without any scope,
+// and for private playlists with playlist-read-private.
+// Used to avoid the /me/playlists call when specific IDs are already saved in settings.
+export async function getPlaylist(playlistId: string): Promise<SpotifyPlaylist | null> {
+  try {
+    const data = await apiFetch(
+      `/playlists/${playlistId}?fields=id,name,tracks(total),images`
+    );
+    return {
+      id:         data.id,
+      name:       data.name ?? "Unknown",
+      trackCount: data.tracks?.total ?? 0,
+      imageUrl:   data.images?.[0]?.url ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getUserPlaylists(): Promise<SpotifyPlaylist[]> {
