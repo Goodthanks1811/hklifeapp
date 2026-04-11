@@ -1296,8 +1296,8 @@ const st = StyleSheet.create({
 
   // Playlist name subtitle in header
   plSubtitle: {
-    color: RED, fontSize: 11, fontFamily: "Inter_500Medium",
-    textAlign: "center", marginTop: 1, paddingBottom: 6,
+    color: RED, fontSize: 14, fontFamily: "Inter_600SemiBold",
+    textAlign: "center", marginTop: 0, paddingBottom: 6,
   },
 
   // Playlist rows

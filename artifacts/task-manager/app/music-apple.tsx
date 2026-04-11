@@ -706,8 +706,8 @@ const s = StyleSheet.create({
     paddingTop: 8, paddingBottom: 2,
   },
   plSubtitle: {
-    color: SILVER, fontSize: 11, fontFamily: "Inter_500Medium",
-    textAlign: "center", marginTop: 1, paddingBottom: 6,
+    color: SILVER, fontSize: 14, fontFamily: "Inter_600SemiBold",
+    textAlign: "center", marginTop: 0, paddingBottom: 6,
   },
 
   centred: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },

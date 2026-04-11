@@ -803,8 +803,8 @@ const s = StyleSheet.create({
     paddingTop: 8, paddingBottom: 2,
   },
   plSubtitle: {
-    color: GREEN, fontSize: 11, fontFamily: "Inter_500Medium",
-    textAlign: "center", marginTop: 1, paddingBottom: 6,
+    color: GREEN, fontSize: 14, fontFamily: "Inter_600SemiBold",
+    textAlign: "center", marginTop: 0, paddingBottom: 6,
   },
 
   disconnectBtn: { position: "absolute", right: 16, bottom: 8, padding: 8 },
