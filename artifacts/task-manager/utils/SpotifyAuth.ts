@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import { Alert } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -96,20 +97,22 @@ export async function refreshAccessToken(
       refresh_token: refreshToken,
       client_id:     clientId,
     });
-    console.log("[SpotifyAuth] refreshAccessToken: calling token endpoint, client_id:", clientId.slice(0, 8) + "...");
     const res = await fetch(DISCOVERY.tokenEndpoint!, {
       method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body:    body.toString(),
     });
-    const json = await res.json();
-    console.log("[SpotifyAuth] refreshAccessToken response status:", res.status, "body:", JSON.stringify(json, null, 2));
-    if (!res.ok) return null;
+    const text = await res.text();
+    if (!res.ok) {
+      Alert.alert("Spotify Token Refresh Failed", `Status ${res.status}\n\n${text}`);
+      return null;
+    }
+    const json = JSON.parse(text);
     const newRefresh = json.refresh_token ?? refreshToken;
     await storeTokens(json.access_token, newRefresh, json.expires_in ?? 3600);
     return { accessToken: json.access_token, refreshToken: newRefresh };
-  } catch (e) {
-    console.log("[SpotifyAuth] refreshAccessToken ERROR:", e);
+  } catch (e: any) {
+    Alert.alert("Spotify Token Refresh Error", String(e?.message ?? e));
     return null;
   }
 }
@@ -167,22 +170,21 @@ async function exchangeCode(code: string, verifier: string, clientId: string): P
       client_id:     clientId,
       code_verifier: verifier,
     });
-    console.log("[SpotifyAuth] exchangeCode: calling token endpoint, redirect_uri:", REDIRECT_URI, "client_id:", clientId.slice(0, 8) + "...");
     const res = await fetch(DISCOVERY.tokenEndpoint!, {
       method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body:    body.toString(),
     });
     const text = await res.text();
-    console.log("[SpotifyAuth] exchangeCode response status:", res.status, "body:", text);
     if (!res.ok) {
+      Alert.alert("Spotify Auth Failed", `Status ${res.status}\n\nRedirect URI: ${REDIRECT_URI}\n\n${text}`);
       return { type: "error", error: text };
     }
     const json = JSON.parse(text);
     await storeTokens(json.access_token, json.refresh_token, json.expires_in ?? 3600);
     return { type: "success", accessToken: json.access_token, refreshToken: json.refresh_token };
   } catch (e: any) {
-    console.log("[SpotifyAuth] exchangeCode ERROR:", e);
+    Alert.alert("Spotify Auth Error", String(e?.message ?? e));
     return { type: "error", error: e?.message ?? String(e) };
   }
 }

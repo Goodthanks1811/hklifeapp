@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   PanResponder,
@@ -297,8 +298,18 @@ export default function MusicSpotifyScreen() {
     if (SpotifyRemote && song.uri) {
       try {
         const connected = await ensureRemoteConnected();
-        if (connected) await SpotifyRemote.playUri(song.uri);
-      } catch (err) { console.warn("[SpotifyRemote] playUri:", err); }
+        if (!connected) {
+          Alert.alert("Spotify Not Connected", "Could not connect to the Spotify app.\n\nMake sure the Spotify app is installed, open, and you are logged in.");
+        } else {
+          await SpotifyRemote.playUri(song.uri);
+        }
+      } catch (err: any) {
+        Alert.alert("Spotify Playback Error", String(err?.message ?? err));
+      }
+    } else if (!SpotifyRemote) {
+      Alert.alert("Spotify Unavailable", "SpotifyRemote module not loaded.");
+    } else if (!song.uri) {
+      Alert.alert("Missing URI", `No Spotify URI for track: ${song.title}`);
     }
     setLoadingKey(null);
   }, [loadingKey, sp]);
