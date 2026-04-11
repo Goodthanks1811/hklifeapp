@@ -116,7 +116,7 @@ function PlaylistRow({ pl, isPlaying, isDragging, dimValue, onPress, onLongPress
           <Feather name={isPlaying ? "volume-2" : "headphones"} size={16} color={SILVER} />
         </View>
         <View style={s.plRowMid}>
-          <Text style={s.plRowName} numberOfLines={1}>{pl.name}</Text>
+          <Text style={s.plRowName}>{pl.name}</Text>
           {pl.count > 0 && (
             <Text style={s.plRowCount}>{pl.count} song{pl.count !== 1 ? "s" : ""}</Text>
           )}
@@ -747,8 +747,8 @@ const s = StyleSheet.create({
   },
   plRowIcon:  { width: 32, alignItems: "center" },
   plRowMid:   { flex: 1 },
-  plRowName:  { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
-  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2 },
+  plRowName:  { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2, textAlign: "center" },
 
   // Song rows
   songRow: {

@@ -112,7 +112,7 @@ function PlaylistRow({
           <Feather name="headphones" size={16} color={RED} />
         </View>
         <View style={st.plRowMid}>
-          <Text style={st.plRowName} numberOfLines={1}>{playlist.name}</Text>
+          <Text style={st.plRowName}>{playlist.name}</Text>
           <Text style={st.plRowCount}>{trackCount === 0 ? "No songs" : `${trackCount} song${trackCount === 1 ? "" : "s"}`}</Text>
         </View>
         <Pressable
@@ -1315,8 +1315,8 @@ const st = StyleSheet.create({
   },
   plRowIcon: { width: 32, alignItems: "center" },
   plRowMid:  { flex: 1 },
-  plRowName: { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
-  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2 },
+  plRowName: { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2, textAlign: "center" },
 
   // Track list — exact original
   absItem: { position: "absolute", left: 0, right: 0, height: ITEM_H },
