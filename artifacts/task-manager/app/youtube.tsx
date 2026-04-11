@@ -321,7 +321,7 @@ const st = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
 
-  historySection: { paddingHorizontal: 2 },
+  historySection: { width: "90%", alignSelf: "center" },
   historyTitle: {
     color: "#ffffff",
     fontSize: 10,
