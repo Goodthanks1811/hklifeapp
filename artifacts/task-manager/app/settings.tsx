@@ -779,13 +779,24 @@ export default function SettingsScreen() {
     { name: "Life",             url: "spotify://playlist/7A7nzaXeOuAiTRdRzOQ64H?si=z1-VlOfxR1awOGPHBOUjPA&pi=XjlBmTebRtiNB" },
     { name: "September 2022",   url: "spotify://playlist/5G1ZOG3K4srwBr6Y2gdLCi?si=wManU4LNRly01VsODI2kbA&pi=IPovAIyWT26bK" },
   ];
+  const [spotifyClientId, setSpotifyClientId] = useState("");
   const [spotifyPL,       setSpotifyPL]       = useState<SpotifyPL[]>(DEFAULT_SPOTIFY_PL);
   const [newSpotifyName,  setNewSpotifyName]  = useState("");
   const [newSpotifyURL,   setNewSpotifyURL]   = useState("");
 
   useEffect(() => {
     AsyncStorage.getItem("music_spotify_playlists").then(v => { if (v) setSpotifyPL(JSON.parse(v)); });
+    AsyncStorage.getItem("spotify_client_id").then(v => { if (v) setSpotifyClientId(v); });
   }, []);
+
+  const saveSpotifyClientId = async (val: string) => {
+    setSpotifyClientId(val);
+    if (val.trim()) {
+      await AsyncStorage.setItem("spotify_client_id", val.trim());
+    } else {
+      await AsyncStorage.removeItem("spotify_client_id");
+    }
+  };
 
   const saveSpotify = (list: SpotifyPL[]) => { setSpotifyPL(list); AsyncStorage.setItem("music_spotify_playlists", JSON.stringify(list)); };
 
@@ -1253,6 +1264,38 @@ export default function SettingsScreen() {
         {/* ══ MUSIC ════════════════════════════════════════════════════════════ */}
         <Accordion title="Music" icon="music" defaultOpen={false}>
           <View style={styles.accordionBody}>
+
+            {/* ── Spotify Client ID ── */}
+            <SubAccordion title="Spotify Client ID" icon="key" defaultOpen={!spotifyClientId}>
+              <Text style={{ color: Colors.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8, lineHeight: 18 }}>
+                Your Spotify Client ID is required to connect your account. Get it from{" "}
+                <Text style={{ color: Colors.primary }}>developer.spotify.com</Text> → your app → Settings.
+              </Text>
+              <View style={styles.mPLAddRow}>
+                <TextInput
+                  style={[styles.mPLInput, { flex: 1 }]}
+                  value={spotifyClientId}
+                  onChangeText={saveSpotifyClientId}
+                  placeholder="Paste your Spotify Client ID..."
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  returnKeyType="done"
+                  secureTextEntry={false}
+                />
+              </View>
+              {spotifyClientId ? (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  style={styles.clearBtn}
+                  onPress={() => saveSpotifyClientId("")}
+                >
+                  <Feather name="trash-2" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.clearBtnText}>Clear Client ID</Text>
+                </TouchableOpacity>
+              ) : null}
+            </SubAccordion>
 
             {/* ── Spotify Playlists ── */}
             <SubAccordion title="Spotify Playlists" icon="headphones" defaultOpen={false}>
