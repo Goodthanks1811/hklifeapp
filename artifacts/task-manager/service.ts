@@ -1,5 +1,9 @@
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
+// Safe AppleMusicKit import — not available in Expo Go
+let AppleMusicKit: any = null;
+try { AppleMusicKit = require("apple-musickit"); } catch {}
+
 // Safe RNTP import — crashes in Expo Go if done via static ES import
 let TrackPlayer: any = null;
 let Event: any = {};
@@ -171,4 +175,17 @@ export async function PlaybackService() {
   // Silence the TypeScript "unused variable" warning — the interval runs
   // forever in the background service and is cleaned up when the process dies.
   void watchdog;
+
+  // ── Native watchdog → JS recovery ─────────────────────────────────────────
+  // Fires when the native 2-second watchdog catches AVAudioSession.setActive(true)
+  // throwing — meaning RNTP won the race and still holds the session during a
+  // track transition.  Rather than continuing to fight setActive() at the native
+  // level, we force RNTP to re-acquire its own session by calling play().
+  // This is safe: play() on an already-playing RNTP is a no-op; on an idle RNTP
+  // it re-configures the audio session and re-activates it — exactly what we need.
+  AppleMusicKit?.addSessionDeactivatedListener?.((e: { error: string }) => {
+    if (userPaused || MusicSourceBus.myMusicUserPaused()) return;
+    if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) return;
+    TrackPlayer?.play?.().catch(() => {});
+  });
 }

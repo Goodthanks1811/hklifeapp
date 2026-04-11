@@ -118,3 +118,15 @@ export function addPlayFailedListener(
 ): Subscription | null {
   return emitter?.addListener("appleMusicPlayFailed", callback) ?? null;
 }
+
+// ── Session-deactivated event ─────────────────────────────────────────────────
+// Fires from the native watchdog (every 2 s) when AVAudioSession.setActive(true)
+// throws — meaning RNTP is holding the session during a track transition and
+// winning the race against our native reactivation attempts.
+// JS should respond by calling TrackPlayer.play() to force RNTP to re-acquire
+// the session from its own side.
+export function addSessionDeactivatedListener(
+  callback: (e: { error: string }) => void
+): Subscription | null {
+  return emitter?.addListener("onSessionDeactivated", callback) ?? null;
+}

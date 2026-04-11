@@ -142,7 +142,14 @@ public class AppleMusicKitModule: Module {
     do {
       try AVAudioSession.sharedInstance().setActive(true)
     } catch {
-      // Non-fatal — session may be briefly held by another app; next tick will retry.
+      // Log so we can confirm in crash reports / Console.app whether RNTP is
+      // winning the race during track transitions.
+      NSLog("[AppleMusicKit] reactivateSession FAILED (RNTP may hold session during transition): %@", error.localizedDescription)
+      // Signal JS immediately — the 5-second JS watchdog covers this too but
+      // this fires within 2 seconds, well inside the 30-second iOS kill window.
+      // JS calls TrackPlayer.play() which forces RNTP to re-acquire the session
+      // from its own side instead of us fighting setActive() against it.
+      sendEvent("onSessionDeactivated", ["error": error.localizedDescription])
     }
   }
 
@@ -292,7 +299,7 @@ public class AppleMusicKitModule: Module {
     // headphone / AirPods disconnection and pause RNTP + Spotify.
     // appleMusicPlayFailed fires when play() was called but the player isn't
     // in .playing state 1.5 s later — surfaces silent play() failures to JS.
-    Events("onAudioOutputLost", "appleMusicPlayFailed")
+    Events("onAudioOutputLost", "appleMusicPlayFailed", "onSessionDeactivated")
 
     // Start the route-change observer as soon as the module is initialised.
     OnCreate {
