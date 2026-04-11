@@ -2,15 +2,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   Image,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -48,6 +51,40 @@ const ORIGIN_ROUND_MAP: Record<number, number> = { 12: 1, 15: 2, 18: 3 };
 
 // iTipfooty uses shortened names for some teams
 const ITIP_TEAM_MAP: Record<string, string> = { "Tigers": "Wests Tigers" };
+
+// ── iTipFooty fixture types ────────────────────────────────────────────────────
+interface ItipGame {
+  gameId:        number | string;
+  homeTeam?:     string;
+  awayTeam?:     string;
+  homeTeamShort?: string;
+  awayTeamShort?: string;
+  isOrigin?:     boolean;
+  currentTip?:   "H" | "A" | null;
+  locked?:       boolean;
+  homeScore?:    number | null;
+  awayScore?:    number | null;
+  kickoff?:      string;
+  venue?:        string;
+}
+
+interface ItipFixture {
+  round:               number;
+  compid?:             string | number;
+  memberid?:           string | number;
+  tipref?:             string | number;
+  todo?:               "add" | "update";
+  tippingOpen?:        boolean;
+  margin?:             string | number | null;
+  jokerCount?:         number | string;
+  currentJokerCount?:  number | string;
+  jokerRoundSelected?: boolean;
+  cutoff?:             string;
+  code?:               string;
+  oldFields?:          Record<string, string>;
+  games:               ItipGame[];
+  error?:              string;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Match {
@@ -112,7 +149,7 @@ function parseItipGames(games: any[], round: number): Match[] {
       venue:       g.venue || "",
       kickoff,
       roundNumber: round,
-      state:       isComplete ? "FullTime" : (g.locked ? "InProgress" : "Upcoming"),
+      state:       isComplete ? "FullTime" : (g.locked && ageMs > 0 ? "InProgress" : "Upcoming"),
       isComplete,
       spoiler:     g.locked && ageMs > 0 && ageMs < SPOILER_WINDOW_MS,
       isBye:       false,
@@ -558,7 +595,7 @@ html,body{background:${NRL_DARK};color:${NRL_TEXT};font-family:'Barlow',sans-ser
 .tab-panel{display:none;}.tab-panel.visible{display:block;}
 .header{position:sticky;top:0;z-index:100;background:#000;}
 .header-logo-row{display:flex;justify-content:center;align-items:center;padding:78px 0 8px;background:#000;}
-.header-banner{height:115px;width:auto;display:block;object-fit:contain;}
+.header-banner{height:115px;width:auto;display:block;object-fit:contain;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
 .rounds-scroll{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#000;max-width:${MAX_CONTENT_WIDTH}px;margin:0 auto;}
 .rounds-scroll::-webkit-scrollbar{display:none}
 .round-pill{flex-shrink:0;background:#1a1a1a;border:1px solid #2a2a2a;color:${NRL_MUTED};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;padding:5px 14px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
@@ -768,20 +805,34 @@ function attachNrlLogo(){
 
 // ── Picker content (shared between iPad modal and iPhone bottom sheet) ─────────
 function PickerContent({
-  round, matches, picks, onClose, onToggle,
+  round, matches, picks, initialPicks, onClose, onToggle, onDone,
 }: {
   round: number;
   matches: Match[];
   picks: Record<string, string>;
+  initialPicks: Record<string, string>;
   onClose: () => void;
   onToggle: (matchId: string, team: string) => void;
+  onDone: (currentPicks: Record<string, string>) => void;
 }) {
+  const allLocked  = matches.length > 0 && matches.every(m => m.isComplete || m.state === "InProgress");
+  const hasChanges = (() => {
+    const allKeys = new Set([...Object.keys(picks), ...Object.keys(initialPicks)]);
+    return [...allKeys].some(k => picks[k] !== initialPicks[k]);
+  })();
+  const canDone = hasChanges && !allLocked;
   return (
     <>
       <View style={styles.pickerHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.pickerTitle}>Round {round} Tips</Text>
-          <Text style={styles.pickerSub}>Tap a team to pick — tap again to clear</Text>
+          <Text style={styles.pickerSub}>
+            {allLocked
+              ? "All games have kicked off — tipping is closed"
+              : hasChanges
+                ? "Changes detected — tap Done to save"
+                : "Tap a team to change your pick"}
+          </Text>
         </View>
         <TouchableOpacity style={styles.pickerCloseBtn} onPress={onClose} hitSlop={12}>
           <Text style={styles.pickerCloseTx}>✕</Text>
@@ -790,37 +841,109 @@ function PickerContent({
 
       <ScrollView style={styles.pickerScroll} contentContainerStyle={styles.pickerList} showsVerticalScrollIndicator={false}>
         {matches.map((m) => {
-          const pick = picks[m.id] ?? null;
+          const pick   = picks[m.id] ?? null;
+          const locked = m.isComplete || m.state === "InProgress";
+
+          // Show tip result colours only for fully complete games outside the spoiler window
+          const showResult = m.isComplete && !m.spoiler;
+          const winner = showResult && m.homeScore !== null && m.awayScore !== null
+            ? (m.homeScore > m.awayScore ? m.homeTeam
+              : m.awayScore > m.homeScore ? m.awayTeam
+              : null)          // draw — no winner
+            : null;
+
+          // "correct" / "wrong" / null for each side (null = not picked or no result yet)
+          const homeResult = showResult && pick === m.homeTeam
+            ? (winner === m.homeTeam ? "correct" : winner !== null ? "wrong" : null)
+            : null;
+          const awayResult = showResult && pick === m.awayTeam
+            ? (winner === m.awayTeam ? "correct" : winner !== null ? "wrong" : null)
+            : null;
+
           return (
-            <View key={m.id} style={styles.pickerRow}>
+            <View
+              key={m.id}
+              style={[
+                styles.pickerRow,
+                locked && !showResult && styles.pickerRowLocked,
+                locked && showResult  && styles.pickerRowResult,
+              ]}
+            >
               <TouchableOpacity
-                style={[styles.pickerTeamBtn, pick === m.homeTeam && styles.pickerTeamBtnActive]}
-                activeOpacity={0.75}
-                onPress={() => onToggle(m.id, m.homeTeam)}
+                style={[
+                  styles.pickerTeamBtn,
+                  !showResult && pick === m.homeTeam && styles.pickerTeamBtnActive,
+                  locked && !showResult && styles.pickerTeamBtnLocked,
+                  homeResult === "correct" && styles.pickerTeamBtnCorrect,
+                  homeResult === "wrong"   && styles.pickerTeamBtnWrong,
+                ]}
+                activeOpacity={locked ? 1 : 0.75}
+                onPress={locked ? undefined : () => onToggle(m.id, m.homeTeam)}
+                disabled={locked}
               >
                 {getTeamLogo(m.homeTeam) ? (
-                  <Image source={{ uri: getTeamLogo(m.homeTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
+                  <Image
+                    source={{ uri: getTeamLogo(m.homeTeam) }}
+                    style={[styles.pickerTeamLogo, locked && !homeResult && styles.pickerLogoLocked]}
+                    resizeMode="contain"
+                  />
                 ) : null}
-                <Text style={[styles.pickerTeamTx, pick === m.homeTeam && styles.pickerTeamTxActive]}>{m.homeTeam}</Text>
+                <Text style={[
+                  styles.pickerTeamTx,
+                  !showResult && pick === m.homeTeam && styles.pickerTeamTxActive,
+                  locked && !showResult && styles.pickerTeamTxLocked,
+                  homeResult === "correct" && styles.pickerTeamTxCorrect,
+                  homeResult === "wrong"   && styles.pickerTeamTxWrong,
+                ]}>{m.homeTeam}</Text>
               </TouchableOpacity>
-              <Text style={styles.pickerVs}>vs</Text>
+
+              {locked ? (
+                <Text style={styles.pickerLockIcon}>🔒</Text>
+              ) : (
+                <Text style={styles.pickerVs}>vs</Text>
+              )}
+
               <TouchableOpacity
-                style={[styles.pickerTeamBtn, pick === m.awayTeam && styles.pickerTeamBtnActive]}
-                activeOpacity={0.75}
-                onPress={() => onToggle(m.id, m.awayTeam)}
+                style={[
+                  styles.pickerTeamBtn,
+                  !showResult && pick === m.awayTeam && styles.pickerTeamBtnActive,
+                  locked && !showResult && styles.pickerTeamBtnLocked,
+                  awayResult === "correct" && styles.pickerTeamBtnCorrect,
+                  awayResult === "wrong"   && styles.pickerTeamBtnWrong,
+                ]}
+                activeOpacity={locked ? 1 : 0.75}
+                onPress={locked ? undefined : () => onToggle(m.id, m.awayTeam)}
+                disabled={locked}
               >
                 {getTeamLogo(m.awayTeam) ? (
-                  <Image source={{ uri: getTeamLogo(m.awayTeam) }} style={styles.pickerTeamLogo} resizeMode="contain" />
+                  <Image
+                    source={{ uri: getTeamLogo(m.awayTeam) }}
+                    style={[styles.pickerTeamLogo, locked && !awayResult && styles.pickerLogoLocked]}
+                    resizeMode="contain"
+                  />
                 ) : null}
-                <Text style={[styles.pickerTeamTx, pick === m.awayTeam && styles.pickerTeamTxActive]}>{m.awayTeam}</Text>
+                <Text style={[
+                  styles.pickerTeamTx,
+                  !showResult && pick === m.awayTeam && styles.pickerTeamTxActive,
+                  locked && !showResult && styles.pickerTeamTxLocked,
+                  awayResult === "correct" && styles.pickerTeamTxCorrect,
+                  awayResult === "wrong"   && styles.pickerTeamTxWrong,
+                ]}>{m.awayTeam}</Text>
               </TouchableOpacity>
             </View>
           );
         })}
       </ScrollView>
 
-      <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={onClose}>
-        <Text style={styles.pickerDoneTx}>Done</Text>
+      <TouchableOpacity
+        style={[styles.pickerDoneBtn, !canDone && styles.pickerDoneBtnDisabled]}
+        activeOpacity={canDone ? 0.85 : 1}
+        onPress={canDone ? () => onDone(picks) : undefined}
+        disabled={!canDone}
+      >
+        <Text style={styles.pickerDoneTx}>
+          {allLocked ? "Tipping Closed" : hasChanges ? "Done" : "No Changes"}
+        </Text>
       </TouchableOpacity>
     </>
   );
@@ -845,10 +968,32 @@ export default function NRLScheduleScreen() {
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMatches, setPickerMatches] = useState<Match[]>([]);
+  const pickerMatchesRef = useRef<Match[]>([]);
   const [pickerRound,   setPickerRound]   = useState(1);
+  const [kbBottom, setKbBottom] = useState(0);
   const [roundPicks,    setRoundPicks]    = useState<Record<string, string>>({});
   const pickerRoundRef   = useRef(1);
   const pickerVisibleRef = useRef(false);
+
+  // iTipFooty fixture data ref (populated when picker opens)
+  const itipFixtureRef = useRef<ItipFixture | null>(null);
+
+  // Monotonically-incrementing token: stale fetch responses are discarded when
+  // the token has changed since the request was issued.
+  const pickerFetchTokenRef = useRef(0);
+
+  // Snapshot of picks captured at Done time — submitted even if a late fetch
+  // response arrives after Done is pressed.
+  const pickerPicksSnapshotRef  = useRef<Record<string, string>>({});
+  const [pickerInitialPicks, setPickerInitialPicks] = useState<Record<string, string>>({});
+
+  // Margin modal state
+  const [marginVisible, setMarginVisible] = useState(false);
+  const [marginValue,   setMarginValue]   = useState("");
+  const [marginError,   setMarginError]   = useState("");
+  const [marginGame1,   setMarginGame1]   = useState<{ home: string; away: string } | null>(null);
+  const [jokerRound,    setJokerRound]    = useState(false);
+  const [jokerDisabled, setJokerDisabled] = useState(false);
 
   // iPhone bottom-sheet animation (slides up from off-screen bottom)
   const slideAnim = useRef(new Animated.Value(700)).current;
@@ -862,6 +1007,175 @@ export default function NRLScheduleScreen() {
   const closePhonePicker = () => {
     Animated.timing(slideAnim, { toValue: 700, duration: 220, useNativeDriver: true }).start(() => setPickerVisible(false));
   };
+
+  // Ref kept current so handlePickerDone can call the latest handleSubmitTips
+  // even though it is defined before handleSubmitTips.
+  const handleSubmitTipsRef = useRef<((margin: string, jokerRound: boolean) => Promise<void>) | null>(null);
+
+  // Called when user taps Done in the picker — closes picker, then either opens
+  // the margin modal (Game 1 unlocked) or submits immediately (Game 1 locked).
+  const handlePickerDone = useCallback((currentPicks: Record<string, string>) => {
+    pickerPicksSnapshotRef.current = { ...currentPicks };
+    // Close picker
+    if (isTablet) {
+      setPickerVisible(false);
+    } else {
+      Animated.timing(slideAnim, { toValue: 700, duration: 220, useNativeDriver: true }).start(() => setPickerVisible(false));
+    }
+
+    const fixture = itipFixtureRef.current;
+    const firstGame = fixture?.games?.[0];
+    const existingMargin = fixture?.margin != null ? String(fixture.margin) : "";
+
+    const jokerSelected = fixture?.jokerRoundSelected ?? false;
+
+    // If Game 1 has already kicked off, the margin and joker are both frozen —
+    // skip the modal entirely and submit straight away with whatever is on record.
+    if (firstGame?.locked) {
+      setTimeout(() => handleSubmitTipsRef.current?.(existingMargin, jokerSelected), 280);
+      return;
+    }
+
+    // Game 1 is still open — ask for margin (and joker) before submitting.
+    const existingMarginNum = parseInt(existingMargin, 10);
+    const existingMarginValid = !!existingMargin.trim() && !isNaN(existingMarginNum) && existingMarginNum >= 1;
+    if (firstGame) {
+      const rawHome = firstGame.isOrigin ? "NSW Blues" : normalizeTeamName(firstGame.homeTeam || firstGame.homeTeamShort || "TBA");
+      const rawAway = firstGame.isOrigin ? "QLD Maroons" : normalizeTeamName(firstGame.awayTeam || firstGame.awayTeamShort || "TBA");
+      setMarginGame1({ home: rawHome, away: rawAway });
+    } else {
+      const firstMatch = pickerMatchesRef.current[0];
+      setMarginGame1(firstMatch ? { home: firstMatch.homeTeam, away: firstMatch.awayTeam } : null);
+    }
+    setMarginError("");
+    setMarginValue(existingMarginValid ? existingMargin : "");
+    setJokerRound(jokerSelected);
+    // Joker is disabled if it has already been used on a different round this season
+    const used    = parseInt(String(fixture?.currentJokerCount ?? "0"), 10);
+    const allowed = parseInt(String(fixture?.jokerCount        ?? "1"), 10);
+    setJokerDisabled(used >= allowed && !jokerSelected);
+    setMarginVisible(true);
+  }, [slideAnim]);
+
+  // Converts the picks snapshot (captured at Done time) to iTipFooty format and submits.
+  // Accepts margin and jokerRound as explicit parameters so they can be passed directly
+  // from handlePickerDone (when Game 1 is locked) without relying on modal state.
+  const handleSubmitTips = useCallback(async (margin: string, jokerRound: boolean) => {
+    // If the fixture fetch hasn't completed yet, try a fresh fetch now before giving up
+    if (!itipFixtureRef.current) {
+      try {
+        const round = pickerRoundRef.current;
+        const data = await itipFetch<ItipFixture>(
+          `${API_BASE}/itipfooty/fixture?compid=${ITIPFOOTY_COMPID}&round=${round}`
+        );
+        if (data && !data.error && Array.isArray(data.games)) {
+          itipFixtureRef.current = data;
+        }
+      } catch {
+        // fall through to the null check below
+      }
+    }
+    const fixture = itipFixtureRef.current;
+    if (!fixture) {
+      Alert.alert("Error", "Could not load fixture data. Please check your connection and try again.");
+      return;
+    }
+
+    // Use the snapshot captured at Done time — immune to late fixture fetch updates
+    const picks = pickerPicksSnapshotRef.current;
+
+    // Check all unlocked games have a pick — iTipFooty requires a complete set.
+    // Collect unpicked games first so we can name them in the error.
+    const unpickedGames: string[] = [];
+    for (const g of (fixture.games ?? [])) {
+      if (g.locked) continue; // locked games can't be changed; skip
+      const isOrigin = g.isOrigin ?? false;
+      const matchId = isOrigin
+        ? `origin-game-${ORIGIN_ROUND_MAP[fixture.round] ?? 1}`
+        : `itip-${fixture.round}-${g.gameId}`;
+      if (!picks[matchId] && !g.currentTip) {
+        const rawHome = isOrigin ? "NSW Blues" : normalizeTeamName(g.homeTeam || g.homeTeamShort || "TBA");
+        const rawAway = isOrigin ? "QLD Maroons" : normalizeTeamName(g.awayTeam || g.awayTeamShort || "TBA");
+        unpickedGames.push(`Game ${g.gameId}: ${rawHome} vs ${rawAway}`);
+      }
+    }
+    if (unpickedGames.length > 0) {
+      setMarginVisible(false);
+      Alert.alert(
+        "Tips incomplete",
+        `Please pick a winner for every game before submitting:\n\n${unpickedGames.join("\n")}`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    // Validate margin — required by iTipFooty unless Game 1 is already locked
+    // (margin was frozen at kickoff; we can't change it and shouldn't block on it)
+    const game1Locked = !!(fixture.games?.[0]?.locked);
+    if (!game1Locked) {
+      const marginNum = parseInt(margin, 10);
+      if (!margin.trim() || isNaN(marginNum) || marginNum < 1 || marginNum > 999) {
+        setMarginError("Please enter a valid margin (a number, e.g. 6)");
+        return;
+      }
+    }
+    setMarginError("");
+
+    // Build tips map: gameId (string) -> "H" or "A".
+    // Fall back to currentTip for games the user didn't change this session.
+    const tips: Record<string, string> = {};
+    for (const g of (fixture.games ?? [])) {
+      const isOrigin = g.isOrigin ?? false;
+      const matchId = isOrigin
+        ? `origin-game-${ORIGIN_ROUND_MAP[fixture.round] ?? 1}`
+        : `itip-${fixture.round}-${g.gameId}`;
+      const picked = picks[matchId];
+      if (picked) {
+        const rawHome = isOrigin ? "NSW Blues" : normalizeTeamName(g.homeTeam || g.homeTeamShort || "TBA");
+        tips[String(g.gameId)] = picked === rawHome ? "H" : "A";
+      } else if (g.currentTip) {
+        tips[String(g.gameId)] = g.currentTip;
+      }
+      // locked + no pick + no currentTip → in-progress game with no prior tip; omit silently
+    }
+
+    const body = {
+      memberid:          fixture.memberid,
+      tipref:            fixture.tipref,
+      todo:              fixture.todo ?? "update",
+      round:             fixture.round,
+      compid:            fixture.compid ?? ITIPFOOTY_COMPID,
+      oldFields:         fixture.oldFields ?? {},
+      jokerCount:        fixture.jokerCount ?? 1,
+      currentJokerCount: fixture.currentJokerCount ?? 0,
+      cutoff:            fixture.cutoff ?? "GAME",
+      code:              fixture.code ?? "NRL",
+      margin,
+      jokerRound,
+      tips,
+    };
+
+    try {
+      const r = await fetch(`${API_BASE}/itipfooty/tips`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body:    JSON.stringify(body),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (r.ok && json.success) {
+        setMarginVisible(false);
+        Alert.alert("Tips submitted!", "Your tips have been saved successfully.");
+      } else {
+        Alert.alert("Submission failed", json.error ?? `Server returned ${r.status}`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not reach the server.";
+      Alert.alert("Error", msg);
+    }
+  }, []);
+
+  // Keep ref pointed at the latest handleSubmitTips so handlePickerDone can call it.
+  useEffect(() => { handleSubmitTipsRef.current = handleSubmitTips; }, [handleSubmitTips]);
 
   useEffect(() => {
     (async () => {
@@ -885,6 +1199,12 @@ export default function NRLScheduleScreen() {
   // Keep refs in sync with state so callbacks always see the latest values
   useEffect(() => { pickerRoundRef.current   = pickerRound;   }, [pickerRound]);
   useEffect(() => { pickerVisibleRef.current = pickerVisible; }, [pickerVisible]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", (e) => setKbBottom(e.endCoordinates.height));
+    const hide = Keyboard.addListener("keyboardWillHide", () => setKbBottom(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // Auto-save whenever roundPicks changes — but ONLY while the picker is open
   useEffect(() => {
@@ -1059,8 +1379,11 @@ export default function NRLScheduleScreen() {
       const round = msg.round ?? currentRoundRef.current;
       const saved = allPicksRef.current[String(round)] ?? {};
       setPickerRound(round);
-      setPickerMatches(currentMatchesRef.current.filter((m) => !m.isBye));
+      const nonByeMatches = currentMatchesRef.current.filter((m) => !m.isBye);
+      setPickerMatches(nonByeMatches);
+      pickerMatchesRef.current = nonByeMatches;
       setRoundPicks({ ...saved });
+      setPickerInitialPicks({ ...saved });
       // iPad: centered modal overlay. iPhone: bottom sheet slide-up.
       if (isTablet) {
         setPickerVisible(true);
@@ -1070,6 +1393,44 @@ export default function NRLScheduleScreen() {
       // Reset display cycle so next tap always starts with marker (dot) first
       picksDisplayState.current = 0;
       webViewRef.current?.injectJavaScript(`setPicksShowing(0); clearPickResults(); true;`);
+
+      // Clear any stale fixture from a previous picker session before fetching
+      itipFixtureRef.current = null;
+      // Increment token so any response from a previous open is ignored
+      const fetchToken = ++pickerFetchTokenRef.current;
+
+      // Fetch iTipFooty fixture to pre-populate picks with server-saved tips.
+      // On success we always replace roundPicks with the server's truth (may be
+      // empty if the user has made no picks yet). Only keep the AsyncStorage
+      // picks when the fetch fails or returns an error.
+      // The token guard ensures late-arriving responses don't overwrite picks
+      // the user has already edited or submitted via Done.
+      itipFetch<ItipFixture>(`${API_BASE}/itipfooty/fixture?compid=${ITIPFOOTY_COMPID}&round=${round}`)
+        .then((data) => {
+          // Discard if picker was closed/reopened since this fetch was issued
+          if (pickerFetchTokenRef.current !== fetchToken) return;
+          if (!data || data.error || !Array.isArray(data.games)) return;
+          itipFixtureRef.current = data;
+          // Derive picks from server truth — always overwrite local state.
+          // Match IDs mirror parseItipGames: Origin games use origin-game-N,
+          // regular games use itip-{round}-{gameId}.
+          const itipPicks: Record<string, string> = {};
+          for (const g of data.games) {
+            if (!g.currentTip) continue;
+            const isOrigin = g.isOrigin ?? false;
+            const matchId = isOrigin
+              ? `origin-game-${ORIGIN_ROUND_MAP[data.round] ?? 1}`
+              : `itip-${data.round}-${g.gameId}`;
+            const rawHome = isOrigin ? "NSW Blues" : normalizeTeamName(g.homeTeam || g.homeTeamShort || "TBA");
+            const rawAway = isOrigin ? "QLD Maroons" : normalizeTeamName(g.awayTeam || g.awayTeamShort || "TBA");
+            itipPicks[matchId] = g.currentTip === "H" ? rawHome : rawAway;
+          }
+          // Replace local picks with server state (empty object = no saved tips)
+          setRoundPicks(itipPicks);
+          // Update the "initial" baseline so hasChanges compares against server truth
+          setPickerInitialPicks({ ...itipPicks });
+        })
+        .catch(() => { /* fetch failed — keep existing AsyncStorage picks */ });
     }
 
     if (msg.type === "logoTap") {
@@ -1129,8 +1490,10 @@ export default function NRLScheduleScreen() {
                 round={pickerRound}
                 matches={pickerMatches}
                 picks={roundPicks}
+                initialPicks={pickerInitialPicks}
                 onClose={() => setPickerVisible(false)}
                 onToggle={togglePick}
+                onDone={handlePickerDone}
               />
             </Pressable>
           </Pressable>
@@ -1143,10 +1506,119 @@ export default function NRLScheduleScreen() {
               round={pickerRound}
               matches={pickerMatches}
               picks={roundPicks}
+              initialPicks={pickerInitialPicks}
               onClose={closePhonePicker}
               onToggle={togglePick}
+              onDone={handlePickerDone}
             />
           </Animated.View>
+        </>
+      ) : null}
+
+      {/* ── Margin Modal — iPad: centered, iPhone: bottom sheet ────────────── */}
+      {isTablet ? (
+        <Modal
+          visible={marginVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMarginVisible(false)}
+        >
+          <Pressable style={styles.pickerOverlay} onPress={() => setMarginVisible(false)}>
+            <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.pickerHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pickerTitle}>Submit Tips</Text>
+                  {marginGame1 ? (
+                    <Text style={styles.pickerSub}>Game 1: {marginGame1.home} vs {marginGame1.away}</Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity style={styles.pickerCloseBtn} onPress={() => setMarginVisible(false)} hitSlop={12}>
+                  <Text style={styles.pickerCloseTx}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.marginLabel}>Margin</Text>
+              <TextInput
+                style={[styles.marginInput, marginError ? styles.marginInputError : undefined]}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                value={marginValue}
+                onChangeText={(v) => { setMarginValue(v); setMarginError(""); }}
+                placeholder="Enter margin (e.g. 6)"
+                placeholderTextColor="#555"
+              />
+              {marginError ? <Text style={styles.marginErrorTx}>{marginError}</Text> : null}
+              <TouchableOpacity
+                style={[styles.jokerRow, jokerDisabled && styles.jokerRowDisabled]}
+                activeOpacity={jokerDisabled ? 1 : 0.75}
+                onPress={jokerDisabled ? undefined : () => setJokerRound(v => !v)}
+                disabled={jokerDisabled}
+              >
+                <View style={[styles.jokerCheckbox, jokerRound && styles.jokerCheckboxActive]}>
+                  {jokerRound ? <Text style={styles.jokerCheckMark}>✓</Text> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.jokerLabel, jokerDisabled && styles.jokerLabelDisabled]}>
+                    Joker Round {jokerRound ? "🃏" : ""}
+                  </Text>
+                  <Text style={styles.jokerSub}>
+                    {jokerDisabled ? "Joker already used this season" : "Doubles your round score — once per season"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={() => { Keyboard.dismiss(); handleSubmitTips(marginValue, jokerRound); }}>
+                <Text style={styles.pickerDoneTx}>Submit Tips</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : marginVisible ? (
+        <>
+          <Pressable style={styles.pickerOverlayPhone} onPress={() => { Keyboard.dismiss(); setMarginVisible(false); }} />
+          <View style={[styles.pickerSheetPhone, styles.marginSheetPhone, kbBottom > 0 ? { bottom: kbBottom } : undefined]}>
+            <View style={styles.pickerHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerTitle}>Submit Tips</Text>
+                {marginGame1 ? (
+                  <Text style={styles.pickerSub}>Game 1: {marginGame1.home} vs {marginGame1.away}</Text>
+                ) : null}
+              </View>
+              <TouchableOpacity style={styles.pickerCloseBtn} onPress={() => { Keyboard.dismiss(); setMarginVisible(false); }} hitSlop={12}>
+                <Text style={styles.pickerCloseTx}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.marginLabel}>Margin</Text>
+            <TextInput
+              style={[styles.marginInput, marginError ? styles.marginInputError : undefined]}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              value={marginValue}
+              onChangeText={(v) => { setMarginValue(v); setMarginError(""); }}
+              placeholder="Enter margin (e.g. 6)"
+              placeholderTextColor="#555"
+            />
+            {marginError ? <Text style={styles.marginErrorTx}>{marginError}</Text> : null}
+            <TouchableOpacity
+              style={[styles.jokerRow, jokerDisabled && styles.jokerRowDisabled]}
+              activeOpacity={jokerDisabled ? 1 : 0.75}
+              onPress={jokerDisabled ? undefined : () => setJokerRound(v => !v)}
+              disabled={jokerDisabled}
+            >
+              <View style={[styles.jokerCheckbox, jokerRound && styles.jokerCheckboxActive]}>
+                {jokerRound ? <Text style={styles.jokerCheckMark}>✓</Text> : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.jokerLabel, jokerDisabled && styles.jokerLabelDisabled]}>
+                  Joker Round {jokerRound ? "🃏" : ""}
+                </Text>
+                <Text style={styles.jokerSub}>
+                  {jokerDisabled ? "Joker already used this season" : "Doubles your round score — once per season"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.85} onPress={() => { Keyboard.dismiss(); handleSubmitTips(marginValue, jokerRound); }}>
+              <Text style={styles.pickerDoneTx}>Submit Tips</Text>
+            </TouchableOpacity>
+          </View>
         </>
       ) : null}
     </View>
@@ -1277,6 +1749,42 @@ const styles = StyleSheet.create({
     color: "#444",
     fontWeight: "500",
   },
+  pickerRowLocked: {
+    opacity: 0.45,
+  },
+  pickerRowResult: {
+    opacity: 0.88,
+  },
+  pickerTeamBtnCorrect: {
+    backgroundColor: "#0d2e1a",
+    borderColor: "#2a7a4a",
+  },
+  pickerTeamBtnWrong: {
+    backgroundColor: "#2e0d0d",
+    borderColor: "#7a2a2a",
+  },
+  pickerTeamTxCorrect: {
+    color: "#4ade80",
+    fontWeight: "700",
+  },
+  pickerTeamTxWrong: {
+    color: "#f87171",
+    fontWeight: "700",
+  },
+  pickerTeamBtnLocked: {
+    backgroundColor: "#111",
+    borderColor: "#222",
+  },
+  pickerTeamTxLocked: {
+    color: "#444",
+  },
+  pickerLogoLocked: {
+    opacity: 0.4,
+  },
+  pickerLockIcon: {
+    fontSize: 14,
+    color: "#444",
+  },
   pickerDoneBtn: {
     backgroundColor: NRL_GREEN,
     borderRadius: 12,
@@ -1285,9 +1793,91 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 8,
   },
+  pickerDoneBtnDisabled: {
+    backgroundColor: "#2a2a2a",
+  },
   pickerDoneTx: {
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  marginLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#aaa",
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  marginInput: {
+    backgroundColor: "#1c1c1c",
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#fff",
+    marginBottom: 8,
+  },
+  marginInputError: {
+    borderColor: "#e53e3e",
+    marginBottom: 4,
+  },
+  marginErrorTx: {
+    fontSize: 13,
+    color: "#e53e3e",
+    marginBottom: 12,
+    fontWeight: "500",
+  },
+  marginSheetPhone: {
+    maxHeight: 380,
+  },
+  jokerRow: {
+    flexDirection:    "row",
+    alignItems:       "center",
+    backgroundColor:  "#1a1a00",
+    borderWidth:      1,
+    borderColor:      "#5a4a00",
+    borderRadius:     12,
+    padding:          14,
+    marginTop:        10,
+    marginBottom:     4,
+  },
+  jokerRowDisabled: {
+    backgroundColor: "#1a1a1a",
+    borderColor:     "#333",
+  },
+  jokerCheckbox: {
+    width:           24,
+    height:          24,
+    borderRadius:    6,
+    borderWidth:     2,
+    borderColor:     "#c8a800",
+    alignItems:      "center",
+    justifyContent:  "center",
+    marginRight:     12,
+  },
+  jokerCheckboxActive: {
+    backgroundColor: "#c8a800",
+    borderColor:     "#c8a800",
+  },
+  jokerCheckMark: {
+    color:      "#000",
+    fontSize:   14,
+    fontWeight: "900",
+  },
+  jokerLabel: {
+    fontSize:   14,
+    fontWeight: "700",
+    color:      "#e0c000",
+  },
+  jokerLabelDisabled: {
+    color: "#555",
+  },
+  jokerSub: {
+    fontSize:  11,
+    color:     "#666",
+    marginTop: 2,
   },
 });

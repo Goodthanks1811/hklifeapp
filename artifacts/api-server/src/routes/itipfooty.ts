@@ -159,17 +159,20 @@ export interface ITipGame {
 }
 
 export interface ITipFixture {
-  compid:             string;
-  round:              number;
-  memberid:           string;
-  tipref:             string;
-  jokerCount:         string;
-  currentJokerCount:  string;
-  cutoff:             string;
-  code:               string;
-  margin:             string;
-  games:              ITipGame[];
-  oldFields:          Record<string, string>;
+  compid:              string;
+  round:               number;
+  memberid:            string;
+  tipref:              string;
+  todo:                "add" | "update";
+  tippingOpen:         boolean;
+  jokerCount:          string;
+  currentJokerCount:   string;
+  jokerRoundSelected:  boolean;
+  cutoff:              string;
+  code:                string;
+  margin:              string;
+  games:               ITipGame[];
+  oldFields:           Record<string, string>;
 }
 
 // ── Core HTML parser ──────────────────────────────────────────────────────────
@@ -179,16 +182,46 @@ function parseFixture(html: string): ITipFixture {
 
   const compid            = html.match(/<input name="COMPID" type="hidden" value="(\d+)">/)?.[1]                   ?? "";
   const round             = parseInt(html.match(/<input name="ROUND" type="hidden" value="(\d+)">/)?.[1]           ?? "1", 10);
-  const memberid          = html.match(/<input name="postmemberid" type="hidden" value="(\d+)">/)?.[1]              ?? "";
-  const tipref            = html.match(/<input name="tipref" type="hidden"[^>]+value="(\d+)">/)?.[1]                ?? "";
+  // Permissive regex: match postmemberid field regardless of attribute order or quote style
+  const memberid          = html.match(/name="postmemberid"[^>]*value="(\d*)"/)?.[1]
+                         ?? html.match(/value="(\d+)"[^>]*name="postmemberid"/)?.[1]
+                         ?? html.match(/name='postmemberid'[^>]*value='(\d*)'/)?.[1]
+                         ?? "";
+  // Permissive: handle any attribute order (same fix as memberid)
+  const tipref            = html.match(/name="tipref"[^>]*value="(\d+)"/)?.[1]
+                         ?? html.match(/value="(\d+)"[^>]*name="tipref"/)?.[1]
+                         ?? "";
+  // todo="add" for first-time tips (no prior picks), "update" when tips already exist.
+  // tipref is only present in "update" mode — it's absent for first submissions.
+  const todo = html.match(/name="todo"[^>]*value="(add|update)"/)?.[1]
+            ?? html.match(/value="(add|update)"[^>]*name="todo"/)?.[1]
+            ?? "update";
+
+  // tippingOpen: round is ready for submission when either:
+  //   - todo="add"    → first-ever submission for this round (no tipref needed)
+  //   - todo="update" → tips already exist and we have a tipref to reference
+  // It is NOT open when the "not yet available" banner appears (round is future/scheduled).
+  const notAvailableText = html.includes("not yet available for tipping") || html.includes("This round is not yet available");
+  const tippingOpen = !notAvailableText && (todo === "add" || !!tipref);
+  if (!tippingOpen) {
+    const snip = html.match(/<input[^>]*tipref[^>]*>/)?.[0] ?? "(tipref tag not found)";
+    console.warn("[fixture] tipping not open — todo:", todo, "tipref:", tipref || "(empty)", "notAvail:", notAvailableText, "raw tipref tag:", snip);
+  }
   const jokerCount        = html.match(/<input name="JOKERCOUNT" type="hidden" value="(\d+)">/)?.[1]                ?? "1";
   const currentJokerCount = html.match(/<input name="CURRENTJOKERCOUNT" type="hidden" value="(\d+)">/)?.[1]         ?? "0";
   const cutoff            = html.match(/<input name="cutoff" type="hidden" value="([^"]+)">/)?.[1]                  ?? "GAME";
   const code              = html.match(/<input name="code" type="hidden" value="([^"]+)">/)?.[1]                    ?? "NRL";
   const margin            = html.match(/<input type="number" name="margin" value="([^"]*)"[^>]*id="margin">/)?.[1]  ?? "";
 
+  // Whether the user has already activated their joker for this round.
+  // The checkbox renders as <input name="jokerround" ... checked> when selected.
+  const jokerRoundSelected = /name="jokerround"[^>]*\bchecked\b/.test(html)
+                          || /\bchecked\b[^>]*name="jokerround"/.test(html);
+
   const oldFields: Record<string, string> = {};
-  const oldRx = /<input name="(OldTip(?:\d+|ORIGIN)|OldMargin(?:NonSub)?)" type="hidden"[^>]+value="([^"]*)"/g;
+  // Capture all hidden passthrough fields iTipFooty requires to be round-tripped:
+  //   OldTip1..8, OldTipORIGIN, OldMargin, OldMarginNonSub, ORIGINincluded, jokerincluded
+  const oldRx = /<input name="(OldTip(?:\d+|ORIGIN)|OldMargin(?:NonSub)?|ORIGINincluded|jokerincluded)" type="hidden"[^>]+value="([^"]*)"/g;
   let ot: RegExpExecArray | null;
   while ((ot = oldRx.exec(html)) !== null) oldFields[ot[1]] = ot[2];
 
@@ -281,7 +314,7 @@ function parseFixture(html: string): ITipFixture {
     });
   }
 
-  return { compid, round, memberid, tipref, jokerCount, currentJokerCount, cutoff, code, margin, games, oldFields };
+  return { compid, round, memberid, tipref, todo, tippingOpen, jokerCount, currentJokerCount, jokerRoundSelected, cutoff, code, margin, games, oldFields };
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -332,26 +365,68 @@ router.get("/fixture", async (req, res) => {
       html = await getPage(url);
     }
 
+    // Never cache fixture responses — tipref, currentTip, and lock state
+    // change during the day; a stale 304 causes silent submission failures.
+    res.set("Cache-Control", "no-store");
     res.json(parseFixture(html));
   } catch (err: any) {
     res.status(500).json({ error: String(err?.message ?? err) });
   }
 });
 
-router.post("/tips", async (req, res) => {
-  const { compid, round, memberid, tipref, margin, jokerCount, currentJokerCount, cutoff, code, tips, oldFields } = req.body ?? {};
+// ── Post-submission verification ──────────────────────────────────────────────
+// After a "successful" redirect from iTipFooty, fetch the fixture and confirm
+// the submitted tips actually appear as currentTip on the server.
+// Returns true if all submitted picks match, false if any differ.
+// On fetch/parse error we return true (benefit of the doubt — don't block on
+// infrastructure failures unrelated to the actual tip save).
+async function verifyTips(
+  compid: string, round: number, submitted: Record<string, string>
+): Promise<boolean> {
+  const tipCount = Object.keys(submitted).length;
+  if (tipCount === 0) return true;
+  try {
+    const html    = await getPage(`${BASE}/tipping.php?compid=${compid}&round=${round}`);
+    const fixture = parseFixture(html);
+    const serverMap: Record<string, string | null> = {};
+    for (const g of fixture.games) serverMap[String(g.gameId)] = g.currentTip ?? null;
+    let matched = 0;
+    for (const [id, pick] of Object.entries(submitted)) {
+      if (serverMap[id] === pick) matched++;
+    }
+    const ok = matched === tipCount;
+    if (!ok) {
+      console.warn("[tips] verification: server tips don't match submitted", {
+        round, submitted, serverTips: Object.entries(serverMap),
+      });
+    }
+    return ok;
+  } catch (err) {
+    console.warn("[tips] verification fetch failed — assuming success", { err: String(err) });
+    return true; // infrastructure error, don't block the user
+  }
+}
 
-  // Validate required fields — memberid and tipref come from the fixture page HTML
-  // and change each round, providing implicit protection against arbitrary submissions
-  if (!memberid || !/^\d+$/.test(String(memberid))) {
-    res.status(400).json({ error: "memberid is required and must be numeric" });
+router.post("/tips", async (req, res) => {
+  const { compid, round, memberid, margin, jokerCount, currentJokerCount, cutoff, code, tips, oldFields, jokerRound } = req.body ?? {};
+  // tipref may be stale/absent from a cached fixture — we'll recover it below if needed
+  let tipref: string = String(req.body?.tipref ?? "");
+  // todo="add" for first-ever submission (no tipref), "update" for subsequent changes.
+  // Default to "update" for backward compatibility if not provided.
+  let todo: string = String(req.body?.todo ?? "update");
+
+  if (tipref && !/^\d+$/.test(tipref)) {
+    console.error("[tips] 400: tipref present but not numeric", { round, tipref });
+    res.status(400).json({ error: "Invalid tipref value." });
     return;
   }
-  if (!tipref || !/^\d+$/.test(String(tipref))) {
-    res.status(400).json({ error: "tipref is required and must be numeric" });
+  if (memberid != null && memberid !== "" && !/^\d+$/.test(String(memberid))) {
+    console.error("[tips] 400: memberid not numeric", { memberid });
+    res.status(400).json({ error: "memberid must be numeric if provided" });
     return;
   }
   if (!round || isNaN(Number(round))) {
+    console.error("[tips] 400: round invalid", { round });
     res.status(400).json({ error: "round is required and must be numeric" });
     return;
   }
@@ -362,8 +437,36 @@ router.post("/tips", async (req, res) => {
       return;
     }
 
+    // For "update" mode: tipref is required. If it's missing (stale cached fixture),
+    // fetch a fresh fixture page to recover the real tipref before submitting.
+    // For "add" mode: tipref is never present on a first submission — don't try to recover.
+    if (todo === "update" && !tipref) {
+      console.warn("[tips] tipref empty for update — fetching fresh fixture to recover it", { round });
+      try {
+        const freshHtml    = await getPage(`${BASE}/tipping.php?compid=${compid ?? DEFAULT_COMPID}&round=${round}`);
+        const freshFixture = parseFixture(freshHtml);
+        if (freshFixture.tipref) {
+          tipref = String(freshFixture.tipref);
+          todo   = freshFixture.todo; // sync todo with recovered fixture state
+          console.info("[tips] recovered tipref from fresh fixture", { round, tipref, todo });
+        } else if (freshFixture.todo === "add") {
+          // The fixture is actually in "add" mode — switch to add
+          todo = "add";
+          console.info("[tips] fresh fixture is in add mode — switching todo to add", { round });
+        } else {
+          console.warn("[tips] fresh fixture also has no tipref and is not in add mode — round may not be open", { round });
+          res.status(400).json({ error: "This round is not currently open for tipping on iTipFooty." });
+          return;
+        }
+      } catch (fetchErr) {
+        console.error("[tips] failed to fetch fresh fixture for tipref recovery", { round, err: String(fetchErr) });
+        res.status(500).json({ error: "Could not verify tipping state — please try again." });
+        return;
+      }
+    }
+
     const body = new URLSearchParams();
-    body.set("todo",              "update");
+    body.set("todo",              todo);
     body.set("postmemberid",      String(memberid          ?? ""));
     body.set("COMPID",            String(compid            ?? DEFAULT_COMPID));
     body.set("ROUND",             String(round             ?? ""));
@@ -372,23 +475,101 @@ router.post("/tips", async (req, res) => {
     body.set("cutoff",            cutoff ?? "GAME");
     body.set("code",              code   ?? "NRL");
     body.set("margin",            String(margin ?? ""));
-    body.set("tipref",            String(tipref ?? ""));
+    // Only include tipref when it's present (update mode).
+    // For todo=add (first submission), iTipFooty's form has no tipref field — omit it entirely.
+    if (tipref) body.set("tipref", tipref);
 
     for (const [k, v] of Object.entries(tips      ?? {})) body.set(k, String(v));
     for (const [k, v] of Object.entries(oldFields ?? {})) body.set(k, String(v));
+    // Only send jokerround=YES when the user has activated their joker for this round.
+    // Never send it as NO/empty — the checkbox absence means "not joker round".
+    if (jokerRound === true) body.set("jokerround", "YES");
 
-    const r = await fetch(`${BASE}/services/SubmitTips.php`, {
-      method:  "POST",
+    const gameCount = Object.keys(tips ?? {}).length;
+    console.info("[tips] submitting", { round, memberid, tipref, margin, gameCount, tips });
+
+    const doPost = (cookie: string) => fetch(`${BASE}/services/SubmitTips.php`, {
+      method:   "POST",
+      redirect: "manual",
       headers: {
         "User-Agent":   UA,
         "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie":       _cookie ?? "",
-        "Referer":      `${BASE}/tipping.php?compid=${compid}&round=${round}`,
+        "Cookie":       cookie,
+        "Referer":      `${BASE}/tipping.php?compid=${compid ?? DEFAULT_COMPID}&round=${round}`,
       },
       body: body.toString(),
     });
 
-    res.json({ success: true, statusCode: r.status });
+    const r        = await doPost(_cookie ?? "");
+    const location = r.headers.get("location") ?? "";
+    const bodyText = await r.text().catch(() => "");
+
+    console.info("[tips] SubmitTips response", {
+      status:   r.status,
+      location,
+      bodySnip: bodyText.slice(0, 300),
+    });
+
+    // With redirect:"manual", iTipFooty signals outcomes via the Location header:
+    //   Success       → 302 to tipping.php
+    //   Session fail  → 302 to login.php  OR  200 with login-page HTML
+    //   Other failure → anything else (e.g. error page, unexpected redirect)
+    const sessionFailed = (loc: string, b: string) =>
+      loc.includes("login") || b.includes("tippingname") || b.includes("weblogmemin");
+
+    const submissionAccepted = (loc: string) =>
+      loc.includes("tipping.php") || loc.includes("/home");
+
+    if (sessionFailed(location, bodyText)) {
+      // Invalidate cached session and try to re-establish
+      _cookie = null;
+      if (!await ensureSession()) {
+        res.status(401).json({ error: "Session expired and re-login failed" });
+        return;
+      }
+      const r2   = await doPost(_cookie ?? "");
+      const loc2 = r2.headers.get("location") ?? "";
+      const bod2 = await r2.text().catch(() => "");
+      console.info("[tips] SubmitTips retry", { status: r2.status, location: loc2, bodySnip: bod2.slice(0, 300) });
+
+      if (sessionFailed(loc2, bod2)) {
+        res.status(401).json({ error: "Session re-established but submission still rejected" });
+        return;
+      }
+      if (!submissionAccepted(loc2)) {
+        console.error("[tips] unexpected response after retry", { status: r2.status, location: loc2, bodySnip: bod2.slice(0, 500) });
+        res.status(500).json({ error: `iTipFooty rejected the submission (retry). status=${r2.status} location=${loc2}` });
+        return;
+      }
+      // Verify tips were actually saved on iTipFooty's server
+      const verified = await verifyTips(String(compid ?? DEFAULT_COMPID), Number(round), tips ?? {});
+      if (!verified) {
+        res.status(500).json({ error: "Tips were accepted but don't appear to have saved on iTipFooty. Please check the website directly." });
+        return;
+      }
+      res.json({ success: true, statusCode: r2.status, location: loc2, retried: true });
+      return;
+    }
+
+    if (!submissionAccepted(location)) {
+      // iTipFooty didn't redirect to login (so session is fine) but also didn't
+      // redirect back to tipping.php — something unexpected happened.
+      console.error("[tips] unexpected response", { status: r.status, location, bodySnip: bodyText.slice(0, 500) });
+      res.status(500).json({ error: `iTipFooty rejected the submission. status=${r.status} location=${location}` });
+      return;
+    }
+
+    // The redirect looks like success — verify tips actually persisted.
+    // iTipFooty returns 302 → tipping.php for both success AND silent failures
+    // (e.g. wrong tipref), so we can't trust the redirect alone.
+    const verified = await verifyTips(String(compid ?? DEFAULT_COMPID), Number(round), tips ?? {});
+    if (!verified) {
+      console.error("[tips] redirect accepted but tips not saved — tipref may have been wrong", { round, tipref });
+      res.status(500).json({ error: "Tips were accepted but don't appear to have saved on iTipFooty. Please check the website directly." });
+      return;
+    }
+
+    res.json({ success: true, statusCode: r.status, location });
   } catch (err: any) {
     res.status(500).json({ error: String(err?.message ?? err) });
   }

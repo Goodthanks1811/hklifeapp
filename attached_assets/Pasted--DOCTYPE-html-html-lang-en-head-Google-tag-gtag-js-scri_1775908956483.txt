@@ -1,0 +1,971 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-ER9LTWHCBS"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-ER9LTWHCBS');
+</script>
+    <!-- required meta -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- #favicon -->
+    <link rel="shortcut icon" href="assets/images/favicon.png" type="image/x-icon">
+    <!-- #title -->
+    <title>iTipFooty - My Tips</title>
+
+    <!-- ==== css dependencies start ==== -->
+
+    <!-- bootstrap five css -->
+    <link rel="stylesheet" href="assets/vendor/bootstrap/css/bootstrap.min.css">
+    <!-- font awesome six css -->
+    <link rel="stylesheet" href="assets/vendor/font-awesome/css/all.min.css">
+    <!-- ==== / css dependencies end ==== -->
+
+    <!-- main css -->
+   <link rel="stylesheet" href="assets/css/style.css"> 
+   <script type="text/javascript" src="assets/js/tipping.js"></script>
+   <!-- publift -->
+   <script async src="https://cdn.fuseplatform.net/publift/tags/2/2510/fuse.js"></script>
+</head>
+
+<body>
+
+    <!-- ==== preloader start ==== -->
+<div id="preloader"><div class="spinner-border color-green-dark" role="status"></div></div>    <!-- ==== / preloader end ==== -->
+
+    <!-- ==== header start ==== -->
+    <header class="header header--secondary">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-12">
+                    
+                        <div class="nav__content">
+                     <div id="headertitle" class="title-fixed font-12 color-white" align="middle">My Tips</div>
+					 <div id="headersubtitle" class="subtitle-fixed font-11 color-grass-light" align="middle">Reserving Independence</div>
+                        	<!-- mobile logo -->
+                            <div class="nav__logo" style="z-index:98;">
+                                <a href="#">
+                                    <img src="assets/images/logo-header.png" alt="Logo" style="margin-top: 10px;">
+                                </a>
+                            </div>
+                            <!-- mobile logo end -->
+                            <div class="nav__menu">
+                                <div class="nav__menu-logo d-flex d-xl-none">
+                                    <a href="index.php" class="text-center hide-nav">
+                                        <img src="assets/images/logo-header.png" alt="Logo" style="margin-top: 10px;">
+                                    </a>
+                                    <a href="javascript:void(0)" class="nav__menu-close">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </a>
+                                </div>
+
+                                <ul class="nav__menu-items">
+                                  <li class="nav__menu-item nav__menu-item--dropdown"><a href="home.php" class="nav__menu-link font-16">My Comps</a></li>
+                                  <li class="nav__menu-item nav__menu-item--dropdown"><a href="joincomp.php" class="nav__menu-link font-16">Join Comp</a></li>
+                                  <li class="nav__menu-item nav__menu-item--dropdown"><a href="createcomp.php" class="nav__menu-link font-16">Create Comp</a></li>
+                                  <li class="nav__menu-item nav__menu-item--dropdown">
+                                      <a href="javascript:void(0)" class="nav__menu-link nav__menu-link--dropdown font-16">
+                                          My Account
+                                      </a>
+                                      <ul class="nav__dropdown">
+                                          <li>
+                                              <a class="nav__dropdown-item hide-nav font-16" href="accountdetails.php">Account Details</a>
+                                          </li>
+                                          <li>
+                                              <a class="nav__dropdown-item hide-nav font-16" href="resetpassword.php">Reset Password</a>
+                                          </li>
+                                          <li>
+                                              <a class="nav__dropdown-item hide-nav font-16" href="avatar.php">Avatar</a>
+                                          </li>
+                                      </ul>
+                                  </li>
+                                  <li class="nav__menu-item nav__menu-item--dropdown"><a href="contact.php" class="nav__menu-link font-16">Contact</a></li>
+                                  <li class="nav__menu-item nav__menu-item--dropdown"><a href="services/logout.php" class="nav__menu-link font-16">Logout</a></li>
+                              </ul>
+                            </div>
+                        	
+                            <!-- mobile burger menu -->
+                            <div class="nav__uncollapsed" style="z-index:99;">
+                                
+                                <button class="nav__bar d-block d-xl-none">
+                                    <span class="icon-bar top-bar"></span>
+                                    <span class="icon-bar middle-bar"></span>
+                                    <span class="icon-bar bottom-bar"></span>
+                                </button>
+                            </div>
+                            <!-- mobile burger menu end -->
+                        </div>
+                    
+                </div>
+            </div>
+        </div>
+        <div class="backdrop"></div>
+    </header>    <!-- ==== / header end ==== -->
+    
+
+
+    <!-- ==== details start ==== -->
+    <section class="section details">
+        <div class="container">
+            <div class="row section__row">
+                
+                <div class="col-12 col-xl-8 section__col">
+                
+                    <div class="notification-fixed orangemessage" align="middle">&nbsp;&nbsp;<i class="fa fa-exclamation-triangle font-14"></i> This round is not yet available for tipping.</div>                    
+                        <!--start of page content, add your stuff here-->
+        <!--NOTIFICATIONS-->
+        <div class="mt-3"></div>
+                  
+                <nav id="main-menu">
+                <div class="tab-controls tabs-small tabs-rounded">
+                    <a href="tipping.php?compid=132428&round=15" class="bg-grass-dark font-14"><i class="fa fa-tasks"></i> My Tips</a>
+                    <a href="overallladder.php?compid=132428&round=15" class="font-14"><i class="fa fa-trophy"></i> Overall</a>
+                    <a href="weeklyladder.php?compid=132428&round=15" class="font-14"><i class="fa fa-chart-column"></i> Weekly</a>                     
+                    <a href="viewalltips.php?compid=132428&round=15&code=NRL" class="font-14"><i class="fa fa-users"></i> View All Tips</a>
+                    <a href="messageboard.php?compid=132428&round=15" class="font-14"><i class="fa fa-comment"></i> Messages </a>
+                    <a href="#" data-menu="menu-sidebar" class="font-14"><i class="fa-solid fa-bars font-16"></i> Menu</a>
+                </div>
+                </nav>           
+<div id="desktopheading" align="center" class="color-grass-dark font-18 font-900 mt-3 mb-3 line-height-s">My Tips<br><p class="font-10 mb-3">Reserving Independence</p></div>
+                
+<!--START ROUND MENU-->
+        <div class="card card-style mb-3 mt-3" style="margin-left:auto; width:100%;">
+            <div class="content my-2">
+                <div class="row mb-0">
+                <div class="col moremenu">
+            <a href="tipping.php?compid=132428&round=14" class="color-green-dark"><i class="fa fa-arrow-left pe-2"></i><span>Prev</span></a>
+          </div><div class="col text-center moremenu">
+            <a href="rounds.php?compid=132428&round=15" class="color-green-dark font-13"><span><strong>Round 15</strong></span></a>
+          </div><div class="col moremenu">
+            <a href="tipping.php?compid=132428&round=16" class="text-end d-block color-green-dark"><span>Next</span> <i class="fa fa-arrow-right ps-2"></i></a>
+          </div>                </div>
+            </div>
+        </div>
+<!--END ROUND MENU-->
+
+
+        <div align="center" class="mt-3 line-height-s">* All games in the round must be selected before submitting tips.</div>
+
+        
+		<!--SUBMIT TIPS FORM START-->
+    	<form name="SubmitTips" method="post" action="services/SubmitTips.php" id="SubmitTips" onSubmit="return required()">
+              <input name="cutoff" type="hidden" value="GAME" />
+              <input name="code" type="hidden" value="NRL" />
+              <input name="postmemberid" type="hidden" value="558580" />
+              <input name="COMPID" type="hidden" value="132428"> 
+              <input name="ROUND" type="hidden" value="15">
+    		  <input name="JOKERCOUNT" type="hidden" value="1"><input name="CURRENTJOKERCOUNT" type="hidden" value="0">              
+        <div class="card card-style mb-3 mt-1">
+            
+</div><div class="card card-style mb-3" style="margin-left:auto; width:100%;">
+
+ 				<table class="table table-borderless text-center shadow-l mb-0" style="overflow: hidden;">
+                <thead>
+                    <tr class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase">Thursday, 11 June<i class="fa fa-calendar float-end font-14 pt-1" style="margin-top:2px;"></i></th>
+                    </tr>
+                </thead>
+                </table><div class="content mb-0 mt-1"><table width="100%" border="0">
+  <tr>
+    <td colspan="3" align="center"><a href="teamstats.php?compid=132428&round=15&code=NRL&game=1"><i class="fa fa-chart-simple font-22 float-end color-blue-dark"></i></a><span class="font-10 mb-0 mt-n1"><strong>7:45 pm (Sydney time) @ Accor Stadium</strong></span><br /></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0">
+      <tr id="1H" >
+        <td width="60%"><img src="assets/images/NRL/Rabbitohs.png" alt="" width="50" style="margin-top:3px; margin-left:3px;" /><br />
+		<span id="shortteamname" style="margin-left:3px; color:#000000;"><strong>RAB</strong> <span class="font-9">(6th)</span></span>
+		<span id="longteamname" style="margin-left:3px; color:#000000;"><strong>Rabbitohs</strong> <span class="font-10">(6th)</span></span>
+		</td><td width="20%"><span style="font-size:18px; font-weight: bold;"></span></td>
+        					<td width="20%"><input id="1" value="H" type="radio" name="1" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+      </tr>
+    </table></td>
+    <td align="center" id="1D" ><strong>VS</strong></td>
+    <td><table width="100%" border="0">
+      <tr id="1A" >
+        <td width="20%" align="right"><input id=1 value="A" type="radio" name="1" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+							<td width="20%" align="right"><span style="font-size:18px; font-weight: bold;"></span></td><td width="60%" align="right"><img src="assets/images/NRL/Broncos.png" alt="" width="50" style="margin-top:3px; margin-right:3px;" /><br />
+		<span id="shortteamname" style="margin-right:3px; color:#000000;"><span class="font-9">(11th)</span> <strong>BRO</strong></span>
+		<span id="longteamname" style="margin-right:3px; color:#000000;"><span class="font-10">(11th)</span> <strong>Broncos</strong></span>
+		
+		</td>
+      </tr>
+    </table></td>
+    <td align="right"><input name="OldTip1" type="hidden" id="OldTip1" value="No Tip"><div id="margincheck"><span class="highlight bg-green-dark text-center font-9 color-white" style="line-height:16px; padding:3px;"><strong>MARGIN</strong></span><br /><input type="number" name="margin" value="" class="text-center font-12" id="margin" placeholder="MAR" style="height:35px; width:41px; border-color:#000000;" disabled>
+	<input name="OldMargin" type="hidden" id="OldMargin" value="">
+	<input name="OldMarginNonSub" type="hidden" value=""></div></td>
+  </tr>
+  <tr height="10px">
+    <td width="37%" align="left"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="15%" align="center"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="37%" align="right"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="11%" align="center"></td>
+  </tr>  
+</table>
+</div></div><div class="card card-style mb-3" style="margin-left:auto; width:100%;">
+
+ 				<table class="table table-borderless text-center shadow-l mb-0" style="overflow: hidden;">
+                <thead>
+                    <tr class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase">Friday, 12 June<i class="fa fa-calendar float-end font-14 pt-1" style="margin-top:2px;"></i></th>
+                    </tr>
+                </thead>
+                </table><div class="content mb-0 mt-1"><table width="100%" border="0">
+  <tr>
+    <td colspan="3" align="center"><a href="teamstats.php?compid=132428&round=15&code=NRL&game=2"><i class="fa fa-chart-simple font-22 float-end color-blue-dark"></i></a><span class="font-10 mb-0 mt-n1"><strong>7:55 pm (Sydney time) @ Suncorp Stadium</strong></span><br /></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0">
+      <tr id="2H" >
+        <td width="60%"><img src="assets/images/NRL/Dolphins.png" alt="" width="50" style="margin-top:3px; margin-left:3px;" /><br />
+		<span id="shortteamname" style="margin-left:3px; color:#000000;"><strong>DOL</strong> <span class="font-9">(12th)</span></span>
+		<span id="longteamname" style="margin-left:3px; color:#000000;"><strong>Dolphins</strong> <span class="font-10">(12th)</span></span>
+		</td><td width="20%"><span style="font-size:18px; font-weight: bold;"></span></td>
+        					<td width="20%"><input id="2" value="H" type="radio" name="2" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+      </tr>
+    </table></td>
+    <td align="center" id="2D" ><strong>VS</strong></td>
+    <td><table width="100%" border="0">
+      <tr id="2A" >
+        <td width="20%" align="right"><input id=2 value="A" type="radio" name="2" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+							<td width="20%" align="right"><span style="font-size:18px; font-weight: bold;"></span></td><td width="60%" align="right"><img src="assets/images/NRL/Roosters.png" alt="" width="50" style="margin-top:3px; margin-right:3px;" /><br />
+		<span id="shortteamname" style="margin-right:3px; color:#000000;"><span class="font-9">(8th)</span> <strong>ROO</strong></span>
+		<span id="longteamname" style="margin-right:3px; color:#000000;"><span class="font-10">(8th)</span> <strong>Roosters</strong></span>
+		
+		</td>
+      </tr>
+    </table></td>
+    <td align="right"><input name="OldTip2" type="hidden" id="OldTip2" value="No Tip"></td>
+  </tr>
+  <tr height="10px">
+    <td width="42%" align="left"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="16%" align="center"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="42%" align="right"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="0%" align="center"></td>
+  </tr>  
+</table>
+</div></div><div class="card card-style mb-3" style="margin-left:auto; width:100%;">
+
+ 				<table class="table table-borderless text-center shadow-l mb-0" style="overflow: hidden;">
+                <thead>
+                    <tr class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase">Saturday, 13 June<i class="fa fa-calendar float-end font-14 pt-1" style="margin-top:2px;"></i></th>
+                    </tr>
+                </thead>
+                </table><div class="content mb-0 mt-1"><table width="100%" border="0">
+  <tr>
+    <td colspan="3" align="center"><a href="teamstats.php?compid=132428&round=15&code=NRL&game=3"><i class="fa fa-chart-simple font-22 float-end color-blue-dark"></i></a><span class="font-10 mb-0 mt-n1"><strong>5:25 pm (Sydney time) @ Go Media Stadium</strong></span><br /></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0">
+      <tr id="3H" >
+        <td width="60%"><img src="assets/images/NRL/Warriors.png" alt="" width="50" style="margin-top:3px; margin-left:3px;" /><br />
+		<span id="shortteamname" style="margin-left:3px; color:#000000;"><strong>WAR</strong> <span class="font-9">(2nd)</span></span>
+		<span id="longteamname" style="margin-left:3px; color:#000000;"><strong>Warriors</strong> <span class="font-10">(2nd)</span></span>
+		</td><td width="20%"><span style="font-size:18px; font-weight: bold;"></span></td>
+        					<td width="20%"><input id="3" value="H" type="radio" name="3" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+      </tr>
+    </table></td>
+    <td align="center" id="3D" ><strong>VS</strong></td>
+    <td><table width="100%" border="0">
+      <tr id="3A" >
+        <td width="20%" align="right"><input id=3 value="A" type="radio" name="3" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+							<td width="20%" align="right"><span style="font-size:18px; font-weight: bold;"></span></td><td width="60%" align="right"><img src="assets/images/NRL/Sharks.png" alt="" width="50" style="margin-top:3px; margin-right:3px;" /><br />
+		<span id="shortteamname" style="margin-right:3px; color:#000000;"><span class="font-9">(10th)</span> <strong>SHA</strong></span>
+		<span id="longteamname" style="margin-right:3px; color:#000000;"><span class="font-10">(10th)</span> <strong>Sharks</strong></span>
+		
+		</td>
+      </tr>
+    </table></td>
+    <td align="right"><input name="OldTip3" type="hidden" id="OldTip3" value="No Tip"></td>
+  </tr>
+  <tr height="10px">
+    <td width="42%" align="left"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="16%" align="center"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="42%" align="right"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="0%" align="center"></td>
+  </tr>  
+</table>
+</div><div class="content mb-0 mt-1"><div class="divider mt-1 mb-2 bg-grass-dark"></div><table width="100%" border="0">
+  <tr>
+    <td colspan="3" align="center"><a href="teamstats.php?compid=132428&round=15&code=NRL&game=4"><i class="fa fa-chart-simple font-22 float-end color-blue-dark"></i></a><span class="font-10 mb-0 mt-n1"><strong>7:25 pm (Sydney time) @ CommBank Stadium</strong></span><br /></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0">
+      <tr id="4H" >
+        <td width="60%"><img src="assets/images/NRL/Eels.png" alt="" width="50" style="margin-top:3px; margin-left:3px;" /><br />
+		<span id="shortteamname" style="margin-left:3px; color:#000000;"><strong>EEL</strong> <span class="font-9">(14th)</span></span>
+		<span id="longteamname" style="margin-left:3px; color:#000000;"><strong>Eels</strong> <span class="font-10">(14th)</span></span>
+		</td><td width="20%"><span style="font-size:18px; font-weight: bold;"></span></td>
+        					<td width="20%"><input id="4" value="H" type="radio" name="4" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+      </tr>
+    </table></td>
+    <td align="center" id="4D" ><strong>VS</strong></td>
+    <td><table width="100%" border="0">
+      <tr id="4A" >
+        <td width="20%" align="right"><input id=4 value="A" type="radio" name="4" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+							<td width="20%" align="right"><span style="font-size:18px; font-weight: bold;"></span></td><td width="60%" align="right"><img src="assets/images/NRL/Raiders.png" alt="" width="50" style="margin-top:3px; margin-right:3px;" /><br />
+		<span id="shortteamname" style="margin-right:3px; color:#000000;"><span class="font-9">(15th)</span> <strong>RAI</strong></span>
+		<span id="longteamname" style="margin-right:3px; color:#000000;"><span class="font-10">(15th)</span> <strong>Raiders</strong></span>
+		
+		</td>
+      </tr>
+    </table></td>
+    <td align="right"><input name="OldTip4" type="hidden" id="OldTip4" value="No Tip"></td>
+  </tr>
+  <tr height="10px">
+    <td width="42%" align="left"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="16%" align="center"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="42%" align="right"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="0%" align="center"></td>
+  </tr>  
+</table>
+</div></div><div class="card card-style mb-3" style="margin-left:auto; width:100%;">
+
+ 				<table class="table table-borderless text-center shadow-l mb-0" style="overflow: hidden;">
+                <thead>
+                    <tr class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase">Sunday, 14 June<i class="fa fa-calendar float-end font-14 pt-1" style="margin-top:2px;"></i></th>
+                    </tr>
+                </thead>
+                </table><div class="content mb-0 mt-1"><table width="100%" border="0">
+  <tr>
+    <td colspan="3" align="center"><a href="teamstats.php?compid=132428&round=15&code=NRL&game=5"><i class="fa fa-chart-simple font-22 float-end color-blue-dark"></i></a><span class="font-10 mb-0 mt-n1"><strong>4:00 pm (Sydney time) @ Leichhardt Oval</strong></span><br /></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0">
+      <tr id="5H" >
+        <td width="60%"><img src="assets/images/NRL/Tigers.png" alt="" width="50" style="margin-top:3px; margin-left:3px;" /><br />
+		<span id="shortteamname" style="margin-left:3px; color:#000000;"><strong>TIG</strong> <span class="font-9">(3rd)</span></span>
+		<span id="longteamname" style="margin-left:3px; color:#000000;"><strong>Tigers</strong> <span class="font-10">(3rd)</span></span>
+		</td><td width="20%"><span style="font-size:18px; font-weight: bold;"></span></td>
+        					<td width="20%"><input id="5" value="H" type="radio" name="5" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+      </tr>
+    </table></td>
+    <td align="center" id="5D" ><strong>VS</strong></td>
+    <td><table width="100%" border="0">
+      <tr id="5A" >
+        <td width="20%" align="right"><input id=5 value="A" type="radio" name="5" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+							<td width="20%" align="right"><span style="font-size:18px; font-weight: bold;"></span></td><td width="60%" align="right"><img src="assets/images/NRL/Titans.png" alt="" width="50" style="margin-top:3px; margin-right:3px;" /><br />
+		<span id="shortteamname" style="margin-right:3px; color:#000000;"><span class="font-9">(16th)</span> <strong>TIT</strong></span>
+		<span id="longteamname" style="margin-right:3px; color:#000000;"><span class="font-10">(16th)</span> <strong>Titans</strong></span>
+		
+		</td>
+      </tr>
+    </table></td>
+    <td align="right"><input name="OldTip5" type="hidden" id="OldTip5" value="No Tip"></td>
+  </tr>
+  <tr height="10px">
+    <td width="42%" align="left"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="16%" align="center"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="42%" align="right"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="0%" align="center"></td>
+  </tr>  
+</table>
+</div></div><div class="card card-style mb-3" style="margin-left:auto; width:100%;">
+
+ 				<table class="table table-borderless text-center shadow-l mb-0" style="overflow: hidden;">
+                <thead>
+                    <tr class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase">Wednesday, 17 June<i class="fa fa-calendar float-end font-14 pt-1" style="margin-top:2px;"></i></th>
+                    </tr>
+                </thead>
+                </table><div class="content mb-0 mt-1"><table width="100%" border="0">
+  <tr>
+    <td colspan="3" align="center"><a href="teamstats.php?compid=132428&round=15&code=NRL&game=ORIGIN"><i class="fa fa-chart-simple font-22 float-end color-blue-dark"></i></a><span class="font-10 mb-0 mt-n1"><strong>8:00 pm (Sydney time) @ MCG</strong></span><br /></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0">
+      <tr id="ORIGINH" >
+        <td width="60%"><img src="assets/images/NRL/NSW.png" alt="" width="50" style="margin-top:3px; margin-left:3px;" /><br />
+		<span id="shortteamname" style="margin-left:3px; color:#000000;"><strong>NSW</strong> <span class="font-9"></span></span>
+		<span id="longteamname" style="margin-left:3px; color:#000000;"><strong>NSW</strong> <span class="font-10"></span></span>
+		</td><td width="20%"><span style="font-size:18px; font-weight: bold;"></span></td>
+        					<td width="20%"><input id="ORIGIN" value="H" type="radio" name="ORIGIN" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+      </tr>
+    </table></td>
+    <td align="center" id="ORIGIND" ><strong>VS</strong></td>
+    <td><table width="100%" border="0">
+      <tr id="ORIGINA" >
+        <td width="20%" align="right"><input id=ORIGIN value="A" type="radio" name="ORIGIN" class="form-check-input font-18" style="border: 2px solid #cccccc;" onclick="tipselection(this.value,this.name)" disabled ></td>
+							<td width="20%" align="right"><span style="font-size:18px; font-weight: bold;"></span></td><td width="60%" align="right"><img src="assets/images/NRL/QLD.png" alt="" width="50" style="margin-top:3px; margin-right:3px;" /><br />
+		<span id="shortteamname" style="margin-right:3px; color:#000000;"><span class="font-9"></span> <strong>QLD</strong></span>
+		<span id="longteamname" style="margin-right:3px; color:#000000;"><span class="font-10"></span> <strong>QLD</strong></span>
+		
+		</td>
+      </tr>
+    </table></td>
+    <td align="right"><input name="ORIGINincluded" type="hidden" value="YES"><input name="OldTipORIGIN" type="hidden" id="OldTipORIGIN" value="No Tip"></td>
+  </tr>
+  <tr height="10px">
+    <td width="42%" align="left"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="16%" align="center"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="42%" align="right"><span class="badge bg-grass-dark color-white font-11"></span></td>
+    <td width="0%" align="center"></td>
+  </tr>  
+</table>
+</div>
+		</div>		
+
+<div class='card card-style mb-3' style='margin-left:auto; width:100%;'> <h5 class='bg-green-dark font-10 text-uppercase' align='center'>Byes</h5>
+	<div style='display: inline-block; margin-left:20px;'><img src="assets/images/NRL/Panthers.png" alt="" width="40" class="mb-2" />&nbsp;<img src="assets/images/NRL/Knights.png" alt="" width="40" class="mb-2" />&nbsp;<img src="assets/images/NRL/Cowboys.png" alt="" width="40" class="mb-2" />&nbsp;<img src="assets/images/NRL/Bulldogs.png" alt="" width="40" class="mb-2" />&nbsp;<img src="assets/images/NRL/Sea Eagles.png" alt="" width="40" class="mb-2" />&nbsp;<img src="assets/images/NRL/Storm.png" alt="" width="40" class="mb-2" />&nbsp;<img src="assets/images/NRL/Dragons.png" alt="" width="40" class="mb-2" />&nbsp;</div></div><div class="card card-style mt-3 mb-3" style="margin-left:auto; width:100%;">
+<div align="center" class="content my-0 line-height-xs" style="margin-left:0px;">
+<span class="font-10 font-600" style="color:#000000;">Advertisement</span><br>
+<!-- comp_incontent_1 -->
+<div data-fuse="22547079726"></div>
+<br>
+<br>
+</div>
+</div>
+<br>  
+  
+     
+<div class="card card-style mb-3" id="kocheck" style="margin-left:auto; width:100%;"><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+				<thead>
+                    <tr align="center" class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase"><img src="assets/images/ko.png" height="20" class="me-2">Knockout Comp</th>
+                    </tr>
+                </thead><tr valign='top'><td align='center' class='line-height-s'><br>The knockout competition has now ended.<br>Congratulations to <strong>Jared_Riddle</strong> for winning in Round 3<br><br></td></tr></table></div>
+
+
+
+
+<div class="card card-style mb-3" style="margin-left:auto; width:100%;"><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+				<thead>
+                    <tr align="center" class="bg-green-dark">
+                    	<th colspan="4" scope="col" class="color-white py-0 px-3 mb-n3 font-10 text-uppercase"><img src="assets/images/joker.png" height="20" class="me-2">Joker Round</th>
+                    </tr>
+                </thead><tr><td align="center" class="text-center bg-yellow-dark color-black font-11"><i class="fa fa-exclamation-triangle font-12"></i> Round 15 is a bye round. Joker will only apply to 5 matches.</td></tr><tr><td align="center"><br><div class="form-check icon-check mx-auto" style="max-width:280px;"><input name="jokerincluded" type="hidden" value="YES"><input class="form-check-input" name="jokerround" type="checkbox" value="YES" id="check1"><label class="form-check-label font-12" for="check1"><strong>Yes, make this my joker round.</strong></label>
+                        <i class="icon-check-1 fa fa-square color-gray-dark font-30"></i>
+                        <i class="icon-check-2 fa fa-check-square font-30 color-grass-dark"></i></div><font size='1'><p class='line-height-xs'>Note: You can only select 1 joker round a season. <br>Using a joker will double the round points.</p></font></td></tr></table></div>
+        
+        <!--SUBMIT TIPS FORM END-->
+        </form>
+    </div>
+
+                	<!-- ==== side ads start ==== -->
+                    <div class="col-12 col-xl-4 section__col">
+                            <div class="card card-style mt-3" style="margin-left:auto; width:100%;">
+            				<div class="content my-0">
+                                <!-- ==== 300px ads start ==== -->
+							<div align="center" class="line-height-xs" style="height:250px;">
+<span class="font-10 font-600" style="color:#000000;">Advertisement</span><br>
+<!-- comp_mrec_1 -->
+<div data-fuse="22547079360"></div>
+</div>
+<br />                            <div align="center" class="line-height-xs" style="height:250px;">
+<span class="font-10 font-600" style="color:#000000;">Advertisement</span><br>
+<!-- comp_mrec_1 -->
+<div data-fuse="22547079360"></div>
+</div>
+<br />                                <!-- ==== / 300px ads end ==== -->
+                                
+                            
+
+                            </div>
+                            </div>
+                            <!--START LADDER -->
+        <div class="card card-style mb-3 mt-3" style="margin-left:auto; width:100%;">
+           <table class="table table-borderless text-center rounded-sm shadow-l mb-0" style="overflow: hidden;">
+                <thead>
+                    <tr class="bg-green-dark mt-0 mb-0 line-height-xs">
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">#</th>
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">Team</th>
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">W</th>
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">L</th>
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">B</th>
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">PD</th>
+                        <th scope="col" class="color-white py-2 font-12 text-uppercase">P</th>
+                    </tr>
+                </thead>
+                <tbody>
+               
+                 <tr><td align='center'><strong>1</strong></td><td align='left'><strong><img src='assets/images/NRL/Panthers.png' height='25'/>&nbsp;Panthers</strong></td><td align='center'>5</td><td align='center'>1</td><td align='center'>0</td><td align='center'>134</td><td align='center'><strong>10</strong></td></tr><tr class="bg-light"><td align='center'><strong>2</strong></td><td align='left'><strong><img src='assets/images/NRL/Warriors.png' height='25'/>&nbsp;Warriors</strong></td><td align='center'>4</td><td align='center'>2</td><td align='center'>0</td><td align='center'>76</td><td align='center'><strong>8</strong></td></tr><tr><td align='center'><strong>3</strong></td><td align='left'><strong><img src='assets/images/NRL/Tigers.png' height='25'/>&nbsp;Tigers</strong></td><td align='center'>3</td><td align='center'>1</td><td align='center'>1</td><td align='center'>44</td><td align='center'><strong>8</strong></td></tr><tr class="bg-light"><td align='center'><strong>4</strong></td><td align='left'><strong><img src='assets/images/NRL/Knights.png' height='25'/>&nbsp;Knights</strong></td><td align='center'>4</td><td align='center'>1</td><td align='center'>0</td><td align='center'>32</td><td align='center'><strong>8</strong></td></tr><tr><td align='center'><strong>5</strong></td><td align='left'><strong><img src='assets/images/NRL/Cowboys.png' height='25'/>&nbsp;Cowboys</strong></td><td align='center'>4</td><td align='center'>2</td><td align='center'>0</td><td align='center'>16</td><td align='center'><strong>8</strong></td></tr><tr class="bg-light"><td align='center'><strong>6</strong></td><td align='left'><strong><img src='assets/images/NRL/Rabbitohs.png' height='25'/>&nbsp;Rabbitohs</strong></td><td align='center'>3</td><td align='center'>2</td><td align='center'>1</td><td align='center'>12</td><td align='center'><strong>8</strong></td></tr><tr><td align='center'><strong>7</strong></td><td align='left'><strong><img src='assets/images/NRL/Bulldogs.png' height='25'/>&nbsp;Bulldogs</strong></td><td align='center'>3</td><td align='center'>2</td><td align='center'>1</td><td align='center'>5</td><td align='center'><strong>8</strong></td></tr><tr class="bg-light"><td align='center'><strong>8</strong></td><td align='left'><strong><img src='assets/images/NRL/Roosters.png' height='25'/>&nbsp;Roosters</strong></td><td align='center'>3</td><td align='center'>2</td><td align='center'>1</td><td align='center'>-23</td><td align='center'><strong>8</strong></td></tr><tr class="bg-grass-dark"><td colspan="7" class="py-1"></td></tr><tr><td align='center'><strong>9</strong></td><td align='left'><strong><img src='assets/images/NRL/Sea Eagles.png' height='25'/>&nbsp;Sea Eagles</strong></td><td align='center'>2</td><td align='center'>3</td><td align='center'>1</td><td align='center'>6</td><td align='center'><strong>6</strong></td></tr><tr class="bg-light"><td align='center'><strong>10</strong></td><td align='left'><strong><img src='assets/images/NRL/Sharks.png' height='25'/>&nbsp;Sharks</strong></td><td align='center'>3</td><td align='center'>3</td><td align='center'>0</td><td align='center'>6</td><td align='center'><strong>6</strong></td></tr><tr><td align='center'><strong>11</strong></td><td align='left'><strong><img src='assets/images/NRL/Broncos.png' height='25'/>&nbsp;Broncos</strong></td><td align='center'>3</td><td align='center'>3</td><td align='center'>0</td><td align='center'>-6</td><td align='center'><strong>6</strong></td></tr><tr class="bg-light"><td align='center'><strong>12</strong></td><td align='left'><strong><img src='assets/images/NRL/Dolphins.png' height='25'/>&nbsp;Dolphins</strong></td><td align='center'>2</td><td align='center'>3</td><td align='center'>1</td><td align='center'>-26</td><td align='center'><strong>6</strong></td></tr><tr><td align='center'><strong>13</strong></td><td align='left'><strong><img src='assets/images/NRL/Storm.png' height='25'/>&nbsp;Storm</strong></td><td align='center'>2</td><td align='center'>4</td><td align='center'>0</td><td align='center'>2</td><td align='center'><strong>4</strong></td></tr><tr class="bg-light"><td align='center'><strong>14</strong></td><td align='left'><strong><img src='assets/images/NRL/Eels.png' height='25'/>&nbsp;Eels</strong></td><td align='center'>2</td><td align='center'>3</td><td align='center'>0</td><td align='center'>-60</td><td align='center'><strong>4</strong></td></tr><tr><td align='center'><strong>15</strong></td><td align='left'><strong><img src='assets/images/NRL/Raiders.png' height='25'/>&nbsp;Raiders</strong></td><td align='center'>2</td><td align='center'>4</td><td align='center'>0</td><td align='center'>-67</td><td align='center'><strong>4</strong></td></tr><tr class="bg-light"><td align='center'><strong>16</strong></td><td align='left'><strong><img src='assets/images/NRL/Titans.png' height='25'/>&nbsp;Titans</strong></td><td align='center'>1</td><td align='center'>4</td><td align='center'>0</td><td align='center'>-64</td><td align='center'><strong>2</strong></td></tr><tr><td align='center'><strong>17</strong></td><td align='left'><strong><img src='assets/images/NRL/Dragons.png' height='25'/>&nbsp;Dragons</strong></td><td align='center'>0</td><td align='center'>6</td><td align='center'>0</td><td align='center'>-87</td><td align='center'><strong>0</strong></td></tr>                </tbody>
+            </table>
+        </div>
+<!--END LADDER-->                    </div>
+					<!-- ==== / side ads end ==== -->
+
+
+            </div>
+        </div>
+    </section>
+    <!-- ==== / details end ==== -->
+
+<!-- ==== / more options side menu start==== -->
+
+<div id="menu-sidebar" class="menu menu-box-right" style="width:300px;">
+<span align="center" class="align-self-center bg-green-dark d-block w-100 p-1 font-10 mb-1">
+            <strong class="align-self-center">MORE MENU</strong>
+            <a href="#" class="close-menu float-start"><i class="fa fa-times font-13 color-grass-dark" style="margin-left:10px;"></i></a>
+        	</span>
+            
+        <div class="content mt-1">
+
+            <div class="sidemenuhover">
+            <a href="ladder.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa font-18 fa-list-ol color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">NRL Ladder</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+            </div>
+                        <div class="sidemenuhover">
+            <a href="mytippinglog.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa font-18 fa-search color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">My Tipping Log</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+            </div>
+            <div class="sidemenuhover">
+            <a href="managerslog.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa fa-user-tie font-18 color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Manager's Log</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+            </div>
+            <div class="sidemenuhover">
+            <a href="invitetipsters.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa fa-user-plus font-18 color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Invite Tipsters</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+			</div>
+                        			</div>
+
+            <span align="center" class="align-self-center bg-green-dark d-block w-100 p-1 font-10 mb-1">
+            <strong class="align-self-center">COMP MANAGEMENT</strong>
+        	</span>
+           
+            <div class="content mt-1">
+            <div class="sidemenuhover">
+			<a href="cmtipsterslist.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa fa-user-cog font-18 color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Manage Tipsters</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+            </div>
+            <div class="sidemenuhover">
+            <a href="cmcompsettings.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa font-18 fa-tools color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Comp Settings</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+            </div>
+            <div class="sidemenuhover">
+            <a href="cmreports.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa font-18 fa-file color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Reporting</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+            </div>
+				                    <div class="sidemenuhover">
+                    <a href="cmmanagekocomp.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                        <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa font-18 fa-hand-rock fa-rotate-90 color-green-dark"></i></span></div>
+                        <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Manage KO Comp</span></div>
+                        <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+                    </a>
+                    </div>
+                                                    <div class="sidemenuhover">
+                    <a href="cmmanageprizes.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                        <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa fa-donate font-18 color-green-dark"></i></span></div>
+                        <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Manage Prizes</span></div>
+                        <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+                    </a>
+                    </div>
+            	            <div class="sidemenuhover">
+            <a href="cmemailalltipsters.php?compid=132428&round=15&code=NRL" class="d-flex pb-0">
+                <div class="align-self-center color-green-dark"><span class="icon icon-m ms-n2"><i class="fa font-18 fa-at color-green-dark"></i></span></div>
+                <div class="align-self-center color-green-dark"><span class="font-14 ps-1">Email All Tipsters</span></div>
+                <div class="align-self-center color-green-dark ms-auto opacity-20"><i class="fa fa-angle-right font-18"></i></div>
+            </a>
+			</div>
+                    </div>
+        <span class="bg-green-dark d-block w-100 p-1 font-10">
+            Logged in as <strong class="color-grass-dark">goodthanks18</strong>
+        </span>
+    </div>
+    
+    <!----------------->
+    <!--Warning Leave Comp-->
+    <!----------------->
+    <div id="menu-delete" class="menu menu-box-modal rounded-m bg-yellow-dark">
+        <h1 class="text-center mt-3 pb-1">*** <i class="fa fa-exclamation-triangle font-20"></i> WARNING ***</h1>
+        <p class="boxed-text-l color-black">
+            Are you really sure you want to delete your account from <strong>Reserving Independence?</strong>
+        </p>
+        <div class="row me-3 ms-3 mb-3">
+            <div class="col-6">
+                <a href="#" data-menu="menu-delete-confirm"><div class="close-menu btn btn-sm btn-full button-s shadow-l rounded-s text-uppercase font-900 bg-green-light">Yes</div></a>
+            </div>
+            <div class="col-6">
+                <a href="#" class="close-menu btn btn-sm btn-full button-s shadow-l rounded-s text-uppercase font-900 bg-red-dark">No</a>
+            </div>
+        </div>
+    </div>
+    
+    <div id="menu-delete-confirm" class="menu menu-box-modal rounded-m">
+        <h1 class="text-center mt-3 pb-1">Delete from comp?</h1>
+        <p class="boxed-text-l">
+            Are you <strong>really really sure</strong> you want to delete your account from <strong class="color-theme">Reserving Independence?</strong>
+        </p>
+        <div class="row me-3 ms-3 mb-3">
+            <div class="col-6">
+             <form action="services/LeaveComp.php" method="post">
+                <input type="hidden" name="todo" value="leavecomp">
+                <input type="hidden" name="code" value="NRL">
+                <input type="hidden" name="toDelete" value="132428">
+                <input type="submit" class="close-menu btn btn-sm btn-full button-s shadow-l rounded-s text-uppercase font-900 bg-red-dark" value="Delete Comp" style="width:130px;" />
+                </form>
+            </div>
+            <div class="col-6">
+                <a href="#" class="close-menu btn btn-sm btn-full button-s shadow-l rounded-s text-uppercase font-900 bg-green-light">Cancel</a>
+            </div>
+        </div>
+    </div>
+    <!-----------------><!-- ==== / more options side menu end==== -->
+
+    <!-- ==== footer start ==== -->
+    <footer class="footer" id="desktop-footer" style="height:160px;">
+        <div class="container">
+    
+                <div class="col-12">
+                    
+                        <div class="row align-items-center">
+                            
+                            <div class="col-lg-12">
+                                <p class="line-height-m"><a href="faq.php" class="color-grass-light font-14" target="_blank"><strong>FAQ</strong></a>
+                                    <a href="terms-of-use.php" class="color-grass-light font-14" target="_blank" style="margin-left:30px;"><strong>Terms of Use</strong></a>
+                                    <a href="privacy-policy.php" class="color-grass-light font-14" target="_blank" style="margin-left:30px;"><strong>Privacy Policy</strong></a><br>
+                                <strong>iTipFooty hosts private footy tipping competitions.</strong><br>Copyright &copy; 2026 iTipFooty.com.au. All Rights Reserved.</p>
+                            </div>
+                            
+                        </div>
+                    
+                </div>
+           
+        </div>
+    </footer>    <footer id="footer-menu-sticky">
+    	<div id="footer-bar-desktop" class="footer-bar-1">
+
+    <!-- Ad Content-->
+    <div align="center" class="ad-320x50 ad-320x50-fixed mb-2" style="height:52px;overflow:hidden;">
+<!-- Google ads -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7012476697861091"
+     crossorigin="anonymous"></script>
+<!-- MobileApp -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:320px;height:50px"
+     data-ad-client="ca-pub-7012476697861091"
+     data-ad-slot="1246958711"
+     data-ad-format="fixed"
+     data-full-width-responsive="false"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+    <span class="badge font-8 bg-black" style="top: -5px; left: -2px; width: 22px; Height: 16px;">AD</span>
+    </div>
+    <!-- Ad Content-->
+
+        <a href="tipping.php?compid=132428&round=15" class="active-nav"><i class="fa fa-tasks font-20"></i><span><strong>My Tips</strong></span></a>
+        <a href="overallladder.php?compid=132428&round=15" class="color-green-dark"><i class="fa fa-trophy font-20"></i><span><strong>Overall</strong></span></a>
+        <a href="weeklyladder.php?compid=132428&round=15" class="color-green-dark"><i class="fa fa-chart-column font-20"></i><span><strong>Weekly</strong></span></a>
+        <a href="viewalltips.php?compid=132428&round=15&code=NRL" class="color-green-dark"><i class="fa fa-users font-20"></i><span><strong>View All Tips</strong></span></a>
+        <a href="moremenu.php?compid=132428&round=15&code=NRL" class="color-green-dark"><i class="fa fa-ellipsis-h font-20"></i><span><strong>More</strong></span></a>
+        </div>
+    </footer>    <!-- ==== / footer end ==== -->
+    
+    <!-- ==== errormessage start ==== -->
+    <div id="menu-marginerror" class="menu menu-box-modal bg-red-dark rounded-m">
+        <h1 class="text-center mt-1 text-uppercase color-white font-900"><i class="fa fa-1x fa-times-circle color-white shadow-xs rounded-circle"></i> ERROR!</h1>
+        <p class="boxed-text-l color-white opacity-7 text-start line-height-s">
+             <span id ="errormessage"></span>
+        </p>
+        <a href="#" class="close-menu mb-4 btn btn-m btn-center-m button-s shadow-l rounded-s text-uppercase font-900 bg-white">Go Back</a>
+    </div>
+	<!-- ==== / errormessage end ==== -->
+
+    <!-- ==== js dependencies start ==== -->
+    <!-- jquery -->
+    <script src="assets/vendor/jquery/jquery-3.6.3.min.js"></script>
+    <!-- bootstrap five js -->
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <!-- main js -->
+    <script src="assets/js/main.js"></script>
+    
+    <!-- ==== / js dependencies end ==== -->
+    
+
+
+    
+
+<script language="javascript">
+ function GoTo()
+ {
+ window.document.location.href = "CopyTips.php?code=NRL&compid=132428&round=15";
+ }
+ 
+function required()
+{
+// variables
+var marginincluded = "YES";
+var koincluded = "ACTIVE";
+var margingamestatus = "OPEN";
+var sportingcode = "NRL";
+var koselectelement = "";
+var KOempt = "";
+var errormessage = "";
+
+// Get the form element
+const form = document.querySelector('#SubmitTips');
+
+//-------check all radio buttons and margin are entered-----------
+
+//check margin value
+if(marginincluded== "YES"){
+	var empt = document.forms["SubmitTips"]["margin"].value;
+}
+
+// Check if a ko select element exists within the form
+const selectElement = form.querySelector('select');
+if (selectElement) {
+  koselectelement = "YES";
+} else {
+  koselectelement = "NO";
+}
+
+if(koincluded=="ACTIVE" && koselectelement=="YES"){
+	var KOempt = document.forms["SubmitTips"]["knockoutip"].value;
+}
+// ------------------------------------------
+
+// check if all available radio buttons have been selected
+
+// Function to check if at least one radio button is checked for each input name and compare checked count with group count
+function checkAtLeastOneRadioButtonCheckedAndCompareCounts() {
+  const radioButtons = form.querySelectorAll('input[type="radio"]:not([disabled])');
+  const radioGroups = {};
+
+  for (let i = 0; i < radioButtons.length; i++) {
+    const radioButton = radioButtons[i];
+    const name = radioButton.name;
+
+    // Skip disabled radio buttons
+    if (radioButton.disabled) {
+      continue;
+    }
+
+    // If the name is not in the object, add it and initialize the count
+    if (!radioGroups[name]) {
+      radioGroups[name] = {
+        total: 0,
+        checked: 0
+      };
+    }
+
+    // Increment the total count for the group
+    radioGroups[name].total++;
+  }
+
+  for (const groupName in radioGroups) {
+    const group = radioGroups[groupName];
+    const radioButtonsWithName = form.querySelectorAll(`input[type="radio"][name="${groupName}"]:not([disabled])`);
+
+    for (let i = 0; i < radioButtonsWithName.length; i++) {
+      if (radioButtonsWithName[i].checked) {
+        // Increment the checked count for the group
+        group.checked++;
+        break; // Found at least one checked radio button, break the loop
+      }
+    }
+  }
+
+  for (const groupName in radioGroups) {
+    const group = radioGroups[groupName];
+
+    // If no radio button is checked for a group, return false
+    if (group.checked === 0) {
+      return false;
+    }
+  }
+
+  // Compare checked count with total group count
+  const groupCount = Object.keys(radioGroups).length;
+  let checkedCount = 0;
+
+  for (const groupName in radioGroups) {
+    const group = radioGroups[groupName];
+    checkedCount += group.checked;
+  }
+
+// returns true or false if all radio buttons have been selected.
+  return checkedCount === groupCount;
+}
+
+
+// Call function to check if at least one radio button is checked for each input name and comparing checked count with group count
+const isCheckedAndCountsMatch = checkAtLeastOneRadioButtonCheckedAndCompareCounts();
+
+//--------------------------
+
+
+	if (isCheckedAndCountsMatch == false) {
+			errormessage = "* You must tip all the available games before submitting your tips! Tips have NOT been saved!";
+			document.getElementById('errormessage').innerHTML = errormessage;
+			document.querySelectorAll('#menu-marginerror')[0].classList.add('menu-active');
+			document.querySelectorAll('.menu-hider')[0].classList.add('menu-active');
+			return false
+	}
+	else if (empt == "" && marginincluded == "YES" && margingamestatus == "OPEN")
+	{
+			errormessage = "* Please enter a margin in the margin box.";
+			document.getElementById('errormessage').innerHTML = errormessage;
+			document.querySelectorAll('#menu-marginerror')[0].classList.add('menu-active');
+			document.querySelectorAll('.menu-hider')[0].classList.add('menu-active');
+			document.getElementById("margincheck").style.border = "3px solid #da4453";
+			document.getElementById("margincheck").style.borderRadius = "10px";
+			document.getElementById("margincheck").style.padding = "0px 5px 5px 5px";
+			document.getElementById("margincheck").style.backgroundColor = "#f69ea7";
+			SubmitTips.margin.focus();
+			return false;
+	}
+	else if (empt != "" && marginincluded == "YES" && margingamestatus == "OPEN" && (empt.includes("-") || empt.includes(".")))
+	{
+			errormessage = "* Margin must be a whole number. Please remove any dashes (-) or decimal points (.)";
+			document.getElementById('errormessage').innerHTML = errormessage;
+			document.querySelectorAll('#menu-marginerror')[0].classList.add('menu-active');
+			document.querySelectorAll('.menu-hider')[0].classList.add('menu-active');
+			document.getElementById("margincheck").style.border = "3px solid #da4453";
+			document.getElementById("margincheck").style.borderRadius = "10px";
+			document.getElementById("margincheck").style.padding = "0px 5px 5px 5px";
+			document.getElementById("margincheck").style.backgroundColor = "#f69ea7";
+			SubmitTips.margin.focus();
+			return false;
+	}
+	else if (empt != "" && marginincluded == "YES" && margingamestatus == "OPEN" && empt > 99 && sportingcode != "AFL" && sportingcode != "AFLW")
+	{
+			errormessage = "* Please enter a margin value less than 100";
+			document.getElementById('errormessage').innerHTML = errormessage;
+			document.querySelectorAll('#menu-marginerror')[0].classList.add('menu-active');
+			document.querySelectorAll('.menu-hider')[0].classList.add('menu-active');
+			document.getElementById("margincheck").style.border = "3px solid #da4453";
+			document.getElementById("margincheck").style.borderRadius = "10px";
+			document.getElementById("margincheck").style.padding = "0px 5px 5px 5px";
+			document.getElementById("margincheck").style.backgroundColor = "#f69ea7";
+			SubmitTips.margin.focus();
+			return false;
+	}
+	else if (empt != "" && marginincluded == "YES" && margingamestatus == "OPEN" && empt > 199 && (sportingcode == "AFL" || sportingcode == "AFLW"))
+	{
+			errormessage = "* Please enter a margin value less than 200";
+			document.getElementById('errormessage').innerHTML = errormessage;
+			document.querySelectorAll('#menu-marginerror')[0].classList.add('menu-active');
+			document.querySelectorAll('.menu-hider')[0].classList.add('menu-active');
+			document.getElementById("margincheck").style.border = "3px solid #da4453";
+			document.getElementById("margincheck").style.borderRadius = "10px";
+			document.getElementById("margincheck").style.padding = "0px 5px 5px 5px";
+			document.getElementById("margincheck").style.backgroundColor = "#f69ea7";
+			SubmitTips.margin.focus();
+			return false;
+	}
+	else if (KOempt == "default" && koincluded=="ACTIVE" && koselectelement=="YES")
+	{
+			errormessage = "* Please select a knockout tip.";
+			document.getElementById('errormessage').innerHTML = errormessage;
+			document.querySelectorAll('#menu-marginerror')[0].classList.add('menu-active');
+			document.querySelectorAll('.menu-hider')[0].classList.add('menu-active');
+			document.getElementById("kocheck").style.border = "3px solid #da4453";
+			document.getElementById("kocheck").style.backgroundColor = "#f69ea7";
+			document.getElementById("kotipfield").style.border = "3px solid #da4453";
+			document.getElementById("kotipfield").style.borderRadius = "12px";
+			SubmitTips.knockoutip.focus();
+			return false;			
+    } 
+	else 
+	{
+			document.getElementById("load").style.display = '';
+			document.getElementById("submit").style.display = 'none';
+			document.getElementById("submit1").style.display = 'none';
+        	return true;
+    }
+//-----------------------------------------
+
+
+}
+
+
+// hide/show main tab menu bar
+function hideAndEnableMenusOnMobile() {
+  var mainMenu = document.getElementById("main-menu");
+  var footerMenu = document.getElementById("footer-menu-sticky");
+
+  if (window.innerWidth <= 768) { // Adjust the width value according to your needs
+    mainMenu.classList.add("mobile-hidden");
+    footerMenu.classList.add("footer-bar-desktop");
+  } else {
+    mainMenu.classList.remove("mobile-hidden");
+    footerMenu.classList.remove("footer-bar-desktop");
+  }
+}
+
+// Call the function on page load and whenever the window is resized
+window.addEventListener("load", hideAndEnableMenusOnMobile);
+window.addEventListener("resize", hideAndEnableMenusOnMobile);
+
+
+// Warn tipster if tips have not been saved.
+$(function() {
+	$('input, textarea').change(function() {
+		window.onbeforeunload = function (e) {     
+		e = e || window.event;      
+		var msg = "You have unsaved tips! Are you sure you want to leave?";      
+		
+		// For IE and Firefox prior to version 4     
+		if (e) {         
+		e.returnValue = msg; 
+		}      
+		// For Safari     
+		return msg; 
+		}; 
+	})
+
+	$('form').submit(function() {
+		window.onbeforeunload = function() { };
+	})
+})
+
+</script>
+
+
+<style>
+  .fuse_sticky {
+    position: fixed;
+    bottom: 0; /* top: 0; for Top sticky */
+    left: 0;
+    width: 100%;
+    text-align: center;
+    -webkit-overflow-scrolling: touch;
+    z-index: 1000;
+  }
+  .fuse_sticky .fuse-slot {
+    transform: translate3d(0,0,0);
+  }
+</style>
+<div class="fuse_sticky">
+  <div data-fuse="22547079720">
+  </div>
+</div>
+</body>
+</html>
