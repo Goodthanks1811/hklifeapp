@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
   Easing,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,25 @@ const BAR_DELAYS  = [0, 180, 360, 80, 270, 140, 420];
 const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
 const MAX_H = 42;
 const MIN_H = 5;
+
+const PL_ITEM_H = 64;
+const PL_ITEM_GAP = 4;
+const PL_SLOT_H = PL_ITEM_H + PL_ITEM_GAP;
+
+const ZERO_ANIM = new Animated.Value(0);
+const clamp = (min: number, v: number, max: number) => Math.max(min, Math.min(max, v));
+
+function applyOrder<T extends { id: string }>(items: T[], savedIds: string[]): T[] {
+  if (!savedIds.length) return items;
+  return [...items].sort((a, b) => {
+    const ai = savedIds.indexOf(a.id);
+    const bi = savedIds.indexOf(b.id);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
 
 type ApplePlaylist = { id: string; name: string; count: number };
 type AppleSong     = { id: string; title: string; artist: string; albumTitle: string; duration: number };
@@ -88,40 +108,49 @@ function fmtDuration(secs: number): string {
 // ── Playlist row with expandable songs ────────────────────────────────────────
 function PlaylistRow({
   pl,
+  expanded,
+  onToggle,
+  isDragging,
+  dimValue,
+  onLongPress,
   playingPlaylistId,
   playingSongIndex,
   onPlaySong,
 }: {
   pl: ApplePlaylist;
+  expanded: boolean;
+  onToggle: () => void;
+  isDragging: boolean;
+  dimValue: Animated.Value;
+  onLongPress: () => void;
   playingPlaylistId: string | null;
   playingSongIndex: number | null;
   onPlaySong: (pl: ApplePlaylist, songIndex: number, songs: AppleSong[]) => void;
 }) {
-  const [expanded, setExpanded]         = useState(false);
   const [songs, setSongs]               = useState<AppleSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(false);
   const isThisPlaying = playingPlaylistId === pl.id;
+  const opacity = dimValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0.22] });
 
-  const toggle = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (expanded) { setExpanded(false); return; }
-    setExpanded(true);
-    if (songs.length === 0 && AppleMusicKit) {
+  // Fetch songs when expanded transitions to true
+  useEffect(() => {
+    if (expanded && songs.length === 0 && AppleMusicKit) {
       setLoadingSongs(true);
-      try {
-        const result: AppleSong[] = await AppleMusicKit.getSongsInPlaylist(pl.id);
-        setSongs(result);
-      } catch { setSongs([]); }
-      finally { setLoadingSongs(false); }
+      AppleMusicKit.getSongsInPlaylist(pl.id)
+        .then((result: AppleSong[]) => setSongs(result))
+        .catch(() => setSongs([]))
+        .finally(() => setLoadingSongs(false));
     }
-  };
+  }, [expanded]);
 
   return (
-    <>
+    <Animated.View style={{ opacity }}>
       {/* Playlist header — its own standalone card */}
       <Pressable
-        style={({ pressed }) => [s.card, pressed && { opacity: 0.7 }]}
-        onPress={toggle}
+        style={({ pressed }) => [s.card, isDragging && s.cardDragging, pressed && !isDragging && { opacity: 0.7 }]}
+        onPress={() => { if (!isDragging) onToggle(); }}
+        onLongPress={onLongPress}
+        delayLongPress={250}
       >
         <View style={s.row}>
           <View style={[s.iconCell, isThisPlaying && s.iconCellPlaying]}>
@@ -144,7 +173,7 @@ function PlaylistRow({
       </Pressable>
 
       {/* Expanded songs — each is its own standalone card, same style as My Music rows */}
-      {expanded && (
+      {expanded && !isDragging && (
         loadingSongs ? (
           <View style={s.songLoading}>
             <ActivityIndicator color={RED} size="small" />
@@ -177,7 +206,7 @@ function PlaylistRow({
           })
         )
       )}
-    </>
+    </Animated.View>
   );
 }
 
@@ -241,6 +270,124 @@ export default function MusicAppleScreen() {
   const [playingSongIndex, setPlayingSongIndex]   = useState<number | null>(null);
   const [loadingKey, setLoadingKey]               = useState<string | null>(null);
 
+  // ── Expand/collapse state (controlled from outside PlaylistRow) ────────────
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) => setExpandedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  // ── Drag/reorder state ─────────────────────────────────────────────────────
+  const [dragActiveIdx, setDragActiveIdx]       = useState(-1);
+  const [listScrollEnabled, setListScrollEnabled] = useState(true);
+
+  const plPosAnims        = useRef<Record<string, Animated.Value>>({});
+  const plAddedAnims      = useRef<Record<string, ReturnType<typeof Animated.add>>>({});
+  const containerRef      = useRef<View>(null);
+  const containerTopRef   = useRef(0);
+  const scrollOffsetRef   = useRef(0);
+  const startScrollRef    = useRef(0);
+  const isDraggingRef     = useRef(false);
+  const draggingIdxRef    = useRef(-1);
+  const hoverIdxRef       = useRef(-1);
+  const dragOccurredRef   = useRef(false);
+  const plPanY            = useRef(new Animated.Value(0)).current;
+  const plDimAnim         = useRef(new Animated.Value(0)).current;
+  const playlistsRef      = useRef<ApplePlaylist[]>([]);
+  useEffect(() => { playlistsRef.current = playlists; }, [playlists]);
+
+  playlists.forEach((pl, i) => {
+    if (!plPosAnims.current[pl.id]) {
+      plPosAnims.current[pl.id]   = new Animated.Value(i * PL_SLOT_H);
+      plAddedAnims.current[pl.id] = Animated.add(plPosAnims.current[pl.id], plPanY);
+    }
+  });
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      playlistsRef.current.forEach((pl, i) => plPosAnims.current[pl.id]?.setValue(i * PL_SLOT_H));
+    }
+  }, [playlists]);
+
+  const animatePositions = useCallback((dragIdx: number, hoverIdx: number) => {
+    const cur = playlistsRef.current;
+    cur.forEach((pl, i) => {
+      if (i === dragIdx) return;
+      let target = i;
+      if (dragIdx < hoverIdx && i > dragIdx && i <= hoverIdx) target = i - 1;
+      else if (dragIdx > hoverIdx && i >= hoverIdx && i < dragIdx) target = i + 1;
+      plPosAnims.current[pl.id]?.stopAnimation();
+      Animated.timing(plPosAnims.current[pl.id], {
+        toValue: target * PL_SLOT_H, duration: 110, useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
+      }).start();
+    });
+  }, []);
+
+  const startDrag = useCallback((idx: number) => {
+    setExpandedIds(new Set()); // collapse all expanded before dragging
+    isDraggingRef.current   = true;
+    draggingIdxRef.current  = idx;
+    hoverIdxRef.current     = idx;
+    dragOccurredRef.current = true;
+    setDragActiveIdx(idx);
+    setListScrollEnabled(false);
+    plPanY.setValue(0);
+    Animated.timing(plDimAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    startScrollRef.current = scrollOffsetRef.current;
+    containerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
+      containerTopRef.current = py;
+    });
+  }, [plDimAnim]);
+
+  const endDrag = useCallback(() => {
+    const di = draggingIdxRef.current;
+    const hi = hoverIdxRef.current;
+    isDraggingRef.current  = false;
+    draggingIdxRef.current = -1;
+    hoverIdxRef.current    = -1;
+    plPanY.setValue(0);
+    setListScrollEnabled(true);
+    Animated.timing(plDimAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+
+    if (di >= 0 && hi >= 0 && di !== hi) {
+      setPlaylists(prev => {
+        const next = [...prev];
+        const [moved] = next.splice(di, 1);
+        next.splice(hi, 0, moved);
+        next.forEach((pl, i) => plPosAnims.current[pl.id]?.setValue(i * PL_SLOT_H));
+        playlistsRef.current = next;
+        AsyncStorage.setItem("apple_playlist_order", JSON.stringify(next.map(p => p.id)));
+        return next;
+      });
+    } else {
+      playlistsRef.current.forEach((pl, i) => plPosAnims.current[pl.id]?.setValue(i * PL_SLOT_H));
+    }
+    setDragActiveIdx(-1);
+    setTimeout(() => { dragOccurredRef.current = false; }, 80);
+  }, [plDimAnim]);
+
+  const dragResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: () => isDraggingRef.current,
+    onPanResponderMove: (_, gs) => {
+      if (!isDraggingRef.current) return;
+      const di  = draggingIdxRef.current;
+      const len = playlistsRef.current.length;
+      plPanY.setValue(gs.dy);
+      const relY     = gs.moveY - containerTopRef.current + (scrollOffsetRef.current - startScrollRef.current);
+      const newHover = clamp(0, len - 1, Math.floor(relY / PL_SLOT_H));
+      if (newHover !== hoverIdxRef.current) {
+        hoverIdxRef.current = newHover;
+        animatePositions(di, newHover);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    onPanResponderEnd:       () => endDrag(),
+    onPanResponderTerminate: () => endDrag(),
+  }), [animatePositions, endDrag]);
+
   // Sync from context (e.g. if user navigated away and came back)
   useEffect(() => {
     if (am.nowPlaying) {
@@ -265,15 +412,17 @@ export default function MusicAppleScreen() {
       setAuthStatus(status as AuthStatus);
       if (status === "authorized") {
         const all: ApplePlaylist[] = await AppleMusicKit.getPlaylists();
+        let filtered = all;
         const namesRaw = await AsyncStorage.getItem("music_apple_filter_names");
         if (namesRaw) {
           const names: string[] = JSON.parse(namesRaw);
           if (names.length > 0) {
-            setPlaylists(all.filter(p => names.some(n => fuzzyMatch(p.name, n))));
-            return;
+            filtered = all.filter(p => names.some(n => fuzzyMatch(p.name, n)));
           }
         }
-        setPlaylists(all);
+        const orderRaw = await AsyncStorage.getItem("apple_playlist_order");
+        const ordered = orderRaw ? applyOrder(filtered, JSON.parse(orderRaw)) : filtered;
+        setPlaylists(ordered);
       }
     } catch (e: any) {
       setAuthStatus("denied");
@@ -367,17 +516,69 @@ export default function MusicAppleScreen() {
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: am.nowPlaying ? 330 : 16, paddingHorizontal: 16 }}
+        scrollEnabled={listScrollEnabled}
+        onScroll={e => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: am.nowPlaying ? 330 : 40, paddingHorizontal: 16 }}
       >
-        {playlists.map((pl) => (
-          <PlaylistRow
-            key={pl.id}
-            pl={pl}
-            playingPlaylistId={playingPlaylistId}
-            playingSongIndex={playingSongIndex}
-            onPlaySong={handlePlaySong}
-          />
-        ))}
+        <View
+          ref={containerRef}
+          {...dragResponder.panHandlers}
+          style={dragActiveIdx !== -1
+            ? { height: playlists.length * PL_SLOT_H }
+            : undefined
+          }
+        >
+          {dragActiveIdx !== -1 && (
+            <Pressable
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+              onPress={() => endDrag()}
+            />
+          )}
+          {playlists.map((pl, idx) => {
+            const isDragging = dragActiveIdx === idx;
+            if (dragActiveIdx !== -1) {
+              // Drag mode: absolute-positioned fixed-height cards
+              const posAnim    = plPosAnims.current[pl.id] ?? new Animated.Value(idx * PL_SLOT_H);
+              const translateY = isDragging
+                ? (plAddedAnims.current[pl.id] ?? posAnim)
+                : posAnim;
+              return (
+                <Animated.View
+                  key={pl.id}
+                  style={{ position: "absolute", left: 0, right: 0, height: PL_ITEM_H, top: 0, zIndex: isDragging ? 100 : 1, transform: [{ translateY }] }}
+                >
+                  <PlaylistRow
+                    pl={pl}
+                    expanded={false}
+                    onToggle={() => {}}
+                    isDragging={isDragging}
+                    dimValue={isDragging ? ZERO_ANIM : plDimAnim}
+                    onLongPress={() => startDrag(idx)}
+                    playingPlaylistId={playingPlaylistId}
+                    playingSongIndex={playingSongIndex}
+                    onPlaySong={handlePlaySong}
+                  />
+                </Animated.View>
+              );
+            }
+            // Normal mode: in-flow, expandable
+            return (
+              <PlaylistRow
+                key={pl.id}
+                pl={pl}
+                expanded={expandedIds.has(pl.id)}
+                onToggle={() => { if (!dragOccurredRef.current) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleExpanded(pl.id); } }}
+                isDragging={false}
+                dimValue={ZERO_ANIM}
+                onLongPress={() => startDrag(idx)}
+                playingPlaylistId={playingPlaylistId}
+                playingSongIndex={playingSongIndex}
+                onPlaySong={handlePlaySong}
+              />
+            );
+          })}
+        </View>
       </ScrollView>
     );
   };
@@ -456,6 +657,11 @@ const s = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45, shadowRadius: 10, elevation: 6,
   },
+  cardDragging: {
+    backgroundColor: "#1c1c1e",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5, shadowRadius: 18, elevation: 18,
+  },
   row: {
     flexDirection: "row", alignItems: "center", gap: 14,
     paddingHorizontal: 14, paddingVertical: 13,
@@ -469,11 +675,11 @@ const s = StyleSheet.create({
   rowTextWrap: { flex: 1 },
   rowName: {
     fontSize: 15, fontWeight: "500", color: "#fff",
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Inter_500Medium", textAlign: "center",
   },
   rowCount: {
-    fontSize: 12, color: "rgba(255,255,255,0.35)",
-    fontFamily: "Inter_400Regular", marginTop: 2,
+    fontSize: 14, color: "rgba(255,255,255,0.35)",
+    fontFamily: "Inter_600SemiBold", marginTop: 1, textAlign: "center",
   },
 
   // Song rows — standalone cards matching My Music track rows exactly

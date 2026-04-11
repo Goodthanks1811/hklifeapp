@@ -556,11 +556,12 @@ export default function MusicMyMusicScreen() {
 
       </View>
 
-      {/* ── EQ long-press menu ────────────────────────────────────────────── */}
-      <Modal visible={showEQMenu} transparent animationType="none" onRequestClose={() => setShowEQMenu(false)}>
-        <Pressable style={st.popupOverlay} onPress={() => setShowEQMenu(false)}>
+      {/* ── EQ long-press menu (bottom sheet) ────────────────────────────── */}
+      <Modal visible={showEQMenu} transparent animationType="slide" onRequestClose={() => setShowEQMenu(false)}>
+        <Pressable style={st.sheetOverlay} onPress={() => setShowEQMenu(false)}>
           <Pressable onPress={() => {}}>
-            <View style={st.popupCard}>
+            <View style={[st.sheetCard, { paddingBottom: insets.bottom + 12 }]}>
+              <View style={st.sheetHandle} />
               <Pressable style={st.menuRow} onPress={async () => { setShowEQMenu(false); await pickFiles(); }}>
                 <Feather name="music" size={18} color={RED} />
                 <Text style={st.menuRowText}>Add Songs</Text>
@@ -579,11 +580,12 @@ export default function MusicMyMusicScreen() {
         </Pressable>
       </Modal>
 
-      {/* ── Playlist long-press menu ──────────────────────────────────────── */}
-      <Modal visible={plMenuId !== null} transparent animationType="none" onRequestClose={() => setPlMenuId(null)}>
-        <Pressable style={st.popupOverlay} onPress={() => setPlMenuId(null)}>
+      {/* ── Playlist long-press menu (bottom sheet) ───────────────────────── */}
+      <Modal visible={plMenuId !== null} transparent animationType="slide" onRequestClose={() => setPlMenuId(null)}>
+        <Pressable style={st.sheetOverlay} onPress={() => setPlMenuId(null)}>
           <Pressable onPress={() => {}}>
-            <View style={st.popupCard}>
+            <View style={[st.sheetCard, { paddingBottom: insets.bottom + 12 }]}>
+              <View style={st.sheetHandle} />
               <Text style={st.popupTitle}>{plMenuId ?? ""}</Text>
               <Pressable style={st.menuRow} onPress={async () => { const id = plMenuId; setPlMenuId(null); await pickFiles(id ?? undefined); }}>
                 <Feather name="plus-circle" size={18} color={RED} />
@@ -720,6 +722,20 @@ const st = StyleSheet.create({
   menuDivider:   { height: 1, backgroundColor: BORDER, marginVertical: 4 },
   menuCancel:    { paddingVertical: 15, alignItems: "center" },
   menuCancelText:{ color: GREY, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  sheetOverlay:  { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "flex-end" },
+  sheetCard: {
+    backgroundColor: "#000",
+    borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    borderWidth: 1, borderBottomWidth: 0, borderColor: BORDER,
+    paddingTop: 12, paddingHorizontal: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.6, shadowRadius: 24, elevation: 24,
+  },
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: BORDER, alignSelf: "center", marginBottom: 16,
+  },
 
   popupOverlay:  { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "center", paddingHorizontal: 52 },
   popupCard: {

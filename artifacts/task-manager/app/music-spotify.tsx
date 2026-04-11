@@ -879,7 +879,7 @@ const s = StyleSheet.create({
   plRowIcon:  { width: 32, alignItems: "center" },
   plRowMid:   { flex: 1 },
   plRowName:  { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  plRowCount: { fontSize: 12, color: GREY, fontFamily: "Inter_400Regular", marginTop: 2, textAlign: "center" },
+  plRowCount: { fontSize: 14, color: GREY, fontFamily: "Inter_600SemiBold", marginTop: 1, textAlign: "center" },
 
   // Song rows
   songRow: {
