@@ -207,6 +207,7 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
 
   const playTrack = useCallback(async (idx: number, list: MusicTrack[]) => {
     if (idx < 0 || idx >= list.length) return;
+    Alert.alert('Debug', `AppleMusicKit: ${_AppleMusicKit != null ? 'LINKED ✅' : 'NULL ❌'}`);
     try { MusicSourceBus.notifyMyMusicPlaying(); } catch {} // stop Apple Music before we start
     await ensureSetup();
 
