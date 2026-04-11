@@ -51,6 +51,7 @@ export const ALL_ITEMS: Record<SectionKey, MenuItem[]> = {
     { label: "Arms",      icon: "activity", route: "/training/arms",      description: "Arms day exercises"       },
     { label: "Shoulders", icon: "activity", route: "/training/shoulders", description: "Shoulders day exercises"  },
     { label: "Cardio",    icon: "activity", route: "/training/cardio",    description: "Cardio session exercises" },
+    { label: "Random",    icon: "shuffle",  route: "/training/random",    description: "All exercises combined"   },
   ],
   life: [
     { label: "Calendar",    icon: "calendar",    route: "/calendar",         description: "HK upcoming events"  },

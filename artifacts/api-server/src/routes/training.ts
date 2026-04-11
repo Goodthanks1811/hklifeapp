@@ -25,6 +25,74 @@ function extractRichText(prop: any): string {
   return arr.map((t: any) => t.plain_text as string).join("");
 }
 
+const ALL_BODY_PARTS = ["Chest", "Back", "Legs", "Arms", "Shoulders", "Cardio"];
+
+async function fetchExercisesByBodyPart(apiKey: string, bodyPart: string): Promise<any[]> {
+  const allPages: any[] = [];
+  let cursor: string | undefined;
+  let hasMore = true;
+
+  while (hasMore) {
+    const body: Record<string, unknown> = {
+      page_size: 100,
+      filter: {
+        and: [
+          { property: "Select", select: { equals: "Baseline" } },
+          { property: "Body Part", select: { equals: bodyPart } },
+        ],
+      },
+    };
+    if (cursor) body.start_cursor = cursor;
+
+    const response = await fetch(
+      `https://api.notion.com/v1/databases/${TRAINING_DB_ID}/query`,
+      { method: "POST", headers: notionHeaders(apiKey), body: JSON.stringify(body) }
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error((err as any).message || "Notion error");
+    }
+
+    const data = await response.json();
+    allPages.push(...((data as any).results || []));
+    hasMore = (data as any).has_more;
+    cursor = (data as any).next_cursor;
+  }
+
+  return allPages.map((page: any) => {
+    const props = page.properties || {};
+    const titleProp = (Object.values(props) as any[]).find((p: any) => p.type === "title");
+    const name = extractTitle(titleProp);
+    const setupProp: any = props["Setup"] || props["Setup Notes"] || null;
+    const setup = setupProp ? extractRichText(setupProp) : "";
+    const bodyPartProp: any = props["Body Part"];
+    const bp: string = bodyPartProp?.type === "select"
+      ? (bodyPartProp?.select?.name as string) || bodyPart
+      : bodyPart;
+    return { id: page.id as string, name, setup, bodyPart: bp };
+  });
+}
+
+router.get("/exercises/all", async (req, res) => {
+  const apiKey = req.headers["x-notion-key"] as string;
+
+  if (!apiKey) {
+    res.status(400).json({ message: "Missing Notion API key" });
+    return;
+  }
+
+  try {
+    const results = await Promise.all(
+      ALL_BODY_PARTS.map(bp => fetchExercisesByBodyPart(apiKey, bp))
+    );
+    const exercises = results.flat();
+    res.json({ exercises });
+  } catch (e: any) {
+    res.status(500).json({ message: e.message || "Internal server error" });
+  }
+});
+
 router.get("/exercises/:bodyPart", async (req, res) => {
   const apiKey = req.headers["x-notion-key"] as string;
   const { bodyPart } = req.params;
@@ -35,69 +103,10 @@ router.get("/exercises/:bodyPart", async (req, res) => {
   }
 
   try {
-    const allPages: any[] = [];
-    let cursor: string | undefined;
-    let hasMore = true;
-
-    while (hasMore) {
-      const body: Record<string, unknown> = {
-        page_size: 100,
-        filter: {
-          and: [
-            {
-              property: "Select",
-              select: { equals: "Baseline" },
-            },
-            {
-              property: "Body Part",
-              select: { equals: bodyPart },
-            },
-          ],
-        },
-      };
-      if (cursor) body.start_cursor = cursor;
-
-      const response = await fetch(
-        `https://api.notion.com/v1/databases/${TRAINING_DB_ID}/query`,
-        {
-          method: "POST",
-          headers: notionHeaders(apiKey),
-          body: JSON.stringify(body),
-        }
-      );
-
-      if (!response.ok) {
-        const err = await response.json();
-        res.status(response.status).json({ message: (err as any).message || "Notion error" });
-        return;
-      }
-
-      const data = await response.json();
-      allPages.push(...((data as any).results || []));
-      hasMore = (data as any).has_more;
-      cursor = (data as any).next_cursor;
-    }
-
-    const exercises = allPages.map((page: any) => {
-      const props = page.properties || {};
-      const titleProp = (Object.values(props) as any[]).find((p: any) => p.type === "title");
-      const name = extractTitle(titleProp);
-
-      const setupProp: any = props["Setup"] || props["Setup Notes"] || null;
-      const setup = setupProp ? extractRichText(setupProp) : "";
-
-      const bodyPartProp: any = props["Body Part"];
-      const bp: string =
-        bodyPartProp?.type === "select"
-          ? (bodyPartProp?.select?.name as string) || bodyPart
-          : bodyPart;
-
-      return { id: page.id as string, name, setup, bodyPart: bp };
-    });
-
+    const exercises = await fetchExercisesByBodyPart(apiKey, bodyPart);
     res.json({ exercises });
   } catch (e: any) {
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: e.message || "Internal server error" });
   }
 });
 
