@@ -427,7 +427,7 @@ export function GlobalMusicPlayer() {
               style={({ pressed }) => [s.miniPlayBtn, { backgroundColor: accentColor, transform: [{ scale: pressed ? 0.91 : 1 }] }]}
               onPress={(e) => { e.stopPropagation(); doToggle(); }}
             >
-              <Ionicons name={isPlay ? "pause" : "play"} size={16} color="#fff" />
+              <Ionicons name={isPlay ? "pause" : "play"} size={13} color="#fff" />
             </Pressable>
           </Pressable>
         </Animated.View>
@@ -595,7 +595,7 @@ const s = StyleSheet.create({
     fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1,
   },
   miniPlayBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: RED,
+    width: 26, height: 26, borderRadius: 13, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
   },
 
