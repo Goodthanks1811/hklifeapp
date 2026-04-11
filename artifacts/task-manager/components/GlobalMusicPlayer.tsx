@@ -597,6 +597,7 @@ const s = StyleSheet.create({
   miniPlayBtn: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: RED,
     alignItems: "center", justifyContent: "center",
+    marginRight: 10,
   },
 
   // ── Full screen ───────────────────────────────────────────────────────────
