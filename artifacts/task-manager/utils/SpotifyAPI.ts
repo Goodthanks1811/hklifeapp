@@ -57,7 +57,11 @@ async function apiFetch(path: string, retried = false): Promise<any> {
     return apiFetch(path, true);
   }
 
-  if (!res.ok) throw new Error(`spotify_api_error:${res.status}`);
+  if (!res.ok) {
+    let body = "";
+    try { body = await res.text(); } catch {}
+    throw new Error(`spotify_api_error:${res.status} — ${body}`);
+  }
   return res.json();
 }
 

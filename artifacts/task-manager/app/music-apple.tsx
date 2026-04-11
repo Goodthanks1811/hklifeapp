@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   PanResponder,
@@ -272,8 +273,13 @@ export default function MusicAppleScreen() {
       songs: songs.map(s => ({ id: s.id, title: s.title, artist: s.artist, duration: s.duration })),
       title: song?.title ?? "", artist: song?.artist ?? "",
     });
-    try { await AppleMusicKit.playSongInPlaylist(pl.id, songIndex); } catch {}
-    finally { setLoadingKey(null); }
+    try {
+      await AppleMusicKit.playSongInPlaylist(pl.id, songIndex);
+    } catch (e: any) {
+      Alert.alert("Apple Music Error", String(e?.message ?? e));
+    } finally {
+      setLoadingKey(null);
+    }
   };
 
   // ── Playlist drag/reorder ──────────────────────────────────────────────────

@@ -567,6 +567,7 @@ export default function MusicSpotifyScreen() {
               Spotify returned a <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>403 Forbidden</Text> error.{"\n\n"}
               Your account is added to the dashboard — try <Text style={{ color: GREEN, fontFamily: "Inter_600SemiBold" }}>Reconnecting Spotify</Text> to refresh your access token with the latest permissions.
             </Text>
+            {errorMsg ? <Text style={[s.errorDetail, { marginTop: 12, textAlign: "left" }]}>{errorMsg}</Text> : null}
             <Pressable
               style={({ pressed }) => [s.connectBtn, { marginTop: 20 }, pressed && { opacity: 0.8 }]}
               onPress={handleDisconnect}
