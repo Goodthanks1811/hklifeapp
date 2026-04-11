@@ -6,15 +6,17 @@ import React, {
   useState,
 } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   Easing,
+  Keyboard,
+  Modal,
   PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -231,49 +233,50 @@ export default function MusicMyMusicScreen() {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   };
 
-  const showAddMenu = () => {
-    Alert.alert(
-      "Add Music",
-      "What would you like to add?",
-      [
-        { text: "Add Songs",    onPress: pickFiles },
-        { text: "Add Playlist", onPress: pickPlaylist },
-        { text: "Cancel",       style: "cancel" },
-      ],
-    );
+  // ── Playlist state ────────────────────────────────────────────────────────
+  const [showEQMenu, setShowEQMenu] = useState(false);
+  const [showNewPL,  setShowNewPL]  = useState(false);
+  const [newPLName,  setNewPLName]  = useState("");
+  const [plMenuId,   setPlMenuId]   = useState<string | null>(null);
+  const newPLInputRef               = useRef<TextInput>(null);
+  const keyboardOffset              = useRef(new Animated.Value(0)).current;
+  const shakeAnim                   = useRef(new Animated.Value(0)).current;
+
+  // Shift the New Playlist card up when the keyboard appears
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", e => {
+      Animated.timing(keyboardOffset, { toValue: -(e.endCoordinates.height / 2), duration: e.duration || 250, useNativeDriver: true }).start();
+    });
+    const hide = Keyboard.addListener("keyboardWillHide", e => {
+      Animated.timing(keyboardOffset, { toValue: 0, duration: e.duration || 200, useNativeDriver: true }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  const shakeCard = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8,   duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8,  duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,   duration: 40, useNativeDriver: true }),
+    ]).start();
   };
 
-  const pickPlaylist = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "audio/*",
-        multiple: true,
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled || !result.assets?.length) return;
-      await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
-      const newTracks: MusicTrack[] = [];
-      for (const asset of result.assets) {
-        const fileName    = asset.name ?? `track_${Date.now()}.mp3`;
-        const destUri     = MUSIC_DIR + fileName;
-        try {
-          const info = await FileSystem.getInfoAsync(destUri);
-          if (!info.exists) await FileSystem.copyAsync({ from: asset.uri, to: destUri });
-          const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
-          const relUri = toRel(destUri);
-          newTracks.push({ id: relUri, name: displayName, uri: relUri });
-        } catch {}
-      }
-      if (newTracks.length) {
-        const cur    = tracksRef.current;
-        const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
-        await saveTracks(merged);
-        Alert.alert("Added", `${newTracks.length} track${newTracks.length !== 1 ? "s" : ""} added to your library.`);
-      }
-    } catch {}
+  const createPlaylist = async () => {
+    const name = newPLName.trim();
+    if (!name) { shakeCard(); return; }
+    Keyboard.dismiss();
+    const pl = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), tracks: [] as MusicTrack[] };
+    await saveTracks(tracksRef.current); // persist current tracks untouched
+    setShowNewPL(false);
+    setNewPLName("");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const pickFiles = async () => {
+  const pickFiles = async (targetPlaylistId?: string) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
@@ -470,12 +473,19 @@ export default function MusicMyMusicScreen() {
     <View style={[st.root, { paddingTop: insets.top }]}>
       <View style={[st.inner, isTablet && st.innerTablet]}>
 
-        {/* Header — press to go back, long-press EQ to add tracks */}
+        {/* Header — press to go back, long-press EQ to open menu */}
         <View style={st.headerArea}>
-          <Pressable style={st.eqWrap} onPress={goBack} onLongPress={showAddMenu} delayLongPress={400}>
-            {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
+          <Pressable
+            style={st.headerLongPressZone}
+            onPress={goBack}
+            onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowEQMenu(true); }}
+            delayLongPress={400}
+          >
+            <View style={st.eqWrap}>
+              {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
+            </View>
+            <Text style={st.pageTitle}>My Music</Text>
           </Pressable>
-          <Text style={st.pageTitle}>My Music</Text>
           <Pressable style={st.backZone} onPress={goBack} />
         </View>
 
@@ -545,6 +555,87 @@ export default function MusicMyMusicScreen() {
 
 
       </View>
+
+      {/* ── EQ long-press menu ────────────────────────────────────────────── */}
+      <Modal visible={showEQMenu} transparent animationType="none" onRequestClose={() => setShowEQMenu(false)}>
+        <Pressable style={st.popupOverlay} onPress={() => setShowEQMenu(false)}>
+          <Pressable onPress={() => {}}>
+            <View style={st.popupCard}>
+              <Pressable style={st.menuRow} onPress={async () => { setShowEQMenu(false); await pickFiles(); }}>
+                <Feather name="music" size={18} color={RED} />
+                <Text style={st.menuRowText}>Add Songs</Text>
+              </Pressable>
+              <View style={st.menuDivider} />
+              <Pressable style={st.menuRow} onPress={() => { setShowEQMenu(false); setTimeout(() => { setShowNewPL(true); setTimeout(() => newPLInputRef.current?.focus(), 100); }, 300); }}>
+                <Feather name="folder-plus" size={18} color={RED} />
+                <Text style={st.menuRowText}>New Playlist</Text>
+              </Pressable>
+              <View style={[st.menuDivider, { marginTop: 4 }]} />
+              <Pressable style={st.menuCancel} onPress={() => setShowEQMenu(false)}>
+                <Text style={st.menuCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Playlist long-press menu ──────────────────────────────────────── */}
+      <Modal visible={plMenuId !== null} transparent animationType="none" onRequestClose={() => setPlMenuId(null)}>
+        <Pressable style={st.popupOverlay} onPress={() => setPlMenuId(null)}>
+          <Pressable onPress={() => {}}>
+            <View style={st.popupCard}>
+              <Text style={st.popupTitle}>{plMenuId ?? ""}</Text>
+              <Pressable style={st.menuRow} onPress={async () => { const id = plMenuId; setPlMenuId(null); await pickFiles(id ?? undefined); }}>
+                <Feather name="plus-circle" size={18} color={RED} />
+                <Text style={st.menuRowText}>Add Songs</Text>
+              </Pressable>
+              <View style={st.menuDivider} />
+              <Pressable style={st.menuRow} onPress={() => { setPlMenuId(null); }}>
+                <Feather name="trash-2" size={18} color={RED} />
+                <Text style={[st.menuRowText, { color: RED }]}>Delete Playlist</Text>
+              </Pressable>
+              <View style={[st.menuDivider, { marginTop: 4 }]} />
+              <Pressable style={st.menuCancel} onPress={() => setPlMenuId(null)}>
+                <Text style={st.menuCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── New Playlist popup ────────────────────────────────────────────── */}
+      <Modal visible={showNewPL} transparent animationType="fade" onRequestClose={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}>
+        <Pressable style={st.popupOverlay} onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}>
+          <Animated.View style={[st.popupCard, { transform: [{ translateY: keyboardOffset }, { translateX: shakeAnim }] }]}>
+            <Pressable onPress={() => {}}>
+              <Text style={st.popupTitle}>New Playlist</Text>
+              <TextInput
+                ref={newPLInputRef}
+                style={st.popupInput}
+                placeholder="Playlist name"
+                placeholderTextColor="#555"
+                value={newPLName}
+                onChangeText={setNewPLName}
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={createPlaylist}
+                maxLength={60}
+                keyboardAppearance="dark"
+                selectionColor={RED}
+              />
+              <View style={st.popupFooter}>
+                <Pressable style={st.popupCancel} onPress={() => { Keyboard.dismiss(); setShowNewPL(false); setNewPLName(""); }}>
+                  <Text style={st.popupCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={st.popupCreate} onPress={createPlaylist}>
+                  <Text style={st.popupCreateText}>Create  →</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
@@ -555,6 +646,7 @@ const st = StyleSheet.create({
   innerTablet: { maxWidth: 800, alignSelf: "center", width: "100%" },
 
   headerArea: { backgroundColor: BG, paddingTop: 28, paddingBottom: 4, alignItems: "center", position: "relative" },
+  headerLongPressZone: { alignItems: "center", paddingHorizontal: 40, paddingBottom: 4 },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
   eqWrap: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "center",
@@ -621,6 +713,36 @@ const st = StyleSheet.create({
     shadowRadius: 10, shadowOpacity: 0.35, elevation: 4,
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  // ── Popup menu (EQ long-press + playlist long-press) ─────────────────────
+  menuRow:       { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, paddingVertical: 15 },
+  menuRowText:   { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  menuDivider:   { height: 1, backgroundColor: BORDER, marginVertical: 4 },
+  menuCancel:    { paddingVertical: 15, alignItems: "center" },
+  menuCancelText:{ color: GREY, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  popupOverlay:  { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "center", paddingHorizontal: 52 },
+  popupCard: {
+    backgroundColor: "#000", borderRadius: 20,
+    borderWidth: 1, borderColor: BORDER,
+    paddingTop: 24, paddingHorizontal: 20, paddingBottom: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6, shadowRadius: 24, elevation: 24,
+  },
+  popupTitle:      { color: "#fff", fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 18 },
+  popupInput: {
+    color: "#fff", fontSize: 15, fontFamily: "Inter_500Medium",
+    paddingVertical: 13, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: BORDER, borderRadius: 12, marginBottom: 20,
+  },
+  popupFooter:     { flexDirection: "row", gap: 10 },
+  popupCancel: {
+    flex: 1, paddingVertical: 14, borderRadius: 13,
+    backgroundColor: "#141414", borderWidth: 1, borderColor: BORDER, alignItems: "center",
+  },
+  popupCancelText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  popupCreate:     { flex: 2, paddingVertical: 14, borderRadius: 13, backgroundColor: RED, alignItems: "center" },
+  popupCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 
   // ── Player — identical spec to Music home screen ──────────────────────────
   playerWrap: {
