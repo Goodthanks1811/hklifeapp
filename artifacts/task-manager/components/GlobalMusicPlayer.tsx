@@ -578,7 +578,7 @@ const s = StyleSheet.create({
   },
   miniBarPressable: {
     flexDirection: "row", alignItems: "center",
-    paddingLeft: 18, paddingRight: 22, paddingTop: 9, paddingBottom: 9, gap: 12,
+    paddingLeft: 18, paddingRight: 22, paddingTop: 12, paddingBottom: 12, gap: 12,
   },
   miniIcon: {
     width: 36, height: 36, borderRadius: 9,
@@ -589,10 +589,10 @@ const s = StyleSheet.create({
     flex: 1,
   },
   miniTitle: {
-    fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff",
+    fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#fff",
   },
   miniArtist: {
-    fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1,
+    fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 1,
   },
   miniPlayBtn: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: RED,
