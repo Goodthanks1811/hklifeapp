@@ -1271,7 +1271,7 @@ const st = StyleSheet.create({
   headerLongPressZone: {
     alignItems: "center",
     paddingHorizontal: 40,
-    paddingBottom: 24,
+    paddingBottom: 4,
   },
   backZone: { position: "absolute", left: 0, top: 0, bottom: 0, right: "50%" },
   eqWrap: {
