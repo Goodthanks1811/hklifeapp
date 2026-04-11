@@ -569,7 +569,7 @@ const s = StyleSheet.create({
 
   // ── Mini bar ─────────────────────────────────────────────────────────────────
   miniBar: {
-    position: "absolute", bottom: 0, left: 12, right: 12,
+    position: "absolute", bottom: 0, left: 16, right: 16,
     backgroundColor: ROW,
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     borderTopWidth: 1, borderTopColor: BORDER,
