@@ -20,6 +20,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path as SvgPath } from "react-native-svg";
 import { Colors } from "@/constants/colors";
+import { useDrawer } from "@/context/DrawerContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "youtube_recent_searches_v1";
@@ -108,6 +109,7 @@ function RecentRow({
 export default function YouTubeScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 52) : insets.top;
+  const { openDrawer } = useDrawer();
 
   const [query,   setQuery]   = useState("");
   const [history, setHistory] = useState<string[]>([]);
@@ -199,6 +201,10 @@ export default function YouTubeScreen() {
       {/* Fixed logo header — matches Shazam page structure */}
       <View style={st.logoHeader}>
         <YouTubeLogo size={72} />
+        <Pressable
+          style={st.backZone}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDrawer(); }}
+        />
       </View>
 
       <ScrollView
@@ -268,6 +274,7 @@ export default function YouTubeScreen() {
 const st = StyleSheet.create({
   root:       { flex: 1, backgroundColor: "#0b0b0c" },
   logoHeader: { alignItems: "center", paddingTop: 78, paddingBottom: 8 },
+  backZone:   { position: "absolute", left: 0, top: 0, bottom: 0, width: 110, zIndex: 10 },
   scrollArea: { flex: 1 },
   content:    { paddingTop: 56, paddingHorizontal: 16, paddingBottom: 60 },
 
