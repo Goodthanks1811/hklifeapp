@@ -11,23 +11,12 @@ import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import { MusicSourceBus } from "@/utils/MusicSourceBus";
 
 // Resolve the bundled asset to a file:// URI that RNTP can load reliably.
-// Used as a fallback (Expo Go / first play before native URI is ready).
+// Using require() alone (number type) can fail in production EAS builds;
+// resolveAssetSource returns the actual path Metro wrote to the bundle dir.
 const _hkIconAsset = require('../assets/images/hk-artwork.png');
 const DEFAULT_ARTWORK: string | number = (() => {
   try { return Image.resolveAssetSource(_hkIconAsset).uri; } catch { return _hkIconAsset; }
 })();
-
-// Native module produces the same pure-black rendered artwork that Apple Music uses.
-// Populated on first RNTP playTrack() call; null until then (Expo Go or pre-render).
-let _hkArtworkFileURI: string | null = null;
-let _getHKArtworkFileURI: (() => Promise<string>) | null = null;
-try {
-  const { requireNativeModule } = require('expo-modules-core');
-  const AM = requireNativeModule('AppleMusicKit');
-  _getHKArtworkFileURI = () => AM.getHKArtworkFileURI();
-} catch {
-  // Expo Go or native module not compiled — keep null
-}
 
 // ── Conditional RNTP load ─────────────────────────────────────────────────────
 // react-native-track-player requires a native module only present in EAS builds.
@@ -58,7 +47,7 @@ try {
 }
 
 // ── Shared types ─────────────────────────────────────────────────────────────
-export type MusicTrack = { id: string; name: string; uri: string; duration?: number };
+export type MusicTrack = { id: string; name: string; uri: string };
 
 type PlayerState = {
   track:      MusicTrack | null;
@@ -164,9 +153,9 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         wasPlayingBgRef.current = isPlayingRef.current;
       } else if (next === 'active') {
         // Returning to foreground: if we were playing, ensure RNTP is still rolling.
-        // Guard: don't resume if Apple Music / Spotify holds the session, or if
-        // the user explicitly paused from inside the app before backgrounding.
-        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl() && !MusicSourceBus.spotifyHasControl() && !MusicSourceBus.myMusicUserPaused()) {
+        // Guard: don't resume if Apple Music intentionally holds the session —
+        // the user switched sources and expects Apple Music to keep playing.
+        if (wasPlayingBgRef.current && !MusicSourceBus.appleMusicHasControl()) {
           wasPlayingBgRef.current = false;
           try {
             const state = await _TrackPlayer.getPlaybackState();
@@ -180,20 +169,6 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           wasPlayingBgRef.current = false;
-          // Defensive: if another source holds the audio session but RNTP somehow
-          // resumed (e.g. iOS 26 delivers an interruption-ended signal that triggers
-          // a native auto-resume despite autoHandleInterruptions:false), immediately
-          // re-pause RNTP so its DoNotMix session doesn't cut off Apple Music/Spotify.
-          if (MusicSourceBus.appleMusicHasControl() || MusicSourceBus.spotifyHasControl()) {
-            try {
-              const state = await _TrackPlayer.getPlaybackState();
-              const isActuallyPlaying =
-                state?.state === _State.Playing || state?.state === _State.Buffering;
-              if (isActuallyPlaying) {
-                await _TrackPlayer.pause();
-              }
-            } catch {}
-          }
         }
       }
     });
@@ -235,12 +210,7 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         await _TrackPlayer.skip(idx);
         await _TrackPlayer.play();
       } else {
-        // Fetch the native pure-black artwork URI on first call; fall back to bundled asset.
-        if (_getHKArtworkFileURI && !_hkArtworkFileURI) {
-          try { _hkArtworkFileURI = await _getHKArtworkFileURI(); } catch {}
-        }
-        const artwork = _hkArtworkFileURI ?? DEFAULT_ARTWORK;
-        const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork }));
+        const rnTracks = list.map(t => ({ id: t.id, url: t.uri, title: t.name, artist: 'HK Life', artwork: DEFAULT_ARTWORK }));
         await _TrackPlayer.reset();
         // Re-apply Queue repeat after every reset() — reset() wipes it back to Off,
         // which causes the queue to stop at the last track and close the audio session.
@@ -255,17 +225,10 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const togglePlay = useCallback(async () => {
-    if (isPlaying) {
-      MusicSourceBus.setMyMusicUserPaused(true);
-      await _TrackPlayer.pause();
-    } else {
-      MusicSourceBus.setMyMusicUserPaused(false);
-      await _TrackPlayer.play();
-    }
+    if (isPlaying) { await _TrackPlayer.pause(); } else { await _TrackPlayer.play(); }
   }, [isPlaying]);
 
   const pause = useCallback(async () => {
-    MusicSourceBus.setMyMusicUserPaused(true);
     try { await _TrackPlayer.pause(); } catch {}
   }, []);
 

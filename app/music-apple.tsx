@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -233,7 +232,7 @@ export default function MusicAppleScreen() {
     const key = `${pl.id}:${songIndex}`;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoadingKey(key);
-    // Open the full-screen player immediately — don't wait for the native play call
+    // Set now playing — mini player appears; user taps it to open full screen
     const song = songs[songIndex];
     setPlayingPlaylistId(pl.id);
     setPlayingSongIndex(songIndex);
@@ -245,11 +244,10 @@ export default function MusicAppleScreen() {
       title: song?.title ?? "",
       artist: song?.artist ?? "",
     });
-    MusicSourceBus.triggerExpand();
     try {
       await AppleMusicKit.playSongInPlaylist(pl.id, songIndex);
-    } catch (e: any) {
-      Alert.alert("Apple Music Error", String(e?.message ?? e));
+    } catch {
+      // ignore
     } finally {
       setLoadingKey(null);
     }
@@ -400,10 +398,10 @@ const s = StyleSheet.create({
   },
   iconCell: {
     width: 38, height: 38, borderRadius: 10,
-    backgroundColor: "#111",
+    backgroundColor: ROW,
     alignItems: "center", justifyContent: "center",
   },
-  iconCellPlaying: { backgroundColor: "#111" },
+  iconCellPlaying: { backgroundColor: ROW },
   rowTextWrap: { flex: 1 },
   rowName: {
     fontSize: 15, fontWeight: "500", color: "#fff",

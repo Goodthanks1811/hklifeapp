@@ -25,7 +25,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { useMusicPlayer, MusicTrack } from "@/context/MusicPlayerContext";
-import { MusicSourceBus } from "@/utils/MusicSourceBus";
+
 
 const RED    = "#E03131";
 const BG     = "#111111";
@@ -489,7 +489,7 @@ export default function MusicMyMusicScreen() {
                       isPlaying={player.isPlaying}
                       isDragging={isDragging}
                       dimValue={isDragging ? ZERO_ANIM : dimAnim}
-                      onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); MusicSourceBus.triggerExpand(); }}
+                      onPlay={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); player.playTrack(idx, tracks.map(t => ({ ...t, uri: toAbs(t.uri) }))); }}
                       onDelete={() => handleDelete(idx)}
                       onLongPress={() => startDrag(idx)}
                     />

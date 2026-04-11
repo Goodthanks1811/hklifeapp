@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Image,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -430,7 +431,11 @@ export function GlobalMusicPlayer() {
           {/* Artwork */}
           <View style={s.artZone}>
             <View style={s.artBg}>
-              <MusicNoteIcon />
+              <Image
+                source={require("../assets/images/hk-artwork.png")}
+                style={s.artImage}
+                resizeMode="cover"
+              />
             </View>
           </View>
 
@@ -575,6 +580,7 @@ const s = StyleSheet.create({
     backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#222",
     alignItems: "center", justifyContent: "center", overflow: "hidden",
   },
+  artImage: { width: "100%", height: "100%" },
   trackBlock: { marginTop: 0 },
   trackTitle: {
     fontSize: 22, fontWeight: "700", color: "#fff",

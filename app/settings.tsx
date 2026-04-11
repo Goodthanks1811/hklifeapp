@@ -1410,9 +1410,9 @@ export default function SettingsScreen() {
         <View style={styles.buildFooter}>
           <Text style={styles.buildFooterText}>HK Life App</Text>
           <Text style={styles.buildFooterText}>
-            Version {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? "1.0.0"}
-            {" · Build "}
-            {Constants.nativeBuildVersion ?? "–"}
+            Version {Constants.expoConfig?.version ?? "1.0.0"}
+            {" · "}
+            {Constants.expoConfig?.extra?.easBuildId ?? "dev"}
           </Text>
         </View>
 
