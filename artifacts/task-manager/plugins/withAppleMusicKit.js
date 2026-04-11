@@ -19,10 +19,552 @@ const SWIFT_FILENAME = 'AppleMusicKitModule.swift';
 const FILE_UUID  = 'AA11BB22CC33DD44EE55FF01';
 const BUILD_UUID = 'AA11BB22CC33DD44EE55FF02';
 
-const SWIFT_CONTENT = fs.readFileSync(
-  path.join(__dirname, '../modules/apple-musickit/ios/AppleMusicKitModule.swift'),
-  'utf8'
-);
+const SWIFT_CONTENT = `import ExpoModulesCore
+import MediaPlayer
+import AVFoundation
+import UIKit
+
+public class AppleMusicKitModule: Module {
+
+  private static var remoteCommandsRegistered = false
+  // Notification tokens — retained so observers stay alive for the module's lifetime
+  private var nowPlayingObserver:   NSObjectProtocol?
+  private var stateObserver:        NSObjectProtocol?
+  private var routeChangeObserver:  NSObjectProtocol?
+
+  // ── Silent keepalive — used when Spotify is the active source ─────────────
+  // react-native-spotify-remote remote-controls the Spotify app via IPC; our
+  // process has no audio session while Spotify plays.  Without one iOS suspends
+  // then kills us under memory pressure (≈30–60 s → Face ID on relaunch).
+  // Playing a 0-amplitude PCM buffer with MixWithOthers gives us a live
+  // AVAudioSession without touching Spotify's audio in any way.
+  private var silentEngine: AVAudioEngine?
+  private var silentPlayer: AVAudioPlayerNode?
+
+  // ── Native audio-session watchdog — My Music & Apple Music ────────────────
+  // RNTP's native configureAudioSession() calls deactivateSession() whenever
+  // currentItem == nil (track transitions, RepeatMode.Queue wrap-around).
+  // On iOS 26 Apple tightened the background grace period: the JS thread can
+  // be suspended within seconds of session deactivation, so our 5-second JS
+  // watchdog in service.ts is not reliable enough.
+  //
+  // This Swift Timer runs entirely at the native level — it fires on the main
+  // run loop even when the JS thread is suspended — and re-calls setActive(true)
+  // every 2 seconds to repair any session deactivation well inside the 30-second
+  // iOS kill window.
+  private var nativeWatchdog: Timer?
+
+  deinit {
+    if let o = nowPlayingObserver  { NotificationCenter.default.removeObserver(o) }
+    if let o = stateObserver       { NotificationCenter.default.removeObserver(o) }
+    if let o = routeChangeObserver { NotificationCenter.default.removeObserver(o) }
+    stopSilentKeepAlive()
+    stopNativeWatchdog()
+  }
+
+  private func startSilentKeepAlive() {
+    stopSilentKeepAlive()
+    do {
+      let session = AVAudioSession.sharedInstance()
+      // MixWithOthers: coexists with Spotify's session in the Spotify app process.
+      // Our process only sends IPC commands — no audio conflict possible.
+      try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+      try session.setActive(true)
+
+      let engine = AVAudioEngine()
+      let player = AVAudioPlayerNode()
+      engine.attach(player)
+
+      // Mono 44.1 kHz, 100 ms of true silence per buffer loop
+      let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
+      let frameCount: AVAudioFrameCount = 4410
+      let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+      buffer.frameLength = frameCount
+      // float32 channel data is zero-initialised — absolute silence
+
+      engine.connect(player, to: engine.mainMixerNode, format: format)
+      try engine.start()
+
+      player.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+      player.volume = 0   // belt-and-suspenders: no audible output even if MixWithOthers mixes
+      player.play()
+
+      silentEngine = engine
+      silentPlayer = player
+    } catch {
+      // Non-fatal — Spotify music still plays; we just might not survive long in background
+    }
+  }
+
+  private func stopSilentKeepAlive() {
+    silentPlayer?.stop()
+    silentEngine?.stop()
+    silentPlayer = nil
+    silentEngine = nil
+    // Do NOT deactivate the session here — the next source (RNTP / applicationQueuePlayer)
+    // will reconfigure it when it starts.
+  }
+
+  private func activateAudioSession() {
+    do {
+      try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {}
+  }
+
+  // ── Native watchdog helpers ───────────────────────────────────────────────
+
+  private func startNativeWatchdog() {
+    stopNativeWatchdog()
+    // Fire immediately to repair any in-progress deactivation
+    reactivateSession()
+    // Then repeat every 2 seconds — the Timer is scheduled on the main run loop
+    // so it fires independently of JS thread state.
+    nativeWatchdog = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+      self?.reactivateSession()
+    }
+  }
+
+  private func stopNativeWatchdog() {
+    nativeWatchdog?.invalidate()
+    nativeWatchdog = nil
+  }
+
+  private func reactivateSession() {
+    // Only call setActive(true); never change the category here so we don't
+    // stomp on the MixWithOthers config that startSilentKeepAlive sets for Spotify.
+    do {
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {
+      // Non-fatal — session may be briefly held by another app; next tick will retry.
+    }
+  }
+
+  // ── Audio route change — pause on output device removal ──────────────────
+  // Standard iOS behavior: when headphones, AirPods, CarPlay, or any external
+  // audio output is disconnected while music is playing, the player pauses.
+  // We observe AVAudioSession.routeChangeNotification and react to the
+  // "oldDeviceUnavailable" reason — the same trigger that causes the stock
+  // Music app and most third-party players to pause on headphone unplug.
+  //
+  // applicationQueuePlayer is paused here at the native level.  A JS event
+  // ("onAudioOutputLost") is also sent so the React layer can pause RNTP and
+  // update the UI for all three sources (My Music, Apple Music, Spotify).
+  private func startRouteChangeObserver() {
+    guard routeChangeObserver == nil else { return }
+    routeChangeObserver = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification,
+      object:  AVAudioSession.sharedInstance(),
+      queue:   .main
+    ) { [weak self] notification in
+      guard
+        let reasonValue = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+        let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue),
+        reason == .oldDeviceUnavailable
+      else { return }
+      // An output device was removed — pause the Apple Music system player
+      // and signal JS to pause RNTP (My Music) and Spotify.
+      MPMusicPlayerController.applicationQueuePlayer.pause()
+      self?.sendEvent("onAudioOutputLost", [:])
+    }
+  }
+
+  private func registerRemoteCommands() {
+    guard !AppleMusicKitModule.remoteCommandsRegistered else { return }
+    AppleMusicKitModule.remoteCommandsRegistered = true
+    let cc = MPRemoteCommandCenter.shared()
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    cc.playCommand.isEnabled  = true
+    cc.pauseCommand.isEnabled = true
+    cc.nextTrackCommand.isEnabled     = true
+    cc.previousTrackCommand.isEnabled = true
+    cc.changePlaybackPositionCommand.isEnabled = true
+    cc.playCommand.addTarget  { _ in player.play();  return .success }
+    cc.pauseCommand.addTarget { _ in player.pause(); return .success }
+    cc.nextTrackCommand.addTarget     { _ in player.skipToNextItem();     return .success }
+    cc.previousTrackCommand.addTarget { _ in player.skipToPreviousItem(); return .success }
+    cc.changePlaybackPositionCommand.addTarget { event in
+      if let e = event as? MPChangePlaybackPositionCommandEvent {
+        player.currentPlaybackTime = e.positionTime
+      }
+      return .success
+    }
+  }
+
+  // ── Now Playing observers ────────────────────────────────────────────────────
+  // applicationQueuePlayer auto-populates MPNowPlayingInfoCenter with the Apple
+  // Music catalog artwork immediately after play() is called, overwriting whatever
+  // we set. We observe track changes and playback state changes, then re-assert
+  // our own info 300 ms later (after the system's automatic update has landed).
+  private func registerNowPlayingObservers() {
+    guard nowPlayingObserver == nil else { return }
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    player.beginGeneratingPlaybackNotifications()
+
+    nowPlayingObserver = NotificationCenter.default.addObserver(
+      forName: .MPMusicPlayerControllerNowPlayingItemDidChange,
+      object: player,
+      queue: .main
+    ) { [weak self] _ in
+      // 300 ms delay: fires after applicationQueuePlayer's automatic MPNowPlayingInfoCenter update
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        guard let item = player.nowPlayingItem else { return }
+        self?.assertNowPlaying(item: item, player: player)
+      }
+    }
+
+    stateObserver = NotificationCenter.default.addObserver(
+      forName: .MPMusicPlayerControllerPlaybackStateDidChange,
+      object: player,
+      queue: .main
+    ) { [weak self] _ in
+      guard let item = player.nowPlayingItem else { return }
+      self?.assertNowPlaying(item: item, player: player)
+    }
+  }
+
+  // HK logo PNG embedded as base64 — injected at build time by withAppleMusicKit.js.
+  // Renders on a black background scaled 1.4× (crops transparent border so the
+  // logo fills the Lock Screen / Dynamic Island artwork frame properly).
+  private let hkArtworkBase64 = "HK_ARTWORK_BASE64_PLACEHOLDER"
+
+  // Renders the HK logo onto a pure-black 1024×1024 opaque UIImage.
+  // Shared by hkArtwork() (MPNowPlayingInfoCenter) and getHKArtworkFileURI() (RNTP).
+  private func renderedHKImage() -> UIImage? {
+    guard let data = Data(base64Encoded: hkArtworkBase64, options: .ignoreUnknownCharacters),
+          let logoImage = UIImage(data: data) else { return nil }
+    let size = CGSize(width: 1024, height: 1024)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale  = 1.0
+    format.opaque = true   // no alpha channel → iOS cannot show a grey background through it
+    return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+      UIColor.black.setFill()
+      ctx.fill(CGRect(origin: .zero, size: size))
+      // 1.4× scale crops the transparent border, enlarging the visible logo
+      let s: CGFloat = 1.4
+      let dw = size.width * s
+      let dh = size.height * s
+      logoImage.draw(in: CGRect(x: (size.width - dw) / 2,
+                                y: (size.height - dh) / 2,
+                                width: dw, height: dh))
+    }
+  }
+
+  private func hkArtwork() -> MPMediaItemArtwork? {
+    guard let image = renderedHKImage() else { return nil }
+    let size = CGSize(width: 1024, height: 1024)
+    return MPMediaItemArtwork(boundsSize: size) { _ in image }
+  }
+
+  // Sets MPNowPlayingInfoCenter with HK icon + accurate elapsed time + playback rate.
+  // Called both immediately on play and from the observers to re-assert our info.
+  private func assertNowPlaying(item: MPMediaItem, player: MPMusicPlayerController) {
+    let isPlaying = player.playbackState == .playing
+    var info: [String: Any] = [
+      MPMediaItemPropertyTitle:                    item.title       ?? "",
+      MPMediaItemPropertyArtist:                   item.artist      ?? "",
+      MPMediaItemPropertyAlbumTitle:               item.albumTitle  ?? "",
+      MPMediaItemPropertyPlaybackDuration:         item.playbackDuration,
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: max(0, player.currentPlaybackTime),
+      MPNowPlayingInfoPropertyPlaybackRate:        isPlaying ? 1.0 : 0.0,
+    ]
+    if let art = hkArtwork() {
+      info[MPMediaItemPropertyArtwork] = art
+    }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+  }
+
+  private func findCollection(persistentID: UInt64) -> MPMediaItemCollection? {
+    guard let collections = MPMediaQuery.playlists().collections else { return nil }
+    return collections.first { $0.persistentID == persistentID }
+  }
+
+  public func definition() -> ModuleDefinition {
+    Name("AppleMusicKit")
+
+    // Expose the audio-output-lost event so JS can react to CarPlay /
+    // headphone / AirPods disconnection and pause RNTP + Spotify.
+    // appleMusicPlayFailed fires when play() was called but the player isn't
+    // in .playing state 1.5 s later — surfaces silent play() failures to JS.
+    Events("onAudioOutputLost", "appleMusicPlayFailed")
+
+    // Start the route-change observer as soon as the module is initialised.
+    OnCreate {
+      self.startRouteChangeObserver()
+    }
+
+    AsyncFunction("requestAuthorization") { (promise: Promise) in
+      MPMediaLibrary.requestAuthorization { status in
+        switch status {
+        case .authorized:    promise.resolve("authorized")
+        case .denied:        promise.resolve("denied")
+        case .restricted:    promise.resolve("restricted")
+        case .notDetermined: promise.resolve("notDetermined")
+        @unknown default:    promise.resolve("notDetermined")
+        }
+      }
+    }
+
+    AsyncFunction("getPlaylists") { (promise: Promise) in
+      let collections = MPMediaQuery.playlists().collections ?? []
+      var result: [[String: Any]] = []
+      for col in collections {
+        guard let pl = col as? MPMediaPlaylist,
+              let name = pl.name, !name.isEmpty else { continue }
+        result.append([
+          "id": String(col.persistentID), "name": name, "count": col.items.count,
+        ])
+      }
+      promise.resolve(result)
+    }
+
+    AsyncFunction("getSongsInPlaylist") { (persistentIDStr: String, promise: Promise) in
+      guard let pid = UInt64(persistentIDStr) else {
+        promise.reject("INVALID_ID", "Invalid playlist ID"); return
+      }
+      guard let col = self.findCollection(persistentID: pid) else {
+        promise.reject("NOT_FOUND", "Playlist not found"); return
+      }
+      let songs: [[String: Any]] = col.items.map { item in [
+        "id":         String(item.persistentID),
+        "title":      item.title      ?? "Unknown",
+        "artist":     item.artist     ?? "",
+        "albumTitle": item.albumTitle ?? "",
+        "duration":   item.playbackDuration,
+      ]}
+      promise.resolve(songs)
+    }
+
+    AsyncFunction("playPlaylist") { (persistentIDStr: String, promise: Promise) in
+      guard let pid = UInt64(persistentIDStr), pid != 0 else {
+        promise.reject("INVALID_ID", "Invalid playlist ID"); return
+      }
+      guard let col = self.findCollection(persistentID: pid) else {
+        promise.reject("NOT_FOUND", "Playlist not found"); return
+      }
+      self.registerRemoteCommands()
+      self.registerNowPlayingObservers()
+      DispatchQueue.main.async {
+        let player = MPMusicPlayerController.applicationQueuePlayer
+        // Activate AFTER any previous stop so the session is fresh and DoNotMix.
+        // The keepalive (MixWithOthers) is stopped by MusicSourceBus before we
+        // get here, so this call claims exclusive playback ownership.
+        self.activateAudioSession()
+        player.setQueue(with: col)
+        player.shuffleMode = .off
+        player.repeatMode  = .all
+        player.play()
+        // Assert immediately; observer will re-assert 300 ms later after system update
+        if let first = col.items.first { self.assertNowPlaying(item: first, player: player) }
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("playSongInPlaylist") { (playlistIDStr: String, songIndex: Int, promise: Promise) in
+      guard let pid = UInt64(playlistIDStr) else {
+        promise.reject("INVALID_ID", "Invalid playlist ID"); return
+      }
+      guard let col = self.findCollection(persistentID: pid) else {
+        promise.reject("NOT_FOUND", "Playlist not found"); return
+      }
+      self.registerRemoteCommands()
+      self.registerNowPlayingObservers()
+      DispatchQueue.main.async {
+        let player = MPMusicPlayerController.applicationQueuePlayer
+        player.stop()
+        // Activate AFTER stop() — stop() can deactivate the session.
+        // The keepalive (MixWithOthers) is stopped by MusicSourceBus before we get
+        // here, so this call gives applicationQueuePlayer exclusive (DoNotMix) access,
+        // which FairPlay DRM requires to decrypt and play Apple Music catalog content.
+        self.activateAudioSession()
+
+        let clampedIdx = max(0, min(songIndex, col.items.count - 1))
+        let startItem  = col.items[clampedIdx]
+
+        // Use MPMusicPlayerMediaItemQueueDescriptor so applicationQueuePlayer
+        // reliably begins at the correct song index (the deprecated nowPlayingItem
+        // setter is unreliable on iOS 16+ and does nothing on iOS 18+/26).
+        let descriptor = MPMusicPlayerMediaItemQueueDescriptor(itemCollection: col)
+        descriptor.startItem = startItem
+        player.setQueue(with: descriptor)
+        player.shuffleMode = .off
+        player.repeatMode  = .all
+
+        player.prepareToPlay { [weak self] error in
+          if let error = error {
+            NSLog("[AppleMusicKit] prepareToPlay error: \(error.localizedDescription)")
+            // Reject so JS can surface the exact error to the user.
+            promise.reject("PREPARE_FAILED", "Apple Music failed to start: \(error.localizedDescription)")
+            return
+          }
+          // Re-activate before play() in case prepareToPlay briefly deactivated the session.
+          self?.activateAudioSession()
+          player.play()
+
+          // Resolve immediately so the UI spinner stops.
+          promise.resolve(nil)
+
+          // 1.5 s after play(), confirm the player is actually running.
+          // If playbackState is still anything other than .playing, fire a
+          // diagnostic notification so JS can surface the problem to the user.
+          DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            let st = player.playbackState
+            NSLog("[AppleMusicKit] post-play state: \(st.rawValue)")
+            if st != .playing {
+              let stName: String
+              switch st {
+              case .stopped:     stName = "stopped"
+              case .paused:      stName = "paused"
+              case .interrupted: stName = "interrupted"
+              case .seekingForward, .seekingBackward: stName = "seeking"
+              default:           stName = "unknown(\(st.rawValue))"
+              }
+              // Post an event that JS can receive to show an alert
+              self?.sendEvent("appleMusicPlayFailed", [
+                "reason": "play() called but state is \(stName) after 1.5s",
+                "stateRaw": st.rawValue
+              ])
+            }
+          }
+        }
+      }
+    }
+
+    AsyncFunction("pause") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.pause()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("resumePlay") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.play()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("skipToNext") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.skipToNextItem()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("skipToPrevious") { (promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.skipToPreviousItem()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("getCurrentTime") { (promise: Promise) in
+      DispatchQueue.main.async {
+        let t = MPMusicPlayerController.applicationQueuePlayer.currentPlaybackTime
+        promise.resolve(max(0, t))
+      }
+    }
+
+    AsyncFunction("getDuration") { (promise: Promise) in
+      DispatchQueue.main.async {
+        let d = MPMusicPlayerController.applicationQueuePlayer.nowPlayingItem?.playbackDuration ?? 0
+        promise.resolve(d)
+      }
+    }
+
+    AsyncFunction("seekTo") { (time: Double, promise: Promise) in
+      DispatchQueue.main.async {
+        MPMusicPlayerController.applicationQueuePlayer.currentPlaybackTime = time
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("setVolume") { (volume: Double, promise: Promise) in
+      DispatchQueue.main.async {
+        // MPMusicPlayerController.volume is unavailable in iOS — use MPVolumeView slider instead
+        let vv = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 1, height: 1))
+        if let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first,
+           let window = scene.windows.first {
+          window.addSubview(vv)
+          if let slider = vv.subviews.first(where: { $0 is UISlider }) as? UISlider {
+            slider.setValue(Float(volume), animated: false)
+            slider.sendActions(for: .valueChanged)
+          }
+          vv.removeFromSuperview()
+        }
+        promise.resolve(nil)
+      }
+    }
+
+    // ── Silent background keepalive (Spotify source) ──────────────────────────
+    // Called by JS when Spotify becomes the active source. Plays 0-amplitude
+    // PCM silence with MixWithOthers so our process holds an active AVAudioSession
+    // without touching Spotify's IPC-based audio in any way. This prevents iOS
+    // from killing our process under memory pressure when the phone is locked.
+    AsyncFunction("startSilentKeepAlive") { (promise: Promise) in
+      DispatchQueue.main.async {
+        self.startSilentKeepAlive()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("stopSilentKeepAlive") { (promise: Promise) in
+      DispatchQueue.main.async {
+        self.stopSilentKeepAlive()
+        promise.resolve(nil)
+      }
+    }
+
+    // ── Native watchdog — My Music & Apple Music ──────────────────────────────
+    // Starts a 2-second Swift Timer that calls setActive(true) independent of
+    // the JS thread.  Must be called when RNTP or applicationQueuePlayer begins
+    // playing; must be stopped when Spotify takes over (keepalive handles it)
+    // or when all music stops intentionally.
+    AsyncFunction("startNativeWatchdog") { (promise: Promise) in
+      DispatchQueue.main.async {
+        self.startNativeWatchdog()
+        promise.resolve(nil)
+      }
+    }
+
+    AsyncFunction("stopNativeWatchdog") { (promise: Promise) in
+      DispatchQueue.main.async {
+        self.stopNativeWatchdog()
+        promise.resolve(nil)
+      }
+    }
+
+    // Returns true if applicationQueuePlayer is currently playing.
+    // Used by AppleMusicPlayerContext to re-sync isPlaying state on foreground.
+    AsyncFunction("isPlayingNative") { (promise: Promise) in
+      DispatchQueue.main.async {
+        let state = MPMusicPlayerController.applicationQueuePlayer.playbackState
+        promise.resolve(state == .playing)
+      }
+    }
+
+    // Returns a file:// URI pointing to the rendered HK artwork (pure black background).
+    // RNTP uses this so the Lock Screen / Dynamic Island / CarPlay artwork is identical
+    // to what MPNowPlayingInfoCenter shows for Apple Music tracks.
+    AsyncFunction("getHKArtworkFileURI") { (promise: Promise) in
+      guard let image = self.renderedHKImage(),
+            let data  = image.pngData() else {
+        promise.reject("NO_ARTWORK", "Failed to render HK artwork")
+        return
+      }
+      let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+      let fileURL  = cacheDir.appendingPathComponent("hk-artwork-black.png")
+      do {
+        try data.write(to: fileURL, options: .atomic)
+        promise.resolve(fileURL.absoluteString)
+      } catch {
+        promise.reject("WRITE_ERROR", "Failed to write HK artwork: \(error.localizedDescription)")
+      }
+    }
+  }
+}
+`;
 
 
 
