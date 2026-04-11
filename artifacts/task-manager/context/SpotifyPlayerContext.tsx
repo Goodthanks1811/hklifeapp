@@ -61,31 +61,33 @@ let _remoteConnected  = false;
 let _connectingRemote = false;
 
 async function ensureRemoteConnected(): Promise<boolean> {
-  if (!REMOTE_AVAILABLE) return false;
+  if (!REMOTE_AVAILABLE) { console.log("[Spotify] SpotifyRemote module not available"); return false; }
   if (_remoteConnected)  return true;
-  if (_connectingRemote) return false;
+  if (_connectingRemote) { console.log("[Spotify] connect already in progress"); return false; }
 
   _connectingRemote = true;
+  console.log("[Spotify] ensureRemoteConnected: fetching stored tokens...");
   try {
     const tokens = await getStoredTokens();
-    if (!tokens) { _connectingRemote = false; return false; }
+    if (!tokens) {
+      console.log("[Spotify] ensureRemoteConnected: NO stored tokens — user needs to connect Spotify in Settings");
+      _connectingRemote = false;
+      return false;
+    }
+    console.log("[Spotify] ensureRemoteConnected: token found, expires:", tokens.expiresAt, "— calling SpotifyRemote.connect...");
 
-    // Connect to the Spotify app using our PKCE-obtained access token.
-    // SpotifySession.authorize is intentionally NOT called here — we do our own
-    // OAuth via expo-auth-session (PKCE).  Calling authorize would re-open the
-    // Spotify app for a second login prompt, and it used an empty clientID from
-    // the build-time env var (EXPO_PUBLIC_SPOTIFY_CLIENT_ID) rather than the
-    // user-configured value in AsyncStorage, causing every connect attempt to
-    // fail silently and prevent playUri from ever being reached.
     if (SpotifyRemote?.connect) {
       await SpotifyRemote.connect(tokens.accessToken);
+    } else {
+      console.log("[Spotify] SpotifyRemote.connect is not a function:", SpotifyRemote);
     }
 
+    console.log("[Spotify] ensureRemoteConnected: CONNECTED");
     _remoteConnected  = true;
     _connectingRemote = false;
     return true;
   } catch (err) {
-    console.warn("[SpotifyRemote] connect failed:", err);
+    console.log("[Spotify] ensureRemoteConnected: FAILED —", err);
     _remoteConnected  = false;
     _connectingRemote = false;
     return false;
@@ -184,6 +186,7 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const setNowPlaying = useCallback((np: SpotifyNowPlaying | null) => {
+    console.log("[Spotify] setNowPlaying:", np ? `${np.title} — ${np.artist}` : "null");
     if (np) MusicSourceBus.notifySpotifyPlaying();
     userPausedRef.current = false;
     setNowPlayingState(np);
@@ -227,27 +230,31 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
 
   const pause = useCallback(async () => {
     if (!REMOTE_AVAILABLE) return;
+    console.log("[Spotify] pause()");
     userPausedRef.current = true;
     setIsPlaying(false);
     try {
       const ok = await ensureRemoteConnected();
-      if (!ok) return;
+      if (!ok) { console.log("[Spotify] pause: no remote connection"); return; }
       await SpotifyRemote?.pause?.();
+      console.log("[Spotify] pause: OK");
     } catch (err) {
-      console.warn("[SpotifyRemote] pause:", err);
+      console.log("[Spotify] pause: ERROR —", err);
     }
   }, []);
 
   const play = useCallback(async () => {
     if (!REMOTE_AVAILABLE) return;
+    console.log("[Spotify] play/resume()");
     userPausedRef.current = false;
     setIsPlaying(true);
     try {
       const ok = await ensureRemoteConnected();
-      if (!ok) { setIsPlaying(false); return; }
+      if (!ok) { console.log("[Spotify] play: no remote connection"); setIsPlaying(false); return; }
       await SpotifyRemote?.resume?.();
+      console.log("[Spotify] play/resume: OK");
     } catch (err) {
-      console.warn("[SpotifyRemote] resume:", err);
+      console.log("[Spotify] play/resume: ERROR —", err);
       setIsPlaying(false);
     }
   }, []);
@@ -278,8 +285,9 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     if (REMOTE_AVAILABLE && next.uri) {
       try {
         const ok = await ensureRemoteConnected();
+        console.log("[Spotify] skipToNext: connected=", ok, "uri=", next.uri);
         if (ok) await SpotifyRemote?.playUri?.(next.uri);
-      } catch (err) { console.warn("[SpotifyRemote] skipToNext:", err); }
+      } catch (err) { console.log("[Spotify] skipToNext ERROR:", err); }
     }
   }, []);
 
@@ -296,8 +304,9 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     if (REMOTE_AVAILABLE && prev.uri) {
       try {
         const ok = await ensureRemoteConnected();
+        console.log("[Spotify] skipToPrevious: connected=", ok, "uri=", prev.uri);
         if (ok) await SpotifyRemote?.playUri?.(prev.uri);
-      } catch (err) { console.warn("[SpotifyRemote] skipToPrevious:", err); }
+      } catch (err) { console.log("[Spotify] skipToPrevious ERROR:", err); }
     }
   }, []);
 

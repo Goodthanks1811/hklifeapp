@@ -102,8 +102,9 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
   }, []);
 
   const setNowPlaying = useCallback((np: AppleNowPlaying | null) => {
-    if (np) MusicSourceBus.notifyAppleMusicPlaying(); // stop My Music before we start
-    userPausedRef.current = false; // new song = fresh start
+    console.log("[AppleMusic] setNowPlaying:", np ? `${np.title} — ${np.artist} (idx ${np.songIndex} in playlist ${np.playlistId})` : "null");
+    if (np) MusicSourceBus.notifyAppleMusicPlaying();
+    userPausedRef.current = false;
     setNowPlayingState(np);
     setIsPlaying(np !== null);
     setPosMs(0);
@@ -134,14 +135,18 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
   // ── Controls ──────────────────────────────────────────────────────────────
   const pause = useCallback(async () => {
     if (!AppleMusicKit) return;
+    console.log("[AppleMusic] pause()");
     userPausedRef.current = true;
-    try { await AppleMusicKit.pause(); setIsPlaying(false); } catch {}
+    try { await AppleMusicKit.pause(); setIsPlaying(false); console.log("[AppleMusic] pause: OK"); }
+    catch (e) { console.log("[AppleMusic] pause ERROR:", e); }
   }, []);
 
   const play = useCallback(async () => {
     if (!AppleMusicKit) return;
+    console.log("[AppleMusic] resumePlay()");
     userPausedRef.current = false;
-    try { await AppleMusicKit.resumePlay(); setIsPlaying(true); } catch {}
+    try { await AppleMusicKit.resumePlay(); setIsPlaying(true); console.log("[AppleMusic] resumePlay: OK"); }
+    catch (e) { console.log("[AppleMusic] resumePlay ERROR:", e); }
   }, []);
 
   const seekTo = useCallback(async (ms: number) => {
@@ -165,11 +170,12 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
     const nextIdx = np.songIndex + 1;
     if (nextIdx >= np.songs.length) return;
     const next = np.songs[nextIdx];
-    // Update UI instantly — don't wait for the native call
+    console.log("[AppleMusic] skipToNext: idx", nextIdx, "—", next.title);
     setNowPlayingState({ ...np, songIndex: nextIdx, title: next.title, artist: next.artist });
     setPosMs(0);
     setDurMs(Math.round(next.duration * 1000));
-    try { await AppleMusicKit.playSongInPlaylist(np.playlistId, nextIdx); } catch {}
+    try { await AppleMusicKit.playSongInPlaylist(np.playlistId, nextIdx); console.log("[AppleMusic] skipToNext: OK"); }
+    catch (e) { console.log("[AppleMusic] skipToNext ERROR:", e); }
   }, []);
 
   const skipToPrevious = useCallback(async () => {
@@ -177,11 +183,12 @@ export function AppleMusicPlayerProvider({ children }: { children: React.ReactNo
     if (!AppleMusicKit || !np) return;
     const prevIdx = Math.max(0, np.songIndex - 1);
     const prev = np.songs[prevIdx];
-    // Update UI instantly — don't wait for the native call
+    console.log("[AppleMusic] skipToPrevious: idx", prevIdx, "—", prev.title);
     setNowPlayingState({ ...np, songIndex: prevIdx, title: prev.title, artist: prev.artist });
     setPosMs(0);
     setDurMs(Math.round(prev.duration * 1000));
-    try { await AppleMusicKit.playSongInPlaylist(np.playlistId, prevIdx); } catch {}
+    try { await AppleMusicKit.playSongInPlaylist(np.playlistId, prevIdx); console.log("[AppleMusic] skipToPrevious: OK"); }
+    catch (e) { console.log("[AppleMusic] skipToPrevious ERROR:", e); }
   }, []);
 
   return (
