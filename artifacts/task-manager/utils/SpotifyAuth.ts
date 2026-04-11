@@ -96,17 +96,20 @@ export async function refreshAccessToken(
       refresh_token: refreshToken,
       client_id:     clientId,
     });
+    console.log("[SpotifyAuth] refreshAccessToken: calling token endpoint, client_id:", clientId.slice(0, 8) + "...");
     const res = await fetch(DISCOVERY.tokenEndpoint!, {
       method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body:    body.toString(),
     });
+    const json = await res.json();
+    console.log("[SpotifyAuth] refreshAccessToken response status:", res.status, "body:", JSON.stringify(json, null, 2));
     if (!res.ok) return null;
-    const json       = await res.json();
     const newRefresh = json.refresh_token ?? refreshToken;
     await storeTokens(json.access_token, newRefresh, json.expires_in ?? 3600);
     return { accessToken: json.access_token, refreshToken: newRefresh };
-  } catch {
+  } catch (e) {
+    console.log("[SpotifyAuth] refreshAccessToken ERROR:", e);
     return null;
   }
 }
@@ -164,19 +167,22 @@ async function exchangeCode(code: string, verifier: string, clientId: string): P
       client_id:     clientId,
       code_verifier: verifier,
     });
+    console.log("[SpotifyAuth] exchangeCode: calling token endpoint, redirect_uri:", REDIRECT_URI, "client_id:", clientId.slice(0, 8) + "...");
     const res = await fetch(DISCOVERY.tokenEndpoint!, {
       method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body:    body.toString(),
     });
+    const text = await res.text();
+    console.log("[SpotifyAuth] exchangeCode response status:", res.status, "body:", text);
     if (!res.ok) {
-      const err = await res.text();
-      return { type: "error", error: err };
+      return { type: "error", error: text };
     }
-    const json = await res.json();
+    const json = JSON.parse(text);
     await storeTokens(json.access_token, json.refresh_token, json.expires_in ?? 3600);
     return { type: "success", accessToken: json.access_token, refreshToken: json.refresh_token };
   } catch (e: any) {
+    console.log("[SpotifyAuth] exchangeCode ERROR:", e);
     return { type: "error", error: e?.message ?? String(e) };
   }
 }
