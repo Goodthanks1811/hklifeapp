@@ -53,7 +53,3 @@ channel = "stable-25_05"
 
 [userenv.shared]
 EXPO_PUBLIC_SPOTIFY_CLIENT_ID = ""
-
-[[ports]]
-localPort = 18592
-externalPort = 80
