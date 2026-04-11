@@ -115,9 +115,13 @@ export const MusicSourceBus = {
     // If the keepalive was running (e.g. from a previous RNTP or Spotify session),
     // stop it so the session is exclusively owned by Apple Music.
     _stopKeepalive?.();
-    // The native watchdog (setActive every 2s) is safe and keeps the session alive
-    // through any brief interruptions without touching the session category.
-    _startWatchdog?.();
+    // Do NOT start the native watchdog for Apple Music.
+    // applicationQueuePlayer manages its own audio session natively.
+    // Calling setActive(true) every 2s from our watchdog interferes with
+    // the FairPlay DRM session and causes applicationQueuePlayer to stop
+    // ~2 seconds after play() is called. The watchdog is only for RNTP
+    // (My Music), where it defends against RNTP's own deactivateSession()
+    // calls during track transitions.
   },
 
   notifySpotifyPlaying: () => {

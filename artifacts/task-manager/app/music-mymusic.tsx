@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -230,6 +231,48 @@ export default function MusicMyMusicScreen() {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   };
 
+  const showAddMenu = () => {
+    Alert.alert(
+      "Add Music",
+      "What would you like to add?",
+      [
+        { text: "Add Songs",    onPress: pickFiles },
+        { text: "Add Playlist", onPress: pickPlaylist },
+        { text: "Cancel",       style: "cancel" },
+      ],
+    );
+  };
+
+  const pickPlaylist = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "audio/*",
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
+      const newTracks: MusicTrack[] = [];
+      for (const asset of result.assets) {
+        const fileName    = asset.name ?? `track_${Date.now()}.mp3`;
+        const destUri     = MUSIC_DIR + fileName;
+        try {
+          const info = await FileSystem.getInfoAsync(destUri);
+          if (!info.exists) await FileSystem.copyAsync({ from: asset.uri, to: destUri });
+          const displayName = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+          const relUri = toRel(destUri);
+          newTracks.push({ id: relUri, name: displayName, uri: relUri });
+        } catch {}
+      }
+      if (newTracks.length) {
+        const cur    = tracksRef.current;
+        const merged = [...cur, ...newTracks.filter(t => !cur.find(x => x.id === t.id))];
+        await saveTracks(merged);
+        Alert.alert("Added", `${newTracks.length} track${newTracks.length !== 1 ? "s" : ""} added to your library.`);
+      }
+    } catch {}
+  };
+
   const pickFiles = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -429,7 +472,7 @@ export default function MusicMyMusicScreen() {
 
         {/* Header — press to go back, long-press EQ to add tracks */}
         <View style={st.headerArea}>
-          <Pressable style={st.eqWrap} onPress={goBack} onLongPress={pickFiles} delayLongPress={400}>
+          <Pressable style={st.eqWrap} onPress={goBack} onLongPress={showAddMenu} delayLongPress={400}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={st.pageTitle}>My Music</Text>

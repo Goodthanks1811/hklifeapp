@@ -52,7 +52,7 @@ public class AppleMusicKitModule: Module {
   // run loop even when the JS thread is suspended — and re-calls setActive(true)
   // every 2 seconds to repair any session deactivation well inside the 30-second
   // iOS kill window.
-  private var nativeWatchdog: Timer?
+  private var nativeWatchdog: DispatchSourceTimer?
 
   deinit {
     if let o = nowPlayingObserver  { NotificationCenter.default.removeObserver(o) }
@@ -118,15 +118,21 @@ public class AppleMusicKitModule: Module {
     stopNativeWatchdog()
     // Fire immediately to repair any in-progress deactivation
     reactivateSession()
-    // Then repeat every 2 seconds — the Timer is scheduled on the main run loop
-    // so it fires independently of JS thread state.
-    nativeWatchdog = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+    // DispatchSourceTimer runs on a background queue — fires even when the
+    // main run loop is suspended (e.g. phone locked, JS thread sleeping).
+    // This is more reliable than Timer.scheduledTimer which depends on the
+    // main run loop being active.
+    let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+    timer.schedule(deadline: .now() + 2.0, repeating: 2.0, leeway: .milliseconds(200))
+    timer.setEventHandler { [weak self] in
       self?.reactivateSession()
     }
+    timer.resume()
+    nativeWatchdog = timer
   }
 
   private func stopNativeWatchdog() {
-    nativeWatchdog?.invalidate()
+    nativeWatchdog?.cancel()
     nativeWatchdog = nil
   }
 
@@ -404,24 +410,16 @@ public class AppleMusicKitModule: Module {
           // Resolve immediately so the UI spinner stops.
           promise.resolve(nil)
 
-          // 1.5 s after play(), confirm the player is actually running.
-          // If playbackState is still anything other than .playing, fire a
-          // diagnostic notification so JS can surface the problem to the user.
-          DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          // 4 s after play(), confirm the player is actually running.
+          // Only alert for .stopped — .paused/.interrupted can be transient
+          // (e.g. momentary FairPlay DRM negotiation) and should not surface
+          // as errors to the user.
+          DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
             let st = player.playbackState
             NSLog("[AppleMusicKit] post-play state: \(st.rawValue)")
-            if st != .playing {
-              let stName: String
-              switch st {
-              case .stopped:     stName = "stopped"
-              case .paused:      stName = "paused"
-              case .interrupted: stName = "interrupted"
-              case .seekingForward, .seekingBackward: stName = "seeking"
-              default:           stName = "unknown(\(st.rawValue))"
-              }
-              // Post an event that JS can receive to show an alert
+            if st == .stopped {
               self?.sendEvent("appleMusicPlayFailed", [
-                "reason": "play() called but state is \(stName) after 1.5s",
+                "reason": "Apple Music stopped 4 s after play() — DRM validation may have failed or the track is unavailable.",
                 "stateRaw": st.rawValue
               ])
             }
