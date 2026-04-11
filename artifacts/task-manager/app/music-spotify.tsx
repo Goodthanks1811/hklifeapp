@@ -190,7 +190,11 @@ export default function MusicSpotifyScreen() {
       const msg = e?.message ?? String(e);
       setTrackError(msg);
       setSelPlSongs([]);
-      Alert.alert("Spotify Track Error", msg);
+      // 403s show the in-screen "Access Restricted" UI with a Reconnect button —
+      // no additional Alert needed (it would just add noise over the same message).
+      if (!msg.includes("403")) {
+        Alert.alert("Spotify Error", msg);
+      }
     }
     finally { setLoadingTracks(false); }
   }, [slideAnim]);

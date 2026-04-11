@@ -46,6 +46,9 @@ try {
   // Expo Go — fall back to expo-av below
 }
 
+let _AppleMusicKit: any = null;
+try { _AppleMusicKit = require("apple-musickit"); } catch {}
+
 // ── Shared types ─────────────────────────────────────────────────────────────
 export type MusicTrack = { id: string; name: string; uri: string };
 
@@ -219,6 +222,12 @@ function RNTPProvider({ children }: { children: React.ReactNode }) {
         await _TrackPlayer.skip(idx);
         await _TrackPlayer.play();
       }
+      // Start the native Swift watchdog — fires every 2 s on the main run loop
+      // to call setActive(true), repairing any session deactivation that RNTP
+      // performs during track transitions (see EAS_BUILD_GUIDE.md §12e).
+      // The JS setInterval watchdog in service.ts is not reliable when the phone
+      // is locked (JS thread suspended), so native is the only reliable defence.
+      _AppleMusicKit?.startNativeWatchdog?.().catch?.(() => {});
     } catch (err) {
       console.error("[MusicPlayer] playTrack error:", err);
     }

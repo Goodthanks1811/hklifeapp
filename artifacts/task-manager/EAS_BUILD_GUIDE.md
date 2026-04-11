@@ -814,3 +814,43 @@ The following functions were added to the Swift module but **not** exported from
 **Fix**: Added all five missing exports to `modules/apple-musickit/index.ts`.
 
 **Rule**: Every `AsyncFunction` added to `AppleMusicKitModule.swift` MUST have a corresponding export in `modules/apple-musickit/index.ts`. After adding any native function, ALWAYS verify index.ts contains it. The `?.` optional chaining used in every call site (`AppleMusicKit?.someNewFn?.()`) will silently no-op if the export is missing — this is extremely easy to miss.
+
+---
+
+### 21. My Music cuts out ~53 seconds after phone is locked
+
+**Symptom**: My Music (RNTP) plays fine in foreground but dies approximately 53 seconds after the screen is locked.
+
+**Root cause**: `startNativeWatchdog()` was only called from `SpotifyPlayerContext.tsx` — it was never called for My Music (RNTP). Without the native Swift 2-second timer calling `setActive(true)`, when RNTP deactivates the audio session during a track transition (`configureAudioSession()` → `deactivateSession()` when `currentItem == nil`), iOS starts a 30-second kill clock. The JS `setInterval` watchdog in `service.ts` is unreliable when the phone is locked (JS thread suspended). No native watchdog → session deactivation → ~30 seconds later iOS kills the process. Total: ~23s of music before transition + 30s kill window = ~53s.
+
+**Fix**: Added `_AppleMusicKit?.startNativeWatchdog?.().catch?.(() => {})` at the end of `playTrack` in `context/MusicPlayerContext.tsx`, after `_TrackPlayer.play()`. The native watchdog fires independently of the JS thread on the Swift main run loop, which iOS keeps pumping during the 30-second grace window after session deactivation.
+
+---
+
+### 22. Apple Music stuck after first song tap — no subsequent tap works
+
+**Symptom**: Tapping a song in Apple Music silently does nothing (no audio, no error), and all subsequent song taps are also blocked.
+
+**Root cause**: `AppleMusicKit.playSongInPlaylist()` awaits a Swift `prepareToPlay { error in ... }` callback that, in some states (DRM check pending, player in a bad state), never fires. The promise never settles, the `finally` block never runs, `loadingKey` stays set, and all subsequent taps hit `if (!AppleMusicKit || loadingKey) return` and silently bail.
+
+**Fix**: Wrapped `AppleMusicKit.playSongInPlaylist()` in `Promise.race()` with an 8-second timeout in `handlePlaySong` (`app/music-apple.tsx`). If the native call doesn't resolve within 8 seconds, the race rejects with a user-visible error message, the `finally` block runs, `loadingKey` is cleared, and the user can tap again.
+
+---
+
+### 23. Apple Music playlist filter (long press) lost after GitHub merge
+
+**Symptom**: Long-pressing the EQ icon on the Apple Music screen header had no effect. The `music_apple_filter_names` AsyncStorage key existed but there was no way to set or clear it from the UI.
+
+**Root cause**: The accordion UI rewrite removed the `onLongPress` handler from the header's EQ bar `Pressable`.
+
+**Fix**: Added `openFilterDialog` function to `MusicAppleScreen` in `app/music-apple.tsx`. It reads the current filter list from AsyncStorage and shows an `Alert` with "Add Filter" (uses `Alert.prompt` for text input on iOS) and "Clear All Filters" options. Added `onLongPress={openFilterDialog} delayLongPress={400}` back to the header EQ bar `Pressable`.
+
+---
+
+### 24. Spotify 403 error shows redundant Alert AND "Access Restricted" UI
+
+**Symptom**: When a Spotify playlist returns a 403, the user sees a raw JSON `Alert` popup AND then the in-screen "Access Restricted" UI with a Reconnect button, requiring two dismissals.
+
+**Root cause**: `openPlaylist` catch block called `Alert.alert("Spotify Track Error", msg)` for ALL errors including 403s. But 403s also set `trackError` state which renders the "Access Restricted" UI with a Reconnect button — a much cleaner, more actionable UI. The Alert was redundant and showed raw JSON (`{"error":{"status":403,"message":"Forbidden"}}`).
+
+**Fix**: Added `if (!msg.includes("403"))` guard before `Alert.alert()` in `openPlaylist` catch block (`app/music-spotify.tsx`). 403 errors now go directly to the "Access Restricted" UI. Non-403 errors (network failures, etc.) still show an Alert since they don't have a dedicated in-screen UI.

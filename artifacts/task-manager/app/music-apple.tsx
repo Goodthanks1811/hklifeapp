@@ -184,6 +184,51 @@ function PlaylistRow({
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function MusicAppleScreen() {
   const goBack = () => router.back();
+
+  // ── Playlist filter management (long-press on EQ header) ─────────────────
+  // Filter names are stored in AsyncStorage as a JSON array of strings.
+  // fetchPlaylists() reads them and shows only matching playlists.
+  const openFilterDialog = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const namesRaw = await AsyncStorage.getItem("music_apple_filter_names");
+    const names: string[] = namesRaw ? JSON.parse(namesRaw) : [];
+    const currentList = names.length > 0 ? `\nActive filters: ${names.join(", ")}` : "\nNo filters — showing all playlists.";
+    Alert.alert(
+      "Playlist Filters",
+      `Long-press the EQ icon to add playlist name filters. Only playlists whose names match will be shown.${currentList}`,
+      [
+        {
+          text: "Add Filter",
+          onPress: () =>
+            Alert.prompt(
+              "Add Playlist Filter",
+              "Type part of a playlist name to filter on:",
+              async (name) => {
+                if (!name?.trim()) return;
+                const raw = await AsyncStorage.getItem("music_apple_filter_names");
+                const cur: string[] = raw ? JSON.parse(raw) : [];
+                if (!cur.includes(name.trim())) {
+                  cur.push(name.trim());
+                  await AsyncStorage.setItem("music_apple_filter_names", JSON.stringify(cur));
+                  fetchPlaylists();
+                }
+              },
+              "plain-text",
+            ),
+        },
+        {
+          text: names.length > 0 ? "Clear All Filters" : "Cancel",
+          style: names.length > 0 ? "destructive" : "cancel",
+          onPress: async () => {
+            if (names.length === 0) return;
+            await AsyncStorage.removeItem("music_apple_filter_names");
+            fetchPlaylists();
+          },
+        },
+        ...(names.length > 0 ? [{ text: "Cancel", style: "cancel" as const }] : []),
+      ],
+    );
+  };
   const insets   = useSafeAreaInsets();
   const isTablet = Dimensions.get("window").width >= 768;
   const am       = useAppleMusicPlayer();
@@ -257,7 +302,14 @@ export default function MusicAppleScreen() {
     });
     MusicSourceBus.triggerExpand();
     try {
-      await AppleMusicKit.playSongInPlaylist(pl.id, songIndex);
+      // 8-second timeout guards against prepareToPlay callback never firing.
+      // Without it, loadingKey stays set and all subsequent song taps are blocked.
+      await Promise.race([
+        AppleMusicKit.playSongInPlaylist(pl.id, songIndex),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error("Apple Music didn't respond — please try again.")), 8000)
+        ),
+      ]);
     } catch (e: any) {
       Alert.alert("Apple Music Error", String(e?.message ?? e));
     } finally {
@@ -334,7 +386,7 @@ export default function MusicAppleScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={[s.inner, isTablet && s.innerTablet]}>
         <View style={s.headerArea}>
-          <Pressable style={s.eqWrap} onPress={goBack}>
+          <Pressable style={s.eqWrap} onPress={goBack} onLongPress={openFilterDialog} delayLongPress={400}>
             {Array.from({ length: BAR_COUNT }).map((_, i) => <EqBar key={i} index={i} />)}
           </Pressable>
           <Text style={s.pageTitle}>Apple Music</Text>
