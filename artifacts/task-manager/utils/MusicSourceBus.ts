@@ -59,6 +59,19 @@ export const MusicSourceBus = {
     _stopWatchdog?.();
   },
 
+  // Pause every active source at once and prevent watchdogs from auto-resuming.
+  // Called when an audio output device is removed (CarPlay disconnect, headphone
+  // unplug, AirPods out of range) so music stops regardless of which source is
+  // currently playing.  Each individual pause fn also sets its own userPausedRef.
+  pauseAll: () => {
+    _myMusicUserPaused = true;   // prevents the RNTP watchdog from auto-resuming
+    _pauseMyMusic?.();
+    _pauseAppleMusic?.();
+    _pauseSpotify?.();
+    _stopKeepalive?.();
+    _stopWatchdog?.();
+  },
+
   appleMusicHasControl: () => _appleMusicHasControl,
   spotifyHasControl:    () => _spotifyHasControl,
 

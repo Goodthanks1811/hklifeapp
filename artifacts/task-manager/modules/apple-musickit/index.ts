@@ -1,6 +1,8 @@
-import { requireNativeModule } from "expo-modules-core";
+import { requireNativeModule, EventEmitter } from "expo-modules-core";
+import type { Subscription } from "expo-modules-core";
 
-const AM = requireNativeModule("AppleMusicKit");
+const AM      = requireNativeModule("AppleMusicKit");
+const emitter = new EventEmitter(AM);
 
 export type ApplePlaylist = {
   id: string;
@@ -96,4 +98,11 @@ export function startNativeWatchdog(): Promise<void> {
 
 export function stopNativeWatchdog(): Promise<void> {
   return AM.stopNativeWatchdog();
+}
+
+// ── Audio route change event ──────────────────────────────────────────────────
+// Fires when an audio output device is removed (CarPlay disconnects, headphones
+// unplugged, AirPods go out of range, etc.).  Subscribe to pause all sources.
+export function addAudioOutputLostListener(callback: () => void): Subscription {
+  return emitter.addListener("onAudioOutputLost", callback);
 }

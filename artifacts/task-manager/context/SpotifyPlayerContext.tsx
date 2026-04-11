@@ -145,6 +145,23 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  // ── Audio output lost (CarPlay / headphones disconnected) ──────────────────
+  // When any external audio output is removed, pause all sources immediately
+  // and prevent watchdogs from auto-resuming (mimics standard iOS Music app
+  // behaviour where headphone unplug pauses playback).
+  useEffect(() => {
+    let sub: any;
+    try {
+      const { addAudioOutputLostListener } = require("apple-musickit");
+      sub = addAudioOutputLostListener(() => {
+        MusicSourceBus.pauseAll();
+      });
+    } catch {
+      // Native module not available (Expo Go / simulator)
+    }
+    return () => { try { sub?.remove(); } catch {} };
+  }, []);
+
   // ── AppState — reconnect Spotify remote when returning to foreground ───────
   // The Spotify remote connection can drop while our app is backgrounded.
   // Re-running ensureRemoteConnected() on 'active' restores it silently so the
