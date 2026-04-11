@@ -47,8 +47,11 @@ const BAR_HEIGHTS = [0.72, 0.55, 0.88, 0.45, 0.78, 0.60, 0.82];
 const MAX_H       = 42;
 const MIN_H       = 5;
 
-const STORAGE_KEY = "mymusic_tracks_v2";
-const MUSIC_DIR   = (FileSystem.documentDirectory ?? "") + "music/";
+const STORAGE_KEY   = "mymusic_tracks_v2";
+const PLAYLISTS_KEY = "mymusic_playlists_v1";
+const MUSIC_DIR     = (FileSystem.documentDirectory ?? "") + "music/";
+
+type Playlist = { id: string; name: string; createdAt: number; tracks: MusicTrack[] };
 
 // ── Path helpers (mirrors Mi Corazon pattern) ─────────────────────────────────
 // Store relative paths (e.g. "music/song.mp3") so URIs survive new builds.
@@ -168,44 +171,42 @@ export default function MusicMyMusicScreen() {
   const isTablet = Dimensions.get("window").width >= 768;
   const player   = useMusicPlayer();
 
-  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const [loaded, setLoaded]   = useState(false);
+  const [tracks, setTracks]   = useState<MusicTrack[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const tracksRef = useRef<MusicTrack[]>([]);
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
   // Load once on mount (not useFocusEffect — DocumentPicker refocus causes races)
   useEffect(() => {
     (async () => {
+      // ── Load tracks ──────────────────────────────────────────────────────
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw) as MusicTrack[];
-
-      // Ensure all stored URIs are relative (toRel is a no-op if already relative).
-      // Migrates any old absolute-path entries from builds before this fix.
-      const relativised = parsed.map(t => {
-        const rel = toRel(t.uri);
-        return { ...t, id: rel, uri: rel };
-      });
-
-      // Validate: drop tracks whose files no longer exist on disk
-      const valid: MusicTrack[] = [];
-      for (const t of relativised) {
-        try {
-          const info = await FileSystem.getInfoAsync(toAbs(t.uri));
-          if (info.exists) valid.push(t);
-          else console.warn("[MyMusic] file missing, removing:", t.uri);
-        } catch {
-          console.warn("[MyMusic] could not stat, removing:", t.uri);
+      if (raw) {
+        const parsed = JSON.parse(raw) as MusicTrack[];
+        const relativised = parsed.map(t => {
+          const rel = toRel(t.uri);
+          return { ...t, id: rel, uri: rel };
+        });
+        const valid: MusicTrack[] = [];
+        for (const t of relativised) {
+          try {
+            const info = await FileSystem.getInfoAsync(toAbs(t.uri));
+            if (info.exists) valid.push(t);
+          } catch {}
         }
+        setTracks(valid);
+        tracksRef.current = valid;
+        const changed = valid.length !== parsed.length ||
+          relativised.some((t, i) => t.uri !== parsed[i]?.uri);
+        if (changed) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
       }
 
-      setTracks(valid);
-      tracksRef.current = valid;
+      // ── Load playlists ───────────────────────────────────────────────────
+      const plRaw = await AsyncStorage.getItem(PLAYLISTS_KEY);
+      if (plRaw) setPlaylists(JSON.parse(plRaw) as Playlist[]);
 
-      // Persist if anything changed (migration or pruning)
-      const changed = valid.length !== parsed.length ||
-        relativised.some((t, i) => t.uri !== parsed[i]?.uri);
-      if (changed) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      setLoaded(true);
     })();
   }, []);
 
@@ -265,15 +266,29 @@ export default function MusicMyMusicScreen() {
     ]).start();
   };
 
+  const savePlaylists = async (list: Playlist[]) => {
+    setPlaylists(list);
+    await AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(list));
+  };
+
   const createPlaylist = async () => {
     const name = newPLName.trim();
     if (!name) { shakeCard(); return; }
     Keyboard.dismiss();
-    const pl = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), tracks: [] as MusicTrack[] };
-    await saveTracks(tracksRef.current); // persist current tracks untouched
+    const pl: Playlist = { id: `pl_${Date.now()}`, name, createdAt: Date.now(), tracks: [] };
+    const next = [...playlists, pl];
+    await savePlaylists(next);
     setShowNewPL(false);
     setNewPLName("");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.push(`/music-playlist?id=${pl.id}`);
+  };
+
+  const deletePlaylist = async (id: string) => {
+    const next = playlists.filter(p => p.id !== id);
+    await savePlaylists(next);
+    setPlMenuId(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   };
 
   const pickFiles = async (targetPlaylistId?: string) => {
@@ -489,8 +504,32 @@ export default function MusicMyMusicScreen() {
           <Pressable style={st.backZone} onPress={goBack} />
         </View>
 
+        {/* Playlists horizontal strip */}
+        {loaded && playlists.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={st.plStrip}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 10 }}
+          >
+            {playlists.map(pl => (
+              <Pressable
+                key={pl.id}
+                style={st.plCard}
+                onPress={() => router.push(`/music-playlist?id=${pl.id}`)}
+                onLongPress={() => setPlMenuId(pl.id)}
+                delayLongPress={300}
+              >
+                <Feather name="folder" size={16} color={RED} />
+                <Text style={st.plCardName} numberOfLines={1}>{pl.name}</Text>
+                <Text style={st.plCardCount}>{pl.tracks.length} track{pl.tracks.length !== 1 ? "s" : ""}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
         {/* Track list or empty state */}
-        {tracks.length === 0 ? (
+        {!loaded ? null : tracks.length === 0 && playlists.length === 0 ? (
           <View style={st.emptyState}>
             <Feather name="music" size={44} color="rgba(255,255,255,0.1)" />
             <Text style={st.emptyTitle}>No tracks yet</Text>
@@ -500,7 +539,7 @@ export default function MusicMyMusicScreen() {
               <Text style={st.emptyBtnText}>Add Music</Text>
             </Pressable>
           </View>
-        ) : (
+        ) : tracks.length === 0 ? null : (
           <ScrollView
             style={st.list}
             scrollEnabled={listScrollEnabled}
@@ -586,13 +625,13 @@ export default function MusicMyMusicScreen() {
           <Pressable onPress={() => {}}>
             <View style={[st.sheetCard, { paddingBottom: insets.bottom + 12 }]}>
               <View style={st.sheetHandle} />
-              <Text style={st.popupTitle}>{plMenuId ?? ""}</Text>
+              <Text style={st.popupTitle}>{playlists.find(p => p.id === plMenuId)?.name ?? ""}</Text>
               <Pressable style={st.menuRow} onPress={async () => { const id = plMenuId; setPlMenuId(null); await pickFiles(id ?? undefined); }}>
                 <Feather name="plus-circle" size={18} color={RED} />
                 <Text style={st.menuRowText}>Add Songs</Text>
               </Pressable>
               <View style={st.menuDivider} />
-              <Pressable style={st.menuRow} onPress={() => { setPlMenuId(null); }}>
+              <Pressable style={st.menuRow} onPress={() => plMenuId && deletePlaylist(plMenuId)}>
                 <Feather name="trash-2" size={18} color={RED} />
                 <Text style={[st.menuRowText, { color: RED }]}>Delete Playlist</Text>
               </Pressable>
@@ -759,6 +798,19 @@ const st = StyleSheet.create({
   popupCancelText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   popupCreate:     { flex: 2, paddingVertical: 14, borderRadius: 13, backgroundColor: RED, alignItems: "center" },
   popupCreateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+
+  // ── Playlist strip ────────────────────────────────────────────────────────
+  plStrip: { flexGrow: 0, flexShrink: 0 },
+  plCard: {
+    backgroundColor: "#1a1a1a",
+    borderWidth: 1, borderColor: BORDER,
+    borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 10,
+    alignItems: "center", gap: 4,
+    minWidth: 90,
+  },
+  plCardName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff", textAlign: "center" },
+  plCardCount: { fontSize: 11, fontFamily: "Inter_400Regular", color: GREY },
 
   // ── Player — identical spec to Music home screen ──────────────────────────
   playerWrap: {
